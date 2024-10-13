@@ -1,0 +1,13 @@
+# Clangd
+.clang-format
+.cache/
+compile_commands.json
+
+# Bin
+.o
+.so
+.exe
+.out
+
+# Video
+video/
