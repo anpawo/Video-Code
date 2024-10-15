@@ -1,3 +1,10 @@
+/*
+** EPITECH PROJECT, 2024
+** video-code
+** File description:
+** Main
+*/
+
 #include <iostream>
 #include <opencv2/opencv.hpp>
 

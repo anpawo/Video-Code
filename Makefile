@@ -1,3 +1,10 @@
+##
+## EPITECH PROJECT, 2024
+## video-code
+## File description:
+## Makefile
+##
+
 
 INCLUDE		:=	./
 
@@ -6,7 +13,8 @@ CXXFLAGS	+=	-std=c++20 -Wall -Wextra -Wno-deprecated-enum-enum-conversion $(shel
 CPPFLAGS	+=	-iquote $(INCLUDE)
 LDFLAGS		+=	$(shell pkg-config --libs opencv4)
 
-SRC			=	Main.cpp	\
+
+SRC			=	src/Main.cpp	\
 
 
 OBJ			=	$(SRC:.cpp=.o)
