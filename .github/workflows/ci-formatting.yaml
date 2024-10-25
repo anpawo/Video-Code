@@ -1,0 +1,19 @@
+name: Formatting
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  check-formatting:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+      
+      - name: Install clang-format
+        run: sudo apt-get install clang-format
+
+      - name: Run clang-format
+        run: clang-format -n -Werror $(find . -regex ".*\.\(cpp\|hpp\)")

@@ -1,5 +1,4 @@
 # Clangd
-.clang-format
 .cache/
 compile_commands.json
 
@@ -8,6 +7,7 @@ compile_commands.json
 .so
 .exe
 .out
+vc
 
 # Video
 video/
