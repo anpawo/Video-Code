@@ -6,17 +6,17 @@ on:
 
 jobs:
   check-formatting:
-    runs-on: ubuntu-latest
+    runs-on: fedora-latest
     
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v4
       
       - name: Install clang-format
-        run: sudo apt-get install clang-format
+        run: sudo dnf install -y clang-format
 
       - name: Veriry ubuntu version
-        run: lsb_release -a
+        run: cat /etc/fedora-release
 
       - name: Verify clang-format installation
         run: clang-format --version
