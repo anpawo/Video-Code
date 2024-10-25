@@ -18,7 +18,7 @@ SRC			=	src/Main.cpp	\
 
 
 OBJ			=	$(SRC:.cpp=.o)
-NAME		=	a.out
+NAME		=	vc
 
 
 
