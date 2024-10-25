@@ -5,13 +5,14 @@
 ## Makefile
 ##
 
+# >>> Variables <<<
 
 INCLUDE		:=	./
 
 CXX			?=	g++
-CXXFLAGS	+=	-std=c++20 -Wall -Wextra -Wno-deprecated-enum-enum-conversion $(shell pkg-config --cflags opencv4)
+CXXFLAGS	+=	-std=c++20 -Wall -Wextra
 CPPFLAGS	+=	-iquote $(INCLUDE)
-LDFLAGS		+=	$(shell pkg-config --libs opencv4)
+LDFLAGS		+=
 
 
 SRC			=	src/Main.cpp	\
@@ -21,6 +22,7 @@ OBJ			=	$(SRC:.cpp=.o)
 NAME		=	vc
 
 
+# >>> Rules <<<
 
 .PHONY: all
 all: $(NAME)
