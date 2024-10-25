@@ -15,5 +15,8 @@ jobs:
       - name: Install clang-format
         run: sudo apt-get install clang-format
 
+      - name: Verify clang-format installation
+        run: clang-format --version
+
       - name: Run clang-format
         run: clang-format -n -Werror $(find . -regex ".*\.\(cpp\|hpp\)")
