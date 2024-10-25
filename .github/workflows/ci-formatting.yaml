@@ -12,14 +12,22 @@ jobs:
       - name: Checkout the repo
         uses: actions/checkout@v4
       
-      - name: Install clang-format
-        run: sudo dnf install -y clang-format
-
-      - name: Veriry ubuntu version
-        run: cat /etc/fedora-release
-
-      - name: Verify clang-format installation
-        run: clang-format --version
-
       - name: Run clang-format
-        run: clang-format -n -Werror $(find . -regex ".*\.\(cpp\|hpp\)")
+        run: |
+          docker run --rm -v ${{ github.workspace }}:/workspace fedora:latest /bin/bash -c "
+            dnf install -y clang-format && \
+            clang-format --version && \
+            clang-format -n -Werror \$(find /workspace -regex '.*\\.\(cpp\\|hpp\\)')
+          "
+
+      # - name: Install clang-format
+      #   run: sudo dnf install -y clang-format
+
+      # - name: Veriry ubuntu version
+      #   run: cat /etc/fedora-release
+
+      # - name: Verify clang-format installation
+      #   run: clang-format --version
+
+      # - name: Run clang-format
+      #   run: clang-format -n -Werror $(find . -regex ".*\.\(cpp\|hpp\)")
