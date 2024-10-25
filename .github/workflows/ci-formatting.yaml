@@ -18,10 +18,11 @@ jobs:
         run: |
           docker run --rm -v ${{ github.workspace }}:/workspace fedora:latest /bin/bash -c "
           dnf install -y clang-tools-extra > /dev/null 2>&1 && \
-          echo && \
+          echo '-' && \
           clang-format --version && \
-          echo 'Errors below if any' \
-          echo && \
+          echo '-' && \
+          echo 'Errors below if any' && \
+          echo '-' && \
           clang-format -n -Werror \$(find /workspace -regex '.*\\.\(cpp\\|hpp\\)')
           "
 
