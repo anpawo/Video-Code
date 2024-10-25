@@ -5,7 +5,10 @@
 ** Main
 */
 
+#include "basicFunction.hpp"
+
 int main()
 {
+    concatenateVideo("video/v.mp4", "video/v.mp4");
     return 0;
 }

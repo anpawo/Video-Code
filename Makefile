@@ -7,15 +7,15 @@
 
 # >>> Variables <<<
 
-INCLUDE		:=	./
+INCLUDE		:=	$(realpath ./include)
 
 CXX			?=	g++
 CXXFLAGS	+=	-std=c++20 -Wall -Wextra
 CPPFLAGS	+=	-iquote $(INCLUDE)
-LDFLAGS		+=
 
 
-SRC			=	src/Main.cpp	\
+SRC			=	src/Main.cpp			\
+				src/basicFunction.cpp	\
 
 
 OBJ			=	$(SRC:.cpp=.o)
@@ -29,7 +29,7 @@ all: $(NAME)
 
 
 $(NAME): $(OBJ)
-	$(CXX) -o $@ $^ $(LDFLAGS)
+	$(CXX) -o $@ $^
 
 
 .PHONY: clean
