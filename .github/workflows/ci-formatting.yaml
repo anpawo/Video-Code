@@ -15,6 +15,9 @@ jobs:
       - name: Install clang-format
         run: sudo apt-get install clang-format
 
+      - name: Veriry ubuntu version
+        run: lsb_release -a
+
       - name: Verify clang-format installation
         run: clang-format --version
 
