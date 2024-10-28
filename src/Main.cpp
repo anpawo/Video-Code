@@ -9,6 +9,7 @@
 
 int main()
 {
-    concatenateVideo("video/v.mp4", "video/v.mp4");
+    // concatenateVideo("video/v.mp4", "video/v.mp4");
+    overlayVideo("video/v.mp4", "video/v.mp4");
     return 0;
 }
