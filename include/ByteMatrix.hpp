@@ -2,19 +2,18 @@
 ** EPITECH PROJECT, 2024
 ** video-code
 ** File description:
-** Command
+** ByteMatrix
 */
 
 #pragma once
 
-class Command {
+// todo
+class ByteMatrix {
 public:
 
-    Command();
-    ~Command();
+    ByteMatrix();
+    ~ByteMatrix();
 
 protected:
 private:
 };
-
-// array of command and params
