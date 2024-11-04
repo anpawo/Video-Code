@@ -18,4 +18,11 @@
  */
 void concatenateVideo(std::string v1, std::string v2, std::string output = "output.mp4");
 
+/**
+ * @brief overlays one video on another. @param overlay will be on the @param main video.
+
+ * @param main first video
+ * @param overlay second video
+ * @param output name of the output video
+ */
 void overlayVideo(std::string main, std::string overlay, std::string output = "output.mp4");

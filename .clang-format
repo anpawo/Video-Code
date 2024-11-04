@@ -2,7 +2,7 @@
 Language: Cpp
 # BasedOnStyle:  Google
 AccessModifierOffset: -4 # indent public, private, protected keywords (4-4=0)
-AlignAfterOpenBracket: Align
+AlignAfterOpenBracket: BlockIndent
 AlignArrayOfStructures: None
 AlignConsecutiveMacros: None
 AlignConsecutiveAssignments: None
@@ -171,7 +171,7 @@ RawStringFormats:
 ReferenceAlignment: Pointer
 ReflowComments: true
 RemoveBracesLLVM: false
-SeparateDefinitionBlocks: Leave
+SeparateDefinitionBlocks: Always
 ShortNamespaceLines: 1 # short namespace dont have commant with name
 SortIncludes: CaseSensitive
 SortJavaStaticImport: Before

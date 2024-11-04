@@ -27,7 +27,7 @@ void concatenateVideo(std::string first, std::string second, std::string output)
 
                                             ///> concat defines the complex filter
 
-                                            ///> n=2 specifies the number of inputs, 2
+                                            ///> n=2 specifies the number of inputs file/media, 2
                                             ///> v=1 indicates there is one video stream in the output
                                             ///> a=1 indicates there is one audio stream in the output
 
