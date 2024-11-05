@@ -15,13 +15,25 @@
 class Concatenate final : public AFilterComplex {
 public:
 
-    Concatenate() = default;
+    Concatenate(std::string&& stream0, std::string&& stream1, std::string&& output)
+        : AFilterComplex(
+              std::forward<std::string>(stream0),
+              std::forward<std::string>(stream1),
+              std::forward<std::string>(output)
+          ) {}
+
     ~Concatenate() = default;
 
-    std::string getCommand() { return "concatenate"; }
+    std::string getCommand(const std::vector<std::string>& defaultInputStreams, const std::vector<std::string>& newInputStreams)
+    {
+        const std::string s0 = getInputName(defaultInputStreams, newInputStreams, _stream0);
+        const std::string s1 = getInputName(defaultInputStreams, newInputStreams, _stream1);
 
-    std::vector<std::string> getNewInputs() { return {}; }
+        return s0 + s1 + _name + _metadata + "[" + _output + "];";
+    }
 
-protected:
 private:
+
+    std::string _name{"concat"};
+    std::string _metadata{"=n=2:v=1"};
 };
