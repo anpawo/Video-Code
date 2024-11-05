@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <utility>
@@ -14,34 +15,63 @@
 
 #include "Filter/_IFilter.hpp"
 
+/**
+ * @brief This class will only handle video streams.
+ */
 class CommandFactory {
 public:
 
     CommandFactory() = default;
     ~CommandFactory() = default;
 
-    void map(const std::string &&streamName);
-
-    template <typename... Args>
-    typename std::enable_if<(std::is_constructible<std::string, Args>::value && ...), void>::type
-    addInput(Args &&...args)
+    template <typename... Strings>
+    void addInputs(Strings &&...strings)
     {
-        _inputs.emplace_back(std::forward<Args>(args)...);
+        (_defaultInputStreams.emplace_back(std::forward<Strings>(strings)), ...);
     }
 
     template <typename... Filters>
-    void addFilter(Filters &&...filters)
+    void addFilters(Filters &&...filters)
     {
         (_filters.emplace_back(std::make_unique<Filters>(std::forward<Filters>(filters))), ...);
     }
 
-    void runCommand();
+    std::string generateCommand(std::string &&outputFile)
+    {
+        std::string cmd = "ffmpeg -y"; ///> Override file
 
-    std::vector<std::unique_ptr<IFilter>> _filters;
+        // Inputs
+        for (const auto &it : _defaultInputStreams) {
+            cmd += " -i " + it;
+        }
+
+        // Filters
+        cmd += " -filter_complex \"";
+        for (const auto &filter : _filters) {
+            cmd += filter->getCommand(_defaultInputStreams, _newInputStreams);
+            _newInputStreams.emplace_back(filter->getNewInputs());
+        }
+        cmd += "\"";
+
+        // Map last created stream
+        cmd += " -map \"[" + _newInputStreams.back() + "]\"";
+
+        // Output filename
+        cmd += " " + outputFile;
+
+        return cmd;
+    }
+
+    void generateVideo(std::string &&outputFile)
+    {
+        system(generateCommand(std::forward<std::string>(outputFile)).c_str());
+    }
 
 private:
 
-    std::vector<std::string> _inputs;
+    std::vector<std::unique_ptr<IFilter>> _filters;
+    std::vector<std::string> _defaultInputStreams{};
+    std::vector<std::string> _newInputStreams{};
 };
 
 // array of command and params
