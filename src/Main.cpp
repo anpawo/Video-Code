@@ -5,8 +5,6 @@
 ** Main
 */
 
-#include <iostream>
-
 #include "CommandFactory.hpp"
 #include "Filter/Concatenate.hpp"
 
@@ -15,31 +13,26 @@
 
 int main()
 {
-    // concatenateVideo("video/v.mp4", "video/v.mp4");
-    // overlayVideo("video/v.mp4", "video/v.mp4");
+    // First Try
+    //      concatenateVideo("video/v.mp4", "video/v.mp4");
+    //      overlayVideo("video/v.mp4", "video/v.mp4");
 
+    // Second try
     CommandFactory f{};
 
-    f.addInput(
-        "lol",
-        "haha"
+    f.addInputs(
+        "video/v.mp4",
+        "video/v.mkv"
     );
 
-    std::cout << f._filters.size() << std::endl;
-    f.addFilter(
-        Concatenate(),
-        Concatenate(),
-        Concatenate()
+    f.addFilters(
+        Concatenate("video/v.mp4", "video/v.mkv", "va"),
+        Concatenate("video/v.mp4", "video/v.mkv", "vb"),
+        Concatenate("va", "vb", "vc")
     );
-    std::cout << f._filters.size() << std::endl;
-    f.addFilter(
-        Concatenate(),
-        Concatenate(),
-        Concatenate()
-    );
-    std::cout << f._filters.size() << std::endl;
-    std::cout << f._filters[0]->getCommand() << std::endl;
-    std::cout << f._filters[2]->getCommand() << std::endl;
+
+    f.generateVideo("output.mp4");
+    f.generateVideo("output.mkv");
 
     return 0;
 }
