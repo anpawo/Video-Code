@@ -10,21 +10,21 @@
 #include "Filter/_IFilter.hpp"
 #include "Utils/Vector.hpp"
 
-class AFilterComplex : public IFilter {
+class AFilter : public IFilter {
 public:
 
-    AFilterComplex(std::string&& stream0, std::string&& stream1, std::string&& output) : _stream0(stream0), _stream1(stream1), _output(output) {}
+    AFilter(std::string&& stream0, std::string&& stream1, std::string&& output) : _stream0(stream0), _stream1(stream1), _output(output) {}
 
-    virtual ~AFilterComplex() = default;
-
-    virtual AFilterComplex& set()
-    {
-        return *this;
-    }
+    virtual ~AFilter() = default;
 
     virtual std::string getNewInputs()
     {
         return _output;
+    }
+
+    virtual std::string getAdditionalArgs()
+    {
+        return "";
     }
 
 protected:
