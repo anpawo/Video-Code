@@ -12,11 +12,11 @@
 
 #include "Filter/_AFilter.hpp"
 
-class Concatenate final : public AFilterComplex {
+class Concatenate final : public AFilter {
 public:
 
     Concatenate(std::string&& stream0, std::string&& stream1, std::string&& output)
-        : AFilterComplex(
+        : AFilter(
               std::forward<std::string>(stream0),
               std::forward<std::string>(stream1),
               std::forward<std::string>(output)
