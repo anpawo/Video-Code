@@ -3,13 +3,15 @@
 compile_commands.json
 
 # Bin
-.o
-.so
-.exe
-.out
+*.o
+*.so
+*.exe
+*out
 vc
 
 # Video
 video/
 *.mp4
 *.mkv
+*.jpg
+*.png
