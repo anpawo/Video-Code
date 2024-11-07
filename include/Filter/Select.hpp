@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "Filter/_AFilter.hpp"
+#include "Input.hpp"
 
 class Select final : public AFilter {
 public:
@@ -30,7 +31,7 @@ public:
         return *this;
     }
 
-    std::string getCommand(const std::vector<std::string>& defaultInputStreams, const std::vector<std::string>& newInputStreams)
+    std::string getCommand(const std::vector<Input>& defaultInputStreams, const std::vector<std::string>& newInputStreams)
     {
         const std::string s = getInputName(defaultInputStreams, newInputStreams, _stream0);
 

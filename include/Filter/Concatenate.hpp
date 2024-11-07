@@ -24,7 +24,7 @@ public:
 
     ~Concatenate() = default;
 
-    std::string getCommand(const std::vector<std::string>& defaultInputStreams, const std::vector<std::string>& newInputStreams)
+    std::string getCommand(const std::vector<Input>& defaultInputStreams, const std::vector<std::string>& newInputStreams)
     {
         const std::string s0 = getInputName(defaultInputStreams, newInputStreams, _stream0);
         const std::string s1 = getInputName(defaultInputStreams, newInputStreams, _stream1);

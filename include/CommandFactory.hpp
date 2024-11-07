@@ -14,6 +14,8 @@
 #include <vector>
 
 #include "Filter/_IFilter.hpp"
+#include "Input.hpp"
+#include "Utils/Vector.hpp"
 
 /**
  * @brief This class will only handle video streams.
@@ -30,10 +32,29 @@ public:
         (_defaultInputStreams.emplace_back(std::forward<Strings>(strings)), ...);
     }
 
+    template <typename T>
+    T &applyAlias(T &filter)
+    {
+        try {
+            auto index = findIndexOrThrow(_defaultInputStreams, filter.getStream0());
+            filter.setStream0(_defaultInputStreams[index].getAlias());
+        } catch (const Error &) {
+        }
+
+        if (filter.getStream1() != "") {
+            try {
+                auto index = findIndexOrThrow(_defaultInputStreams, filter.getStream1());
+                filter.setStream1(_defaultInputStreams[index].getAlias());
+            } catch (const Error &) {
+            }
+        }
+        return filter;
+    }
+
     template <typename... Filters>
     void addFilters(Filters &&...filters)
     {
-        (_filters.emplace_back(std::make_unique<Filters>(std::forward<Filters>(filters))), ...);
+        (_filters.emplace_back(std::make_unique<Filters>(std::forward<Filters>(applyAlias(filters)))), ...);
     }
 
     std::string generateCommand(std::string &&outputFile)
@@ -42,7 +63,7 @@ public:
 
         // Inputs
         for (const auto &it : _defaultInputStreams) {
-            cmd += " -i " + it;
+            cmd += " -i " + it.getFilename();
         }
 
         // Filters
@@ -73,7 +94,7 @@ public:
 private:
 
     std::vector<std::unique_ptr<IFilter>> _filters;
-    std::vector<std::string> _defaultInputStreams{};
+    std::vector<Input> _defaultInputStreams{};
     std::vector<std::string> _newInputStreams{};
 };
 

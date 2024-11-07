@@ -8,6 +8,7 @@
 #pragma once
 
 #include <algorithm>
+#include <iostream>
 #include <ostream>
 #include <vector>
 
@@ -27,7 +28,8 @@ std::ostream &operator<<(std::ostream &os, const std::vector<T> &vec)
     return os;
 }
 
-inline std::size_t findIndex(const std::vector<std::string> &vec, const std::string &value)
+template <typename VecType, typename ValType>
+inline std::size_t findIndexOrThrow(const std::vector<VecType> &vec, const ValType &value)
 {
     auto it = std::find(vec.begin(), vec.end(), value);
 
@@ -38,7 +40,8 @@ inline std::size_t findIndex(const std::vector<std::string> &vec, const std::str
     }
 }
 
-inline bool find(const std::vector<std::string> &vec, const std::string &value)
+template <typename VecType, typename ValType>
+inline bool findOrThrow(const std::vector<VecType> &vec, const ValType &value)
 {
     auto it = std::find(vec.begin(), vec.end(), value);
 

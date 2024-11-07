@@ -16,29 +16,22 @@
 
 int main()
 {
-    // First Try
-    //      concatenateVideo("video/v.mp4", "video/v.mp4");
-    //      overlayVideo("video/v.mp4", "video/v.mp4");
-
-    // Second try
     CommandFactory f{};
 
     f.addInputs(
-        "video/v.mp4",
-        "video/v.mkv"
+        Input("video/v.mp4").as("mp4"),
+        Input("video/v.mkv").as("mkv")
     );
 
     f.addFilters(
-        // Concatenate("video/v.mp4", "video/v.mkv", "va"),
-        // Concatenate("video/v.mp4", "video/v.mkv", "vb"),
-        // Concatenate("va", "vb", "vc"),
-        Select("video/v.mp4", "frame").set(2)
+        Concatenate("mp4", "mkv", "va"),
+        Concatenate("mp4", "mkv", "vb"),
+        Concatenate("va", "vb", "vc"),
+        Select("vc", "frame").set(2)
     );
 
     std::cout << f.generateCommand("output.png") << std::endl;
-    // f.generateOutput("output.png");
-    // f.generateVideo("output.mp4");
-    // f.generateVideo("output.mkv");
+    f.generateOutput("output.png");
 
     return 0;
 }

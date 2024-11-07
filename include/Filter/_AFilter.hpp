@@ -27,14 +27,34 @@ public:
         return "";
     }
 
+    virtual const std::string& getStream0() const
+    {
+        return _stream0;
+    }
+
+    virtual const std::string& getStream1() const
+    {
+        return _stream1;
+    }
+
+    virtual void setStream0(const std::string& value)
+    {
+        _stream0 = value;
+    }
+
+    virtual void setStream1(const std::string& value)
+    {
+        _stream1 = value;
+    }
+
 protected:
 
-    const std::string getInputName(const std::vector<std::string>& defaultInputStreams, const std::vector<std::string>& newInputStreams, const std::string& streamName) const
+    const std::string getInputName(const std::vector<Input>& defaultInputStreams, const std::vector<std::string>& newInputStreams, const std::string& streamName) const
     {
         try {
-            return "[" + std::to_string(findIndex(defaultInputStreams, streamName)) + ":v:0]";
+            return "[" + std::to_string(findIndexOrThrow(defaultInputStreams, streamName)) + ":v:0]";
         } catch (const Error&) {
-            find(newInputStreams, streamName);
+            findOrThrow(newInputStreams, streamName);
             return "[" + streamName + "]";
         }
     }
