@@ -56,13 +56,16 @@ public:
         // Map last created stream
         cmd += " -map \"[" + _newInputStreams.back() + "]\"";
 
+        // Add additional parameters if the last commands needs any (extract a single frame)
+        cmd += _filters.back()->getAdditionalArgs();
+
         // Output filename
         cmd += " " + outputFile;
 
         return cmd;
     }
 
-    void generateVideo(std::string &&outputFile)
+    void generateOutput(std::string &&outputFile)
     {
         system(generateCommand(std::forward<std::string>(outputFile)).c_str());
     }
