@@ -35,7 +35,7 @@ public:
     {
         const std::string s = getInputName(defaultInputStreams, newInputStreams, _stream0);
 
-        return s + _name + "=eq(n\\," + std::to_string(_frameIndex) + ")[" + _output + "];";
+        return s + _name + "eq(n\\," + std::to_string(_frameIndex) + ")[" + _output + "];";
     }
 
     std::string getAdditionalArgs()
@@ -45,6 +45,6 @@ public:
 
 private:
 
-    std::string _name{"select"};
+    std::string _name{"select="};
     std::size_t _frameIndex;
 };

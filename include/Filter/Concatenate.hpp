@@ -34,6 +34,6 @@ public:
 
 private:
 
-    std::string _name{"concat"};
-    std::string _metadata{"=n=2:v=1"};
+    std::string _name{"concat="};
+    std::string _metadata{"n=2:v=1"};
 };
