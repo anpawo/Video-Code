@@ -7,19 +7,22 @@
 
 # >>> Variables <<<
 
-INCLUDE		:=	$(realpath ./include)
+INCLUDE_PATH	:=	$(realpath ./include)
 
-CXX			?=	g++
-CXXFLAGS	+=	-std=c++20 -Wall -Wextra
-CPPFLAGS	+=	-iquote $(INCLUDE)
+CXX				?=	g++
+CXXFLAGS		+=	-std=c++20 -Wall -Wextra -Wno-deprecated
+CPPFLAGS		+=	-iquote $(INCLUDE_PATH) `pkg-config --cflags opencv4`
+LDFLAGS			+=	`pkg-config --libs opencv4`
+
+SRC				=	src/Main.cpp				\
+					src/vm/LiveWindow.cpp	\
+					src/input/_AInput.cpp	\
+					src/input/Image.cpp		\
+					src/input/Video.cpp		\
 
 
-SRC			=	src/Main.cpp			\
-				src/basicFunction.cpp	\
-
-
-OBJ			=	$(SRC:.cpp=.o)
-NAME		=	vc
+OBJ				=	$(SRC:.cpp=.o)
+NAME			=	vc
 
 
 # >>> Rules <<<
@@ -29,7 +32,7 @@ all: $(NAME)
 
 
 $(NAME): $(OBJ)
-	$(CXX) -o $@ $^
+	$(CXX) -o $@ $^ $(LDFLAGS)
 
 
 .PHONY: clean
@@ -50,5 +53,4 @@ re: fclean
 
 .PHONY: debug
 debug: fclean
-	$(MAKE) all CXXFLAGS="-g3"
-
+	$(MAKE) "CXXFLAGS = $(CXXFLAGS) -g3"
