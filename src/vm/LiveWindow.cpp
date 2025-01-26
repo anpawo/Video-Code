@@ -20,36 +20,13 @@
 
 #include "input/Image.hpp"
 #include "input/Video.hpp"
+#include "python/API.hpp"
 #include "utils/Map.hpp"
 
-// void cmd_hashtag(LiveWindow &window)
-// {
-//     std::string currentInput{};
-
-// while (true) {
-//     int key = cv::waitKey(0);
-
-// switch (key) {
-//     case 127: // del
-//         if (!currentInput.empty()) {
-//             currentInput.pop_back();
-//         }
-//         break;
-//     case -1: // nothing (should be impossible without delay)
-//         break;
-//     case '\n': // enter
-//         window.setIndex(currentInput);
-//         std::cout << std::format("Searching for label '{}'.", currentInput) << std::endl;
-//         return;
-//     default:
-//         currentInput += (char)key;
-// }
-// }
-// }
-
-LiveWindow::LiveWindow(int width, int height)
+LiveWindow::LiveWindow(int width, int height, std::string &&sourceFile)
     : _width(width)
     , _height(height)
+    , _sourceFile(sourceFile)
     , _defaultBlackFrame(cv::Mat::zeros(height, width, CV_8UC4))
     , _commands{
           // clang-format off
@@ -59,16 +36,18 @@ LiveWindow::LiveWindow(int width, int height)
           {81,  bind(previousLabel) }, // left
           {83,  bind(nextLabel) },     // right
           {27,  bind(stop) },          // escape
-        //   {'#', cmd_hashtag }, //
+          {32,  bind(reloadSourceFile) },          // space
           // clang-format on
       }
 {
     // all below is for testing before the parsing works
     addLabel("1_Label_30", 30);
-    addLabel("3_Label_45", 45);
-    addLabel("2_Label_60", 60);
-    addLabel("5_Label_75", 75);
-    addLabel("4_Label_90", 90);
+    addLabel("2_Label_45", 45);
+    addLabel("3_Label_60", 60);
+    addLabel("4_Label_75", 75);
+    addLabel("5_Label_90", 90);
+    addLabel("6_Label_120", 120);
+    addLabel("7_Label_150", 150);
 
     std::cout << "labels" << std::endl;
     std::cout << _labels << std::endl;
@@ -79,6 +58,8 @@ LiveWindow::LiveWindow(int width, int height)
 
     addFrames(getInputFrames("ecs"));
     addFrames(getInputFrames("me"));
+
+    reloadSourceFile();
 }
 
 LiveWindow::~LiveWindow()
@@ -155,7 +136,7 @@ const std::string &LiveWindow::getLabel() const
     return _currentLabel;
 }
 
-const std::map<std::string, std::size_t> &LiveWindow::getLabelsByKey() const
+const std::map<std::string, std::size_t> &LiveWindow::getLabels() const
 {
     return _labels;
 }
@@ -254,14 +235,14 @@ void LiveWindow::previousLabel()
         setIndex(getLabel());
         std::cout << std::format("Timeline set to the start of the current label '{}', at frame '{}'.", getLabel(), getIndex()) << std::endl;
     } else {
-        setIndex((--(getLabelsByVal().find(getLabelsByKey().at(getLabel()))))->second);
+        setIndex((--(getLabelsByVal().find(getLabels().at(getLabel()))))->second);
         std::cout << std::format("Timeline set to the previous label '{}', at frame '{}'.", getLabel(), getIndex()) << std::endl;
     }
 }
 
 void LiveWindow::nextLabel()
 {
-    auto upperBound = getLabelsByVal().upper_bound(getLabelsByKey().at(getLabel()));
+    auto upperBound = getLabelsByVal().upper_bound(getLabels().at(getLabel()));
 
     if (upperBound == getLabelsByVal().end()) {
         std::cout << std::format("The Timeline is currently at the last label, '{}'", getLabel()) << std::endl;
@@ -269,4 +250,17 @@ void LiveWindow::nextLabel()
         setIndex(upperBound->first);
         std::cout << std::format("Timeline set to the next label '{}', at frame '{}'.", getLabel(), getIndex()) << std::endl;
     }
+}
+
+void LiveWindow::reloadSourceFile()
+{
+    std::string serializedInsts = python::API::call<std::string>("serialise", "toJson", _sourceFile);
+    json::array_t newInsts = json::parse(serializedInsts);
+
+    if (newInsts == _insts) {
+        return;
+    }
+
+    std::cout << newInsts << std::endl;
+    _insts = newInsts;
 }
