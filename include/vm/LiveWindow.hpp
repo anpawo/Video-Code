@@ -11,6 +11,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <opencv2/core/mat.hpp>
 #include <string>
 #include <vector>
@@ -19,10 +20,12 @@
 
 #define bind(x) ([this]() { this->x(); })
 
+using json = nlohmann::json;
+
 class LiveWindow {
 public:
 
-    LiveWindow(int width, int height);
+    LiveWindow(int width, int height, std::string &&_sourceFile = "video.py");
     ~LiveWindow();
 
     /**
@@ -53,7 +56,7 @@ public:
     /**
      * @ get all labels
      */
-    const std::map<std::string, std::size_t> &getLabelsByKey() const;
+    const std::map<std::string, std::size_t> &getLabels() const;
     const std::map<std::size_t, std::string> &getLabelsByVal() const;
 
     /**
@@ -117,14 +120,19 @@ public:
     void stop();
 
     /**
+     * @ jump to previous label
+     */
+    void previousLabel();
+
+    /**
      * @ jump to next label
      */
     void nextLabel();
 
     /**
-     * @ jump to previous label
+     * @ reload input file
      */
-    void previousLabel();
+    void reloadSourceFile();
 
 private:
 
@@ -133,6 +141,11 @@ private:
      */
     const int _width{1920};
     const int _height{1080};
+
+    /**
+     * @ source file
+     */
+    const std::string _sourceFile;
 
     /**
      * @ default window name
@@ -187,4 +200,9 @@ private:
      * @ timeline running.
      */
     bool _running{true};
+
+    /**
+     * @ instructions of the input file
+     */
+    json::array_t _insts{};
 };
