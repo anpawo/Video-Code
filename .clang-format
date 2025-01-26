@@ -75,7 +75,7 @@ PackConstructorInitializers: NextLine
 BasedOnStyle: ""
 ConstructorInitializerAllOnOneLineOrOnePerLine: true
 AllowAllConstructorInitializersOnNextLine: true
-FixNamespaceComments: true # namespace name at the end of it in comments
+FixNamespaceComments: false # namespace name at the end of it in comments
 ForEachMacros:
     - foreach
     - Q_FOREACH
