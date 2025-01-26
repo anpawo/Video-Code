@@ -11,14 +11,24 @@ INCLUDE_PATH	:=	$(realpath ./include)
 
 CXX				?=	g++
 CXXFLAGS		+=	-std=c++20 -Wall -Wextra -Wno-deprecated
-CPPFLAGS		+=	-iquote $(INCLUDE_PATH) `pkg-config --cflags opencv4`
-LDFLAGS			+=	`pkg-config --libs opencv4`
+CPPFLAGS		+=	-iquote $(INCLUDE_PATH)			\
+					`pkg-config --cflags opencv4`	\
+					-I/usr/include/python3.12		\
+					-I/usr/include/nlohmann			\
 
-SRC				=	src/Main.cpp				\
-					src/vm/LiveWindow.cpp	\
-					src/input/_AInput.cpp	\
+LDFLAGS			+=	`pkg-config --libs opencv4` -lpython3.12
+
+SRC				=	$(SRC_MAIN)			\
+					$(SRC_VM)			\
+					$(SRC_INPUT)		\
+
+
+SRC_MAIN		=	src/Main.cpp
+SRC_VM			=	src/vm/LiveWindow.cpp
+SRC_INPUT		=	src/input/_AInput.cpp	\
 					src/input/Image.cpp		\
 					src/input/Video.cpp		\
+
 
 
 OBJ				=	$(SRC:.cpp=.o)
