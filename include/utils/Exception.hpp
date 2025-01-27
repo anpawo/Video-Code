@@ -13,7 +13,8 @@
 class Error : public std::exception {
 public:
 
-    Error(const std::string errorMessage) : _errorMessage("Error: " + errorMessage) {}
+    Error(const std::string errorMessage)
+        : _errorMessage("Error: " + errorMessage) {}
 
     ~Error() = default;
 
