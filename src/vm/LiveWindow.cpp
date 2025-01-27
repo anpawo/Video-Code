@@ -21,6 +21,7 @@
 #include "input/Image.hpp"
 #include "input/Video.hpp"
 #include "python/API.hpp"
+#include "utils/Exception.hpp"
 #include "utils/Map.hpp"
 
 LiveWindow::LiveWindow(int width, int height, std::string &&sourceFile)
@@ -254,7 +255,15 @@ void LiveWindow::nextLabel()
 
 void LiveWindow::reloadSourceFile()
 {
-    std::string serializedInsts = python::API::call<std::string>("serialise", "toJson", _sourceFile);
+    std::string serializedInsts;
+
+    try {
+        serializedInsts = python::API::call<std::string>("serialise", "toJson", _sourceFile);
+    } catch (const Error &e) {
+        std::cout << "Invalid source file, could not parse the instructions." << std::endl;
+        return;
+    }
+
     json::array_t newInsts = json::parse(serializedInsts);
 
     if (newInsts == _insts) {
