@@ -1,9 +1,15 @@
-from python.Input import *
-from python.Transformation import *
+from python.VideoCode import *
 
-# variables
+icon = image("video/icon.png")
 
-s = image("ecs.png")
-v = image("icon.png")
+# icon 0
 
-circle(3)
+icon.add()
+
+# ecs
+
+image("video/ecs.png").repeat(10).add()
+
+# icon
+
+icon.add()
