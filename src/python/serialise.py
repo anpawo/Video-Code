@@ -22,7 +22,7 @@ def unparseSubscript(x: ast.Subscript) -> list:
 
 
 def unparseSlice(x: ast.Slice) -> list:
-    return [unparse(x.lower), unparse(x.upper)]
+    return [unparse(x.lower) if x.lower else 0, unparse(x.upper) if x.upper else -1]
 
 
 def unparse(x: Any) -> Any:
