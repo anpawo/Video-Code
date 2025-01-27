@@ -7,16 +7,40 @@ from transformation.Transformation import Transformation
 
 class Input:
     """
-    Represents an `Input`. ::
+    Represents an `Input` which is a list of frame.
 
-        def image(filepath: str) -> int: ...
-        def video(filepath: str) -> int: ...
-        def text(text: str) -> int: ...
+    A frame is a matrix of pixel.
+
+    ::
+
+        def image(filepath: str) -> Input: ...
+        def video(filepath: str) -> Input: ...
+        def text(string: str) -> Input: ...
+        def shape() -> Input: ...
     """
 
+    def apply(self, t: Transformation) -> Input:
+        """
+        Applies the `Transformation` `t` to the `Input`.
+        """
+        ...
+
+    def repeat(self, n: int) -> Input:
+        """
+        Repeat itself `n` times.
+        """
+        ...
+
     @overload
-    def apply(self, t: Transformation) -> Input: ...
+    def __getitem__(self, i: int) -> Input:
+        """
+        Extracts `one frame`.
+        """
+        ...
+
     @overload
-    def apply(self, __fromStartToEnd: Tuple[int, int]) -> Input: ...
-    @overload
-    def apply(self, __fromStart: int) -> Input: ...
+    def __getitem__(self, s: slice) -> Input:
+        """
+        Extracts a `slice of frames`.
+        """
+        ...
