@@ -28,6 +28,7 @@ SRC_VM			=	src/vm/LiveWindow.cpp
 SRC_INPUT		=	src/input/_AInput.cpp	\
 					src/input/Image.cpp		\
 					src/input/Video.cpp		\
+					src/input/List.cpp		\
 
 
 
