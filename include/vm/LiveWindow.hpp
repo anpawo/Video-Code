@@ -18,7 +18,8 @@
 
 #include "input/_IInput.hpp"
 
-#define bind(x) ([this]() { this->x(); })
+#define bindCmd(x) ([this]() { this->x(); })
+#define bindInst(x) ([this](const json::array_t &args) { return this->x(args); })
 
 using json = nlohmann::json;
 
@@ -75,15 +76,15 @@ public:
     void addFrame(const cv::Mat &frame);
     void addFrames(const std::vector<cv::Mat> &frames);
 
-    enum InputType {
-        ImageTy,
-        VideoTy,
-    };
+    /**
+     * @ load an image into the env
+     */
+    void loadImage(std::string &&envName, std::string &&inputName);
 
     /**
-     * @ load an input into the env
+     * @ load a video into the env
      */
-    void loadInput(std::string &&envName, std::string &&inputName, InputType inputTy);
+    void loadVideo(std::string &&envName, std::string &&inputName);
 
     /**
      * @ get the frames of an input from the env
@@ -93,10 +94,26 @@ public:
     /**
      * @ get the frames of an input from the env
      */
-    const std::unique_ptr<_IInput> &getInput(std::string &&input);
+    const std::shared_ptr<_IInput> &getInput(std::string &&input);
+
+    /**
+     * @ remove old env
+     */
+    void removeOld();
+
+    /**
+     * @ execute the instruction
+     */
+    std::shared_ptr<_IInput> executeInst(const json::array_t &inst);
+    void executeInsts(const json::array_t &insts);
+
+    /**
+     * @ declare a variable in the env
+     */
+    void assign(const std::string &name, const json::array_t &inst);
 
     /**************************************/
-    /*** Below are the mapped functions ***/
+    /*** Below are the mapped commands ***/
     /**************************************/
 
     /**
@@ -133,6 +150,45 @@ public:
      * @ reload input file
      */
     void reloadSourceFile();
+
+    /*****************************************/
+    /*** Below are the mapped instructions ***/
+    /*****************************************/
+
+    /**
+     * @ load a variable from the env
+     */
+    std::shared_ptr<_IInput> load(const json::array_t &args);
+
+    /**
+     * @ call a builtin function
+     */
+    std::shared_ptr<_IInput> call(const json::array_t &args);
+
+    /**
+     * @ add the frames of an input to the timeline
+     */
+    std::shared_ptr<_IInput> add(const json::array_t &args);
+
+    /**
+     * @ create a new label
+     */
+    std::shared_ptr<_IInput> label(const json::array_t &args);
+
+    /**
+     * @ import an image
+     */
+    std::shared_ptr<_IInput> image(const json::array_t &args);
+
+    /**
+     * @ import a video
+     */
+    std::shared_ptr<_IInput> video(const json::array_t &args);
+
+    /**
+     * @ repeat an input n times and returns it
+     */
+    std::shared_ptr<_IInput> repeat(const json::array_t &args);
 
 private:
 
@@ -184,17 +240,45 @@ private:
      * @ env.
      * - currently loaded image and video
      */
-    std::map<std::string, std::unique_ptr<_IInput>> _env{};
+    std::map<std::string, std::shared_ptr<_IInput>> _env{};
 
     /**
      * @ supported commands.
      */
-    std::map<int, std::function<void()>> _commands{};
+    // clang-format off
+    const std::map<int, std::function<void()>> _commands{
+        {'r', bindCmd(restart)},
+        {'a', bindCmd(pause)},
+        {'e', bindCmd(unpause)},
+        { 81, bindCmd(previousLabel)},    // left
+        { 83, bindCmd(nextLabel)},        // right
+        { 27, bindCmd(stop)},             // escape
+        { 32, bindCmd(reloadSourceFile)}, // space
+    };
+    // clang-format on
+
+    /**
+     * @ supported instructions.
+     */
+    // clang-format off
+    const std::map<std::string, std::function<std::shared_ptr<_IInput>(const json::array_t &args)>> _instructions{
+        /*** Main Instructions ***/
+        { "load",   bindInst(load) },
+        { "Call",   bindInst(call) },
+        { "add",    bindInst(add) },
+        { "label",  bindInst(label) },
+        /*** Load Instructions ***/
+        { "image",  bindInst(image) },
+        { "video",  bindInst(video) },
+        /***      Routines     ***/
+        { "repeat",  bindInst(repeat) },
+    };
+    // clang-format on
 
     /**
      * @ timeline unpaused.
      */
-    bool _paused{false};
+    bool _paused{true};
 
     /**
      * @ timeline running.
@@ -206,3 +290,5 @@ private:
      */
     json::array_t _insts{};
 };
+
+// TODO: should cache the loaded images/video (with a time modification?)

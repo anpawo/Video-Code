@@ -19,6 +19,7 @@
 #include <string>
 
 #include "input/Image.hpp"
+#include "input/List.hpp"
 #include "input/Video.hpp"
 #include "python/API.hpp"
 #include "utils/Exception.hpp"
@@ -29,36 +30,25 @@ LiveWindow::LiveWindow(int width, int height, std::string &&sourceFile)
     , _height(height)
     , _sourceFile(sourceFile)
     , _defaultBlackFrame(cv::Mat::zeros(height, width, CV_8UC4))
-    , _commands{
-          // clang-format off
-          {'r', bind(restart) },
-          {'a', bind(pause)},
-          {'e', bind(unpause)},
-          {81,  bind(previousLabel) }, // left
-          {83,  bind(nextLabel) },     // right
-          {27,  bind(stop) },          // escape
-          {32,  bind(reloadSourceFile) },          // space
-          // clang-format on
-      }
 {
     // all below is for testing before the parsing works
-    addLabel("1_Label_30", 30);
-    addLabel("2_Label_45", 45);
-    addLabel("3_Label_60", 60);
-    addLabel("4_Label_75", 75);
-    addLabel("5_Label_90", 90);
-    addLabel("6_Label_120", 120);
-    addLabel("7_Label_150", 150);
+    // addLabel("1_Label_30", 30);
+    // addLabel("2_Label_45", 45);
+    // addLabel("3_Label_60", 60);
+    // addLabel("4_Label_75", 75);
+    // addLabel("5_Label_90", 90);
+    // addLabel("6_Label_120", 120);
+    // addLabel("7_Label_150", 150);
 
-    std::cout << "labels" << std::endl;
-    std::cout << _labels << std::endl;
+    // std::cout << "labels" << std::endl;
+    // std::cout << _labels << std::endl;
 
-    loadInput("ecs", "video/ecs.png", ImageTy);
-    loadInput("icon", "video/icon.png", ImageTy);
-    loadInput("me", "video/me.mp4", VideoTy);
+    // loadImage("ecs", "video/ecs.png");
+    // loadImage("icon", "video/icon.png");
+    // loadVideo("me", "video/me.mp4");
 
-    addFrames(getInputFrames("ecs"));
-    addFrames(getInputFrames("me"));
+    // addFrames(getInputFrames("ecs"));
+    // addFrames(getInputFrames("me"));
 
     reloadSourceFile();
 }
@@ -188,13 +178,14 @@ void LiveWindow::addFrame(const cv::Mat &frameToCopy)
     _frames.push_back(frame);
 }
 
-void LiveWindow::loadInput(std::string &&envName, std::string &&inputName, InputType inputTy)
+void LiveWindow::loadImage(std::string &&envName, std::string &&inputName)
 {
-    if (inputTy == ImageTy) {
-        _env[envName] = std::make_unique<Image>(std::forward<std::string>(inputName));
-    } else if (inputTy == VideoTy) {
-        _env[envName] = std::make_unique<Video>(std::forward<std::string>(inputName));
-    }
+    _env[envName] = std::make_unique<Image>(std::forward<std::string>(inputName));
+}
+
+void LiveWindow::loadVideo(std::string &&envName, std::string &&inputName)
+{
+    _env[envName] = std::make_unique<Video>(std::forward<std::string>(inputName));
 }
 
 const std::vector<cv::Mat> &LiveWindow::getInputFrames(std::string &&input)
@@ -202,7 +193,7 @@ const std::vector<cv::Mat> &LiveWindow::getInputFrames(std::string &&input)
     return _env[input]->getFrames();
 }
 
-const std::unique_ptr<_IInput> &LiveWindow::getInput(std::string &&input)
+const std::shared_ptr<_IInput> &LiveWindow::getInput(std::string &&input)
 {
     return _env[input];
 }
@@ -270,6 +261,89 @@ void LiveWindow::reloadSourceFile()
         return;
     }
 
+    // for (std::size_t i = 0; i < newInsts.size(); i++) {
+    //     if (newInsts[i] == _insts[i]) {
+    //         continue;
+    //     }
+    //     executeInsts(const json::array_t &insts)
+    //     break;
+    // }
+
+    removeOld();
+    executeInsts(newInsts);
     std::cout << newInsts << std::endl;
     _insts = newInsts;
+    std::cout << _labels << std::endl;
+}
+
+void LiveWindow::removeOld()
+{
+    _env.clear();
+
+    _labels = {{"__start", 0}};
+    _labelsByVal = {{0, "__start"}};
+    _currentLabel = "__start";
+
+    std::cout << "before: " << _frames.size() << std::endl;
+    _frames.clear();
+    std::cout << "after: " << _frames.size() << std::endl;
+}
+
+void LiveWindow::executeInsts(const json::array_t &insts)
+{
+    for (const auto &i : insts) {
+        const json::array_t &inst = i;
+        if (inst[0] == "Assign") {
+            assign(inst[1], inst[2]);
+        } else {
+            executeInst(inst);
+        }
+    }
+}
+
+std::shared_ptr<_IInput> LiveWindow::executeInst(const json::array_t &inst)
+{
+    return _instructions.at(inst[0])(inst);
+}
+
+void LiveWindow::assign(const std::string &name, const json::array_t &inst)
+{
+    _env[name] = executeInst(inst);
+}
+
+std::shared_ptr<_IInput> LiveWindow::load(const json::array_t &args)
+{
+    return _env.at(args[0]);
+}
+
+std::shared_ptr<_IInput> LiveWindow::call(const json::array_t &args)
+{
+    return _instructions.at(args[1])(args[2]);
+}
+
+std::shared_ptr<_IInput> LiveWindow::add(const json::array_t &args)
+{
+    addFrames(executeInst(args[0])->getFrames());
+    return nullptr;
+}
+
+std::shared_ptr<_IInput> LiveWindow::label(const json::array_t &args)
+{
+    addLabel(args[0], _frames.size()); // TODO: not sure
+    return nullptr;
+}
+
+std::shared_ptr<_IInput> LiveWindow::image(const json::array_t &args)
+{
+    return std::make_unique<Image>(std::forward<std::string>(args[0]));
+}
+
+std::shared_ptr<_IInput> LiveWindow::video(const json::array_t &args)
+{
+    return std::make_unique<Video>(std::forward<std::string>(args[0]));
+}
+
+std::shared_ptr<_IInput> LiveWindow::repeat(const json::array_t &args)
+{
+    return std::make_unique<List>(executeInst(args[0]), args[1]);
 }
