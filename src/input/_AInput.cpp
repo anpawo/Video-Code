@@ -11,6 +11,8 @@
 #include <opencv2/imgcodecs.hpp>
 #include <vector>
 
+#include "utils/Exception.hpp"
+
 _AInput::_AInput(std::string&& inputName, std::vector<cv::Mat>&& frames)
 
     : _inputName(std::forward<std::string&&>(inputName))
@@ -21,4 +23,9 @@ _AInput::_AInput(std::string&& inputName, std::vector<cv::Mat>&& frames)
 const std::vector<cv::Mat>& _AInput::getFrames()
 {
     return _frames;
+}
+
+std::vector<cv::Mat> _AInput::loadFrames(const std::string&)
+{
+    throw Error("Invalid loadFrames.");
 }

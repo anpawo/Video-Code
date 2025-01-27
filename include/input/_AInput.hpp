@@ -21,6 +21,8 @@ public:
 
     const std::vector<cv::Mat>& getFrames() final;
 
+    virtual std::vector<cv::Mat> loadFrames(const std::string&);
+
 private:
 
     /**
