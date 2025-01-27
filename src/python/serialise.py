@@ -7,10 +7,14 @@ import json
 from typing import Any
 
 
+def toLoad(id: str) -> list:
+    return [["Call", "load", [id]]]
+
+
 def unparseCall(x: ast.Call) -> list:
     if type(x.func) == ast.Attribute:
         if type(x.func.value) == ast.Name:
-            return ["Call", x.func.attr, [["Call", "load", [x.func.value.id]]] + list(map(unparse, x.args))]
+            return ["Call", x.func.attr, toLoad(x.func.value.id) + list(map(unparse, x.args))]
         return ["Call", x.func.attr, [unparse(x.func.value)] + list(map(unparse, x.args))]
     return ["Call", unparse(x.func), list(map(unparse, x.args))]
 
@@ -20,7 +24,9 @@ def unparseAssign(x: ast.Assign) -> list:
 
 
 def unparseSubscript(x: ast.Subscript) -> list:
-    return ["Subscript", unparse(x.value), unparse(x.slice)]
+    if type(x.value) == ast.Name:
+        return ["Call", "subscript", toLoad(x.value.id) + unparse(x.slice)]
+    return ["Call", "subscript", unparse(x.value) + unparse(x.slice)]
 
 
 def unparseSlice(x: ast.Slice) -> list:
