@@ -29,6 +29,7 @@ SRC_INPUT		=	src/input/_AInput.cpp	\
 					src/input/Image.cpp		\
 					src/input/Video.cpp		\
 					src/input/List.cpp		\
+					src/input/Slice.cpp		\
 
 
 
