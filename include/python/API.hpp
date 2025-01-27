@@ -82,8 +82,6 @@ namespace python::API
             PyObject* pFunc = PyObject_GetAttrString(pModule, functionName.c_str());
 
             if (PyCallable_Check(pFunc)) {
-                // PyObject* pArgs = PyTuple_Pack(1, PyUnicode_FromString("python/ast_input.py"));
-
                 // Create an empty Tuple of size len(args)
                 PyObject* pArgs = PyTuple_New(sizeof...(args));
 
@@ -91,37 +89,28 @@ namespace python::API
                 size_t i = 0;
                 ((PyTuple_SetItem(pArgs, i++, convertToPythonObject(std::forward<ArgsTy>(args)))), ...);
 
-                // Call the function
+                // Call the function with the tuple containing the arguments
                 PyObject* pValue = PyObject_CallObject(pFunc, pArgs);
 
-                Py_XDECREF(pArgs);
-
                 if (!pValue) {
-                    PyErr_Print();
+                    Py_Finalize();
                     throw Error("Function '" + functionName + "' failed.");
                 }
 
                 if constexpr (!std::is_same_v<RetTy, void>) {
                     RetTy result = convertToCppObject<RetTy>(pValue);
-                    Py_DECREF(pValue);
+                    Py_Finalize();
                     return result;
                 }
 
-                Py_XDECREF(pValue);
-
-                // Finalize the Python API
-                Py_Finalize();
             } else {
+                Py_Finalize();
                 throw Error("Python function '" + functionName + "' is not callable.");
             }
 
-            Py_XDECREF(pFunc);
-            Py_XDECREF(pModule);
         } else {
-            PyErr_Print();
+            Py_Finalize();
             throw Error("Failed to load Python module: '" + moduleName + "'.");
         }
-
-        // Finalize the Python interpreter
     }
 };
