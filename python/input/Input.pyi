@@ -19,6 +19,12 @@ class Input:
         def shape() -> Input: ...
     """
 
+    def add(self) -> None:
+        """
+        Append the frames of the `Input` to the timeline.
+        """
+        ...
+
     def apply(self, t: Transformation) -> Input:
         """
         Applies the `Transformation` `t` to the `Input`.
@@ -27,7 +33,7 @@ class Input:
 
     def repeat(self, n: int) -> Input:
         """
-        Repeat itself `n` times.
+        Return a new array of size `n` with `self` as each elements.
         """
         ...
 
