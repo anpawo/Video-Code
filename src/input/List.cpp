@@ -24,6 +24,6 @@ static std::vector<cv::Mat> replicateFrame(std::shared_ptr<_IInput> frames, int 
 }
 
 List::List(std::shared_ptr<_IInput> frames, int n)
-    : _AInput("", replicateFrame(frames, n))
+    : _AInput(replicateFrame(frames, n))
 {
 }

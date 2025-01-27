@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <string>
 #include <vector>
 
 #include "input/_IInput.hpp"
@@ -16,19 +15,12 @@
 class _AInput : public _IInput {
 public:
 
-    _AInput(std::string&& inputName, std::vector<cv::Mat>&& frames);
+    _AInput(std::vector<cv::Mat>&& frames);
     virtual ~_AInput() = default;
 
     const std::vector<cv::Mat>& getFrames() final;
 
-    virtual std::vector<cv::Mat> loadFrames(const std::string&);
-
 private:
-
-    /**
-     * @ name of the input file
-     */
-    std::string _inputName{};
 
     /**
      * @ frames of the input

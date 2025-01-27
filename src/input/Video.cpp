@@ -15,12 +15,7 @@
 #include "opencv2/videoio.hpp"
 #include "utils/Exception.hpp"
 
-Video::Video(std::string&& inputName)
-    : _AInput(std::forward<std::string&&>(inputName), loadFrames(inputName))
-{
-}
-
-std::vector<cv::Mat> Video::loadFrames(const std::string& inputName)
+static std::vector<cv::Mat> loadFrames(const std::string& inputName)
 {
     cv::VideoCapture video(inputName);
 
@@ -42,4 +37,10 @@ std::vector<cv::Mat> Video::loadFrames(const std::string& inputName)
     }
 
     return frames;
+}
+
+Video::Video(std::string&& inputName)
+    : _AInput(loadFrames(inputName))
+    , _inputName(std::forward<std::string&&>(inputName))
+{
 }

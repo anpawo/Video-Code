@@ -23,10 +23,5 @@ public:
      */
     virtual const std::vector<cv::Mat>& getFrames() = 0;
 
-    /**
-     * @ load the frames of the input
-     */
-    virtual std::vector<cv::Mat> loadFrames(const std::string& inputName) = 0;
-
 private:
 };

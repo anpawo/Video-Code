@@ -17,7 +17,10 @@ public:
     Image(std::string&& inputName);
     ~Image() = default;
 
-    std::vector<cv::Mat> loadFrames(const std::string& inputName) final;
-
 private:
+
+    /**
+     * @ name of the input file
+     */
+    const std::string _inputName{};
 };

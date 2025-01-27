@@ -14,12 +14,7 @@
 
 #include "utils/Exception.hpp"
 
-Image::Image(std::string&& inputName)
-    : _AInput(std::forward<std::string&&>(inputName), loadFrames(inputName))
-{
-}
-
-std::vector<cv::Mat> Image::loadFrames(const std::string& inputName)
+static std::vector<cv::Mat> loadFrames(const std::string& inputName)
 {
     cv::Mat image = cv::imread(inputName);
 
@@ -28,4 +23,10 @@ std::vector<cv::Mat> Image::loadFrames(const std::string& inputName)
     }
 
     return {image};
+}
+
+Image::Image(std::string&& inputName)
+    : _AInput(loadFrames(inputName))
+    , _inputName(std::forward<std::string&&>(inputName))
+{
 }
