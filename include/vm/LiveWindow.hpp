@@ -190,6 +190,11 @@ public:
      */
     std::shared_ptr<_IInput> repeat(const json::array_t &args);
 
+    /**
+     * @ take a slice out of an input
+     */
+    std::shared_ptr<_IInput> subscript(const json::array_t &args);
+
 private:
 
     /**
@@ -262,16 +267,17 @@ private:
      */
     // clang-format off
     const std::map<std::string, std::function<std::shared_ptr<_IInput>(const json::array_t &args)>> _instructions{
-        /*** Main Instructions ***/
-        { "load",   bindInst(load) },
-        { "Call",   bindInst(call) },
-        { "add",    bindInst(add) },
-        { "label",  bindInst(label) },
-        /*** Load Instructions ***/
-        { "image",  bindInst(image) },
-        { "video",  bindInst(video) },
-        /***      Routines     ***/
-        { "repeat",  bindInst(repeat) },
+        /***    Main Instructions    ***/
+        { "load",      bindInst(load) },
+        { "Call",      bindInst(call) },
+        { "add",       bindInst(add) },
+        { "label",     bindInst(label) },
+        /***    Load Instructions    ***/
+        { "image",     bindInst(image) },
+        { "video",     bindInst(video) },
+        /***        Routines         ***/
+        { "repeat",    bindInst(repeat) },
+        { "subscript", bindInst(subscript) },
     };
     // clang-format on
 

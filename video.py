@@ -8,7 +8,9 @@ icon.add()
 
 # ecs
 
-image("video/ecs.png").repeat(10).add()
+rep = image("video/ecs.png").repeat(10)
+
+rep[:].add()
 
 # icon
 

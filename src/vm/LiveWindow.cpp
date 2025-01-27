@@ -20,6 +20,7 @@
 
 #include "input/Image.hpp"
 #include "input/List.hpp"
+#include "input/Slice.hpp"
 #include "input/Video.hpp"
 #include "python/API.hpp"
 #include "utils/Exception.hpp"
@@ -346,4 +347,9 @@ std::shared_ptr<_IInput> LiveWindow::video(const json::array_t &args)
 std::shared_ptr<_IInput> LiveWindow::repeat(const json::array_t &args)
 {
     return std::make_unique<List>(executeInst(args[0]), args[1]);
+}
+
+std::shared_ptr<_IInput> LiveWindow::subscript(const json::array_t &args)
+{
+    return std::make_unique<Slice>(executeInst(args[0]), args[1], args[2]);
 }
