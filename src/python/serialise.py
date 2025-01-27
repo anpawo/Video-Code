@@ -9,16 +9,18 @@ from typing import Any
 
 def unparseCall(x: ast.Call) -> list:
     if type(x.func) == ast.Attribute:
-        return [type(x).__name__, x.func.attr, [unparse(x.func.value)] + list(map(unparse, x.args))]
-    return [type(x).__name__, unparse(x.func), list(map(unparse, x.args))]
+        if type(x.func.value) == ast.Name:
+            return ["Call", x.func.attr, [["Call", "load", [x.func.value.id]]] + list(map(unparse, x.args))]
+        return ["Call", x.func.attr, [unparse(x.func.value)] + list(map(unparse, x.args))]
+    return ["Call", unparse(x.func), list(map(unparse, x.args))]
 
 
 def unparseAssign(x: ast.Assign) -> list:
-    return [type(x).__name__, unparse(x.targets[0]), unparse(x.value)]
+    return ["Assign", unparse(x.targets[0]), unparse(x.value)]
 
 
 def unparseSubscript(x: ast.Subscript) -> list:
-    return [type(x).__name__, unparse(x.value), unparse(x.slice)]
+    return ["Subscript", unparse(x.value), unparse(x.slice)]
 
 
 def unparseSlice(x: ast.Slice) -> list:
