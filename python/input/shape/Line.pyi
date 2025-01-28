@@ -2,8 +2,8 @@
 
 from Shape import Shape
 
-def circle(radius: int) -> Shape:
+def line(length: int) -> Shape:
     """
-    `Circle`.
+    `Line`.
     """
     ...
