@@ -22,6 +22,7 @@ public:
      * - used to push them on the timeline
      */
     virtual const std::vector<cv::Mat>& getFrames() = 0;
+    virtual std::vector<cv::Mat>& getFramesForTransformation() = 0;
 
 private:
 };

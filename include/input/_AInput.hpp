@@ -19,6 +19,7 @@ public:
     virtual ~_AInput() = default;
 
     const std::vector<cv::Mat>& getFrames() final;
+    std::vector<cv::Mat>& getFramesForTransformation() final;
 
 private:
 
