@@ -364,8 +364,12 @@ std::shared_ptr<_IInput> LiveWindow::grayscale(std::shared_ptr<_IInput> input, [
 {
     std::shared_ptr<_IInput> out = std::make_shared<List>(input);
 
+    if (out->getFrames().empty() || out->getFrames()[0].channels() == 1) {
+        return out;
+    }
+
     for (auto &m : out->getFramesForTransformation()) {
-        cv::cvtColor(m, m, cv::COLOR_BGR2GRAY);
+        cv::cvtColor(m, m, cv::COLOR_BGR2GRAY); // TODO: should be deduced
     }
 
     return out;
