@@ -362,7 +362,7 @@ std::shared_ptr<_IInput> LiveWindow::apply(const json::array_t &args)
 
 std::shared_ptr<_IInput> LiveWindow::grayscale(std::shared_ptr<_IInput> input, [[maybe_unused]] const json::array_t &args)
 {
-    std::shared_ptr<_IInput> out = std::make_shared<List>(input, input->getFrames().size());
+    std::shared_ptr<_IInput> out = std::make_shared<List>(input);
 
     for (auto &m : out->getFramesForTransformation()) {
         cv::cvtColor(m, m, cv::COLOR_BGR2GRAY);
@@ -371,10 +371,10 @@ std::shared_ptr<_IInput> LiveWindow::grayscale(std::shared_ptr<_IInput> input, [
     return out;
 }
 
-std::shared_ptr<_IInput> LiveWindow::fade([[maybe_unused]] std::shared_ptr<_IInput> input, const json::array_t &args)
-{
-    const std::shared_ptr<_IInput> frames = executeInst(args[0]); // TODO:
+// std::shared_ptr<_IInput> LiveWindow::fade([[maybe_unused]] std::shared_ptr<_IInput> input, const json::array_t &args)
+// {
+//     const std::shared_ptr<_IInput> frames = executeInst(args[0]); // TODO:
 
-    // return std::make_unique<Slice>(executeInst(args[0]), args[1], args[2]);
-    return {};
-}
+// // return std::make_unique<Slice>(executeInst(args[0]), args[1], args[2]);
+// return {};
+// }

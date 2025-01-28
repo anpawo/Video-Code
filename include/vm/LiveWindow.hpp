@@ -208,7 +208,7 @@ public:
     /**
      * @ fade from a side for a certain number of frame
      */
-    std::shared_ptr<_IInput> fade(std::shared_ptr<_IInput> input, const json::array_t &args);
+    // std::shared_ptr<_IInput> fade(std::shared_ptr<_IInput> input, const json::array_t &args);
 
     /**
      * @ grayscale an image
@@ -307,7 +307,7 @@ private:
     {
         /***     Transformations     ***/
         {"grayscale", bindTsf(grayscale)},
-        {"fade",      bindTsf(fade)},
+        // {"fade",      bindTsf(fade)},
     };
     // clang-format on
 
