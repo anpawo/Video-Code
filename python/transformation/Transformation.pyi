@@ -4,9 +4,12 @@ from __future__ import annotations
 
 class Transformation:
     """
-    Represents a `Transformation`. ::
+    Represents a `Transformation`.
+
+    ::
 
         def move() -> Transformation: ...
         def zoom() -> Transformation: ...
+        def fade() -> Transformation: ...
 
     """

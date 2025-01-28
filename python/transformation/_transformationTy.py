@@ -11,3 +11,6 @@ from position.Translate import *
 
 # Color Transformations
 from color.Grayscale import *
+
+# Fade Transformation
+from Fade import *
