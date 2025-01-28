@@ -10,6 +10,7 @@
 #include <opencv2/imgcodecs.hpp>
 #include <vector>
 
+#include "input/_AInput.hpp"
 #include "opencv2/core/mat.hpp"
 
 static std::vector<cv::Mat> replicateFrame(std::shared_ptr<_IInput> frames, int n)
@@ -25,5 +26,10 @@ static std::vector<cv::Mat> replicateFrame(std::shared_ptr<_IInput> frames, int 
 
 List::List(std::shared_ptr<_IInput> frames, int n)
     : _AInput(replicateFrame(frames, n))
+{
+}
+
+List::List(std::shared_ptr<_IInput> frames)
+    : _AInput({frames->getFrames().begin(), frames->getFrames().end()})
 {
 }

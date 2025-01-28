@@ -16,6 +16,7 @@ class List : public _AInput {
 public:
 
     List(std::shared_ptr<_IInput> frames, int n);
+    List(std::shared_ptr<_IInput> frames);
     ~List() = default;
 
 private:
