@@ -22,6 +22,7 @@
 #include "input/List.hpp"
 #include "input/Slice.hpp"
 #include "input/Video.hpp"
+#include "input/_IInput.hpp"
 #include "python/API.hpp"
 #include "utils/Exception.hpp"
 #include "utils/Map.hpp"
@@ -285,9 +286,7 @@ void LiveWindow::removeOld()
     _labelsByVal = {{0, "__start"}};
     _currentLabel = "__start";
 
-    std::cout << "before: " << _frames.size() << std::endl;
     _frames.clear();
-    std::cout << "after: " << _frames.size() << std::endl;
 }
 
 void LiveWindow::executeInsts(const json::array_t &insts)
@@ -352,4 +351,30 @@ std::shared_ptr<_IInput> LiveWindow::repeat(const json::array_t &args)
 std::shared_ptr<_IInput> LiveWindow::subscript(const json::array_t &args)
 {
     return std::make_unique<Slice>(executeInst(args[0]), args[1], args[2]);
+}
+
+std::shared_ptr<_IInput> LiveWindow::apply(const json::array_t &args)
+{
+    const std::shared_ptr<_IInput> input = executeInst(args[0]);
+
+    return _transformations.at(args[1][1])(input, args[1][2]);
+}
+
+std::shared_ptr<_IInput> LiveWindow::grayscale(std::shared_ptr<_IInput> input, [[maybe_unused]] const json::array_t &args)
+{
+    std::shared_ptr<_IInput> out = std::make_shared<List>(input, input->getFrames().size());
+
+    for (auto &m : out->getFramesForTransformation()) {
+        cv::cvtColor(m, m, cv::COLOR_BGR2GRAY);
+    }
+
+    return out;
+}
+
+std::shared_ptr<_IInput> LiveWindow::fade([[maybe_unused]] std::shared_ptr<_IInput> input, const json::array_t &args)
+{
+    const std::shared_ptr<_IInput> frames = executeInst(args[0]); // TODO:
+
+    // return std::make_unique<Slice>(executeInst(args[0]), args[1], args[2]);
+    return {};
 }
