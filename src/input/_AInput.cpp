@@ -20,3 +20,8 @@ const std::vector<cv::Mat>& _AInput::getFrames()
 {
     return _frames;
 }
+
+std::vector<cv::Mat>& _AInput::getFramesForTransformation()
+{
+    return _frames;
+}
