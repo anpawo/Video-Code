@@ -20,6 +20,7 @@
 
 #define bindCmd(x) ([this]() { this->x(); })
 #define bindInst(x) ([this](const json::array_t &args) { return this->x(args); })
+#define bindTsf(x) ([this](std::shared_ptr<_IInput> input, const json::array_t &args) { return this->x(input, args); })
 
 using json = nlohmann::json;
 
@@ -195,6 +196,25 @@ public:
      */
     std::shared_ptr<_IInput> subscript(const json::array_t &args);
 
+    /**
+     * @ apply a transformation to an input
+     */
+    std::shared_ptr<_IInput> apply(const json::array_t &args);
+
+    /*****************************************/
+    /***   Below are the transformations   ***/
+    /*****************************************/
+
+    /**
+     * @ fade from a side for a certain number of frame
+     */
+    std::shared_ptr<_IInput> fade(std::shared_ptr<_IInput> input, const json::array_t &args);
+
+    /**
+     * @ grayscale an image
+     */
+    std::shared_ptr<_IInput> grayscale(std::shared_ptr<_IInput> input, const json::array_t &args);
+
 private:
 
     /**
@@ -278,6 +298,16 @@ private:
         /***        Routines         ***/
         { "repeat",    bindInst(repeat) },
         { "subscript", bindInst(subscript) },
+        { "apply",     bindInst(apply) },
+    };
+    // clang-format on
+
+    // clang-format off
+    const std::map<std::string, std::function<std::shared_ptr<_IInput>(std::shared_ptr<_IInput> input, const json::array_t &args)>> _transformations
+    {
+        /***     Transformations     ***/
+        {"grayscale", bindTsf(grayscale)},
+        {"fade",      bindTsf(fade)},
     };
     // clang-format on
 
