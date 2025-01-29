@@ -1,17 +1,17 @@
 from python.VideoCode import *
 
-icon = image("video/icon.png")
+# copy first half then modify the original
 
-# icon 0
+v1 = video("video/v.mp4")
 
-icon.add()
+## v1.concat(v1)  # // TODO: last args should be a load not a string:  ['Call', 'concat', [['Call', 'load', ['v1']], 'v1']]
 
-# ecs
+v2 = v1[0:60].copy()
+v1.apply(grayscale())  # apply the filter to check if v2 stores a ref or the original
+v2.concat(v2)
 
-rep = image("video/ecs.png").repeat(10)
+v1.add()
+v2.add()
+v1.add()
 
-rep[:].add()
-
-# icon
-
-icon.add()
+# copy first half then modify it
