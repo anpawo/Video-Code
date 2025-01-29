@@ -2,9 +2,9 @@
 
 from Transformation import Transformation
 
-from .._ty import *
+from .._ty import side
 
-def fade(side: side, n: uint) -> Transformation:
+def fade(side: side, n: int = -1) -> Transformation:
     """
     `Fade` from `side` in `n` frames.
     """
