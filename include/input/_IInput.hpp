@@ -23,6 +23,7 @@ public:
      */
     virtual const std::vector<cv::Mat>& getFrames() = 0;
     virtual std::vector<cv::Mat>& getFramesForTransformation() = 0;
+    virtual void concat(std::shared_ptr<_IInput> other) = 0;
 
 private:
 };

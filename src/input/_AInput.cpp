@@ -25,3 +25,8 @@ std::vector<cv::Mat>& _AInput::getFramesForTransformation()
 {
     return _frames;
 }
+
+void _AInput::concat(std::shared_ptr<_IInput> other)
+{
+    _frames.insert(_frames.end(), other->getFrames().cbegin(), other->getFrames().cend());
+}

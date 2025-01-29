@@ -20,6 +20,7 @@ public:
 
     const std::vector<cv::Mat>& getFrames() final;
     std::vector<cv::Mat>& getFramesForTransformation() final;
+    void concat(std::shared_ptr<_IInput> other) final;
 
 private:
 
