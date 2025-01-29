@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
-from typing import overload, Tuple
+from typing import overload
+from _ty import uint
 
 from transformation.Transformation import Transformation
 
@@ -21,32 +22,44 @@ class Input:
 
     def add(self) -> None:
         """
-        Append the frames of the `Input` to the timeline.
+        Appends the `frames` of the `Input` to the `timeline`.
         """
         ...
 
-    def apply(self, t: Transformation) -> Input:
+    def apply(self, *t: Transformation) -> Input:
         """
-        Applies the `Transformation` `t` to the `Input`.
+        Applies the `Transformation` `t` to all the `frames` of the `Input`.
         """
         ...
 
-    def repeat(self, n: int) -> Input:
+    def repeat(self, n: uint) -> Input:
         """
-        Return a new array of size `n` with `self` as each elements.
+        Returns a `new` `Input` made of `n` times itself.
+        """
+        ...
+
+    def copy(self) -> Input:
+        """
+        Returns a `copy` of itself.
+        """
+        ...
+
+    def concat(self, i: Input) -> Input:
+        """
+        Concat itself with `i`.
         """
         ...
 
     @overload
     def __getitem__(self, i: int) -> Input:
         """
-        Extracts `one frame`.
+        Returns a `reference` of the `frame` `i`.
         """
         ...
 
     @overload
     def __getitem__(self, s: slice) -> Input:
         """
-        Extracts a `slice of frames`.
+        Returns a `reference` of the `frames` `s`.
         """
         ...
