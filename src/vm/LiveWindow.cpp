@@ -294,21 +294,28 @@ void LiveWindow::executeInsts(const json::array_t &insts)
     for (const auto &i : insts) {
         const json::array_t &inst = i;
         if (inst[0] == "Assign") {
-            assign(inst[1], inst[2]);
+            assign(inst);
+        } else if (inst[0] == "Label") {
+            label(inst[1]);
         } else {
-            executeInst(inst);
+            executeInst(inst); // Is a Call but Calls can be chained.
         }
     }
+}
+
+void LiveWindow::assign(const json::array_t &args)
+{
+    _env[args[1]] = executeInst(args[2]);
+}
+
+void LiveWindow::label(const std::string &name)
+{
+    addLabel(name, _frames.size());
 }
 
 std::shared_ptr<_IInput> LiveWindow::executeInst(const json::array_t &inst)
 {
     return _instructions.at(inst[0])(inst);
-}
-
-void LiveWindow::assign(const std::string &name, const json::array_t &inst)
-{
-    _env[name] = executeInst(inst);
 }
 
 std::shared_ptr<_IInput> LiveWindow::load(const json::array_t &args)
@@ -327,20 +334,14 @@ std::shared_ptr<_IInput> LiveWindow::add(const json::array_t &args)
     return nullptr;
 }
 
-std::shared_ptr<_IInput> LiveWindow::label(const json::array_t &args)
-{
-    addLabel(args[0], _frames.size()); // TODO: not sure
-    return nullptr;
-}
-
 std::shared_ptr<_IInput> LiveWindow::image(const json::array_t &args)
 {
-    return std::make_unique<Image>(std::forward<std::string>(args[0]));
+    return std::make_unique<Image>(args[0]);
 }
 
 std::shared_ptr<_IInput> LiveWindow::video(const json::array_t &args)
 {
-    return std::make_unique<Video>(std::forward<std::string>(args[0]));
+    return std::make_unique<Video>(args[0]);
 }
 
 std::shared_ptr<_IInput> LiveWindow::repeat(const json::array_t &args)
@@ -348,12 +349,27 @@ std::shared_ptr<_IInput> LiveWindow::repeat(const json::array_t &args)
     return std::make_unique<List>(executeInst(args[0]), args[1]);
 }
 
+std::shared_ptr<_IInput> LiveWindow::copy(const json::array_t &args)
+{
+    return std::make_unique<List>(executeInst(args[0]));
+}
+
+std::shared_ptr<_IInput> LiveWindow::concat(const json::array_t &args)
+{
+    std::shared_ptr<_IInput> head = executeInst(args[0]);
+    std::shared_ptr<_IInput> tail = executeInst(args[1]);
+
+    head->concat(tail);
+
+    return head;
+}
+
 std::shared_ptr<_IInput> LiveWindow::subscript(const json::array_t &args)
 {
     return std::make_unique<Slice>(executeInst(args[0]), args[1], args[2]);
 }
 
-std::shared_ptr<_IInput> LiveWindow::apply(const json::array_t &args)
+std::shared_ptr<_IInput> LiveWindow::apply(const json::array_t &args) // TODO: check if list or transformation or just one
 {
     const std::shared_ptr<_IInput> input = executeInst(args[0]);
 
@@ -362,17 +378,15 @@ std::shared_ptr<_IInput> LiveWindow::apply(const json::array_t &args)
 
 std::shared_ptr<_IInput> LiveWindow::grayscale(std::shared_ptr<_IInput> input, [[maybe_unused]] const json::array_t &args)
 {
-    std::shared_ptr<_IInput> out = std::make_shared<List>(input);
-
-    if (out->getFrames().empty() || out->getFrames()[0].channels() == 1) {
-        return out;
+    if (input->getFrames().empty() || input->getFrames()[0].channels() == 1) {
+        return input;
     }
 
-    for (auto &m : out->getFramesForTransformation()) {
-        cv::cvtColor(m, m, cv::COLOR_BGR2GRAY); // TODO: should be deduced
+    for (auto &m : input->getFramesForTransformation()) {
+        cv::cvtColor(m, m, cv::COLOR_BGR2GRAY); // TODO: should be deduced or does it needs it ?
     }
 
-    return out;
+    return input;
 }
 
 // std::shared_ptr<_IInput> LiveWindow::fade([[maybe_unused]] std::shared_ptr<_IInput> input, const json::array_t &args)

@@ -109,9 +109,14 @@ public:
     void executeInsts(const json::array_t &insts);
 
     /**
-     * @ declare a variable in the env
+     * @ declare or update a variable in the env
      */
-    void assign(const std::string &name, const json::array_t &inst);
+    void assign(const json::array_t &args);
+
+    /**
+     * @ create a new label
+     */
+    void label(const std::string &name);
 
     /**************************************/
     /*** Below are the mapped commands ***/
@@ -172,11 +177,6 @@ public:
     std::shared_ptr<_IInput> add(const json::array_t &args);
 
     /**
-     * @ create a new label
-     */
-    std::shared_ptr<_IInput> label(const json::array_t &args);
-
-    /**
      * @ import an image
      */
     std::shared_ptr<_IInput> image(const json::array_t &args);
@@ -190,6 +190,16 @@ public:
      * @ repeat an input n times and returns it
      */
     std::shared_ptr<_IInput> repeat(const json::array_t &args);
+
+    /**
+     * @ copy an input and returns it
+     */
+    std::shared_ptr<_IInput> copy(const json::array_t &args);
+
+    /**
+     * @ concat 2 inputs and returns the result
+     */
+    std::shared_ptr<_IInput> concat(const json::array_t &args);
 
     /**
      * @ take a slice out of an input
@@ -288,15 +298,16 @@ private:
     // clang-format off
     const std::map<std::string, std::function<std::shared_ptr<_IInput>(const json::array_t &args)>> _instructions{
         /***    Main Instructions    ***/
-        { "load",      bindInst(load) },
         { "Call",      bindInst(call) },
+        { "load",      bindInst(load) },
         { "add",       bindInst(add) },
-        { "label",     bindInst(label) },
         /***    Load Instructions    ***/
         { "image",     bindInst(image) },
         { "video",     bindInst(video) },
         /***        Routines         ***/
         { "repeat",    bindInst(repeat) },
+        { "copy",      bindInst(copy) },
+        { "concat",    bindInst(concat) },
         { "subscript", bindInst(subscript) },
         { "apply",     bindInst(apply) },
     };
@@ -308,6 +319,10 @@ private:
         /***     Transformations     ***/
         {"grayscale", bindTsf(grayscale)},
         // {"fade",      bindTsf(fade)},
+        // {"fade",      bindTsf(scale)},
+        // {"fade",      bindTsf(rotate)},
+        // {"fade",      bindTsf(translate)},
+        // {"fade",      bindTsf(flip/reflection)},
     };
     // clang-format on
 
