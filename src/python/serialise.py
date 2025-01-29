@@ -14,12 +14,28 @@ def toLoad(id: str) -> list:
 def unparseCall(x: ast.Call) -> list:
     if type(x.func) == ast.Attribute:
         if type(x.func.value) == ast.Name:
-            return ["Call", x.func.attr, toLoad(x.func.value.id) + list(map(unparse, x.args))]
+            l = ["Call", x.func.attr, toLoad(x.func.value.id) + list(map(unparse, x.args))]
+
+            # Special case `concat`
+            if l[:-1] == ["Call", "concat"]:
+                return l[:-1] + [(l[-1][:-1] + toLoad(l[-1][-1]))]
+
+            return l
+
         return ["Call", x.func.attr, [unparse(x.func.value)] + list(map(unparse, x.args))]
-    return ["Call", unparse(x.func), list(map(unparse, x.args))]
+
+    l = ["Call", unparse(x.func), list(map(unparse, x.args))]
+
+    # Special case `Label`
+    if l[:-1] == ["Call", "label"]:
+        return ["Label", l[-1][0]]
+
+    return l
 
 
 def unparseAssign(x: ast.Assign) -> list:
+    if type(x.value) == ast.Name:
+        return ["Assign", unparse(x.targets[0])] + toLoad(x.value.id)
     return ["Assign", unparse(x.targets[0]), unparse(x.value)]
 
 
@@ -65,12 +81,12 @@ def unparseAst(x: ast.Module):
 def commentsToLabel(s: str) -> str:
     if s == "":
         return ""
-    if s[0] != "#":
+    if s[0:3] != "\n# ":
         return s[0] + commentsToLabel(s[1:])
-    i = 2
+    i = 3
     while s[i] != "\n":
         i += 1
-    return f'label("{s[2:i]}")' + commentsToLabel(s[i:])
+    return f'label("{s[3:i]}")' + commentsToLabel(s[i:])
 
 
 def toJson(filepath: str) -> str:
@@ -92,4 +108,5 @@ def toJson(filepath: str) -> str:
 
 
 if __name__ == "__main__":
-    print(toJson("video.py"))
+    for i in json.loads(toJson("video.py")):
+        print(i)
