@@ -12,6 +12,9 @@
 
 #include "utils/Exception.hpp"
 #define PY_SSIZE_T_CLEAN
+#ifdef slots
+#undef slots
+#endif
 #include <Python.h>
 
 #include <string>

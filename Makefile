@@ -26,6 +26,7 @@ QT_MACRO_DEF	=	-DQT_NO_DEBUG		\
 					-DQT_WIDGETS_LIB	\
 					-DQT_GUI_LIB		\
 					-DQT_CORE_LIB		\
+					-DQT_NO_KEYWORDS	\ # Fix Python Conflict
 
 
 CXX				?=	g++
