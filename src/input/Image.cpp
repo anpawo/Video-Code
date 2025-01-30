@@ -12,17 +12,22 @@
 #include <utility>
 #include <vector>
 
+#include "opencv2/imgproc.hpp"
 #include "utils/Exception.hpp"
 
 static std::vector<cv::Mat> loadFrames(const std::string& inputName)
 {
-    cv::Mat image = cv::imread(inputName);
+    cv::Mat frame = cv::imread(inputName);
 
-    if (image.empty()) {
+    if (frame.empty()) {
         throw Error("Invalid Image: " + inputName);
     }
 
-    return {image};
+    if (frame.channels() == 3) {
+        cv::cvtColor(frame, frame, cv::COLOR_BGR2BGRA);
+    }
+
+    return {frame};
 }
 
 Image::Image(std::string&& inputName)

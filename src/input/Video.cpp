@@ -7,17 +7,19 @@
 
 #include "input/Video.hpp"
 
+#include <iostream>
 #include <opencv2/imgcodecs.hpp>
 #include <utility>
 #include <vector>
 
 #include "opencv2/core/mat.hpp"
+#include "opencv2/imgproc.hpp"
 #include "opencv2/videoio.hpp"
 #include "utils/Exception.hpp"
 
 static std::vector<cv::Mat> loadFrames(const std::string& inputName)
 {
-    cv::VideoCapture video(inputName);
+    cv::VideoCapture video(inputName, cv::CAP_FFMPEG);
 
     if (!video.isOpened()) {
         throw Error("Invalid Video: " + inputName);
@@ -28,6 +30,10 @@ static std::vector<cv::Mat> loadFrames(const std::string& inputName)
 
     while (true) {
         video >> frame;
+
+        if (frame.channels() == 3) {
+            cv::cvtColor(frame, frame, cv::COLOR_BGR2BGRA);
+        }
 
         if (frame.empty()) {
             break;
