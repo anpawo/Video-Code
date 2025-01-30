@@ -138,17 +138,17 @@ public:
     /**
      * @ restart the timeline
      */
-    void restart();
+    void firstFrame();
+
+    /**
+     * @ load the last frame of the timeline
+     */
+    void lastFrame();
 
     /**
      * @ pause the timeline
      */
     void pause();
-
-    /**
-     * @ unpause the timeline
-     */
-    void unpause();
 
     /**
      * @ stop the window
@@ -231,7 +231,7 @@ public:
     /**
      * @ fade in or out from a side for a certain number of frame or sec
      */
-    std::shared_ptr<_IInput> fade(std::shared_ptr<_IInput> input, const json::array_t &args);
+    std::shared_ptr<_IInput> fadeIn(std::shared_ptr<_IInput> input, const json::array_t &args);
 
     /**
      * @ grayscale an image
@@ -239,6 +239,11 @@ public:
     std::shared_ptr<_IInput> grayscale(std::shared_ptr<_IInput> input, const json::array_t &args);
 
 private:
+
+    /**
+     * @ video frame rate.
+     */
+    const int _frameRate{24};
 
     /**
      * @ size of the window.
@@ -320,13 +325,13 @@ private:
      */
     // clang-format off
     const std::map<int, std::function<void()>> _events{
-        {Qt::Key_R,         bindCmd(restart)},
-        {Qt::Key_A,         bindCmd(pause)},
-        {Qt::Key_E,         bindCmd(unpause)},
+        {Qt::Key_Down,      bindCmd(firstFrame)},
+        {Qt::Key_Up,        bindCmd(lastFrame)},
         {Qt::Key_Left,      bindCmd(previousLabel)},   
         {Qt::Key_Right,     bindCmd(nextLabel)},       
+        {Qt::Key_Space,     bindCmd(pause)},
+        {Qt::Key_R,         bindCmd(reloadSourceFile)},
         {Qt::Key_Escape,    bindCmd(stop)},            
-        {Qt::Key_Space,     bindCmd(reloadSourceFile)},
     };
     // clang-format on
 
@@ -355,8 +360,8 @@ private:
     const std::map<std::string, std::function<std::shared_ptr<_IInput>(std::shared_ptr<_IInput> input, const json::array_t &args)>> _transformations
     {
         /***     Transformations     ***/
-        {"grayscale", bindTsf(grayscale)},
-        {"fade",      bindTsf(fade)},
+        {"grayscale",   bindTsf(grayscale)},
+        {"fadeIn",      bindTsf(fadeIn)},
         // {"fade",      bindTsf(scale)},
         // {"fade",      bindTsf(rotate)},
         // {"fade",      bindTsf(translate)},
