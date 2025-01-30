@@ -8,9 +8,11 @@ from transformation.Transformation import Transformation
 
 class Input:
     """
-    Represents an `Input` which is a list of frame.
+    Represents an `Input` which is a list of frames.
 
     A frame is a matrix of pixel.
+
+    `1 second` == `24 frames`.
 
     ::
 

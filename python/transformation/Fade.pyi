@@ -2,10 +2,16 @@
 
 from Transformation import Transformation
 
-from .._ty import side
+from .._ty import *
 
-def fade(side: side, n: int = -1) -> Transformation:
+def fadeIn(fromSide: side, n: int, /) -> Transformation:
     """
-    `Fade` from `side` in `n` frames.
+    `Fade in`  from `side` in `n` frames.
+    """
+    ...
+
+def fadeOut(fromSide: side, n: int, /) -> Transformation:
+    """
+    `Fade out` from `side` in `n` frames.
     """
     ...
