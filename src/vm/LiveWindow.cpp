@@ -7,6 +7,9 @@
 
 #include "vm/LiveWindow.hpp"
 
+#include <qapplication.h>
+#include <qboxlayout.h>
+#include <qpushbutton.h>
 #include <unistd.h>
 
 #include <format>
@@ -14,6 +17,7 @@
 #include <iostream>
 #include <memory>
 #include <opencv2/core/mat.hpp>
+#include <opencv2/core/matx.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <string>
@@ -27,32 +31,30 @@
 #include "utils/Exception.hpp"
 #include "utils/Map.hpp"
 
-LiveWindow::LiveWindow(int width, int height, std::string &&sourceFile)
+LiveWindow::LiveWindow(int &argc, char **argv, int width, int height, std::string &&sourceFile)
     : _width(width)
     , _height(height)
     , _sourceFile(sourceFile)
     , _defaultBlackFrame(cv::Mat::zeros(height, width, CV_8UC4))
+    , _app(argc, argv)
 {
-    // all below is for testing before the parsing works
-    // addLabel("1_Label_30", 30);
-    // addLabel("2_Label_45", 45);
-    // addLabel("3_Label_60", 60);
-    // addLabel("4_Label_75", 75);
-    // addLabel("5_Label_90", 90);
-    // addLabel("6_Label_120", 120);
-    // addLabel("7_Label_150", 150);
+    _window.setWindowTitle(("Video-Code  |  " + sourceFile).c_str());
 
-    // std::cout << "labels" << std::endl;
-    // std::cout << _labels << std::endl;
+    // // Create a button
+    QPushButton button("Click Me", &_window);
+    QObject::connect(&button, &QPushButton::clicked, &_app, &QApplication::quit);
 
-    // loadImage("ecs", "video/ecs.png");
-    // loadImage("icon", "video/icon.png");
-    // loadVideo("me", "video/me.mp4");
+    // // Layout setup
+    QVBoxLayout layout;
+    layout.addWidget(&button);
+    _window.setLayout(&layout);
 
-    // addFrames(getInputFrames("ecs"));
-    // addFrames(getInputFrames("me"));
+    _window.resize(_width / 2, _height / 2);
+    _window.show();
 
-    reloadSourceFile();
+    _app.exec();
+
+    // reloadSourceFile();
 }
 
 LiveWindow::~LiveWindow()
@@ -203,7 +205,7 @@ const std::shared_ptr<_IInput> &LiveWindow::getInput(std::string &&input)
 void LiveWindow::restart()
 {
     setIndex(0);
-    std::cout << "Timeline restarted at frame 0." << std::endl;
+    std::cout << "Timeline restarted at frame '0'." << std::endl;
 }
 
 void LiveWindow::pause()
@@ -263,7 +265,7 @@ void LiveWindow::reloadSourceFile()
         return;
     }
 
-    // for (std::size_t i = 0; i < newInsts.size(); i++) {
+    // for (std::size_t i = 0; i < newInsts.size(); i++) { // TODO: cache
     //     if (newInsts[i] == _insts[i]) {
     //         continue;
     //     }
@@ -389,10 +391,16 @@ std::shared_ptr<_IInput> LiveWindow::grayscale(std::shared_ptr<_IInput> input, [
     return input;
 }
 
-// std::shared_ptr<_IInput> LiveWindow::fade([[maybe_unused]] std::shared_ptr<_IInput> input, const json::array_t &args)
-// {
-//     const std::shared_ptr<_IInput> frames = executeInst(args[0]); // TODO:
+std::shared_ptr<_IInput> LiveWindow::fade(std::shared_ptr<_IInput> input, [[maybe_unused]] const json::array_t &args)
+{
+    std::size_t nbFrames = input->getFrames().size();
 
-// // return std::make_unique<Slice>(executeInst(args[0]), args[1], args[2]);
-// return {};
-// }
+    for (std::size_t i = 0; i < nbFrames; i++) {
+        auto &m = input->getFramesForTransformation()[i];
+        m.col(i).forEach<cv::Vec4b>([](cv::Vec4b &pixel, const int *) {
+            pixel[3] = 0;
+        });
+    }
+
+    return input;
+}

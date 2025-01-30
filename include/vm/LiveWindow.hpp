@@ -7,6 +7,9 @@
 
 #pragma once
 
+#include <qapplication.h>
+#include <qwidget.h>
+
 #include <cstddef>
 #include <functional>
 #include <map>
@@ -27,7 +30,7 @@ using json = nlohmann::json;
 class LiveWindow {
 public:
 
-    LiveWindow(int width, int height, std::string &&_sourceFile = "video.py");
+    LiveWindow(int &argc, char **argv, int width, int height, std::string &&_sourceFile = "video.py");
     ~LiveWindow();
 
     /**
@@ -216,9 +219,9 @@ public:
     /*****************************************/
 
     /**
-     * @ fade from a side for a certain number of frame
+     * @ fade in or out from a side for a certain number of frame or sec
      */
-    // std::shared_ptr<_IInput> fade(std::shared_ptr<_IInput> input, const json::array_t &args);
+    std::shared_ptr<_IInput> fade(std::shared_ptr<_IInput> input, const json::array_t &args);
 
     /**
      * @ grayscale an image
@@ -248,6 +251,16 @@ private:
      * - black frame for empty timelines
      */
     const cv::Mat _defaultBlackFrame;
+
+    /**
+     * @ qt app
+     */
+    QApplication _app;
+
+    /**
+     * @ qt window
+     */
+    QWidget _window;
 
     /**
      * @ current index of the timeline.
@@ -318,7 +331,7 @@ private:
     {
         /***     Transformations     ***/
         {"grayscale", bindTsf(grayscale)},
-        // {"fade",      bindTsf(fade)},
+        {"fade",      bindTsf(fade)},
         // {"fade",      bindTsf(scale)},
         // {"fade",      bindTsf(rotate)},
         // {"fade",      bindTsf(translate)},
