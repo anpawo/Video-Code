@@ -49,6 +49,11 @@ def unparseSlice(x: ast.Slice) -> list:
     return [unparse(x.lower) if x.lower else 0, unparse(x.upper) if x.upper else -1]
 
 
+def unparseUnaryOp(x: ast.UnaryOp) -> int:  # type: ignore // only support negative -<x>
+    if type(x.op) == ast.USub:
+        return -x.operand.value  # type: ignore throw // otherwise
+
+
 def unparse(x: Any) -> Any:
     mapUnparse = {
         ast.Expr: lambda x: unparse(x.value),
@@ -58,6 +63,7 @@ def unparse(x: Any) -> Any:
         ast.Slice: unparseSlice,
         ast.Constant: lambda x: x.value,
         ast.Name: lambda x: x.id,
+        ast.UnaryOp: unparseUnaryOp,
         list: lambda x: list(map(unparse, x)),
     }
 
