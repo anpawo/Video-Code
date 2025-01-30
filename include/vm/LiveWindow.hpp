@@ -20,6 +20,11 @@
 #include <vector>
 
 #include "input/_IInput.hpp"
+#include "qboxlayout.h"
+#include "qlabel.h"
+#include "qnamespace.h"
+#include "qtimer.h"
+#include "vm/WindowEvent.hpp"
 
 #define bindCmd(x) ([this]() { this->x(); })
 #define bindInst(x) ([this](const json::array_t &args) { return this->x(args); })
@@ -36,7 +41,12 @@ public:
     /**
      * @ run the program
      */
-    void run();
+    int run();
+
+    /**
+     * @ update the currently showed frame
+     */
+    void updateFrame();
 
     /**
      * @ set the index of the timeline
@@ -122,7 +132,7 @@ public:
     void label(const std::string &name);
 
     /**************************************/
-    /*** Below are the mapped commands ***/
+    /*** Below are the mapped events ***/
     /**************************************/
 
     /**
@@ -260,7 +270,22 @@ private:
     /**
      * @ qt window
      */
-    QWidget _window;
+    WindowEvent _window;
+
+    /**
+     * @ label linking the image and the label.
+     */
+    QLabel _imageLabel;
+
+    /**
+     * @ layout linking the label and the window.
+     */
+    QVBoxLayout _imageLayout;
+
+    /**
+     * @ loop updating the current frame
+     */
+    QTimer _timer;
 
     /**
      * @ current index of the timeline.
@@ -294,14 +319,14 @@ private:
      * @ supported commands.
      */
     // clang-format off
-    const std::map<int, std::function<void()>> _commands{
-        {'r', bindCmd(restart)},
-        {'a', bindCmd(pause)},
-        {'e', bindCmd(unpause)},
-        { 81, bindCmd(previousLabel)},    // left
-        { 83, bindCmd(nextLabel)},        // right
-        { 27, bindCmd(stop)},             // escape
-        { 32, bindCmd(reloadSourceFile)}, // space
+    const std::map<int, std::function<void()>> _events{
+        {Qt::Key_R,         bindCmd(restart)},
+        {Qt::Key_A,         bindCmd(pause)},
+        {Qt::Key_E,         bindCmd(unpause)},
+        {Qt::Key_Left,      bindCmd(previousLabel)},   
+        {Qt::Key_Right,     bindCmd(nextLabel)},       
+        {Qt::Key_Escape,    bindCmd(stop)},            
+        {Qt::Key_Space,     bindCmd(reloadSourceFile)},
     };
     // clang-format on
 

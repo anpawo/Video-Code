@@ -13,5 +13,5 @@ int main(int argc, char *argv[])
 {
     LiveWindow win(argc, argv, 1920, 1080);
 
-    // win.run();
+    return win.run();
 }

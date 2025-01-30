@@ -26,8 +26,8 @@ QT_MACRO_DEF	=	-DQT_NO_DEBUG		\
 					-DQT_WIDGETS_LIB	\
 					-DQT_GUI_LIB		\
 					-DQT_CORE_LIB		\
-					-DQT_NO_KEYWORDS	\ # Fix Python Conflict
-
+					-DQT_NO_KEYWORDS	\
+# Fix Python Conflict (btw this comment made the build fail when placed above)
 
 CXX				?=	g++
 
@@ -73,7 +73,11 @@ SRC				=	$(SRC_MAIN)			\
 
 
 SRC_MAIN		=	src/Main.cpp
-SRC_VM			=	src/vm/LiveWindow.cpp
+
+SRC_VM			=	src/vm/LiveWindow.cpp	\
+					src/vm/WindowEvent.cpp	\
+
+
 SRC_INPUT		=	src/input/_AInput.cpp	\
 					src/input/Image.cpp		\
 					src/input/Video.cpp		\

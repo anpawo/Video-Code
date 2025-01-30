@@ -9,11 +9,15 @@
 
 #include <qapplication.h>
 #include <qboxlayout.h>
+#include <qimage.h>
+#include <qlabel.h>
+#include <qobject.h>
+#include <qpixmap.h>
 #include <qpushbutton.h>
+#include <qtimer.h>
 #include <unistd.h>
 
 #include <format>
-#include <functional>
 #include <iostream>
 #include <memory>
 #include <opencv2/core/mat.hpp>
@@ -27,6 +31,7 @@
 #include "input/Slice.hpp"
 #include "input/Video.hpp"
 #include "input/_IInput.hpp"
+#include "opencv2/core/types.hpp"
 #include "python/API.hpp"
 #include "utils/Exception.hpp"
 #include "utils/Map.hpp"
@@ -35,26 +40,34 @@ LiveWindow::LiveWindow(int &argc, char **argv, int width, int height, std::strin
     : _width(width)
     , _height(height)
     , _sourceFile(sourceFile)
-    , _defaultBlackFrame(cv::Mat::zeros(height, width, CV_8UC4))
+    , _defaultBlackFrame(cv::Mat(height, width, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 255)))
     , _app(argc, argv)
+    , _window(_events, sourceFile, _width, _height, [this]() { this->updateFrame(); })
 {
-    _window.setWindowTitle(("Video-Code  |  " + sourceFile).c_str());
+    ///< Setup the layouts and images
+    _imageLayout.addWidget(&_imageLabel);
+    _window.setLayout(&_imageLayout);
 
-    // // Create a button
-    QPushButton button("Click Me", &_window);
-    QObject::connect(&button, &QPushButton::clicked, &_app, &QApplication::quit);
+    ///< Connect the main loop with the window
+    QObject::connect(&_timer, &QTimer::timeout, &_window, &WindowEvent::mainLoop);
+    _timer.start(24);
 
-    // // Layout setup
-    QVBoxLayout layout;
-    layout.addWidget(&button);
-    _window.setLayout(&layout);
+    // QPixmap image("video/icon.png");
 
-    _window.resize(_width / 2, _height / 2);
-    _window.show();
+    // QLabel *imageLabel = new QLabel();
+    // imageLabel->setPixmap(image);
 
-    _app.exec();
+    // QVBoxLayout layout;
+    // layout.addWidget(imageLabel);
+    // _window.setLayout(&layout);
+    // image = QPixmap("video/ecs.png");
+    // imageLabel->setPixmap(image);
 
-    // reloadSourceFile();
+    // _app.add
+
+    reloadSourceFile();
+
+    // QObject::connect();
 }
 
 LiveWindow::~LiveWindow()
@@ -62,47 +75,38 @@ LiveWindow::~LiveWindow()
     cv::destroyAllWindows();
 }
 
-void LiveWindow::run()
+void LiveWindow::updateFrame()
 {
-    int key;
+    cv::Mat frame;
 
-    while (_running) {
-        // display the current frame
-        {
-            // resize the frames to fit the size of the window
-            cv::Mat resizedFrame;
-
-            if (_frames.size() == 0) {
-                // show black background if no frames are loaded
-                cv::resize(_defaultBlackFrame, resizedFrame, cv::Size(_width / 2, _height / 2), _width / 2.0, 0, cv::INTER_LINEAR);
-            } else if (_index > _frames.size() - 1) {
-                // show last frame if index is higher than the number of frames
-                cv::resize(_frames[_frames.size() - 1], resizedFrame, cv::Size(_width / 2, _height / 2), _width / 2.0, 0, cv::INTER_LINEAR);
-            } else {
-                cv::resize(_frames[_index], resizedFrame, cv::Size(_width / 2, _height / 2), _width / 2.0, 0, cv::INTER_LINEAR);
-
-                // load next frame if not in pause
-                if (_paused == false) {
-                    _index += 1;
-                }
-            }
-
-            // show the frame
-            cv::imshow(_defaultWindowName, resizedFrame);
-            cv::moveWindow(_defaultWindowName, _width / 2, 0);
-        }
-
-        // get the input and react
-        {
-
-            key = cv::waitKey(24);
-
-            auto cmd = _commands.find(key);
-            if (cmd != _commands.end()) {
-                cmd->second();
-            }
-        }
+    if (_frames.size() == 0) {
+        // show black background if no frames are loaded
+        cv::resize(_defaultBlackFrame, frame, cv::Size(_width / 2, _height / 2), _width / 2.0, 0, cv::INTER_LINEAR);
+    } else if (_index > _frames.size() - 1) {
+        // show last frame if index is higher than the number of frames
+        cv::resize(_frames[_frames.size() - 1], frame, cv::Size(_width / 2, _height / 2), _width / 2.0, 0, cv::INTER_LINEAR);
+    } else {
+        cv::resize(_frames[_index], frame, cv::Size(_width / 2, _height / 2), _width / 2.0, 0, cv::INTER_LINEAR);
     }
+
+    // load next frame if not in pause
+    if (_paused == false) {
+        _index += 1;
+    }
+
+    // convert to rgba because opencv stores it as bgra
+    cv::cvtColor(frame, frame, cv::COLOR_BGRA2RGBA);
+
+    // convert to pixmap for better display (cpu)
+    QPixmap pixmap = QPixmap::fromImage(QImage(frame.data, frame.cols, frame.rows, frame.step, QImage::Format_RGBA8888));
+
+    // update the currently shown image
+    _imageLabel.setPixmap(pixmap);
+}
+
+int LiveWindow::run()
+{
+    return _app.exec();
 }
 
 void LiveWindow::setIndex(std::size_t index)
@@ -223,6 +227,7 @@ void LiveWindow::unpause()
 void LiveWindow::stop()
 {
     _running = false;
+    QApplication::quit();
 }
 
 void LiveWindow::previousLabel()
