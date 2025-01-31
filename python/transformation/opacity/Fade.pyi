@@ -2,15 +2,15 @@
 
 from Transformation import Transformation
 
-from .._ty import *
+from ..._ty import *
 
 def fadeIn(fromSide: side, n: int, /) -> Transformation:
     """
-    `Fade in`  from `side` in `n` frames.
+    `Fade in` from `side` in `n` frames.
     """
     ...
 
-def fadeOut(fromSide: side, n: int, /) -> Transformation:
+def fadeOut(fromSide: side, n: int, /) -> Transformation:  # TODO
     """
     `Fade out` from `side` in `n` frames.
     """

@@ -2,8 +2,8 @@
 
 from Transformation import Transformation
 
-def translate(x: int, y: int) -> Transformation:
+def translate(x: int, y: int, /) -> Transformation:
     """
-    Moves a frame.
+    `Translates` an `Input` by `x` `y`.
     """
     ...

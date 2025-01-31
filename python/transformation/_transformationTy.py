@@ -8,9 +8,10 @@ from Transformation import Transformation
 
 # Position Transformations
 from position.Translate import *
+from position.Move import *
 
 # Color Transformations
 from color.Grayscale import *
 
-# Fade Transformation
-from Fade import *
+# Opacity Transformations
+from opacity.Fade import *
