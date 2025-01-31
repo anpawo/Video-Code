@@ -15,21 +15,21 @@ def unparseCall(x: ast.Call) -> list:
     if type(x.func) == ast.Attribute:
         if type(x.func.value) == ast.Name:
             l = ["Call", x.func.attr, toLoad(x.func.value.id) + list(map(unparse, x.args))]
-
-            # Special case `concat`
-            if l[:-1] == ["Call", "concat"]:
+            # Special case `concat` and `merge`
+            if l[:-1] == ["Call", "concat"] or l[:-1] == ["Call", "merge"]:
                 return l[:-1] + [(l[-1][:-1] + toLoad(l[-1][-1]))]
-
             return l
 
-        return ["Call", x.func.attr, [unparse(x.func.value)] + list(map(unparse, x.args))]
+        l = ["Call", x.func.attr, [unparse(x.func.value)] + list(map(unparse, x.args))]
+        # Special case `concat` and `merge`
+        if l[:-1] == ["Call", "concat"] or l[:-1] == ["Call", "merge"]:
+            return l[:-1] + [(l[-1][:-1] + toLoad(l[-1][-1]))]
+        return l
 
     l = ["Call", unparse(x.func), list(map(unparse, x.args))]
-
     # Special case `Label`
     if l[:-1] == ["Call", "label"]:
         return ["Label", l[-1][0]]
-
     return l
 
 
@@ -41,8 +41,8 @@ def unparseAssign(x: ast.Assign) -> list:
 
 def unparseSubscript(x: ast.Subscript) -> list:
     if type(x.value) == ast.Name:
-        return ["Call", "subscript", toLoad(x.value.id) + unparse(x.slice)]
-    return ["Call", "subscript", [unparse(x.value)] + unparse(x.slice)]
+        return ["Call", "subscript", toLoad(x.value.id) + [unparse(x.slice)]]
+    return ["Call", "subscript", [unparse(x.value)] + [unparse(x.slice)]]
 
 
 def unparseSlice(x: ast.Slice) -> list:
@@ -67,11 +67,8 @@ def unparse(x: Any) -> Any:
         list: lambda x: list(map(unparse, x)),
     }
 
-    try:
-        return mapUnparse[type(x)](x)
-    except:
-        print(x, [(i, getattr(x, i)) for i in x._fields])
-        return x
+    # print(x, [(i, getattr(x, i)) for i in x._fields])
+    return mapUnparse[type(x)](x)
 
 
 def unparseAst(x: ast.Module):
@@ -81,7 +78,12 @@ def unparseAst(x: ast.Module):
             continue
         expr.append(e)
 
-    return [unparse(e) for e in expr]
+    l = []
+    for e in expr:
+        l.append(unparse(e))
+        # print(l[-1])
+
+    return l
 
 
 def commentsToLabel(s: str) -> str:
