@@ -18,6 +18,7 @@
 #include <unistd.h>
 
 #include <algorithm>
+#include <cstddef>
 #include <format>
 #include <iostream>
 #include <memory>
@@ -32,6 +33,7 @@
 #include "input/List.hpp"
 #include "input/Slice.hpp"
 #include "input/Video.hpp"
+#include "input/_AInput.hpp"
 #include "input/_IInput.hpp"
 #include "opencv2/core.hpp"
 #include "opencv2/core/types.hpp"
@@ -359,9 +361,40 @@ std::shared_ptr<_IInput> LiveWindow::concat(const json::array_t &args)
     return head;
 }
 
+std::shared_ptr<_IInput> LiveWindow::merge(const json::array_t &args)
+{
+    std::cout << args << std::endl;
+    auto &bg = executeInst(args[0])->cgetFrames();
+    auto &ov = executeInst(args[1])->cgetFrames();
+
+    std::vector<cv::Mat> frames;
+    std::size_t bgNbFrames = bg.size();
+    std::size_t ovNbFrames = ov.size();
+    std::size_t nbFrames = std::max(bgNbFrames, ovNbFrames);
+
+    for (std::size_t i = 0; i < nbFrames; i++) {
+        if (i >= ovNbFrames) {
+            frames.push_back(bg[i]);
+        } else if (i >= bgNbFrames) {
+            frames.push_back(ov[i].clone());
+        } else {
+            cv::Mat f(std::max(bg[i].rows, ov[i].rows), std::max(bg[i].cols, ov[i].cols), CV_8UC4);
+
+            bg[i].copyTo(f);
+            ov[i].copyTo(f); // TODO: handle opacity
+        }
+    }
+
+    return std::make_shared<_AInput>(std::move(frames));
+}
+
 std::shared_ptr<_IInput> LiveWindow::subscript(const json::array_t &args)
 {
-    return std::make_unique<Slice>(executeInst(args[0]), args[1], args[2]);
+    if (args[1].type() == json::value_t::array) {
+        return std::make_shared<Slice>(executeInst(args[0]), args[1][0], args[1][1]);
+    } else {
+        return std::make_shared<_AInput>(std::vector<cv::Mat>{executeInst(args[0])->getFrames()[args[1]].clone()});
+    }
 }
 
 std::shared_ptr<_IInput> LiveWindow::apply(const json::array_t &args)
