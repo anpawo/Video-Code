@@ -57,7 +57,13 @@ class Input:
 
     def concat(self, i: Input) -> Input:
         """
-        Concat itself with `i`.
+        `Concat` with `i`.
+        """
+        ...
+
+    def merge(self, i: Input) -> Input:
+        """
+        `Merge` with `i`.
         """
         ...
 

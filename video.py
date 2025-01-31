@@ -10,3 +10,6 @@ v1.apply(translate(-100, -50))[:30].copy().apply(fadeIn(ALL, -1)).add()
 
 # original
 v1.add()
+
+# one frame
+v1[5].add()
