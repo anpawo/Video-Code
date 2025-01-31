@@ -83,6 +83,7 @@ SRC_INPUT		=	src/input/_AInput.cpp	\
 					src/input/Video.cpp		\
 					src/input/List.cpp		\
 					src/input/Slice.cpp		\
+					src/input/Copy.cpp		\
 
 
 OBJ				=	$(SRC:.cpp=.o)

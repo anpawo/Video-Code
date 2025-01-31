@@ -13,23 +13,18 @@
 #include "input/_AInput.hpp"
 #include "opencv2/core/mat.hpp"
 
-static std::vector<cv::Mat> replicateFrame(std::shared_ptr<_IInput> frames, int n)
+static std::vector<cv::Mat> replicateFrame(std::shared_ptr<_IInput> input, int n)
 {
     std::vector<cv::Mat> result{};
 
     while (n--) {
-        const auto& temp = frames->cgetFrames();
+        const auto& temp = input->cgetFrames();
         result.insert(result.end(), temp.begin(), temp.end());
     }
     return result;
 }
 
-List::List(std::shared_ptr<_IInput> frames, int n)
-    : _AInput(replicateFrame(frames, n))
-{
-}
-
-List::List(std::shared_ptr<_IInput> frames)
-    : _AInput({frames->cgetFrames().begin(), frames->cgetFrames().end()})
+List::List(std::shared_ptr<_IInput> input, int n)
+    : _AInput(replicateFrame(input, n))
 {
 }

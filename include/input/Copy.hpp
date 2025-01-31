@@ -2,7 +2,7 @@
 ** EPITECH PROJECT, 2025
 ** video-code
 ** File description:
-** List
+** Copy
 */
 
 #pragma once
@@ -12,11 +12,11 @@
 #include "input/_AInput.hpp"
 #include "input/_IInput.hpp"
 
-class List : public _AInput {
+class Copy : public _AInput {
 public:
 
-    List(std::shared_ptr<_IInput> input, int n);
-    ~List() = default;
+    Copy(std::shared_ptr<_IInput> input);
+    ~Copy() = default;
 
 private:
 };

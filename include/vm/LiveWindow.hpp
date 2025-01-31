@@ -54,12 +54,6 @@ public:
     void goToLabel(const std::string &label);
 
     /**
-     * @ get all labels
-     */
-    const std::map<std::string, std::size_t> &getLabels() const;
-    const std::map<std::size_t, std::string> &getLabelsByVal() const;
-
-    /**
      * @ remove label
      */
     void removeLabel(const std::string &index);

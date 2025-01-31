@@ -27,6 +27,7 @@
 #include <opencv2/imgproc.hpp>
 #include <string>
 
+#include "input/Copy.hpp"
 #include "input/Image.hpp"
 #include "input/List.hpp"
 #include "input/Slice.hpp"
@@ -121,16 +122,6 @@ void LiveWindow::goToLabel(const std::string &label)
     }
 }
 
-const std::map<std::string, std::size_t> &LiveWindow::getLabels() const
-{
-    return _labels;
-}
-
-const std::map<std::size_t, std::string> &LiveWindow::getLabelsByVal() const
-{
-    return _labelsByVal;
-}
-
 void LiveWindow::removeLabel(const std::string &label)
 {
     _labelsByVal.erase(_labels[label]);
@@ -203,15 +194,13 @@ const std::shared_ptr<_IInput> &LiveWindow::getInput(std::string &&input)
 
 void LiveWindow::firstFrame()
 {
-    _index = 0;
-    _currentLabel = _labelsByVal[0];
+    goToLabel(_labelsByVal[0]);
     std::cout << std::format("Current Label set to '{}' at frame '0'.", _currentLabel) << std::endl;
 }
 
 void LiveWindow::lastFrame()
 {
-    _index = _frames.size() - 1;
-    _currentLabel = std::prev(_labelsByVal.end())->second;
+    goToLabel(std::prev(_labelsByVal.end())->second);
     std::cout << std::format("Current Label set to '{}' at frame '{}'.", _currentLabel, _index) << std::endl;
 }
 
@@ -233,19 +222,20 @@ void LiveWindow::previousLabel()
         goToLabel(_currentLabel);
         std::cout << std::format("Timeline set to the start of the current label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
     } else {
-        goToLabel(std::prev(_labels.find(_currentLabel))->first);
+        goToLabel(std::prev(_labelsByVal.find(_labels[_currentLabel]))->second);
         std::cout << std::format("Timeline set to the previous label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
     }
 }
 
 void LiveWindow::nextLabel()
 {
-    auto upperBound = getLabelsByVal().upper_bound(_labels[_currentLabel]);
+    auto next = std::next(_labelsByVal.find(_labels[_currentLabel]));
 
-    if (upperBound == getLabelsByVal().end()) {
-        std::cout << std::format("The Timeline is currently at the last label, '{}'", _currentLabel) << std::endl;
+    if (next == _labelsByVal.end()) {
+        _index = _frames.size() - 1;
+        std::cout << std::format("Timeline set to last index, '{}'", _index) << std::endl;
     } else {
-        goToLabel(upperBound->second);
+        goToLabel(next->second);
         std::cout << std::format("Timeline set to the next label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
     }
 }
@@ -356,7 +346,7 @@ std::shared_ptr<_IInput> LiveWindow::repeat(const json::array_t &args)
 
 std::shared_ptr<_IInput> LiveWindow::copy(const json::array_t &args)
 {
-    return std::make_unique<List>(executeInst(args[0]));
+    return std::make_unique<Copy>(executeInst(args[0]));
 }
 
 std::shared_ptr<_IInput> LiveWindow::concat(const json::array_t &args)
