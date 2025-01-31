@@ -42,7 +42,7 @@ def unparseAssign(x: ast.Assign) -> list:
 def unparseSubscript(x: ast.Subscript) -> list:
     if type(x.value) == ast.Name:
         return ["Call", "subscript", toLoad(x.value.id) + unparse(x.slice)]
-    return ["Call", "subscript", unparse(x.value) + unparse(x.slice)]
+    return ["Call", "subscript", [unparse(x.value)] + unparse(x.slice)]
 
 
 def unparseSlice(x: ast.Slice) -> list:
