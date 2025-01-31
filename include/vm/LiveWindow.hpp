@@ -49,24 +49,9 @@ public:
     void updateFrame();
 
     /**
-     * @ set the index of the timeline
-     */
-    void setIndex(std::size_t index);
-
-    /**
      * @ set the index of the timeline to a label
      */
-    void setIndex(const std::string &label);
-
-    /**
-     * @ get the current index
-     */
-    std::size_t getIndex() const;
-
-    /**
-     * @ find the label currently playing
-     */
-    const std::string &getLabel() const;
+    void goToLabel(const std::string &label);
 
     /**
      * @ get all labels
@@ -229,7 +214,7 @@ public:
     /*****************************************/
 
     /**
-     * @ fade in or out from a side for a certain number of frame or sec
+     * @ fade in from a side for a certain number of frame
      */
     std::shared_ptr<_IInput> fadeIn(std::shared_ptr<_IInput> input, const json::array_t &args);
 
@@ -237,6 +222,11 @@ public:
      * @ grayscale an image
      */
     std::shared_ptr<_IInput> grayscale(std::shared_ptr<_IInput> input, const json::array_t &args);
+
+    /**
+     * @ translates by x y
+     */
+    std::shared_ptr<_IInput> translate(std::shared_ptr<_IInput> input, const json::array_t &args);
 
 private:
 
@@ -303,16 +293,21 @@ private:
     std::vector<cv::Mat> _frames{};
 
     /**
-     * @ labels.
-     * - used to play some part of the video
+     * @ initial label
      */
-    std::map<std::string, std::size_t> _labels{{"__start", 0}};
-    std::map<std::size_t, std::string> _labelsByVal{{0, "__start"}};
+    const std::string _initialLabel{"__start"};
 
     /**
      * @ label currently playing
      */
-    std::string _currentLabel{"__start"};
+    std::string _currentLabel{_initialLabel};
+
+    /**
+     * @ labels.
+     * - used to play some part of the video
+     */
+    std::map<std::string, std::size_t> _labels{{_initialLabel, 0}};
+    std::map<std::size_t, std::string> _labelsByVal{{0, _initialLabel}};
 
     /**
      * @ env.
@@ -362,6 +357,7 @@ private:
         /***     Transformations     ***/
         {"grayscale",   bindTsf(grayscale)},
         {"fadeIn",      bindTsf(fadeIn)},
+        {"translate",   bindTsf(translate)},
         // {"fade",      bindTsf(scale)},
         // {"fade",      bindTsf(rotate)},
         // {"fade",      bindTsf(translate)},
