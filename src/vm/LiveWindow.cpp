@@ -32,6 +32,7 @@
 #include "input/Slice.hpp"
 #include "input/Video.hpp"
 #include "input/_IInput.hpp"
+#include "opencv2/core.hpp"
 #include "opencv2/core/types.hpp"
 #include "python/API.hpp"
 #include "utils/Exception.hpp"
@@ -110,30 +111,14 @@ int LiveWindow::run()
     return _app.exec();
 }
 
-void LiveWindow::setIndex(std::size_t index)
-{
-    _index = index;
-    _currentLabel = _labelsByVal[index];
-}
-
-void LiveWindow::setIndex(const std::string &label)
+void LiveWindow::goToLabel(const std::string &label)
 {
     auto it = _labels.find(label);
 
     if (it != _labels.end()) {
-        setIndex(it->second);
+        _index = it->second;
         _currentLabel = label;
     }
-}
-
-std::size_t LiveWindow::getIndex() const
-{
-    return _index;
-}
-
-const std::string &LiveWindow::getLabel() const
-{
-    return _currentLabel;
 }
 
 const std::map<std::string, std::size_t> &LiveWindow::getLabels() const
@@ -154,6 +139,15 @@ void LiveWindow::removeLabel(const std::string &label)
 
 void LiveWindow::addLabel(const std::string &label, std::size_t index)
 {
+    // update the current label if we override it
+    if (_labels[_currentLabel] == index) {
+        _currentLabel = label;
+    }
+    // erase any label with the same value
+    if (_labelsByVal.contains(index)) {
+        _labels.erase(_labelsByVal[index]);
+    }
+
     _labelsByVal[index] = label;
     _labels[label] = index;
 }
@@ -199,7 +193,7 @@ void LiveWindow::loadVideo(std::string &&envName, std::string &&inputName)
 
 const std::vector<cv::Mat> &LiveWindow::getInputFrames(std::string &&input)
 {
-    return _env[input]->getFrames();
+    return _env[input]->cgetFrames();
 }
 
 const std::shared_ptr<_IInput> &LiveWindow::getInput(std::string &&input)
@@ -209,20 +203,22 @@ const std::shared_ptr<_IInput> &LiveWindow::getInput(std::string &&input)
 
 void LiveWindow::firstFrame()
 {
-    setIndex(0);
-    std::cout << "Timeline restarted at frame '0'." << std::endl;
+    _index = 0;
+    _currentLabel = _labelsByVal[0];
+    std::cout << std::format("Current Label set to '{}' at frame '0'.", _currentLabel) << std::endl;
 }
 
 void LiveWindow::lastFrame()
 {
-    setIndex(_frames.size() - 1);
-    std::cout << std::format("Timeline set to the last frame '{}'.", _frames.size() - 1) << std::endl;
+    _index = _frames.size() - 1;
+    _currentLabel = std::prev(_labelsByVal.end())->second;
+    std::cout << std::format("Current Label set to '{}' at frame '{}'.", _currentLabel, _index) << std::endl;
 }
 
 void LiveWindow::pause()
 {
     _paused = !_paused;
-    std::cout << std::format("Timeline {} at frame '{}'.", _paused ? "paused" : "unpaused", getIndex()) << std::endl;
+    std::cout << std::format("Timeline {} at frame '{}'.", _paused ? "paused" : "unpaused", _index) << std::endl;
 }
 
 void LiveWindow::stop()
@@ -233,24 +229,24 @@ void LiveWindow::stop()
 
 void LiveWindow::previousLabel()
 {
-    if (getLabel() == "__start") {
-        setIndex(getLabel());
-        std::cout << std::format("Timeline set to the start of the current label '{}', at frame '{}'.", getLabel(), getIndex()) << std::endl;
+    if (_labels[_currentLabel] == 0) {
+        goToLabel(_currentLabel);
+        std::cout << std::format("Timeline set to the start of the current label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
     } else {
-        setIndex((--(getLabelsByVal().find(getLabels().at(getLabel()))))->second);
-        std::cout << std::format("Timeline set to the previous label '{}', at frame '{}'.", getLabel(), getIndex()) << std::endl;
+        goToLabel(std::prev(_labels.find(_currentLabel))->first);
+        std::cout << std::format("Timeline set to the previous label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
     }
 }
 
 void LiveWindow::nextLabel()
 {
-    auto upperBound = getLabelsByVal().upper_bound(getLabels().at(getLabel()));
+    auto upperBound = getLabelsByVal().upper_bound(_labels[_currentLabel]);
 
     if (upperBound == getLabelsByVal().end()) {
-        std::cout << std::format("The Timeline is currently at the last label, '{}'", getLabel()) << std::endl;
+        std::cout << std::format("The Timeline is currently at the last label, '{}'", _currentLabel) << std::endl;
     } else {
-        setIndex(upperBound->first);
-        std::cout << std::format("Timeline set to the next label '{}', at frame '{}'.", getLabel(), getIndex()) << std::endl;
+        goToLabel(upperBound->second);
+        std::cout << std::format("Timeline set to the next label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
     }
 }
 
@@ -284,15 +280,16 @@ void LiveWindow::reloadSourceFile()
     std::cout << newInsts << std::endl;
     _insts = newInsts;
     std::cout << _labels << std::endl;
+    std::cout << _labelsByVal << std::endl;
 }
 
 void LiveWindow::removeOld()
 {
     _env.clear();
 
-    _labels = {{"__start", 0}};
-    _labelsByVal = {{0, "__start"}};
-    _currentLabel = "__start";
+    _labels = {{_initialLabel, 0}};
+    _labelsByVal = {{0, _initialLabel}};
+    _currentLabel = _initialLabel;
 
     _frames.clear();
 }
@@ -338,7 +335,7 @@ std::shared_ptr<_IInput> LiveWindow::call(const json::array_t &args)
 
 std::shared_ptr<_IInput> LiveWindow::add(const json::array_t &args)
 {
-    addFrames(executeInst(args[0])->getFrames());
+    addFrames(executeInst(args[0])->cgetFrames());
     return nullptr;
 }
 
@@ -390,11 +387,11 @@ std::shared_ptr<_IInput> LiveWindow::apply(const json::array_t &args)
 
 std::shared_ptr<_IInput> LiveWindow::grayscale(std::shared_ptr<_IInput> input, [[maybe_unused]] const json::array_t &args)
 {
-    if (input->getFrames().empty() || input->getFrames()[0].channels() == 1) {
+    if (input->cgetFrames().empty() || input->cgetFrames()[0].channels() == 1) {
         return input;
     }
 
-    for (auto &m : input->getFramesForTransformation()) {
+    for (auto &m : input->getFrames()) {
         cv::cvtColor(m, m, cv::COLOR_BGR2GRAY); // TODO: should be deduced or does it needs it ?
     }
 
@@ -403,7 +400,7 @@ std::shared_ptr<_IInput> LiveWindow::grayscale(std::shared_ptr<_IInput> input, [
 
 std::shared_ptr<_IInput> LiveWindow::fadeIn(std::shared_ptr<_IInput> input, const json::array_t &args)
 {
-    int nbFrames = input->getFrames().size();
+    int nbFrames = input->cgetFrames().size();
     std::string side = args[0];
     int duration = args[1];
 
@@ -420,7 +417,7 @@ std::shared_ptr<_IInput> LiveWindow::fadeIn(std::shared_ptr<_IInput> input, cons
             }
 
             // current frame
-            auto &m = input->getFramesForTransformation()[n];
+            auto &m = input->getFrames()[n];
 
             for (int i = 0; i < m.cols; i++) {
                 float progress = i / static_cast<float>(m.cols) / 10;
@@ -442,7 +439,7 @@ std::shared_ptr<_IInput> LiveWindow::fadeIn(std::shared_ptr<_IInput> input, cons
             }
 
             // current frame
-            auto &m = input->getFramesForTransformation()[n];
+            auto &m = input->getFrames()[n];
 
             for (int i = 0; i < m.cols; i++) {
                 float progress = i / static_cast<float>(m.cols) / 10;
@@ -463,7 +460,7 @@ std::shared_ptr<_IInput> LiveWindow::fadeIn(std::shared_ptr<_IInput> input, cons
             }
 
             // current frame
-            auto &m = input->getFramesForTransformation()[n];
+            auto &m = input->getFrames()[n];
 
             for (int i = 0; i < m.rows; i++) {
                 float progress = i / static_cast<float>(m.rows) / 10;
@@ -484,7 +481,7 @@ std::shared_ptr<_IInput> LiveWindow::fadeIn(std::shared_ptr<_IInput> input, cons
             }
 
             // current frame
-            auto &m = input->getFramesForTransformation()[n];
+            auto &m = input->getFrames()[n];
 
             for (int i = 0; i < m.rows; i++) {
                 float progress = i / static_cast<float>(m.rows) / 10;
@@ -505,7 +502,7 @@ std::shared_ptr<_IInput> LiveWindow::fadeIn(std::shared_ptr<_IInput> input, cons
             }
 
             // current frame
-            auto &m = input->getFramesForTransformation()[n];
+            auto &m = input->getFrames()[n];
 
             for (int i = 0; i < m.rows; i++) {
                 // We want to ensure the fade finishes when n == duration
@@ -515,6 +512,31 @@ std::shared_ptr<_IInput> LiveWindow::fadeIn(std::shared_ptr<_IInput> input, cons
                     pixel[3] *= mul; ///< ensure that many tranformations can be done at the same time
                 });
             }
+        }
+    }
+
+    return input;
+}
+
+std::shared_ptr<_IInput> LiveWindow::translate(std::shared_ptr<_IInput> input, const json::array_t &args)
+{
+    int x = args[0];
+    int y = args[1];
+
+    for (auto &m : input->getFrames()) {
+        if (x < 0) {
+            // rm col
+            m = m.rowRange(-x, m.rows);
+        } else if (x > 0) {
+            // add col
+            cv::vconcat(cv::Mat(x, m.cols, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 255)), m, m);
+        }
+        if (y < 0) {
+            // rm row
+            m = m.colRange(-y, m.cols);
+        } else if (y > 0) {
+            // add row
+            cv::hconcat(cv::Mat(m.rows, y, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 255)), m, m);
         }
     }
 
