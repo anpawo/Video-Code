@@ -18,7 +18,7 @@ static std::vector<cv::Mat> replicateFrame(std::shared_ptr<_IInput> frames, int 
     std::vector<cv::Mat> result{};
 
     while (n--) {
-        const auto& temp = frames->getFrames();
+        const auto& temp = frames->cgetFrames();
         result.insert(result.end(), temp.begin(), temp.end());
     }
     return result;
@@ -30,6 +30,6 @@ List::List(std::shared_ptr<_IInput> frames, int n)
 }
 
 List::List(std::shared_ptr<_IInput> frames)
-    : _AInput({frames->getFrames().begin(), frames->getFrames().end()})
+    : _AInput({frames->cgetFrames().begin(), frames->cgetFrames().end()})
 {
 }

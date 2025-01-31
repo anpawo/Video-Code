@@ -18,8 +18,8 @@ public:
     _AInput(std::vector<cv::Mat>&& frames);
     virtual ~_AInput() = default;
 
-    const std::vector<cv::Mat>& getFrames() final;
-    std::vector<cv::Mat>& getFramesForTransformation() final;
+    const std::vector<cv::Mat>& cgetFrames() final;
+    std::vector<cv::Mat>& getFrames() final;
     void concat(std::shared_ptr<_IInput> other) final;
 
 private:

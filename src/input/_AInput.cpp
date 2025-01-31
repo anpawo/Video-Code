@@ -16,17 +16,17 @@ _AInput::_AInput(std::vector<cv::Mat>&& frames)
 {
 }
 
-const std::vector<cv::Mat>& _AInput::getFrames()
+const std::vector<cv::Mat>& _AInput::cgetFrames()
 {
     return _frames;
 }
 
-std::vector<cv::Mat>& _AInput::getFramesForTransformation()
+std::vector<cv::Mat>& _AInput::getFrames()
 {
     return _frames;
 }
 
 void _AInput::concat(std::shared_ptr<_IInput> other)
 {
-    _frames.insert(_frames.end(), other->getFrames().cbegin(), other->getFrames().cend());
+    _frames.insert(_frames.end(), other->cgetFrames().cbegin(), other->cgetFrames().cend());
 }

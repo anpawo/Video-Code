@@ -11,7 +11,7 @@
 
 static std::vector<cv::Mat> loadFrames(std::shared_ptr<_IInput> src, int lowerBound, int upperBound)
 {
-    const auto &srcFrame = src->getFrames();
+    const auto &srcFrame = src->cgetFrames();
 
     if (upperBound < 0) {
         upperBound = srcFrame.size() + upperBound;
