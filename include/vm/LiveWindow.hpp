@@ -206,7 +206,7 @@ public:
     /**
      * @ merge a and b
      */
-    std::shared_ptr<_IInput> merge(const json::array_t &args);
+    std::shared_ptr<_IInput> overlay(const json::array_t &args);
 
     /*****************************************/
     /***   Below are the transformations   ***/
@@ -347,7 +347,7 @@ private:
         { "concat",    bindInst(concat) },
         { "subscript", bindInst(subscript) },
         { "apply",     bindInst(apply) },
-        { "merge",     bindInst(merge) },
+        { "overlay",   bindInst(overlay) },
     };
     // clang-format on
 
