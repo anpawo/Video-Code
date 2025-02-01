@@ -269,7 +269,6 @@ void LiveWindow::reloadSourceFile()
 
     removeOld();
     executeInsts(newInsts);
-    std::cout << newInsts << std::endl;
     _insts = newInsts;
     std::cout << _labels << std::endl;
     std::cout << _labelsByVal << std::endl;
@@ -289,6 +288,7 @@ void LiveWindow::removeOld()
 void LiveWindow::executeInsts(const json::array_t &insts)
 {
     for (const auto &i : insts) {
+        std::cout << i << std::endl;
         const json::array_t &inst = i;
         if (inst[0] == "Assign") {
             assign(inst);
@@ -361,11 +361,13 @@ std::shared_ptr<_IInput> LiveWindow::concat(const json::array_t &args)
     return head;
 }
 
-std::shared_ptr<_IInput> LiveWindow::merge(const json::array_t &args)
+std::shared_ptr<_IInput> LiveWindow::overlay(const json::array_t &args)
 {
-    std::cout << args << std::endl;
-    auto &bg = executeInst(args[0])->cgetFrames();
-    auto &ov = executeInst(args[1])->cgetFrames();
+    auto input1 = executeInst(args[0]);
+    auto input2 = executeInst(args[1]);
+
+    const std::vector<cv::Mat> &bg = input1->cgetFrames();
+    const std::vector<cv::Mat> &ov = input2->cgetFrames();
 
     std::vector<cv::Mat> frames;
     std::size_t bgNbFrames = bg.size();
@@ -374,26 +376,53 @@ std::shared_ptr<_IInput> LiveWindow::merge(const json::array_t &args)
 
     for (std::size_t i = 0; i < nbFrames; i++) {
         if (i >= ovNbFrames) {
-            frames.push_back(bg[i]);
+            frames.push_back(bg[i].clone());
         } else if (i >= bgNbFrames) {
             frames.push_back(ov[i].clone());
         } else {
-            cv::Mat f(std::max(bg[i].rows, ov[i].rows), std::max(bg[i].cols, ov[i].cols), CV_8UC4);
+            int nbRows = std::max(bg[i].rows, ov[i].rows);
+            int nbCols = std::max(bg[i].cols, ov[i].cols);
 
-            bg[i].copyTo(f);
-            ov[i].copyTo(f); // TODO: handle opacity
+            cv::Mat f(nbRows, nbCols, CV_8UC4);
+
+            for (int iy = 0; iy < nbRows; iy++) {
+                for (int ix = 0; ix < nbCols; ix++) {
+                    cv::Vec4b pBg = (iy < bg[i].rows && ix < bg[i].cols) ? bg[i].at<cv::Vec4b>(iy, ix) : cv::Vec4b(0, 0, 0, 0);
+                    cv::Vec4b pOv = (iy < ov[i].rows && ix < ov[i].cols) ? ov[i].at<cv::Vec4b>(iy, ix) : cv::Vec4b(0, 0, 0, 0);
+
+                    float alphaOv = pOv[3] / 255.0f;
+
+                    cv::Vec4b blended;
+                    for (int c = 0; c < 3; c++) {
+                        blended[c] = static_cast<uchar>(pOv[c] * alphaOv + pBg[c] * (1.0f - alphaOv));
+                    }
+                    blended[3] = std::max(pBg[3], pOv[3]);
+
+                    f.at<cv::Vec4b>(iy, ix) = blended;
+                }
+            }
+            frames.push_back(f);
         }
     }
 
-    return std::make_shared<_AInput>(std::move(frames));
+    input1->setFrames(std::move(frames));
+    return input1;
 }
+
+// for merge
+// f.at<cv::Vec4b>(iy, ix) = {
+//                         static_cast<uchar>((pBg[0] * pBg[3] / 255 + pOv[0] * pOv[3] / 255) / 2),
+//                         static_cast<uchar>((pBg[1] * pBg[3] / 255 + pOv[1] * pOv[3] / 255) / 2),
+//                         static_cast<uchar>((pBg[2] * pBg[3] / 255 + pOv[2] * pOv[3] / 255) / 2),
+//                         static_cast<uchar>((pBg[3] + pOv[3]) / 2),
+//                     };
 
 std::shared_ptr<_IInput> LiveWindow::subscript(const json::array_t &args)
 {
     if (args[1].type() == json::value_t::array) {
         return std::make_shared<Slice>(executeInst(args[0]), args[1][0], args[1][1]);
     } else {
-        return std::make_shared<_AInput>(std::vector<cv::Mat>{executeInst(args[0])->getFrames()[args[1]].clone()});
+        return std::make_shared<_AInput>(std::vector<cv::Mat>({executeInst(args[0])->getFrames()[args[1]].clone()}));
     }
 }
 
