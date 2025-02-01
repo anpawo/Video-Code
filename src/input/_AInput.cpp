@@ -9,6 +9,7 @@
 
 #include <opencv2/core/mat.hpp>
 #include <opencv2/imgcodecs.hpp>
+#include <utility>
 #include <vector>
 
 _AInput::_AInput(std::vector<cv::Mat>&& frames)
@@ -29,4 +30,9 @@ std::vector<cv::Mat>& _AInput::getFrames()
 void _AInput::concat(std::shared_ptr<_IInput> other)
 {
     _frames.insert(_frames.end(), other->cgetFrames().cbegin(), other->cgetFrames().cend());
+}
+
+void _AInput::setFrames(std::vector<cv::Mat>&& frames)
+{
+    _frames = std::forward<std::vector<cv::Mat>>(frames);
 }
