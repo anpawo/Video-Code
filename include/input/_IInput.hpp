@@ -18,12 +18,24 @@ public:
     virtual ~_IInput() = default;
 
     /**
-     * @ return the loaded frames of the input
-     * - used to push them on the timeline
+     * @ return a const ref to the frames
      */
     virtual const std::vector<cv::Mat>& cgetFrames() = 0;
+
+    /**
+     * @ return a ref to the frames
+     */
     virtual std::vector<cv::Mat>& getFrames() = 0;
+
+    /**
+     * @ concat other after self
+     */
     virtual void concat(std::shared_ptr<_IInput> other) = 0;
+
+    /**
+     * @ update the current frames
+     */
+    virtual void setFrames(std::vector<cv::Mat>&& frames) = 0;
 
 private:
 };

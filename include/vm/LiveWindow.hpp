@@ -203,6 +203,11 @@ public:
      */
     std::shared_ptr<_IInput> apply(const json::array_t &args);
 
+    /**
+     * @ merge a and b
+     */
+    std::shared_ptr<_IInput> overlay(const json::array_t &args);
+
     /*****************************************/
     /***   Below are the transformations   ***/
     /*****************************************/
@@ -342,6 +347,7 @@ private:
         { "concat",    bindInst(concat) },
         { "subscript", bindInst(subscript) },
         { "apply",     bindInst(apply) },
+        { "overlay",   bindInst(overlay) },
     };
     // clang-format on
 
@@ -354,7 +360,6 @@ private:
         {"translate",   bindTsf(translate)},
         // {"fade",      bindTsf(scale)},
         // {"fade",      bindTsf(rotate)},
-        // {"fade",      bindTsf(translate)},
         // {"fade",      bindTsf(flip/reflection)},
     };
     // clang-format on
@@ -374,5 +379,3 @@ private:
      */
     json::array_t _insts{};
 };
-
-// TODO: should cache the loaded images/video (with a time modification?)
