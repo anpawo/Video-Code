@@ -21,6 +21,7 @@ public:
     const std::vector<cv::Mat>& cgetFrames() final;
     std::vector<cv::Mat>& getFrames() final;
     void concat(std::shared_ptr<_IInput> other) final;
+    void setFrames(std::vector<cv::Mat>&& frames) final;
 
 private:
 
