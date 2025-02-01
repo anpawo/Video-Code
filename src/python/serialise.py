@@ -15,14 +15,14 @@ def unparseCall(x: ast.Call) -> list:
     if type(x.func) == ast.Attribute:
         if type(x.func.value) == ast.Name:
             l = ["Call", x.func.attr, toLoad(x.func.value.id) + list(map(unparse, x.args))]
-            # Special case `concat` and `merge`
-            if l[:-1] == ["Call", "concat"] or l[:-1] == ["Call", "merge"]:
+            # Special case `concat` and `merge` and `overlay`
+            if l[1] in ["concat", "merge", "overlay"] and isinstance(l[2][1], str):
                 return l[:-1] + [(l[-1][:-1] + toLoad(l[-1][-1]))]
             return l
 
         l = ["Call", x.func.attr, [unparse(x.func.value)] + list(map(unparse, x.args))]
-        # Special case `concat` and `merge`
-        if l[:-1] == ["Call", "concat"] or l[:-1] == ["Call", "merge"]:
+        # Special case `concat` and `merge` and `overlay`
+        if l[1] in ["concat", "merge", "overlay"] and isinstance(l[2][1], str):
             return l[:-1] + [(l[-1][:-1] + toLoad(l[-1][-1]))]
         return l
 
