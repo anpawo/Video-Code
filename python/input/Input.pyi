@@ -33,50 +33,60 @@ class Input:
 
     def add(self) -> None:
         """
-        Appends the `frames` of the `Input` to the `timeline`.
+        Appends the `frames` of `self` to the `timeline`.
         """
         ...
 
-    def apply(self, *t: Transformation) -> Input:
+    def apply(self, *ts: Transformation) -> Input:
         """
-        Applies the `Transformation` `t` to all the `frames` of the `Input`.
+        Applies the `Transformations` `ts` to all the `frames` of `self`.
         """
         ...
 
     def repeat(self, n: uint) -> Input:
         """
-        Returns a `new` `Input` made of `n` times itself.
+        Creates a `new` `Input` made of `n` times `self`.
         """
         ...
 
     def copy(self) -> Input:
         """
-        Returns a `copy` of itself.
+        Creates a `copy` of `self`.
         """
         ...
 
     def concat(self, i: Input) -> Input:
         """
-        `Concat` with `i`.
+        Concatenates `i` after `self`.
         """
         ...
 
     def merge(self, i: Input) -> Input:
         """
-        `Merge` with `i`.
+        Merges with `i`.
+
+        Each `Input` will have the same ratio on the result.
+        """
+        ...
+
+    def overlay(self, i: Input) -> Input:
+        """
+        Overlays `i` on top of `self`.
+
+        `i` has a ratio priority over `self`.
         """
         ...
 
     @overload
     def __getitem__(self, i: int) -> Input:
         """
-        Returns a `reference` of the `frame` `i`.
+        Creates a `reference` of the `frame` `i`.
         """
         ...
 
     @overload
     def __getitem__(self, s: slice) -> Input:
         """
-        Returns a `reference` of the `frames` `s`.
+        Creates a `reference` of the `frames` `s`.
         """
         ...
