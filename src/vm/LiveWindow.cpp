@@ -581,14 +581,14 @@ std::shared_ptr<_IInput> LiveWindow::translate(std::shared_ptr<_IInput> input, c
             m = m.rowRange(-x, m.rows);
         } else if (x > 0) {
             // add col
-            cv::vconcat(cv::Mat(x, m.cols, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 255)), m, m);
+            cv::vconcat(cv::Mat(x, m.cols, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0)), m, m);
         }
         if (y < 0) {
             // rm row
             m = m.colRange(-y, m.cols);
         } else if (y > 0) {
             // add row
-            cv::hconcat(cv::Mat(m.rows, y, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 255)), m, m);
+            cv::hconcat(cv::Mat(m.rows, y, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0)), m, m);
         }
     }
 
