@@ -8,7 +8,7 @@
 from frontend.input._AllInput import *
 
 # Transformations
-from .transformation._AllTransformation import *
+from frontend.transformation._AllTransformation import *
 
 # Scenes
 from frontend.Scene import *
