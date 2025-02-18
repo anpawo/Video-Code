@@ -7,20 +7,16 @@
 
 #pragma once
 
-#include <string>
+#include "input/ABCInput.hpp"
 
-#include "input/_AInput.hpp"
-
-class Image : public _AInput {
+class Image : public ABCInput
+{
 public:
 
-    Image(std::string&& inputName);
+    Image(const std::string& inputName);
     ~Image() = default;
 
 private:
 
-    /**
-     * @ name of the input file
-     */
     const std::string _inputName{};
 };

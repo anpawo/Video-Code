@@ -7,20 +7,16 @@
 
 #pragma once
 
-#include <string>
+#include "input/ABCInput.hpp"
 
-#include "input/_AInput.hpp"
-
-class Video : public _AInput {
+class Video : public ABCInput
+{
 public:
 
-    Video(std::string&& inputName);
+    Video(const std::string& inputName);
     ~Video() = default;
 
 private:
 
-    /**
-     * @ name of the input file
-     */
-    const std::string _inputName;
+    const std::string _inputName{};
 };
