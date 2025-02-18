@@ -27,7 +27,7 @@ QT_MACRO_DEF	=	-DQT_NO_DEBUG		\
 					-DQT_GUI_LIB		\
 					-DQT_CORE_LIB		\
 					-DQT_NO_KEYWORDS	\
-# Fix Python Conflict (btw this comment made the build fail when placed above)
+# Fix Python Conflict
 
 CXX				?=	g++
 
@@ -67,23 +67,25 @@ LDFLAGS			+=	$(OPENCV_LIB)		\
 
 LFLAGS			=	-O1 -Wl,-rpath-link,/usr/lib64
 
-SRC				=	$(SRC_MAIN)			\
-					$(SRC_VM)			\
-					$(SRC_INPUT)		\
+SRC				=	$(SRC_MAIN)				\
+					$(SRC_VM)				\
+					$(SRC_INPUT)			\
+					$(SRC_TRANSFORM)	\
 
 
 SRC_MAIN		=	src/Main.cpp
 
 SRC_VM			=	src/vm/LiveWindow.cpp	\
 					src/vm/WindowEvent.cpp	\
+					src/vm/Register.cpp		\
 
 
-SRC_INPUT		=	src/input/_AInput.cpp	\
+SRC_INPUT		=	src/input/ABCInput.cpp	\
 					src/input/Image.cpp		\
 					src/input/Video.cpp		\
-					src/input/List.cpp		\
-					src/input/Slice.cpp		\
-					src/input/Copy.cpp		\
+
+SRC_TRANSFORM	=	src/transformation/position/translate.cpp	\
+					src/transformation/other/overlay.cpp		\
 
 
 OBJ				=	$(SRC:.cpp=.o)
