@@ -26,23 +26,17 @@ def commentsToLabel(s: str) -> str:
 
 def serializeScene(filepath: str) -> str:
     """
-    Serialiaze the `Scenes` of a file.
+    Serialiaze a file representing a `Scene`.
     """
 
     # Read the content of the file
     with open(filepath, "r") as file:
         content = file.read()  # TODO: Replace comments with labels
 
-    # Exec the file to register the `Scene`
+    # Exec the file representing the `Scene`. It will update the globals in `Global`.
     global __name__
     __name__ = "Scene"
     exec(content, globals())
-
-    # Filter out anything other that the `Scenes`
-    scenes: list[Type[Scene]] = [v for _, v in globals().items() if inspect.isclass(v) and Scene in v.__bases__]
-
-    # Temporary load the first `Scene` found. TODO: load the desired scene in the future
-    scenes[0]().scene()
 
     # Access Globals: `variable` and `stack`
     g = Global()

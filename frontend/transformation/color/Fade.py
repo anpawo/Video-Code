@@ -11,7 +11,7 @@ class fade(Transformation):
         """
         `Fade` from `side`.
 
-        Modify `opacity` for a `Fade In` or a `Fade out`.
+        Modify `opacity` for a `Fade in` or a `Fade out`.
         """
         self.side = side
         self.opacity = opacity
