@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from typing import Optional, Tuple
-from frontend.transformation._Transformation import *
+from frontend.transformation.Transformation import *
 
 from frontend.Constant import *
 
