@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from frontend.transformation._Transformation import Transformation
+from frontend.transformation.Transformation import Transformation
 
 
 class translate(Transformation):

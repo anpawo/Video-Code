@@ -5,8 +5,7 @@ from abc import ABC, abstractmethod
 import copy
 from typing import Any, Self, overload
 
-from frontend.transformation._Transformation import Transformation
-from frontend.Constant import uint
+from frontend.transformation.Transformation import Transformation
 from frontend.Global import *
 
 
@@ -29,7 +28,7 @@ class Input(ABC):
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = super().__new__(cls)
-        instance.index = len(Global.variable)
+        instance.index = len(Global.requiredInputs)
         return instance
 
     @abstractmethod
@@ -39,21 +38,14 @@ class Input(ABC):
         """
         Appends the `frames` of `self` to the `timeline`.
         """
-        Global.stack.append(("Add", self.index, []))
+        Global.transformationStack.append(("Add", self.index, []))
 
     def apply(self, *ts: Transformation) -> Input:
         """
         Applies the `Transformations` `ts` to all the `frames` of `self`.
         """
         for t in ts:
-            Global.stack.append(("Apply", self.index, [t.__class__.__name__, t.attributes()]))
-        return self
-
-    def repeat(self, n: uint) -> Input:
-        """
-        Creates a `new` `Input` made of `n` times `self`.
-        """
-        Global.stack.append(("Repeat", self.index, [n]))
+            Global.transformationStack.append(("Apply", self.index, [t.__class__.__name__, t.attributes()]))
         return self
 
     def copy(self) -> Input:
@@ -61,41 +53,21 @@ class Input(ABC):
         Creates a `copy` of `self`.
         """
         cp = copy.deepcopy(self)
-        cp.index = len(Global.variable)
-        Global.variable.append(Global.variable[self.index])
-        Global.stack.append(("Copy", self.index, []))
+        cp.index = len(Global.requiredInputs)
+        Global.requiredInputs.append(("Copy", [self.index]))
         return cp
-
-    def concat(self, i: Input) -> Input:
-        """
-        Concatenates `i` after `self`.
-        """
-        Global.stack.append(("Concat", self.index, [i.index]))
-        return self
-
-    def merge(self, i: Input) -> Input:
-        """
-        Merges with `i`.
-
-        Each `Input` will have the same ratio on the result.
-        """
-        Global.stack.append(("Merge", self.index, [i.index]))
-        return self
-
-    def overlay(self, i: Input) -> Input:
-        """
-        Overlays `i` on top of `self`.
-
-        `i` has a ratio priority over `self`.
-        """
-        Global.stack.append(("Overlay", self.index, [i.index]))
-        return self
 
     def __getitem__(self, i: int | slice[int, int, None]) -> Slice:
         """
         Creates a `reference` of the `frames` `s`.
 
         Usefull if you want to apply a `Transformation` to a part of a video.
+
+        Examples
+        --------
+        >>> v = video("test.mp4")
+        >>> v[0:20].fade() # Fade-in during the first 20 frames.
+        >>> v.add()
         """
         if isinstance(i, int):
             s = slice(i, i)
@@ -108,8 +80,7 @@ class Input(ABC):
             s = slice(start, stop)
 
         temp = Slice(self, s)
-        Global.variable.append(("Slice", [self.index, s.start, s.stop]))
-        Global.stack.append(("Slice", self.index, [s.start, s.stop]))
+        Global.requiredInputs.append(("Slice", [self.index, s.start, s.stop]))
         return temp
 
 

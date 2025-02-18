@@ -50,12 +50,12 @@ def serializeScene(filepath: str) -> str:
     # Serialize the instructions to JSON
     return json.dumps(
         {
-            "variable": g.variable,
-            "stack": g.stack,
+            "requiredInputs": g.requiredInputs,
+            "transformationStack": g.transformationStack,
         }
     )
 
 
 if __name__ == "__main__":
     for k, v in json.loads(serializeScene("video.py")).items():
-        print(f"{k:<12}{v}")
+        print(f"{k:<20}{v}")

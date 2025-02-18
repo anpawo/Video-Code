@@ -16,36 +16,32 @@
 #include "opencv2/videoio.hpp"
 #include "utils/Exception.hpp"
 
-static std::vector<cv::Mat> loadFrames(const std::string& inputName)
+Video::Video(const std::string &inputName)
+    : _inputName(inputName)
 {
     cv::VideoCapture video(inputName, cv::CAP_FFMPEG);
 
-    if (!video.isOpened()) {
-        throw Error("Invalid Video: " + inputName);
+    if (!video.isOpened())
+    {
+        throw Error("Could not load Video: " + inputName);
     }
 
-    std::vector<cv::Mat> frames{};
-    cv::Mat frame{};
+    while (true)
+    {
+        cv::Mat currentFrame;
 
-    while (true) {
-        video >> frame;
+        video >> currentFrame;
 
-        if (frame.channels() == 3) {
-            cv::cvtColor(frame, frame, cv::COLOR_BGR2BGRA);
-        }
-
-        if (frame.empty()) {
+        if (currentFrame.empty())
+        {
             break;
         }
 
-        frames.push_back(frame.clone());
+        if (currentFrame.channels() != 4)
+        {
+            cv::cvtColor(currentFrame, currentFrame, cv::COLOR_BGR2BGRA);
+        }
+
+        _frames.push_back(std::move(currentFrame));
     }
-
-    return frames;
-}
-
-Video::Video(std::string&& inputName)
-    : _AInput(loadFrames(inputName))
-    , _inputName(std::forward<std::string&&>(inputName))
-{
 }

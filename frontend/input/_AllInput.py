@@ -4,7 +4,7 @@
 # All Inputs Types
 #
 
-from frontend.input._Input import *
+from frontend.input.Input import *
 
 # External Inputs
 from frontend.input.media.Image import *

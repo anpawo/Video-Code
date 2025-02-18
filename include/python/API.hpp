@@ -74,7 +74,7 @@ namespace python::API
         // Current path added to the Import Path
         PyRun_SimpleString(
             "import sys\n"
-            "sys.path.append('./src/python')"
+            "sys.path.append('./frontend')"
         );
 
         // Import the Module (file name)

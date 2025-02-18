@@ -2,8 +2,8 @@
 
 
 type Arguments = list[int | float | str | Arguments]
-type Variable = list[tuple[str, Arguments]]
-type Stack = list[tuple[str, int, Arguments]]
+type RequiredInputs = list[tuple[str, Arguments]]
+type TransformationStack = list[tuple[str, int, Arguments]]
 
 
 class Global:
@@ -12,13 +12,13 @@ class Global:
     """
 
     # Input Variables declared in a scene.
-    variable: Variable = []
+    requiredInputs: RequiredInputs = []
 
     # Represents the steps of the scene.
-    stack: Stack = []
+    transformationStack: TransformationStack = []
 
     def __str__(self) -> str:
-        return f"\nvariable={self.variable};\n\nstack={self.stack};\n"
+        return f"\nRequiredInputs={self.requiredInputs};\n\nTransformations={self.transformationStack};\n"
 
     def __repr__(self) -> str:
         return str(self)
