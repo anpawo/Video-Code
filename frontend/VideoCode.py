@@ -10,9 +10,6 @@ from frontend.input._AllInput import *
 # Transformations
 from frontend.transformation._AllTransformation import *
 
-# Scenes
-from frontend.Scene import *
-
 # Global
 from frontend.Global import *
 
