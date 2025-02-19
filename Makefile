@@ -40,6 +40,8 @@ CXXFLAGS		+=	-std=c++20		\
 					-O2				\
 					-D_REENTRANT	\
 					$(QT_MACRO_DEF)	\
+					-DVC_DEBUG_ON	\
+# Debug on for video-code
 
 
 CPPFLAGS		+=	$(PROJ_INCLUDE)					\

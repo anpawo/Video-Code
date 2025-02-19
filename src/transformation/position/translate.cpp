@@ -12,10 +12,10 @@
 #include "transformation/transformation.hpp"
 #include "utils/Debug.hpp"
 
-void transformation::translate(std::shared_ptr<IInput> input, [[maybe_unused]] Register &reg, const json::array_t &args)
+void transformation::translate(std::shared_ptr<IInput> input, [[maybe_unused]] Register &reg, const json::object_t &args)
 {
-    int x = args[0];
-    int y = args[1];
+    int x = args.at("x");
+    int y = args.at("y");
 
     VC_LOG_DEBUG("translation")
 

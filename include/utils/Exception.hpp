@@ -10,7 +10,8 @@
 #include <exception>
 #include <string>
 
-class Error : public std::exception {
+class Error : public std::exception
+{
 public:
 
     Error(const std::string errorMessage)

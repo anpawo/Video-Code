@@ -5,8 +5,8 @@ from frontend.transformation.Transformation import Transformation
 
 
 class overlay(Transformation):
-    def __init__(self, x: Input) -> None:
+    def __init__(self, fg: Input) -> None:
         """
         Overlays `x` on top of `self`.
         """
-        self.x = x.index
+        self.fg = fg.index

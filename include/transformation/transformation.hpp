@@ -13,7 +13,7 @@
 
 using json = nlohmann::json;
 
-#define transformation(t) void t(std::shared_ptr<IInput> input, Register &reg, const json::array_t &args)
+#define transformation(t) void t(std::shared_ptr<IInput> input, Register &reg, const json::object_t &args)
 
 namespace transformation
 {
@@ -37,7 +37,7 @@ namespace transformation
         transformation(merge);
     ***/
 
-    static const std::map<std::string, std::function<void(std::shared_ptr<IInput>, Register &, const json::array_t &)>> map{
+    static const std::map<std::string, std::function<void(std::shared_ptr<IInput>, Register &, const json::object_t &)>> map{
         // {"grayscale", grayscale},
         // {"fade", fade},
         {"translate", translate},

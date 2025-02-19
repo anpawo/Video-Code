@@ -138,5 +138,5 @@ private:
     Register _register{};
 
     ///< Stack containing the transformations to apply to the Inputs
-    json::array_t _transformationStack{};
+    json::array_t _actionStack{};
 };

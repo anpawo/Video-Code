@@ -38,14 +38,26 @@ class Input(ABC):
         """
         Appends the `frames` of `self` to the `timeline`.
         """
-        Global.transformationStack.append(("Add", self.index, []))
+        Global.actionStack.append(
+            {
+                "action": "Add",
+                "input": self.index,
+            }
+        )
 
     def apply(self, *ts: Transformation) -> Input:
         """
         Applies the `Transformations` `ts` to all the `frames` of `self`.
         """
         for t in ts:
-            Global.transformationStack.append(("Apply", self.index, [t.__class__.__name__, t.attributes()]))
+            Global.actionStack.append(
+                {
+                    "action": "Apply",
+                    "input": self.index,
+                    "transformation": t.__class__.__name__,
+                    "args": vars(t),
+                }
+            )
         return self
 
     def copy(self) -> Input:
@@ -54,7 +66,12 @@ class Input(ABC):
         """
         cp = copy.deepcopy(self)
         cp.index = len(Global.requiredInputs)
-        Global.requiredInputs.append(("Copy", [self.index]))
+        Global.requiredInputs.append(
+            {
+                "type": "Copy",
+                "input": self.index,
+            }
+        )
         return cp
 
     def __getitem__(self, i: int | slice[int, int, None]) -> Slice:
@@ -80,7 +97,14 @@ class Input(ABC):
             s = slice(start, stop)
 
         temp = Slice(self, s)
-        Global.requiredInputs.append(("Slice", [self.index, s.start, s.stop]))
+        Global.requiredInputs.append(
+            {
+                "type": "Slice",
+                "input": self.index,
+                "start": s.start,
+                "stop": s.stop,
+            }
+        )
         return temp
 
 

@@ -7,8 +7,6 @@
 
 #pragma once
 
-#define VC_DEBUG_ON
-
 #include <iostream>
 
 #ifdef VC_DEBUG_ON
