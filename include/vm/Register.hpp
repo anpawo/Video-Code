@@ -41,7 +41,7 @@ private:
     ///< Variables representing the Inputs currently used in the program
     std::vector<std::shared_ptr<IInput>> _inputs{};
 
-    ///< Instructions to create new Inputs: [[instructionName, [instructionArgs]]]
+    ///< Instructions to create new Inputs: [[instructionName, {instructionArgs}]]
     json::array_t _instructions{};
 
     ///< Each instruction
@@ -49,8 +49,10 @@ private:
         {"Image", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Image>(args.at("filepath"))); }},
         {"Video", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Video>(args.at("filepath"))); }},
         {"Copy", [this](const json::object_t &args) { _inputs.push_back(std::shared_ptr<IInput>(_inputs[args.at("input")]->copy())); }},
-        // TODO: Shapes
+        /// TODO: Shapes (Circle, Square)
+        /// TODO: Text (List of char)
+        /// TODO: Formula (not important)
     };
 
-    // TODO: env to keep track of already loaded images. prevent reload everytime
+    /// TODO: env to keep track of already loaded images. prevent reload everytime
 };

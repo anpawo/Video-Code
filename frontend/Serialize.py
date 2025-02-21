@@ -38,7 +38,7 @@ def serializeScene(filepath: str) -> str:
     __name__ = "Scene"
     exec(content, globals())
 
-    # Access Globals: `variable` and `stack`
+    # Access Globals: `requiredInputs` and `actionStack`
     g = Global()
 
     # Serialize the instructions to JSON

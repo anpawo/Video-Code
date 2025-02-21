@@ -17,14 +17,18 @@ class Input(ABC):
 
     You cannot create an `Input` from the base class.
 
+    Basic `Inputs`:
     .. code-block:: python
         def image(filepath: str) -> Input: ...
         def video(filepath: str) -> Input: ...
         def text(string: str) -> Input: ...
-        def shape() -> Input: ...
+        def circle(radius: int) -> Input: ...
     """
 
     index: int
+    """
+    Index of the `Input`.
+    """
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = super().__new__(cls)
@@ -75,23 +79,25 @@ class Input(ABC):
         )
         return cp
 
-    def __getitem__(self, i: int | slice[int, int, None]) -> Slice:
+    def __getitem__(self, i: int | slice[int | None, int | None, None]) -> Slice:
         """
-        Creates a `reference` of the `frames` `s`.
+        Creates a `reference` of the `frames` `i`.
 
         Usefull if you want to apply a `Transformation` to a part of a video.
 
-        Examples
-        --------
+        ---
+        ### Example
         >>> v = video("test.mp4")
-        >>> v[0:20].fade() # Fade-in during the first 20 frames.
-        >>> v.add()
+        >>> v[0:20].fade() # fade in during the first 20 frames.
+        >>> v.add() # adds it to the timeline
+
         """
         if isinstance(i, int):
             s = slice(i, i)
         else:
-            s = i
+            s = slice(i.start or 0, i.stop or -1)
 
+        # `Slice` of `Slice`
         if isinstance(self, Slice):
             start = -1 if s.start == -1 or self.s.start == -1 else self.s.start + s.start
             stop = -1 if s.stop == -1 else self.s.start + s.stop

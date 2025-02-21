@@ -12,6 +12,9 @@
 void Register::updateInstructions(json::array_t&& newInstructions)
 {
     _instructions = std::forward<json::array_t>(newInstructions);
+
+    /// TODO: cache
+    _inputs.clear();
 }
 
 void Register::runNextInstruction()
