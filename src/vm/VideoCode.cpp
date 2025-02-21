@@ -5,7 +5,7 @@
 ** LiveWindow
 */
 
-#include "vm/LiveWindow.hpp"
+#include "vm/VideoCode.hpp"
 
 #include <qapplication.h>
 #include <qboxlayout.h>
@@ -19,46 +19,45 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdlib>
 #include <format>
 #include <iostream>
+#include <memory>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/matx.hpp>
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <string>
 
+#include "compiler/Compiler.hpp"
 #include "opencv2/core/types.hpp"
 #include "python/API.hpp"
 #include "transformation/transformation.hpp"
 #include "utils/Exception.hpp"
 #include "utils/Map.hpp"
+#include "vm/AppWindow.hpp"
 
-LiveWindow::LiveWindow(int &argc, char **argv, int width, int height, std::string &&sourceFile)
+VideoCode::VideoCode(int argc, char **argv, int width, int height, std::string sourceFile, bool generate, std::string outputFile)
     : _width(width)
     , _height(height)
     , _sourceFile(sourceFile)
     , _defaultBlackFrame(cv::Mat(height, width, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 255)))
-    , _app(argc, argv)
-    , _window(_events, sourceFile, _width, _height, [this]() { this->updateFrame(); })
 {
-    ///< Setup the layouts and images
-    _imageLayout.addWidget(&_imageLabel);
-    _window.setLayout(&_imageLayout);
-
-    ///< Connect the main loop with the window
-    QObject::connect(&_timer, &QTimer::timeout, &_window, &WindowEvent::mainLoop);
-    _timer.start(_frameRate);
-
     ///< Parse the source file
     reloadSourceFile();
+
+    if (generate)
+    {
+        _outputFile = outputFile;
+    }
+    else
+    {
+        ///< If we want to edit the video, we create the window for it
+        _app.reset(new AppWindow(argc, argv, _events, _sourceFile, _width, _height, _frameRate, [this](QLabel &imageLabel) { this->updateFrame(imageLabel); }));
+    }
 }
 
-LiveWindow::~LiveWindow()
-{
-    cv::destroyAllWindows();
-}
-
-void LiveWindow::reloadSourceFile()
+void VideoCode::reloadSourceFile()
 {
     ///< TODO: add a cache
     _frames.clear();
@@ -79,8 +78,8 @@ void LiveWindow::reloadSourceFile()
     json::array_t newRequiredInputs = dict["requiredInputs"];
     json::array_t newActionStack = dict["actionStack"];
 
-    std::cout << newRequiredInputs << std::endl;
-    std::cout << newActionStack << std::endl;
+    // std::cout << newRequiredInputs << std::endl;
+    // std::cout << newActionStack << std::endl;
 
     _register.updateInstructions(std::move(newRequiredInputs));
     _actionStack = std::move(newActionStack);
@@ -91,7 +90,7 @@ void LiveWindow::reloadSourceFile()
     std::cout << _labelsByVal << std::endl;
 }
 
-void LiveWindow::executeStack()
+void VideoCode::executeStack()
 {
     for (const auto &i : _actionStack)
     {
@@ -108,7 +107,7 @@ void LiveWindow::executeStack()
     }
 }
 
-void LiveWindow::updateFrame()
+void VideoCode::updateFrame(QLabel &imageLabel)
 {
     cv::Mat frame;
 
@@ -140,15 +139,22 @@ void LiveWindow::updateFrame()
     QPixmap pixmap = QPixmap::fromImage(QImage(frame.data, frame.cols, frame.rows, frame.step, QImage::Format_RGBA8888));
 
     // update the currently shown image
-    _imageLabel.setPixmap(pixmap);
+    imageLabel.setPixmap(pixmap);
 }
 
-int LiveWindow::run()
+int VideoCode::run()
 {
-    return _app.exec();
+    if (_app == nullptr)
+    {
+        return Compiler::Writer::generateVideo(_width, _height, _frameRate, _outputFile, _frames);
+    }
+    else
+    {
+        return _app->run();
+    }
 }
 
-void LiveWindow::goToLabel(const std::string &label)
+void VideoCode::goToLabel(const std::string &label)
 {
     auto it = _labels.find(label);
 
@@ -159,7 +165,7 @@ void LiveWindow::goToLabel(const std::string &label)
     }
 }
 
-void LiveWindow::addLabel(const std::string &label, std::size_t index)
+void VideoCode::addLabel(const std::string &label, std::size_t index)
 {
     // update the current label if we override it
     if (_labels[_currentLabel] == index)
@@ -176,13 +182,13 @@ void LiveWindow::addLabel(const std::string &label, std::size_t index)
     _labels[label] = index;
 }
 
-void LiveWindow::removeLabel(const std::string &label)
+void VideoCode::removeLabel(const std::string &label)
 {
     _labelsByVal.erase(_labels[label]);
     _labels.erase(label);
 }
 
-void LiveWindow::addFrames(const std::vector<cv::Mat> &frames)
+void VideoCode::addFrames(const std::vector<cv::Mat> &frames)
 {
     for (auto &i : frames)
     {
@@ -190,7 +196,7 @@ void LiveWindow::addFrames(const std::vector<cv::Mat> &frames)
     }
 }
 
-void LiveWindow::addFrame(const cv::Mat &frameToCopy)
+void VideoCode::addFrame(const cv::Mat &frameToCopy)
 {
     cv::Mat frame = _defaultBlackFrame.clone();
 
@@ -212,31 +218,31 @@ void LiveWindow::addFrame(const cv::Mat &frameToCopy)
     _frames.push_back(frame);
 }
 
-void LiveWindow::pause()
+void VideoCode::pause()
 {
     _paused = !_paused;
     std::cout << std::format("Timeline {} at frame '{}'.", _paused ? "paused" : "unpaused", _index) << std::endl;
 }
 
-void LiveWindow::stop()
+void VideoCode::stop()
 {
     _running = false;
     QApplication::quit();
 }
 
-void LiveWindow::goToFirstFrame()
+void VideoCode::goToFirstFrame()
 {
     goToLabel(_labelsByVal[0]);
     std::cout << std::format("Current Label set to '{}' at frame '0'.", _currentLabel) << std::endl;
 }
 
-void LiveWindow::goToLastFrame()
+void VideoCode::goToLastFrame()
 {
     goToLabel(std::prev(_labelsByVal.end())->second);
     std::cout << std::format("Current Label set to '{}' at frame '{}'.", _currentLabel, _index) << std::endl;
 }
 
-void LiveWindow::goToPreviousLabel()
+void VideoCode::goToPreviousLabel()
 {
     if (_labels[_currentLabel] == 0)
     {
@@ -250,7 +256,7 @@ void LiveWindow::goToPreviousLabel()
     }
 }
 
-void LiveWindow::goToNextLabel()
+void VideoCode::goToNextLabel()
 {
     auto next = std::next(_labelsByVal.find(_labels[_currentLabel]));
 

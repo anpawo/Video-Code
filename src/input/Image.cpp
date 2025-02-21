@@ -31,3 +31,6 @@ Image::Image(const std::string& inputName)
 
     _frames = {image};
 }
+
+///< After lots of tests, I feel like opencv crashs with the handling of RGBA.
+///< So I'll keep them BGRA until the last second which is the display.

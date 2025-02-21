@@ -7,17 +7,18 @@
 
 #pragma once
 
+#include <qevent.h>
+#include <qlabel.h>
+#include <qwidget.h>
+
 #include <map>
 
-#include "qevent.h"
-#include "qwidget.h"
-
-class WindowEvent : public QWidget
+class AppEvent : public QWidget
 {
 public:
 
-    WindowEvent(const std::map<int, std::function<void()>> &events, std::string &sourceFile, int width, int height, std::function<void()> &&mainLoop);
-    ~WindowEvent() = default;
+    AppEvent(const std::map<int, std::function<void()>> &events, const std::string &sourceFile, int width, int height, std::function<void()> &&mainLoop);
+    ~AppEvent() = default;
 
     void mainLoop();
 

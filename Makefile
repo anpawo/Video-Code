@@ -72,27 +72,36 @@ LFLAGS			=	-O1 -Wl,-rpath-link,/usr/lib64
 SRC				=	$(SRC_MAIN)				\
 					$(SRC_VM)				\
 					$(SRC_INPUT)			\
-					$(SRC_TRANSFORM)	\
+					$(SRC_TRANSFORM)		\
+					$(SRC_COMPILER)			\
 
 
 SRC_MAIN		=	src/Main.cpp
 
-SRC_VM			=	src/vm/LiveWindow.cpp	\
-					src/vm/WindowEvent.cpp	\
+SRC_VM			=	src/vm/VideoCode.cpp	\
 					src/vm/Register.cpp		\
+					src/vm/AppWindow.cpp	\
+					src/vm/AppEvent.cpp		\
+
+
+SRC_COMPILER	=	src/compiler/generateVideo.cpp	\
 
 
 SRC_INPUT		=	src/input/ABCInput.cpp	\
 					src/input/Image.cpp		\
 					src/input/Video.cpp		\
 
+
 SRC_TRANSFORM	=	$(SRC_TSF_POS)		\
 					$(SRC_TSF_COLOR)	\
 					$(SRC_TSF_OTHER)	\
 
+
 SRC_TSF_POS		=	src/transformation/position/translate.cpp		\
 
+
 SRC_TSF_COLOR	=	src/transformation/color/fade.cpp				\
+
 
 SRC_TSF_OTHER	=	src/transformation/other/overlay.cpp			\
 

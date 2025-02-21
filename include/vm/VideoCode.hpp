@@ -13,36 +13,32 @@
 #include <cstddef>
 #include <functional>
 #include <map>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <opencv2/core/mat.hpp>
 #include <string>
 #include <vector>
 
-#include "qboxlayout.h"
 #include "qlabel.h"
 #include "qnamespace.h"
-#include "qtimer.h"
+#include "vm/AppWindow.hpp"
 #include "vm/Register.hpp"
-#include "vm/WindowEvent.hpp"
 
 #define bindCmd(x) ([this]() { this->x(); })
-#define bindInst(x) ([this](const json::array_t &args) { return this->x(args); })
-#define bindTsf(x) ([this](std::shared_ptr<_IInput> input, const json::array_t &args) { return this->x(input, args); })
 
 using json = nlohmann::json;
 
-class LiveWindow
+class VideoCode
 {
 public:
 
-    LiveWindow(int &argc, char **argv, int width, int height, std::string &&_sourceFile = "video.py");
-    ~LiveWindow();
+    VideoCode(int argc, char **argv, int width, int height, std::string sourceFile, bool generate, std::string outputFile);
 
     ///< Start the program
     int run();
 
     ///< Called every loop iteration to update the current frame being displayed
-    void updateFrame();
+    void updateFrame(QLabel &imageLabel);
 
     ///< Set the index of the timeline to a label
     void goToLabel(const std::string &label);
@@ -75,29 +71,14 @@ private:
     const int _frameRate{24};
 
     ///< Window size
-    const int _width{1920};
-    const int _height{1080};
+    const int _width;
+    const int _height;
 
     ///< source file
     const std::string _sourceFile;
 
     ///< Black frame for empty timelines
     const cv::Mat _defaultBlackFrame;
-
-    ///< QT app
-    QApplication _app;
-
-    ///< QT window
-    WindowEvent _window;
-
-    ///< Label containing the image
-    QLabel _imageLabel;
-
-    ///< Layout linking the label and the window
-    QVBoxLayout _imageLayout;
-
-    ///< Main loop updating the current frame
-    QTimer _timer;
 
     ///< Current index of the frame of the timeline being displayed
     std::size_t _index{0};
@@ -139,4 +120,10 @@ private:
 
     ///< Stack containing the transformations to apply to the Inputs
     json::array_t _actionStack{};
+
+    ///< Window to modify the video in real time
+    std::unique_ptr<AppWindow> _app{nullptr};
+
+    ///< Output File for the generation
+    std::string _outputFile;
 };

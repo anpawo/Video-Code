@@ -15,6 +15,8 @@ video/
 *.mkv
 *.jpg
 *.png
+*.mov
+*.webm
 
 # Python
 __pycache__/

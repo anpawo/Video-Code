@@ -5,9 +5,9 @@
 ** WindowEvent
 */
 
-#include "vm/WindowEvent.hpp"
+#include "vm/AppEvent.hpp"
 
-WindowEvent::WindowEvent(const std::map<int, std::function<void()>> &events, std::string &sourceFile, int width, int height, std::function<void()> &&mainLoop)
+AppEvent::AppEvent(const std::map<int, std::function<void()>> &events, const std::string &sourceFile, int width, int height, std::function<void()> &&mainLoop)
     : _mainLoop(mainLoop)
     , _events(events)
 {
@@ -19,7 +19,7 @@ WindowEvent::WindowEvent(const std::map<int, std::function<void()>> &events, std
     show();
 }
 
-void WindowEvent::mainLoop()
+void AppEvent::mainLoop()
 {
     _mainLoop();
 }
