@@ -6,4 +6,9 @@ from frontend.input.Input import *
 
 class video(Input):
     def __init__(self, filepath: str) -> None:
-        Global.requiredInputs.append(("Video", [filepath]))
+        Global.requiredInputs.append(
+            {
+                "type": "Video",
+                "filepath": filepath,
+            }
+        )

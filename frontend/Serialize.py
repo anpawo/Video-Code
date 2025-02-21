@@ -45,11 +45,13 @@ def serializeScene(filepath: str) -> str:
     return json.dumps(
         {
             "requiredInputs": g.requiredInputs,
-            "transformationStack": g.transformationStack,
+            "actionStack": g.actionStack,
         }
     )
 
 
 if __name__ == "__main__":
     for k, v in json.loads(serializeScene("video.py")).items():
-        print(f"{k:<20}{v}")
+        print(f"{k}")
+        for i in v:
+            print(f"   {i}")

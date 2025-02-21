@@ -40,6 +40,8 @@ CXXFLAGS		+=	-std=c++20		\
 					-O2				\
 					-D_REENTRANT	\
 					$(QT_MACRO_DEF)	\
+					-DVC_DEBUG_ON	\
+# Debug on for video-code
 
 
 CPPFLAGS		+=	$(PROJ_INCLUDE)					\
@@ -84,8 +86,15 @@ SRC_INPUT		=	src/input/ABCInput.cpp	\
 					src/input/Image.cpp		\
 					src/input/Video.cpp		\
 
-SRC_TRANSFORM	=	src/transformation/position/translate.cpp	\
-					src/transformation/other/overlay.cpp		\
+SRC_TRANSFORM	=	$(SRC_TSF_POS)		\
+					$(SRC_TSF_COLOR)	\
+					$(SRC_TSF_OTHER)	\
+
+SRC_TSF_POS		=	src/transformation/position/translate.cpp		\
+
+SRC_TSF_COLOR	=	src/transformation/color/fade.cpp				\
+
+SRC_TSF_OTHER	=	src/transformation/other/overlay.cpp			\
 
 
 OBJ				=	$(SRC:.cpp=.o)
@@ -121,3 +130,8 @@ re: fclean
 .PHONY: debug
 debug: fclean
 	$(MAKE) "CXXFLAGS = $(CXXFLAGS) -g3"
+
+
+.PHONY: format
+format:
+	clang-format -i **/*.cpp **/*.hpp

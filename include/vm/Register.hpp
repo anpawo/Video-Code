@@ -45,10 +45,10 @@ private:
     json::array_t _instructions{};
 
     ///< Each instruction
-    const std::map<std::string, std::function<void(const json &)>> _mappedInstructions{
-        {"Image", [this](const json::array_t &args) { _inputs.push_back(std::make_shared<Image>(args[0])); }},
-        {"Video", [this](const json::array_t &args) { _inputs.push_back(std::make_shared<Video>(args[0])); }},
-        {"Copy", [this](const json::array_t &args) { _inputs.push_back(std::shared_ptr<IInput>(_inputs[args[0]]->copy())); }},
+    const std::map<std::string, std::function<void(const json::object_t &)>> _inputFactory{
+        {"Image", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Image>(args.at("filepath"))); }},
+        {"Video", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Video>(args.at("filepath"))); }},
+        {"Copy", [this](const json::object_t &args) { _inputs.push_back(std::shared_ptr<IInput>(_inputs[args.at("input")]->copy())); }},
         // TODO: Shapes
     };
 

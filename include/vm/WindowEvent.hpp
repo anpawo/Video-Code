@@ -12,7 +12,8 @@
 #include "qevent.h"
 #include "qwidget.h"
 
-class WindowEvent : public QWidget {
+class WindowEvent : public QWidget
+{
 public:
 
     WindowEvent(const std::map<int, std::function<void()>> &events, std::string &sourceFile, int width, int height, std::function<void()> &&mainLoop);
@@ -26,7 +27,8 @@ protected:
     {
         auto e = _events.find(event->key());
 
-        if (e != _events.end()) {
+        if (e != _events.end())
+        {
             e->second();
         }
 

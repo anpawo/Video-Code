@@ -60,6 +60,9 @@ LiveWindow::~LiveWindow()
 
 void LiveWindow::reloadSourceFile()
 {
+    ///< TODO: add a cache
+    _frames.clear();
+
     std::string serializedScene;
 
     try
@@ -74,13 +77,13 @@ void LiveWindow::reloadSourceFile()
     json::object_t dict = json::parse(serializedScene);
 
     json::array_t newRequiredInputs = dict["requiredInputs"];
-    json::array_t newTransformationStack = dict["transformationStack"];
+    json::array_t newActionStack = dict["actionStack"];
 
     std::cout << newRequiredInputs << std::endl;
-    std::cout << newTransformationStack << std::endl;
+    std::cout << newActionStack << std::endl;
 
     _register.updateInstructions(std::move(newRequiredInputs));
-    _transformationStack = std::move(newTransformationStack);
+    _actionStack = std::move(newActionStack);
 
     executeStack();
 
@@ -90,17 +93,17 @@ void LiveWindow::reloadSourceFile()
 
 void LiveWindow::executeStack()
 {
-    for (const auto &t : _transformationStack)
+    for (const auto &i : _actionStack)
     {
-        if (t[0] == "Add")
+        if (i["action"] == "Add")
         {
-            ///< Example: ['Add', 0, []]
-            addFrames(_register[t[1]]->getFrames());
+            ///< Example: {"action": 'Add', "input": 0}
+            addFrames(_register[i["input"]]->getFrames());
         }
-        else if (t[0] == "Apply")
+        else if (i["action"] == "Apply")
         {
-            ///< Example: ['Apply', 0, ['overlay', [1]]]
-            transformation::map.at(t[2][0])(_register[t[1]], _register, t[2][1]);
+            ///< Example: {"action": 'Apply', "input": 0, "transformation": 'overlay', "fg": 1}
+            transformation::map.at(i["transformation"])(_register[i["input"]], _register, i["args"]);
         }
     }
 }
