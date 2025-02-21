@@ -34,7 +34,7 @@ class Input(ABC):
     @abstractmethod
     def __init__(self) -> None: ...
 
-    def add(self) -> None:
+    def add(self) -> Self:
         """
         Appends the `frames` of `self` to the `timeline`.
         """
@@ -44,6 +44,7 @@ class Input(ABC):
                 "input": self.index,
             }
         )
+        return self
 
     def apply(self, *ts: Transformation) -> Input:
         """
