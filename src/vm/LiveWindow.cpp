@@ -60,6 +60,9 @@ LiveWindow::~LiveWindow()
 
 void LiveWindow::reloadSourceFile()
 {
+    ///< TODO: add a cache
+    _frames.clear();
+
     std::string serializedScene;
 
     try

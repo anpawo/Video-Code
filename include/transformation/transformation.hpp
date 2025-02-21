@@ -19,8 +19,10 @@ namespace transformation
 {
 
     // Color
-    // TODO: transformation(grayscale);
-    // TODO: transformation(fade);
+    /***
+        TODO: transformation(grayscale);
+    ***/
+    transformation(fade);
 
     // Position
     transformation(translate);
@@ -31,15 +33,15 @@ namespace transformation
     // Other
     transformation(overlay);
     /***
-        transformation(repeat);
-        transformation(wait);
-        transformation(concat);
-        transformation(merge);
+        TODO: transformation(repeat);
+        TODO: transformation(wait);
+        TODO: transformation(concat);
+        TODO: transformation(merge);
     ***/
 
     static const std::map<std::string, std::function<void(std::shared_ptr<IInput>, Register &, const json::object_t &)>> map{
         // {"grayscale", grayscale},
-        // {"fade", fade},
+        {"fade", fade},
         {"translate", translate},
         {"overlay", overlay},
     };

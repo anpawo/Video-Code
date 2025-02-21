@@ -1,18 +1,17 @@
 #!/usr/bin/env python3
 
-from typing import Optional, Tuple
 from frontend.transformation.Transformation import *
 
 from frontend.Constant import *
 
 
 class fade(Transformation):
-    def __init__(self, side: Optional[side] = None, startOpacity: uint = 255, endOpacity: uint = 0) -> None:
+    def __init__(self, sides: list[side] = ALL, startOpacity: uint = 0, endOpacity: uint = 255) -> None:
         """
         `Fade` from `side`.
 
         Modify `opacity` for a `Fade in` or a `Fade out`.
         """
-        self.side = side
+        self.sides = sides
         self.startOpacity = startOpacity
         self.endOpacity = endOpacity

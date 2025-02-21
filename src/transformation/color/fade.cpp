@@ -5,124 +5,75 @@
 ** fade
 */
 
+#include <algorithm>
+#include <opencv2/opencv.hpp>
+#include <vector>
+
 #include "transformation/transformation.hpp"
 
-std::shared_ptr<_IInput> transformation::fade(std::shared_ptr<_IInput> input, const json::array_t &args)
+void transformation::fade(std::shared_ptr<IInput> input, [[maybe_unused]] Register& reg, const json::object_t& args)
 {
-    int nbFrames = input->cgetFrames().size();
-    std::string side = args[0];
-    int duration = args[1];
+    const json::array_t& sides = args.at("sides");
+    const size_t nbFrames = input->getFrames().size();
+    const float startOpacity = args.at("startOpacity");
+    const float endOpacity = args.at("endOpacity");
+    size_t frameIndex = 0;
 
-    if (duration < 0) {
-        duration += nbFrames + 1;
-    }
+    for (auto begin = input->getFrames().begin(), end = input->getFrames().end(); begin != end; begin++, frameIndex++)
+    {
+        auto& frame = *begin;
+        int cols = frame.cols;
+        int rows = frame.rows;
 
-    if (side == "LEFT") {
+        float currentOpacity = startOpacity + (endOpacity - startOpacity) * (static_cast<float>(frameIndex) / (nbFrames - 1));
 
-        for (int n = 0; n < nbFrames; n++) {
-            ///< don't affect frames after duration
-            if (n >= duration) {
-                break;
-            }
+        for (int y = 0; y < rows; ++y)
+        {
+            for (int x = 0; x < cols; ++x)
+            {
+                float alpha = currentOpacity;
 
-            // current frame
-            auto &m = input->getFrames()[n];
+                for (const auto& side : sides)
+                {
+                    if (side == "left")
+                    {
+                        if (cols > 1)
+                        {
+                            alpha *= 1 - static_cast<float>(x) / (cols - 1) * (1 - static_cast<float>(frameIndex) / (nbFrames - 1));
+                        }
+                    }
+                    else if (side == "right")
+                    {
+                        if (cols > 1)
+                        {
+                            alpha *= 1 - static_cast<float>(cols - 1 - x) / (cols - 1) * (1 - static_cast<float>(frameIndex) / (nbFrames - 1));
+                        }
+                    }
+                    else if (side == "up")
+                    {
+                        if (rows > 1)
+                        {
+                            alpha *= 1 - static_cast<float>(y) / (rows - 1) * (1 - static_cast<float>(frameIndex) / (nbFrames - 1));
+                        }
+                    }
+                    else if (side == "down")
+                    {
+                        if (rows > 1)
+                        {
+                            alpha *= 1 - static_cast<float>(rows - 1 - y) / (rows - 1) * (1 - static_cast<float>(frameIndex) / (nbFrames - 1));
+                        }
+                    }
+                }
 
-            for (int i = 0; i < m.cols; i++) {
-                float progress = i / static_cast<float>(m.cols) / 10;
+                alpha = std::clamp<float>(alpha, 0, 255);
 
-                // We want to ensure the fade finishes when n == duration
-                float mul = std::min(1.0f, static_cast<float>(n) / static_cast<float>(duration) + progress);
-
-                m.col(m.cols - 1 - i).forEach<cv::Vec4b>([mul](cv::Vec4b &pixel, const int *) {
-                    pixel[3] *= mul; ///< ensure that many tranformations can be done at the same time
-                });
-            }
-        }
-    } else if (side == "RIGHT") {
-
-        for (int n = 0; n < nbFrames; n++) {
-            ///< don't affect frames after duration
-            if (n >= duration) {
-                break;
-            }
-
-            // current frame
-            auto &m = input->getFrames()[n];
-
-            for (int i = 0; i < m.cols; i++) {
-                float progress = i / static_cast<float>(m.cols) / 10;
-
-                // We want to ensure the fade finishes when n == duration
-                float mul = std::min(1.0f, static_cast<float>(n) / static_cast<float>(duration) + progress);
-
-                m.col(i).forEach<cv::Vec4b>([mul](cv::Vec4b &pixel, const int *) {
-                    pixel[3] *= mul; ///< ensure that many tranformations can be done at the same time
-                });
-            }
-        }
-    } else if (side == "DOWN") {
-        for (int n = 0; n < nbFrames; n++) {
-            ///< don't affect frames after duration
-            if (n >= duration) {
-                break;
-            }
-
-            // current frame
-            auto &m = input->getFrames()[n];
-
-            for (int i = 0; i < m.rows; i++) {
-                float progress = i / static_cast<float>(m.rows) / 10;
-
-                // We want to ensure the fade finishes when n == duration
-                float mul = std::min(1.0f, static_cast<float>(n) / static_cast<float>(duration) + progress);
-
-                m.row(i).forEach<cv::Vec4b>([mul](cv::Vec4b &pixel, const int *) {
-                    pixel[3] *= mul; ///< ensure that many tranformations can be done at the same time
-                });
-            }
-        }
-    } else if (side == "UP") {
-        for (int n = 0; n < nbFrames; n++) {
-            ///< don't affect frames after duration
-            if (n >= duration) {
-                break;
-            }
-
-            // current frame
-            auto &m = input->getFrames()[n];
-
-            for (int i = 0; i < m.rows; i++) {
-                float progress = i / static_cast<float>(m.rows) / 10;
-
-                // We want to ensure the fade finishes when n == duration
-                float mul = std::min(1.0f, static_cast<float>(n) / static_cast<float>(duration) + progress);
-
-                m.row(m.rows - 1 - i).forEach<cv::Vec4b>([mul](cv::Vec4b &pixel, const int *) {
-                    pixel[3] *= mul; ///< ensure that many tranformations can be done at the same time
-                });
-            }
-        }
-    } else if (side == "ALL") {
-        for (int n = 0; n < nbFrames; n++) {
-            ///< don't affect frames after duration
-            if (n >= duration) {
-                break;
-            }
-
-            // current frame
-            auto &m = input->getFrames()[n];
-
-            for (int i = 0; i < m.rows; i++) {
-                // We want to ensure the fade finishes when n == duration
-                float mul = std::min(1.0f, static_cast<float>(n) / static_cast<float>(duration));
-
-                m.row(m.rows - 1 - i).forEach<cv::Vec4b>([mul](cv::Vec4b &pixel, const int *) {
-                    pixel[3] *= mul; ///< ensure that many tranformations can be done at the same time
-                });
+                frame.at<cv::Vec4b>(y, x) = {
+                    frame.at<cv::Vec4b>(y, x)[0],
+                    frame.at<cv::Vec4b>(y, x)[1],
+                    frame.at<cv::Vec4b>(y, x)[2],
+                    cv::saturate_cast<uchar>(alpha)
+                };
             }
         }
     }
-
-    return input;
 }

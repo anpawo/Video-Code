@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-type Arguments = dict[str, int | float | str | dict[str, Arguments]]
+type Arguments = dict[str, int | float | str | dict[str, Arguments] | list[Arguments]]
 type RequiredInput = Arguments
 type ActionStack = Arguments
 

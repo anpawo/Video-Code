@@ -17,7 +17,8 @@ static std::vector<cv::Mat> replicateFrame(std::shared_ptr<_IInput> input, int n
 {
     std::vector<cv::Mat> result{};
 
-    while (n--) {
+    while (n--)
+    {
         const auto& temp = input->cgetFrames();
         result.insert(result.end(), temp.begin(), temp.end());
     }
