@@ -144,3 +144,7 @@ debug: fclean
 .PHONY: format
 format:
 	clang-format -i **/*.cpp **/*.hpp
+
+.PHONY: doc
+doc:
+	./docs/readme/generate.sh
