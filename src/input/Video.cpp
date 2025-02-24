@@ -5,7 +5,7 @@
 ** Image
 */
 
-#include "input/Video.hpp"
+#include "input/media/Video.hpp"
 
 #include <opencv2/imgcodecs.hpp>
 #include <utility>

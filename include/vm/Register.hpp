@@ -15,8 +15,8 @@
 #include <vector>
 
 #include "input/IInput.hpp"
-#include "input/Image.hpp"
-#include "input/Video.hpp"
+#include "input/media/Image.hpp"
+#include "input/media/Video.hpp"
 
 using json = nlohmann::json;
 

@@ -5,7 +5,7 @@
 ** Image
 */
 
-#include "input/Image.hpp"
+#include "input/media/Image.hpp"
 
 #include <opencv2/core/mat.hpp>
 #include <opencv2/imgcodecs.hpp>
