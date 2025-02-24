@@ -19,7 +19,7 @@ void transformation::translate(std::shared_ptr<IInput> input, [[maybe_unused]] R
 
     VC_LOG_DEBUG("translation")
 
-    for (auto &m : input->getFrames())
+    for (auto &m : *input)
     {
         if (x < 0)
         {

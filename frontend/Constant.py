@@ -24,7 +24,6 @@ UR = UP + RIGHT
 DL = DOWN + LEFT
 DR = DOWN + RIGHT
 
-
 # index
 START = 0
 END = -1

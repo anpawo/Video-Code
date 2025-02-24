@@ -7,19 +7,18 @@
 
 #include <algorithm>
 #include <opencv2/opencv.hpp>
-#include <vector>
 
 #include "transformation/transformation.hpp"
 
 void transformation::fade(std::shared_ptr<IInput> input, [[maybe_unused]] Register& reg, const json::object_t& args)
 {
     const json::array_t& sides = args.at("sides");
-    const size_t nbFrames = input->getFrames().size();
+    const size_t nbFrames = input->size();
     const float startOpacity = args.at("startOpacity");
     const float endOpacity = args.at("endOpacity");
     size_t frameIndex = 0;
 
-    for (auto begin = input->getFrames().begin(), end = input->getFrames().end(); begin != end; begin++, frameIndex++)
+    for (auto begin = input->begin(), end = input->end(); begin != end; begin++, frameIndex++)
     {
         auto& frame = *begin;
         int cols = frame.cols;

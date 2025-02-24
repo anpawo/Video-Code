@@ -93,7 +93,7 @@ class Input(ABC):
 
         """
         if isinstance(i, int):
-            s = slice(i, i)
+            s = slice(i, i + 1)  # stop is excluded
         else:
             s = slice(i.start or 0, i.stop or -1)
 

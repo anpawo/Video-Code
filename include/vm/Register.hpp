@@ -15,8 +15,9 @@
 #include <vector>
 
 #include "input/IInput.hpp"
-#include "input/media/Image.hpp"
-#include "input/media/Video.hpp"
+#include "input/composite/Slice.hpp"
+#include "input/concrete/media/Image.hpp"
+#include "input/concrete/media/Video.hpp"
 
 using json = nlohmann::json;
 
@@ -49,6 +50,7 @@ private:
         {"Image", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Image>(args.at("filepath"))); }},
         {"Video", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Video>(args.at("filepath"))); }},
         {"Copy", [this](const json::object_t &args) { _inputs.push_back(std::shared_ptr<IInput>(_inputs[args.at("input")]->copy())); }},
+        {"Slice", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Slice>(_inputs[args.at("input")], args.at("start"), args.at("stop"))); }},
         /// TODO: Shapes (Circle, Square)
         /// TODO: Text (List of char)
         /// TODO: Formula (not important)

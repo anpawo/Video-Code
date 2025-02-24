@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 
+#include "input/IInput.hpp"
 #include "qlabel.h"
 #include "qnamespace.h"
 #include "vm/AppWindow.hpp"
@@ -51,7 +52,7 @@ public:
 
     ///< Add a frame to the timeline, crop it if needed
     void addFrame(const cv::Mat &frame);
-    void addFrames(const std::vector<cv::Mat> &frames);
+    void addFrames(const std::shared_ptr<IInput> input);
 
     ///< Events >///
     void pause();

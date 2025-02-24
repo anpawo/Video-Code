@@ -1,0 +1,45 @@
+/*
+** EPITECH PROJECT, 2025
+** video-code
+** File description:
+** Slice
+*/
+
+#include "input/composite/Slice.hpp"
+
+#include <memory>
+
+#include "input/IInput.hpp"
+
+Slice::Slice(std::shared_ptr<IInput> base, int begin, int end)
+    : _base(base)
+    , _begin(begin < 0 ? begin + base->size() : begin)
+    , _end(end < 0 ? end + base->size() + 1 : end)
+    , _beginIt(base->begin() + _begin)
+    , _endIt(base->begin() + _end)
+    , _size(_end - _begin)
+{
+}
+
+///< Deep copy of `this`
+IInput* Slice::copy()
+{
+    return (new Slice(std::shared_ptr<IInput>(_base->copy()), _begin, _end));
+}
+
+///< Iteration
+std::vector<cv::Mat>::iterator Slice::begin()
+{
+    return _beginIt;
+}
+
+std::vector<cv::Mat>::iterator Slice::end()
+{
+    return _endIt;
+}
+
+///< Size
+size_t Slice::size()
+{
+    return _size;
+}
