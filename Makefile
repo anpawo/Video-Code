@@ -72,7 +72,7 @@ LFLAGS			=	-O1 -Wl,-rpath-link,/usr/lib64
 SRC				=	$(SRC_MAIN)				\
 					$(SRC_VM)				\
 					$(SRC_INPUT)			\
-					$(SRC_TRANSFORM)		\
+					$(SRC_TSF)				\
 					$(SRC_COMPILER)			\
 
 
@@ -87,12 +87,13 @@ SRC_VM			=	src/vm/VideoCode.cpp	\
 SRC_COMPILER	=	src/compiler/generateVideo.cpp	\
 
 
-SRC_INPUT		=	src/input/ABCInput.cpp	\
-					src/input/Image.cpp		\
-					src/input/Video.cpp		\
+SRC_INPUT		=	src/input/concrete/ABCConcreteInput.cpp		\
+					src/input/concrete/media/Image.cpp			\
+					src/input/concrete/media/Video.cpp			\
+					src/input/composite/Slice.cpp				\
 
 
-SRC_TRANSFORM	=	$(SRC_TSF_POS)		\
+SRC_TSF			=	$(SRC_TSF_POS)		\
 					$(SRC_TSF_COLOR)	\
 					$(SRC_TSF_OTHER)	\
 

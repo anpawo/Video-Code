@@ -97,7 +97,7 @@ void VideoCode::executeStack()
         if (i["action"] == "Add")
         {
             ///< Example: {"action": 'Add', "input": 0}
-            addFrames(_register[i["input"]]->getFrames());
+            addFrames(_register[i["input"]]);
         }
         else if (i["action"] == "Apply")
         {
@@ -188,9 +188,9 @@ void VideoCode::removeLabel(const std::string &label)
     _labels.erase(label);
 }
 
-void VideoCode::addFrames(const std::vector<cv::Mat> &frames)
+void VideoCode::addFrames(const std::shared_ptr<IInput> frames)
 {
-    for (auto &i : frames)
+    for (auto &i : *frames)
     {
         addFrame(i);
     }

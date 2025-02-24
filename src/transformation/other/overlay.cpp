@@ -7,17 +7,21 @@
 
 #include <memory>
 
+#include "input/concrete/ABCConcreteInput.hpp"
 #include "transformation/transformation.hpp"
 #include "vm/Register.hpp"
 
 void transformation::overlay(std::shared_ptr<IInput> input, Register &reg, const json::object_t &args)
 {
-    const std::vector<cv::Mat> &bg = input->getFrames();
-    const std::vector<cv::Mat> &fg = reg[args.at("fg")]->getFrames();
+    const auto bgInput = input;
+    const auto fgInput = reg[args.at("fg")];
+
+    const auto bg = bgInput->begin();
+    const auto fg = fgInput->begin();
 
     std::vector<cv::Mat> frames;
-    std::size_t bgNbFrames = bg.size();
-    std::size_t ovNbFrames = fg.size();
+    std::size_t bgNbFrames = bgInput->size();
+    std::size_t ovNbFrames = fgInput->size();
     std::size_t nbFrames = std::max(bgNbFrames, ovNbFrames);
 
     for (std::size_t i = 0; i < nbFrames; i++)
@@ -60,5 +64,5 @@ void transformation::overlay(std::shared_ptr<IInput> input, Register &reg, const
         }
     }
 
-    input->getFrames() = std::move(frames);
+    input = std::make_shared<ABCConcreteInput>(std::move(frames));
 }
