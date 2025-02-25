@@ -88,7 +88,7 @@ class Input(ABC):
         ---
         ### Example
         >>> v = video("test.mp4")
-        >>> v[0:20].fade() # fade in during the first 20 frames.
+        >>> v[0:20].apply(fadeIn()) # fade in during the first 20 frames.
         >>> v.add() # adds it to the timeline
 
         """
