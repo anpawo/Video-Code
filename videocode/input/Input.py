@@ -5,8 +5,8 @@ from abc import ABC, abstractmethod
 import copy
 from typing import Any, Self, overload
 
-from frontend.transformation.Transformation import Transformation
-from frontend.Global import *
+from videocode.transformation.Transformation import Transformation
+from videocode.Global import *
 
 
 class Input(ABC):

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-from frontend.input.shape._Shape import *
+from videocode.input.shape._Shape import *
 
 
 class circle(Shape):

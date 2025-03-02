@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-from frontend.transformation.Transformation import *
+from videocode.transformation.Transformation import *
 
-from frontend.Constant import *
+from videocode.Constant import *
 
 
 class fade(Transformation):

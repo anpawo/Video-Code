@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-# from frontend.VideoCode import *
+# from videocode.VideoCode import *
 
 s = r"""
 

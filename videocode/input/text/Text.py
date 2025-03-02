@@ -4,7 +4,7 @@
 from typing import Optional
 
 
-from frontend.input.Input import *
+from videocode.input.Input import *
 
 
 class text(Input):

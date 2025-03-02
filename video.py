@@ -1,4 +1,4 @@
-from frontend.VideoCode import *
+from videocode.VideoCode import *
 
 
 v1 = video("video/v.mp4")

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
 
-from frontend.input.Input import *
+from videocode.input.Input import *
 
 
-class image(Input):
+class video(Input):
     def __init__(self, filepath: str) -> None:
         Global.requiredInputs.append(
             {
-                "type": "Image",
+                "type": "Video",
                 "filepath": filepath,
             }
         )
