@@ -14,4 +14,4 @@ printf '\n%s\n%s\n%s\n' '```py' "$(cat video.py)" '```' > "$README_CODE"
 ffmpeg '-i' output.mp4 "$README_GIF" '-y'
 
 # concatenate the files
-cat docs/readme/*.md > README.md
+(for file in docs/readme/*.md; do cat "$file"; echo; done) > README.md
