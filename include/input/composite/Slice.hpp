@@ -10,7 +10,6 @@
 #include <vector>
 
 #include "input/composite/ABCCompositeInput.hpp"
-#include "opencv2/core/mat.hpp"
 
 class Slice final : public ABCCompositeInput
 {
@@ -23,8 +22,8 @@ public:
     IInput* copy();
 
     ///< Iteration
-    virtual std::vector<cv::Mat>::iterator begin();
-    virtual std::vector<cv::Mat>::iterator end();
+    virtual std::vector<Frame>::iterator begin();
+    virtual std::vector<Frame>::iterator end();
 
     ///< Size
     virtual size_t size();
@@ -36,8 +35,8 @@ private:
     size_t _begin;
     size_t _end;
 
-    std::vector<cv::Mat>::iterator _beginIt;
-    std::vector<cv::Mat>::iterator _endIt;
+    std::vector<Frame>::iterator _beginIt;
+    std::vector<Frame>::iterator _endIt;
 
     size_t _size;
 };

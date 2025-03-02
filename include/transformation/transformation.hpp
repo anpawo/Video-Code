@@ -26,9 +26,7 @@ namespace transformation
 
     // Position
     transformation(translate);
-    /***
-        TODO: transformation(move);
-    ***/
+    transformation(move);
 
     // Other
     transformation(overlay);
@@ -40,9 +38,9 @@ namespace transformation
     ***/
 
     static const std::map<std::string, std::function<void(std::shared_ptr<IInput>, Register &, const json::object_t &)>> map{
-        // {"grayscale", grayscale},
         {"fade", fade},
         {"translate", translate},
+        {"move", move},
         {"overlay", overlay},
     };
 };

@@ -99,6 +99,7 @@ SRC_TSF			=	$(SRC_TSF_POS)		\
 
 
 SRC_TSF_POS		=	src/transformation/position/translate.cpp		\
+					src/transformation/position/move.cpp			\
 
 
 SRC_TSF_COLOR	=	src/transformation/color/fade.cpp				\

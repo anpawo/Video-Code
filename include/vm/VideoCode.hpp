@@ -50,8 +50,8 @@ public:
     ///< Remove a label
     void removeLabel(const std::string &index);
 
-    ///< Add a frame to the timeline, crop it if needed
-    void addFrame(const cv::Mat &frame);
+    ///< Add a frame to the timeline
+    void addFrame(const cv::Mat &mat, const Metadata &meta);
     void addFrames(const std::shared_ptr<IInput> input);
 
     ///< Events >///
