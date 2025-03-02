@@ -4,7 +4,6 @@
 ** File description:
 ** fade
 */
-
 #include <algorithm>
 #include <opencv2/opencv.hpp>
 
@@ -13,22 +12,20 @@
 void transformation::fade(std::shared_ptr<IInput> input, [[maybe_unused]] Register& reg, const json::object_t& args)
 {
     const json::array_t& sides = args.at("sides");
-    const size_t nbFrames = input->size();
+    const int nbFrames = input->size();
     const float startOpacity = args.at("startOpacity");
     const float endOpacity = args.at("endOpacity");
-    size_t frameIndex = 0;
 
-    for (auto begin = input->begin(), end = input->end(); begin != end; begin++, frameIndex++)
+    int frameIndex = 0;
+    for (auto it = input->begin(), end = input->end(); it != end; it++, frameIndex++)
     {
-        auto& frame = *begin;
+        auto& frame = it->_mat;
         int cols = frame.cols;
         int rows = frame.rows;
-
         float currentOpacity = startOpacity + (endOpacity - startOpacity) * (static_cast<float>(frameIndex) / (nbFrames - 1));
-
-        for (int y = 0; y < rows; ++y)
+        for (int y = 0; y < rows; y++)
         {
-            for (int x = 0; x < cols; ++x)
+            for (int x = 0; x < cols; x++)
             {
                 float alpha = currentOpacity;
 
@@ -64,14 +61,7 @@ void transformation::fade(std::shared_ptr<IInput> input, [[maybe_unused]] Regist
                     }
                 }
 
-                alpha = std::clamp<float>(alpha, 0, 255);
-
-                frame.at<cv::Vec4b>(y, x) = {
-                    frame.at<cv::Vec4b>(y, x)[0],
-                    frame.at<cv::Vec4b>(y, x)[1],
-                    frame.at<cv::Vec4b>(y, x)[2],
-                    cv::saturate_cast<uchar>(alpha)
-                };
+                frame.at<cv::Vec4b>(y, x)[3] = static_cast<unsigned char>(std::clamp<float>(alpha, 0.0f, 255.0f));
             }
         }
     }

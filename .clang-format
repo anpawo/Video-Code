@@ -37,7 +37,7 @@ BraceWrapping:
     AfterEnum: false
     AfterFunction: true
     AfterObjCDeclaration: false
-    AfterStruct: false
+    AfterStruct: true
     AfterUnion: false
     AfterExternBlock: false
     BeforeCatch: false

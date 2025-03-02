@@ -14,7 +14,7 @@
 #include "input/IInput.hpp"
 #include "utils/Debug.hpp"
 
-ABCConcreteInput::ABCConcreteInput(std::vector<cv::Mat>&& frames)
+ABCConcreteInput::ABCConcreteInput(std::vector<Frame>&& frames)
     : _frames(std::move(frames))
 {
 }
@@ -24,7 +24,7 @@ IInput* ABCConcreteInput::copy()
     ABCConcreteInput* cp = new ABCConcreteInput();
 
     VC_LOG_DEBUG("fully cloned")
-    for (const cv::Mat& frame : _frames)
+    for (const Frame& frame : _frames)
     {
         cp->_frames.push_back(frame.clone());
     }
@@ -32,12 +32,12 @@ IInput* ABCConcreteInput::copy()
     return cp;
 }
 
-std::vector<cv::Mat>::iterator ABCConcreteInput::begin()
+std::vector<Frame>::iterator ABCConcreteInput::begin()
 {
     return _frames.begin();
 }
 
-std::vector<cv::Mat>::iterator ABCConcreteInput::end()
+std::vector<Frame>::iterator ABCConcreteInput::end()
 {
     return _frames.end();
 }

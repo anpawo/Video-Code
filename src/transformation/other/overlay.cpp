@@ -19,7 +19,7 @@ void transformation::overlay(std::shared_ptr<IInput> input, Register &reg, const
     const auto bg = bgInput->begin();
     const auto fg = fgInput->begin();
 
-    std::vector<cv::Mat> frames;
+    std::vector<Frame> frames;
     std::size_t bgNbFrames = bgInput->size();
     std::size_t ovNbFrames = fgInput->size();
     std::size_t nbFrames = std::max(bgNbFrames, ovNbFrames);
@@ -36,8 +36,8 @@ void transformation::overlay(std::shared_ptr<IInput> input, Register &reg, const
         }
         else
         {
-            int nbRows = std::max(bg[i].rows, fg[i].rows);
-            int nbCols = std::max(bg[i].cols, fg[i].cols);
+            int nbRows = std::max(bg[i]._mat.rows, fg[i]._mat.rows);
+            int nbCols = std::max(bg[i]._mat.cols, fg[i]._mat.cols);
 
             cv::Mat f(nbRows, nbCols, CV_8UC4);
 
@@ -45,8 +45,8 @@ void transformation::overlay(std::shared_ptr<IInput> input, Register &reg, const
             {
                 for (int ix = 0; ix < nbCols; ix++)
                 {
-                    cv::Vec4b pBg = (iy < bg[i].rows && ix < bg[i].cols) ? bg[i].at<cv::Vec4b>(iy, ix) : cv::Vec4b(0, 0, 0, 0);
-                    cv::Vec4b pOv = (iy < fg[i].rows && ix < fg[i].cols) ? fg[i].at<cv::Vec4b>(iy, ix) : cv::Vec4b(0, 0, 0, 0);
+                    cv::Vec4b pBg = (iy < bg[i]._mat.rows && ix < bg[i]._mat.cols) ? bg[i]._mat.at<cv::Vec4b>(iy, ix) : cv::Vec4b(0, 0, 0, 0);
+                    cv::Vec4b pOv = (iy < fg[i]._mat.rows && ix < fg[i]._mat.cols) ? fg[i]._mat.at<cv::Vec4b>(iy, ix) : cv::Vec4b(0, 0, 0, 0);
 
                     float alphaOv = pOv[3] / 255.0f;
 
@@ -60,7 +60,7 @@ void transformation::overlay(std::shared_ptr<IInput> input, Register &reg, const
                     f.at<cv::Vec4b>(iy, ix) = blended;
                 }
             }
-            frames.push_back(f);
+            frames.push_back(Frame(std::move(f)));
         }
     }
 

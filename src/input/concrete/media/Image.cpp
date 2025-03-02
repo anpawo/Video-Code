@@ -28,7 +28,7 @@ Image::Image(const std::string& inputName)
         cv::cvtColor(image, image, cv::COLOR_BGR2BGRA);
     }
 
-    _frames = {image};
+    _frames = {Frame(std::move(image))};
 }
 
 ///< After lots of tests, I feel like opencv crashs with the handling of RGBA.

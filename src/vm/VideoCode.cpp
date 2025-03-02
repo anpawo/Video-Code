@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <format>
 #include <iostream>
+#include <iterator>
 #include <memory>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/matx.hpp>
@@ -33,6 +34,7 @@
 #include "opencv2/core/types.hpp"
 #include "python/API.hpp"
 #include "transformation/transformation.hpp"
+#include "utils/Debug.hpp"
 #include "utils/Exception.hpp"
 #include "utils/Map.hpp"
 #include "vm/AppWindow.hpp"
@@ -78,8 +80,8 @@ void VideoCode::reloadSourceFile()
     json::array_t newRequiredInputs = dict["requiredInputs"];
     json::array_t newActionStack = dict["actionStack"];
 
-    // std::cout << newRequiredInputs << std::endl;
-    // std::cout << newActionStack << std::endl;
+    VC_LOG_DEBUG(newRequiredInputs);
+    VC_LOG_DEBUG(newActionStack);
 
     _register.updateInstructions(std::move(newRequiredInputs));
     _actionStack = std::move(newActionStack);
@@ -116,20 +118,15 @@ void VideoCode::updateFrame(QLabel &imageLabel)
         // show black background if no frames are loaded
         cv::resize(_defaultBlackFrame, frame, cv::Size(_width / 2, _height / 2), _width / 2.0, 0, cv::INTER_LINEAR);
     }
-    else if (_index > _frames.size() - 1)
-    {
-        // show last frame if index is higher than the number of frames
-        cv::resize(_frames[_frames.size() - 1], frame, cv::Size(_width / 2, _height / 2), _width / 2.0, 0, cv::INTER_LINEAR);
-    }
     else
     {
         cv::resize(_frames[_index], frame, cv::Size(_width / 2, _height / 2), _width / 2.0, 0, cv::INTER_LINEAR);
-    }
 
-    // load next frame if not in pause
-    if (_paused == false)
-    {
-        _index += 1;
+        // load next frame if not in pause and not at the end
+        if (_paused == false && _index < _frames.size() - 1)
+        {
+            _index += 1;
+        }
     }
 
     // convert to rgba because opencv stores it as bgra
@@ -190,31 +187,45 @@ void VideoCode::removeLabel(const std::string &label)
 
 void VideoCode::addFrames(const std::shared_ptr<IInput> frames)
 {
-    for (auto &i : *frames)
+    for (const auto &[mat, meta] : *frames)
     {
-        addFrame(i);
+        addFrame(mat, meta);
     }
 }
 
-void VideoCode::addFrame(const cv::Mat &frameToCopy)
+void VideoCode::addFrame(const cv::Mat &mat, const Metadata &meta)
 {
     cv::Mat frame = _defaultBlackFrame.clone();
 
-    // crop size
-    int cropWidth = std::min(frameToCopy.cols, frame.cols);
-    int cropHeight = std::min(frameToCopy.rows, frame.rows);
+    // Calculate the source rectangle
+    int srcX = std::max(0, -meta.x);
+    int srcY = std::max(0, -meta.y);
+    int srcWidth = std::min(mat.cols - srcX, frame.cols);
+    int srcHeight = std::min(mat.rows - srcY, frame.rows);
 
-    // region of interest
-    cv::Rect roi(0, 0, cropWidth, cropHeight);
+    // Calculate the destination rectangle
+    int dstX = std::max(0, meta.x);
+    int dstY = std::max(0, meta.y);
+    int dstWidth = srcWidth;
+    int dstHeight = srcHeight;
 
-    // copy the channels
-    cv::Mat formattedFrame;
-    cv::cvtColor(frameToCopy, formattedFrame, cv::COLOR_BGR2BGRA);
+    // Ensure the destination rectangle is within the frame bounds
+    dstWidth = std::min(dstWidth, frame.cols - dstX);
+    dstHeight = std::min(dstHeight, frame.rows - dstY);
 
-    // resize the frame
-    formattedFrame(roi).copyTo(frame(roi));
+    // Adjust the source rectangle if the destination rectangle was reduced
+    srcWidth = dstWidth;
+    srcHeight = dstHeight;
 
-    // add the resized frame
+    // Define the source and destination regions
+    cv::Rect src(srcX, srcY, srcWidth, srcHeight);
+    cv::Rect dst(dstX, dstY, dstWidth, dstHeight);
+
+    // Only copy if we have valid regions
+    if (src.width > 0 && src.height > 0 && dst.width > 0 && dst.height > 0)
+    {
+        mat(src).copyTo(frame(dst));
+    }
     _frames.push_back(frame);
 }
 

@@ -41,6 +41,6 @@ Video::Video(const std::string &inputName)
             cv::cvtColor(currentFrame, currentFrame, cv::COLOR_BGR2BGRA);
         }
 
-        _frames.push_back(std::move(currentFrame));
+        _frames.push_back(Frame(std::move(currentFrame)));
     }
 }

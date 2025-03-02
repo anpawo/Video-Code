@@ -9,7 +9,7 @@
 
 #include <vector>
 
-#include "opencv2/core/mat.hpp"
+#include "input/Frame.hpp"
 
 class IInput
 {
@@ -22,8 +22,8 @@ public:
     virtual IInput* copy() = 0;
 
     ///< Iteration
-    virtual std::vector<cv::Mat>::iterator begin() = 0;
-    virtual std::vector<cv::Mat>::iterator end() = 0;
+    virtual std::vector<Frame>::iterator begin() = 0;
+    virtual std::vector<Frame>::iterator end() = 0;
 
     ///< Size
     virtual size_t size() = 0;

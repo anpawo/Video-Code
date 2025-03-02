@@ -28,12 +28,12 @@ IInput* Slice::copy()
 }
 
 ///< Iteration
-std::vector<cv::Mat>::iterator Slice::begin()
+std::vector<Frame>::iterator Slice::begin()
 {
     return _beginIt;
 }
 
-std::vector<cv::Mat>::iterator Slice::end()
+std::vector<Frame>::iterator Slice::end()
 {
     return _endIt;
 }
