@@ -22,11 +22,14 @@ public:
     IInput* copy();
 
     ///< Iteration
-    virtual std::vector<Frame>::iterator begin();
-    virtual std::vector<Frame>::iterator end();
+    std::vector<Frame>::iterator begin();
+    std::vector<Frame>::iterator end();
+
+    ///< Repeat
+    void repeat(size_t n);
 
     ///< Size
-    virtual size_t size();
+    size_t size();
 
 private:
 

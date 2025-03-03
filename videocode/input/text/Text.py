@@ -4,9 +4,18 @@
 from typing import Optional
 
 
+from videocode.Constant import RGBA, WHITE
 from videocode.input.Input import *
 
 
 class text(Input):
-    def __init__(self, s: str, /, *, font: Optional[str] = None, fontSize: Optional[int] = None) -> None:
-        Global.requiredInputs.append(("Text", [s]))
+    def __init__(self, s: str, fontSize: float = 1, color: RGBA = WHITE, fontThickness: Optional[int] = None) -> None:
+        Global.requiredInputs.append(
+            {
+                "type": "Text",
+                "text": s,
+                "fontSize": fontSize,
+                "color": color,
+                "fontThickness": fontThickness or fontSize * 2,
+            }
+        )

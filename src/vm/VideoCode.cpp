@@ -106,6 +106,20 @@ void VideoCode::executeStack()
             ///< Example: {"action": 'Apply', "input": 0, "transformation": 'overlay', "fg": 1}
             transformation::map.at(i["transformation"])(_register[i["input"]], _register, i["args"]);
         }
+        else if (i["action"] == "Wait")
+        {
+            for (size_t n = 0; n < i["n"]; n++)
+            {
+                if (_frames.empty())
+                {
+                    _frames.push_back(_defaultBlackFrame.clone());
+                }
+                else
+                {
+                    _frames.push_back(_frames.back().clone());
+                }
+            }
+        }
     }
 }
 

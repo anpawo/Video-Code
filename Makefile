@@ -90,6 +90,7 @@ SRC_COMPILER	=	src/compiler/generateVideo.cpp	\
 SRC_INPUT		=	src/input/concrete/ABCConcreteInput.cpp		\
 					src/input/concrete/media/Image.cpp			\
 					src/input/concrete/media/Video.cpp			\
+					src/input/concrete/text/Text.cpp			\
 					src/input/composite/Slice.cpp				\
 
 
@@ -106,6 +107,7 @@ SRC_TSF_COLOR	=	src/transformation/color/fade.cpp				\
 
 
 SRC_TSF_OTHER	=	src/transformation/other/overlay.cpp			\
+					src/transformation/other/repeat.cpp			\
 
 
 OBJ				=	$(SRC:.cpp=.o)
