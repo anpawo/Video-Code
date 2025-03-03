@@ -30,17 +30,20 @@ namespace transformation
 
     // Other
     transformation(overlay);
+    transformation(repeat);
     /***
-        TODO: transformation(repeat);
-        TODO: transformation(wait);
         TODO: transformation(concat);
         TODO: transformation(merge);
     ***/
 
     static const std::map<std::string, std::function<void(std::shared_ptr<IInput>, Register &, const json::object_t &)>> map{
+        // Color
         {"fade", fade},
+        // Position
         {"translate", translate},
         {"move", move},
+        // Other
         {"overlay", overlay},
+        {"repeat", repeat},
     };
 };

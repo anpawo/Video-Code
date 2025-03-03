@@ -15,13 +15,26 @@ Below is an example of the last feature added (code) and the result (video).
 ```py
 from videocode.VideoCode import *
 
+x = 700
+y = 100
 
-v1 = video("video/v.mp4")
+# text: Video-Code
+t = text("Video-Code", 3).apply(translate(x, y), repeat(40))
+t[:20].apply(fadeIn())
+t[20:].apply(fadeOut())
+t.add()
+
+# text: Made by:
+t = text("made by", 3).apply(translate(x, y), repeat(40))
+t[:20].apply(fadeIn())
+t[20:].apply(fadeOut())
+t.add()
 
 
-v1[0:40].apply(move(200, 0))
-v1[0:20].apply(fadeIn()).add()
-v1[20:40].apply(fadeOut()).add()
+# Me
+v = video("video/v.mp4").apply(translate(x, y + 100))
+v[0:20].apply(fadeIn()).add()
+v[20:40].apply(fadeOut()).add()
 ```
 
 <img src="docs/readme/example.gif" style="width: 50%;">
@@ -31,25 +44,26 @@ To create a video with Video-Code, you need to write some simple code in Python.
 
 The flow of the Video comes from the __Inputs__ that you, first import or create, then modify with __Transformations__ and finally add to the __timeline__.
 
-To import or create an __Input__, you need to create a __video__ or __image__ instance (soon text and shapes).<br>
+To import or create an __Input__, you need to create a __video__, __image__ or a __text__ instance (soon shapes).<br>
 To modify it, you need to use __Transformations__ like __translate__ or __fade__.<br>
 To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ function.
 
 ## Patch Notes
 
 
-<details open>
+<details>
     <summary><code>Inputs</code></summary>
 <br>
 
 - `image`
 - `video`
+- `text`
 
 </details>
 
 <br>
 
-<details open>
+<details>
     <summary><code>Transformations</code></summary>
 <br>
 
@@ -63,15 +77,18 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
 <br>
 
 - `overlay`
+- `repeat`
 
 </details>
 
 <br>
 
-<details open>
+<details>
     <summary><code>Patchs</code></summary>
 <br>
 
+- `transformation`: repeat (03/03/25)
+- `input`: text (03/03/25)
 - `rework`: position of the frames (02/03/25)
 - `transformation`: move (02/03/25)
 

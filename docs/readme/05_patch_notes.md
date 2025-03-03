@@ -1,18 +1,19 @@
 ## Patch Notes
 
 
-<details open>
+<details>
     <summary><code>Inputs</code></summary>
 <br>
 
 - `image`
 - `video`
+- `text`
 
 </details>
 
 <br>
 
-<details open>
+<details>
     <summary><code>Transformations</code></summary>
 <br>
 
@@ -26,15 +27,18 @@
 <br>
 
 - `overlay`
+- `repeat`
 
 </details>
 
 <br>
 
-<details open>
+<details>
     <summary><code>Patchs</code></summary>
 <br>
 
+- `transformation`: repeat (03/03/25)
+- `input`: text (03/03/25)
 - `rework`: position of the frames (02/03/25)
 - `transformation`: move (02/03/25)
 

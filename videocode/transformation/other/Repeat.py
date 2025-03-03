@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from videocode.input.Input import Input
 from videocode.transformation.Transformation import Transformation
 from videocode.Constant import uint
 

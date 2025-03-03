@@ -38,6 +38,11 @@ std::vector<Frame>::iterator Slice::end()
     return _endIt;
 }
 
+void Slice::repeat([[maybe_unused]] size_t n)
+{
+    /// TODO: maybe add std::vector<Frame&> instead of iterators so we can duplicate the ref
+}
+
 ///< Size
 size_t Slice::size()
 {

@@ -27,3 +27,8 @@ DR = DOWN + RIGHT
 # index
 START = 0
 END = -1
+
+# Colors
+type RGBA = tuple[int, int, int, int]
+
+WHITE: RGBA = (255, 255, 255, 255)
