@@ -29,22 +29,19 @@ public:
     Register() = default;
     ~Register() = default;
 
-    ///< Update instructions
-    void updateInstructions(json::array_t &&newInstructions);
-
-    ///< Run the first instruction not done
-    void runNextInstruction();
+    ///< Create a new `Input`
+    void newInput(const std::string &type, const json::object_t &args);
 
     ///< Access _inputs at `index`
     std::shared_ptr<IInput> operator[](size_t index);
+
+    ///< Remove old `Inputs`
+    void clear();
 
 private:
 
     ///< Variables representing the Inputs currently used in the program
     std::vector<std::shared_ptr<IInput>> _inputs{};
-
-    ///< Instructions to create new Inputs: [[instructionName, {instructionArgs}]]
-    json::array_t _instructions{};
 
     ///< Each instruction
     const std::map<std::string, std::function<void(const json::object_t &)>> _inputFactory{

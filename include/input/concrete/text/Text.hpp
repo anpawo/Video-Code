@@ -18,4 +18,8 @@ public:
 
     Text(const std::string &text, double fontSize, int fontThickness, const std::vector<int> &color, int font = cv::FONT_HERSHEY_SIMPLEX);
     ~Text() = default;
+
+private:
+
+    const std::string _text;
 };

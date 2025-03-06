@@ -13,6 +13,7 @@
 #include "opencv2/core/types.hpp"
 
 Text::Text(const std::string &text, double fontSize, int fontThickness, const std::vector<int> &color, int font)
+    : _text(text)
 {
     int baseLine = 0;
 

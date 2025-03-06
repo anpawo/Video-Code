@@ -6,8 +6,9 @@ from videocode.input.Input import *
 
 class video(Input):
     def __init__(self, filepath: str) -> None:
-        Global.requiredInputs.append(
+        Global.stack.append(
             {
+                "action": "Create",
                 "type": "Video",
                 "filepath": filepath,
             }

@@ -51,7 +51,7 @@ public:
     void removeLabel(const std::string &index);
 
     ///< Add a frame to the timeline
-    void addFrame(const cv::Mat &mat, const Metadata &meta);
+    void addFrame(const Frame &frame);
     void addFrames(const std::shared_ptr<IInput> input);
 
     ///< Events >///
@@ -111,7 +111,7 @@ private:
     // clang-format on
 
     ///< Timeline paused
-    bool _paused{true};
+    bool _paused{false};
 
     ///< Timeline running
     bool _running{true};
@@ -120,11 +120,14 @@ private:
     Register _register{};
 
     ///< Stack containing the transformations to apply to the Inputs
-    json::array_t _actionStack{};
+    json::array_t _stack{};
 
     ///< Window to modify the video in real time
     std::unique_ptr<AppWindow> _app{nullptr};
 
     ///< Output File for the generation
     std::string _outputFile;
+
+    ///< Kept Entities (Prevent them from disappearing)
+    std::vector<int> _keptInputs;
 };

@@ -32,7 +32,7 @@ class Input(ABC):
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = super().__new__(cls)
-        instance.index = len(Global.requiredInputs)
+        instance.index = Global.getIndex()
         return instance
 
     @abstractmethod
@@ -42,7 +42,7 @@ class Input(ABC):
         """
         Appends the `frames` of `self` to the `timeline`.
         """
-        Global.actionStack.append(
+        Global.stack.append(
             {
                 "action": "Add",
                 "input": self.index,
@@ -55,7 +55,7 @@ class Input(ABC):
         Applies the `Transformations` `ts` to all the `frames` of `self`.
         """
         for t in ts:
-            Global.actionStack.append(
+            Global.stack.append(
                 {
                     "action": "Apply",
                     "input": self.index,
@@ -70,14 +70,31 @@ class Input(ABC):
         Creates a `copy` of `self`.
         """
         cp = copy.deepcopy(self)
-        cp.index = len(Global.requiredInputs)
-        Global.requiredInputs.append(
+        cp.index = Global.getIndex()
+        Global.stack.append(
             {
+                "action": "Create",
                 "type": "Copy",
                 "input": self.index,
             }
         )
         return cp
+
+    def keep(self) -> None:
+        Global.stack.append(
+            {
+                "action": "Keep",
+                "input": self.index,
+            }
+        )
+
+    def drop(self) -> None:
+        Global.stack.append(
+            {
+                "action": "Drop",
+                "input": self.index,
+            }
+        )
 
     def __getitem__(self, i: int | slice[int | None, int | None, None]) -> Slice:
         """
@@ -104,8 +121,9 @@ class Input(ABC):
             s = slice(start, stop)
 
         temp = Slice(self, s)
-        Global.requiredInputs.append(
+        Global.stack.append(
             {
+                "action": "Create",
                 "type": "Slice",
                 "input": self.index,
                 "start": s.start,

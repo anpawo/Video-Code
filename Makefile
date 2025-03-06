@@ -143,12 +143,14 @@ re: fclean
 .PHONY: debug
 debug: fclean
 	$(MAKE) "CXXFLAGS = $(CXXFLAGS) -g3"
+# $(MAKE) "CXXFLAGS = $(CXXFLAGS) -g3" "CPPFLAGS = $(CPPFLAGS) -fsanitize=address" "LDFLAGS = $(LDFLAGS) -fsanitize=address"
 
 
 .PHONY: format
 format:
 	clang-format -i **/*.cpp **/*.hpp
 
-.PHONY: doc
-doc:
+.PHONY: docs
+docs:
+	./vc --generate
 	./docs/readme/generate.sh

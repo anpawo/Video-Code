@@ -4,9 +4,7 @@
 from videocode.Constant import RGBA
 
 
-type Arguments = dict[str, int | float | str | dict[str, Arguments] | list[Arguments] | RGBA]
-type RequiredInput = Arguments
-type ActionStack = Arguments
+type Action = dict[str, int | float | str | dict[str, Action] | list[Action] | RGBA]
 
 
 class Global:
@@ -14,21 +12,26 @@ class Global:
     Globals used by the classes `Input` and `Transformation`.
     """
 
-    # Input Variables declared in a scene.
-    requiredInputs: list[RequiredInput] = []
+    # Represents the steps to generate the video.
+    stack: list[Action] = []
 
-    # Represents the steps of the scene.
-    actionStack: list[ActionStack] = []
+    # Index of the next `Input`
+    inputCounter: int = 0
+
+    @staticmethod
+    def getIndex() -> int:
+        Global.inputCounter += 1
+        return Global.inputCounter - 1
 
     def __str__(self) -> str:
-        return f"\nRequiredInputs={self.requiredInputs};\n\nTransformations={self.actionStack};\n"
+        return f"Stack={self.stack}"
 
     def __repr__(self) -> str:
         return str(self)
 
 
 def wait(n: int = 1) -> None:
-    Global.actionStack.append(
+    Global.stack.append(
         {
             "action": "Wait",
             "n": n,
