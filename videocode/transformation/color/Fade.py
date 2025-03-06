@@ -14,10 +14,12 @@ class fade(Transformation):
     Default: `Fade in`.
     """
 
-    def __init__(self, sides: list[side] = ALL, startOpacity: uint = 0, endOpacity: uint = 255) -> None:
+    def __init__(self, sides: list[side] = ALL, startOpacity: uint = 0, endOpacity: uint = 255, affectTransparentPixel: bool = False) -> None:
         self.sides = sides
         self.startOpacity = startOpacity
         self.endOpacity = endOpacity
+        # Text `Inputs` have a black transparent background, we don't want it to be shown.
+        self.affectTransparentPixel = affectTransparentPixel
 
 
 class fadeIn:

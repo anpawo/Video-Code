@@ -10,8 +10,9 @@ from videocode.input.Input import *
 
 class text(Input):
     def __init__(self, s: str, fontSize: float = 1, color: RGBA = WHITE, fontThickness: Optional[int] = None) -> None:
-        Global.requiredInputs.append(
+        Global.stack.append(
             {
+                "action": "Create",
                 "type": "Text",
                 "text": s,
                 "fontSize": fontSize,

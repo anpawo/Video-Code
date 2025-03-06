@@ -19,14 +19,14 @@ x = 700
 y = 10
 
 # text: Video-Code
-t = text("Video-Code", 3).apply(translate(x, y), repeat(40))
-t[:20].apply(fadeIn())
+t = text("Video-Code", 3).apply(translate(x, y), repeat(24 * 4))
+t[: 24 * 3].apply(fadeIn(LEFT))
 t.add()
 t.keep()
 
 # text: Made by
-t = text("made by", 3).apply(translate(x, y + 80), repeat(40))
-t[:20].apply(fadeIn())
+t = text("made by", 3).apply(translate(x, y + 80), repeat(24 * 4))
+t[: 24 * 3].apply(fadeIn(LEFT))
 t.add()
 t.keep()
 

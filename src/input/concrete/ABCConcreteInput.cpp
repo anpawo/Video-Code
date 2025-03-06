@@ -42,9 +42,14 @@ std::vector<Frame>::iterator ABCConcreteInput::end()
     return _frames.end();
 }
 
+Frame& ABCConcreteInput::back()
+{
+    return _frames.back();
+}
+
 void ABCConcreteInput::repeat(size_t n)
 {
-    const size_t initialSize = size();
+    const size_t initialSize = _frames.size();
 
     while (n--)
     {

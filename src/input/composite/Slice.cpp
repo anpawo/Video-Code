@@ -7,6 +7,7 @@
 
 #include "input/composite/Slice.hpp"
 
+#include <iterator>
 #include <memory>
 
 #include "input/IInput.hpp"
@@ -36,6 +37,12 @@ std::vector<Frame>::iterator Slice::begin()
 std::vector<Frame>::iterator Slice::end()
 {
     return _endIt;
+}
+
+Frame& Slice::back()
+{
+    ///< TODO: not sure
+    return *std::prev(_endIt);
 }
 
 void Slice::repeat([[maybe_unused]] size_t n)

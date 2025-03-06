@@ -38,20 +38,13 @@ def serializeScene(filepath: str) -> str:
     __name__ = "Scene"
     exec(content, globals())
 
-    # Access Globals: `requiredInputs` and `actionStack`
+    # Access Stack
     g = Global()
 
     # Serialize the instructions to JSON
-    return json.dumps(
-        {
-            "requiredInputs": g.requiredInputs,
-            "actionStack": g.actionStack,
-        }
-    )
+    return json.dumps(g.stack)
 
 
 if __name__ == "__main__":
-    for k, v in json.loads(serializeScene("video.py")).items():
-        print(f"{k}")
-        for i in v:
-            print(f"   {i}")
+    for i in json.loads(serializeScene("video.py")):
+        print(i)

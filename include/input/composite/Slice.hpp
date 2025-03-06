@@ -24,6 +24,7 @@ public:
     ///< Iteration
     std::vector<Frame>::iterator begin();
     std::vector<Frame>::iterator end();
+    Frame& back();
 
     ///< Repeat
     void repeat(size_t n);

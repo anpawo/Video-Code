@@ -15,18 +15,24 @@ void transformation::fade(std::shared_ptr<IInput> input, [[maybe_unused]] Regist
     const int nbFrames = input->size();
     const float startOpacity = args.at("startOpacity");
     const float endOpacity = args.at("endOpacity");
+    const bool affectTransparentPixel = args.at("affectTransparentPixel");
 
     int frameIndex = 0;
-    for (auto it = input->begin(), end = input->end(); it != end; it++, frameIndex++)
+    for (auto& [frame, _] : *input)
     {
-        auto& frame = it->_mat;
         int cols = frame.cols;
         int rows = frame.rows;
         float currentOpacity = startOpacity + (endOpacity - startOpacity) * (static_cast<float>(frameIndex) / (nbFrames - 1));
+
         for (int y = 0; y < rows; y++)
         {
             for (int x = 0; x < cols; x++)
             {
+                if (frame.at<cv::Vec4b>(y, x)[3] == 0 && affectTransparentPixel == false)
+                {
+                    continue;
+                }
+
                 float alpha = currentOpacity;
 
                 for (const auto& side : sides)
@@ -64,5 +70,6 @@ void transformation::fade(std::shared_ptr<IInput> input, [[maybe_unused]] Regist
                 frame.at<cv::Vec4b>(y, x)[3] = static_cast<unsigned char>(std::clamp<float>(alpha, 0.0f, 255.0f));
             }
         }
+        frameIndex++;
     }
 }
