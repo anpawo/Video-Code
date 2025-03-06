@@ -16,25 +16,26 @@ Below is an example of the last feature added (code) and the result (video).
 from videocode.VideoCode import *
 
 x = 700
-y = 100
+y = 10
 
 # text: Video-Code
 t = text("Video-Code", 3).apply(translate(x, y), repeat(40))
 t[:20].apply(fadeIn())
-t[20:].apply(fadeOut())
 t.add()
+t.keep()
 
-# text: Made by:
-t = text("made by", 3).apply(translate(x, y), repeat(40))
+# text: Made by
+t = text("made by", 3).apply(translate(x, y + 80), repeat(40))
 t[:20].apply(fadeIn())
-t[20:].apply(fadeOut())
 t.add()
+t.keep()
 
 
 # Me
-v = video("video/v.mp4").apply(translate(x, y + 100))
-v[0:20].apply(fadeIn()).add()
-v[20:40].apply(fadeOut()).add()
+v = video("video/v.mp4").apply(translate(x, y + 175))
+v[0:20].apply(fadeIn())
+v.add()
+v.keep()
 ```
 
 <img src="docs/readme/example.gif" style="width: 50%;">
@@ -87,6 +88,8 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
     <summary><code>Patchs</code></summary>
 <br>
 
+- `feature`: keep last frame of input on screen (06/03/25)
+- `rework`: one stack (06/03/25)
 - `transformation`: repeat (03/03/25)
 - `input`: text (03/03/25)
 - `rework`: position of the frames (02/03/25)

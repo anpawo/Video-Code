@@ -37,6 +37,8 @@
     <summary><code>Patchs</code></summary>
 <br>
 
+- `feature`: keep last frame of input on screen (06/03/25)
+- `rework`: one stack (06/03/25)
 - `transformation`: repeat (03/03/25)
 - `input`: text (03/03/25)
 - `rework`: position of the frames (02/03/25)
