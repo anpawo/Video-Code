@@ -44,28 +44,19 @@ message(STATUS "VCPKG_ROOT: ${VCPKG_ROOT}")
 message(STATUS "VCPKG_TARGET_TRIPLET: ${VCPKG_TARGET_TRIPLET}")
 if (EXISTS "${CMAKE_SOURCE_DIR}/vcpkg.json")
     message(STATUS "Found vcpkg.json, installing only missing dependencies from manifest")
-    execute_process(
-        COMMAND "${VCPKG_ROOT}/vcpkg" install --triplet ${VCPKG_TARGET_TRIPLET} --recurse
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build"
-    )
+    # execute_process(
+    #     COMMAND "${VCPKG_ROOT}/vcpkg" install --triplet ${VCPKG_TARGET_TRIPLET} --recurse
+    #     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build"
+    # )
 endif()
 
 message(STATUS "all vcpkg packages installed")
 
-if (UNIX AND NOT APPLE)
-    find_package(X11)
-    if (NOT X11_Xi_FOUND OR NOT X11_Xtst_FOUND)
-        message(WARNING "You must install libxi-dev and libxtst-dev on Linux.\nrun : apt-get install libxi-dev libxtst-dev")
-    endif()
-endif()
-
 find_package(OpenCV REQUIRED)
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
 
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
-    ${Python3_INCLUDE_DIRS}
     include
 )
 
