@@ -11,46 +11,25 @@ if (NOT DEFINED ENV{CMAKE_BINARY_DIR})
     set(CMAKE_BINARY_DIR "${CMAKE_SOURCE_DIR}/build")
 endif()
 
-# if(NOT DEFINED ENV{VCPKG_ROOT})
-#     message(STATUS "Downloading vcpkg...")
-#     execute_process(COMMAND git clone https://github.com/microsoft/vcpkg.git ${CMAKE_BINARY_DIR}/vcpkg)
-#     if (WIN32)
-#         execute_process(COMMAND ${CMAKE_BINARY_DIR}/vcpkg/bootstrap-vcpkg.bat) # Windows
-#     else()
-#         execute_process(COMMAND ${CMAKE_BINARY_DIR}/vcpkg/bootstrap-vcpkg.sh)  # Linux/macOS
-#     endif()
-#     set(VCPKG_ROOT "${CMAKE_BINARY_DIR}/vcpkg")
-# else()
-#     set(VCPKG_ROOT $ENV{VCPKG_ROOT})
-# endif()
+include(FetchContent)
+FetchContent_Declare(
+    CPM
+    GIT_REPOSITORY https://github.com/cpm-cmake/CPM.cmake
+    GIT_TAG c1bca7badb2293f606a24a94d4ac708659f86e6a
+)
+FetchContent_MakeAvailable(CPM)
 
-set(VCPKG_ROOT $ENV{VCPKG_ROOT})
+CPMAddPackage(
+    NAME argparse
+    GITHUB p-ranav/argparse
+    VERSION 2.9
+)
 
-set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
-set(VCPKG_FEATURE_FLAGS "manifests")
-
-if(NOT DEFINED VCPKG_TARGET_TRIPLET)
-    if (WIN32)
-        set(VCPKG_TARGET_TRIPLET "x64-windows")
-    elseif (UNIX AND NOT APPLE)
-        set(VCPKG_TARGET_TRIPLET "x64-linux")
-    elseif (APPLE)
-        set(VCPKG_TARGET_TRIPLET "x64-osx")
-    endif()
-endif()
-set(CMAKE_PREFIX_PATH "${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}")
-
-message(STATUS "VCPKG_ROOT: ${VCPKG_ROOT}")
-message(STATUS "VCPKG_TARGET_TRIPLET: ${VCPKG_TARGET_TRIPLET}")
-if (EXISTS "${CMAKE_SOURCE_DIR}/vcpkg.json")
-    message(STATUS "Found vcpkg.json, installing only missing dependencies from manifest")
-    # execute_process(
-    #     COMMAND "${VCPKG_ROOT}/vcpkg" install --triplet ${VCPKG_TARGET_TRIPLET} --recurse
-    #     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build"
-    # )
-endif()
-
-message(STATUS "all vcpkg packages installed")
+CPMAddPackage(
+    NAME nlohmann-json
+    GITHUB nlohmann/json
+    VERSION 3.11.2
+)
 
 find_package(OpenCV REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
@@ -82,8 +61,9 @@ set(SOURCES
 add_executable(${PROJECT_NAME} ${SOURCES})
 
 target_link_libraries(${PROJECT_NAME}
+    argparse::argparse
+    nlohmann_json::nlohmann_json
     ${OpenCV_LIBS}
-    ${Python3_LIBRARIES}
     Qt6::Widgets
     Qt6::Core
     Qt6::Gui
