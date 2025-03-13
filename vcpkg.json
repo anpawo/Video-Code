@@ -1,0 +1,10 @@
+{
+  "name": "video-code",
+  "version-string": "1.0.0",
+  "dependencies": [
+    "opencv4",
+    "argparse",
+    "nlohmann-json",
+    "qtbase"
+  ]
+}

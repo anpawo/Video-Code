@@ -20,3 +20,7 @@ video/
 
 # Python
 __pycache__/
+
+# CMake
+build/
+vcpkg_installed/
