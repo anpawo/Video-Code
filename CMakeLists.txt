@@ -11,18 +11,9 @@ if (NOT DEFINED ENV{CMAKE_BINARY_DIR})
     set(CMAKE_BINARY_DIR "${CMAKE_SOURCE_DIR}/build")
 endif()
 
-# if(NOT DEFINED ENV{VCPKG_ROOT})
-#     message(STATUS "Downloading vcpkg...")
-#     execute_process(COMMAND git clone https://github.com/microsoft/vcpkg.git ${CMAKE_BINARY_DIR}/vcpkg)
-#     if (WIN32)
-#         execute_process(COMMAND ${CMAKE_BINARY_DIR}/vcpkg/bootstrap-vcpkg.bat) # Windows
-#     else()
-#         execute_process(COMMAND ${CMAKE_BINARY_DIR}/vcpkg/bootstrap-vcpkg.sh)  # Linux/macOS
-#     endif()
-#     set(VCPKG_ROOT "${CMAKE_BINARY_DIR}/vcpkg")
-# else()
-#     set(VCPKG_ROOT $ENV{VCPKG_ROOT})
-# endif()
+if (NOT DEFINED ENV{VCPKG_ROOT})
+    message(FATAL_ERROR "VCPKG_ROOT environment variable not set")
+endif()
 
 set(VCPKG_ROOT $ENV{VCPKG_ROOT})
 
@@ -40,18 +31,6 @@ if(NOT DEFINED VCPKG_TARGET_TRIPLET)
 endif()
 set(CMAKE_PREFIX_PATH "${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}")
 
-message(STATUS "VCPKG_ROOT: ${VCPKG_ROOT}")
-message(STATUS "VCPKG_TARGET_TRIPLET: ${VCPKG_TARGET_TRIPLET}")
-if (EXISTS "${CMAKE_SOURCE_DIR}/vcpkg.json")
-    message(STATUS "Found vcpkg.json, installing only missing dependencies from manifest")
-    execute_process(
-        COMMAND "${VCPKG_ROOT}/vcpkg" install --triplet ${VCPKG_TARGET_TRIPLET} --recurse
-        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/build"
-    )
-endif()
-
-message(STATUS "all vcpkg packages installed")
-
 if (UNIX AND NOT APPLE)
     find_package(X11)
     if (NOT X11_Xi_FOUND OR NOT X11_Xtst_FOUND)
@@ -59,14 +38,23 @@ if (UNIX AND NOT APPLE)
     endif()
 endif()
 
-find_package(OpenCV REQUIRED)
-find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
-find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
+find_package(OpenCV QUIET)
+if (NOT OpenCV_FOUND)
+    message(WARNING "OpenCV not found, installing...")
+    execute_process(COMMAND ${VCPKG_ROOT}/vcpkg install opencv4)
+    find_package(OpenCV REQUIRED)
+endif()
+
+find_package(Qt6 COMPONENTS Widgets Core Gui QUIET)
+if (NOT Qt6_FOUND)
+    message(WARNING "Qt6 not found, installing...")
+    execute_process(COMMAND ${VCPKG_ROOT}/vcpkg install qt-default)
+    find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
+endif()
 
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
-    ${Python3_INCLUDE_DIRS}
-    include
+    ${CMAKE_SOURCE_DIR}/include
 )
 
 set(SOURCES
