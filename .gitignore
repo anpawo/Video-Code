@@ -24,3 +24,9 @@ __pycache__/
 # CMake
 build/
 vcpkg_installed/
+
+# dependencies
+include/argparse/
+
+# executables
+video-code
