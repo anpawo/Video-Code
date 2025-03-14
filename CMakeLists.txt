@@ -53,6 +53,8 @@ if (NOT OpenCV_FOUND)
     find_package(OpenCV REQUIRED)
 endif()
 
+find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
+
 include(FetchContent)
 FetchContent_Declare(
     argparse
@@ -66,11 +68,20 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
+FetchContent_Declare(
+    fmt
+    GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+    GIT_TAG 8.0.1
+)
+FetchContent_MakeAvailable(fmt)
+
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
 
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/include
+    ${Python3_INCLUDE_DIRS}
+    ${Python3_INCLUDE_DIRS}/../include
 )
 
 set(SOURCES
@@ -101,6 +112,9 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Widgets
     Qt6::Core
     Qt6::Gui
+    fmt::fmt
+    stdc++fs
+    Python3::Python
 )
 
 add_custom_target(format

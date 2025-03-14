@@ -6,7 +6,7 @@
 */
 
 #include <cstdio>
-#include <format>
+#include <fmt/core.h>
 
 #include "compiler/Compiler.hpp"
 #include "opencv2/core/matx.hpp"
@@ -22,7 +22,7 @@ int Compiler::Writer::generateVideo(
 )
 {
     FILE *ffmpegPipe = popen(
-        std::format(
+        fmt::format(
             "ffmpeg"
             " -y"                 // override existing file
             " -f rawvideo"        // rawvideo codec (the pipe receives pixels in stdin)
