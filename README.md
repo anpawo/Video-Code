@@ -69,6 +69,7 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
 <br>
 
 - `fade`
+- `grayscale`
 
 <br>
 
@@ -96,4 +97,3 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
 - `transformation`: move (02/03/25)
 
 </details>
-
