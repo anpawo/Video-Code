@@ -19,9 +19,7 @@ namespace transformation
 {
 
     // Color
-    /***
-        TODO: transformation(grayscale);
-    ***/
+    transformation(grayscale);
     transformation(fade);
 
     // Position
@@ -38,6 +36,7 @@ namespace transformation
 
     static const std::map<std::string, std::function<void(std::shared_ptr<IInput>, Register &, const json::object_t &)>> map{
         // Color
+        {"grayscale", grayscale},
         {"fade", fade},
         // Position
         {"translate", translate},

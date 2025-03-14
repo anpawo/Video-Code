@@ -99,6 +99,7 @@ set(SOURCES
     src/transformation/position/translate.cpp
     src/transformation/position/move.cpp
     src/transformation/color/fade.cpp
+    src/transformation/color/grayscale.cpp
     src/transformation/other/overlay.cpp
     src/transformation/other/repeat.cpp
 )
