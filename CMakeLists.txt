@@ -5,6 +5,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-deprecated -pipe -O2 -D_REENTRANT -DVC_DEBUG_ON -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -DQT_NO_KEYWORDS")
 
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+endif()
+
 set(VCPKG_BUILD_TYPE "release")
 
 if (NOT DEFINED ENV{CMAKE_BINARY_DIR})
@@ -38,6 +42,10 @@ if (UNIX AND NOT APPLE)
     endif()
 endif()
 
+if (NOT DEFINED ENV{Qt6_DIR})
+    set(Qt6_DIR "/usr/include/qt6/6.8.2/gcc_64/lib/cmake/Qt6")
+endif()
+
 find_package(OpenCV QUIET)
 if (NOT OpenCV_FOUND)
     message(WARNING "OpenCV not found, installing...")
@@ -45,12 +53,20 @@ if (NOT OpenCV_FOUND)
     find_package(OpenCV REQUIRED)
 endif()
 
-find_package(Qt6 COMPONENTS Widgets Core Gui QUIET)
-if (NOT Qt6_FOUND)
-    message(WARNING "Qt6 not found, installing...")
-    execute_process(COMMAND ${VCPKG_ROOT}/vcpkg install qt-default)
-    find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
-endif()
+include(FetchContent)
+FetchContent_Declare(
+    argparse
+    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+)
+FetchContent_MakeAvailable(argparse)
+
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
+find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
 
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
