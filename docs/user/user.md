@@ -1,6 +1,6 @@
 # Video-Code User Documentation
 
-[go back to the main page](../README.md)
+[go back to the main page](../../README.md)
 
 ## Overview
 
