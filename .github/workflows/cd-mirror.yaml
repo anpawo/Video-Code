@@ -11,7 +11,7 @@ on:
       - 'ga-ignore-**'
 
 env:
-  MIRROR_URL:"git@github.com:EpitechPromo2027/G-EIP-600-PAR-6-1-eip-marius.rousset.git"
+  MIRROR_URL: "git@github.com:EpitechPromo2027/G-EIP-600-PAR-6-1-eip-marius.rousset.git"
 
 jobs:
   push_to_mirror:
