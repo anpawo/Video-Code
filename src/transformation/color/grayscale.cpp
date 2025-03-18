@@ -9,7 +9,7 @@
 
 #include "transformation/transformation.hpp"
 
-void transformation::grayscale(std::shared_ptr<IInput> input, [[maybe_unused]] Register &reg, const json::object_t &args)
+void transformation::grayscale(std::shared_ptr<IInput> input, [[maybe_unused]] Register &reg, [[maybe_unused]] const json::object_t &args)
 {
     for (auto it = input->begin(); it != input->end(); ++it)
     {
