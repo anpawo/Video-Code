@@ -22,11 +22,7 @@ video/
 __pycache__/
 
 # CMake
-*build*/
-vcpkg_installed/
-
-# dependencies
-include/argparse/
+build/
 
 # executables
 video-code
