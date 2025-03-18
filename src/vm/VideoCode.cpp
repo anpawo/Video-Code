@@ -7,6 +7,7 @@
 
 #include "vm/VideoCode.hpp"
 
+#include <fmt/core.h>
 #include <qapplication.h>
 #include <qboxlayout.h>
 #include <qimage.h>
@@ -20,7 +21,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
-#include <fmt/core.h>
 #include <iostream>
 #include <iterator>
 #include <memory>

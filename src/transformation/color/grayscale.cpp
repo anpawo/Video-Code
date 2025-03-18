@@ -6,6 +6,7 @@
 */
 
 #include <opencv2/opencv.hpp>
+
 #include "transformation/transformation.hpp"
 
 void transformation::grayscale(std::shared_ptr<IInput> input, [[maybe_unused]] Register &reg, const json::object_t &args)
