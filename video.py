@@ -18,6 +18,6 @@ y = 10
 
 # Me
 v = video("video/v.mp4").apply(translate(x, y + 175))
-v.apply(zoom(4, (0.1,0.1)))
+v.apply(zoomOut(4, (0.1,0.1)))
 v.add()
 v.keep()
