@@ -8,11 +8,9 @@
 #include <memory>
 #include "input/IInput.hpp"
 #include "transformation/transformation.hpp"
-#include <iostream>
 
 void transformation::zoom(std::shared_ptr<IInput> input, [[maybe_unused]] Register &reg, const json::object_t &args)
 {
-    std::cout << "Zoom transformation" << std::endl;
     const float zoomFactor = args.at("zoomFactor");
     const std::pair<float, float> zoomCenter = args.at("zoomCenter");
     const bool staticZoom = args.at("mode") == "static";
@@ -20,10 +18,6 @@ void transformation::zoom(std::shared_ptr<IInput> input, [[maybe_unused]] Regist
     const float endZoomFactor = args.at("zoomend");
     const int nbFrames = input->size();
     int i = 0;
-
-    std::cout << "Zooming with factor: " << zoomFactor << ", center: (" << zoomCenter.first << ", " << zoomCenter.second << "), mode: " << (staticZoom ? "static" : "dynamic") << std::endl;
-    std::cout << "Start zoom factor: " << startZoomFactor << ", end zoom factor: " << endZoomFactor << std::endl;
-    std::cout << "Number of frames: " << nbFrames << std::endl;
 
     for (auto& [frame, _] : *input) {
         float currentZoomFactor;
