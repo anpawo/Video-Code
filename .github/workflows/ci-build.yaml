@@ -41,14 +41,6 @@ jobs:
       - name: copy executable
         run: cp build/video-code video-code
 
-  verify:
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v4
-
       - name: Run help
         run: |
           ./video-code --help
