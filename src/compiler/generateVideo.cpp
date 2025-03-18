@@ -5,8 +5,9 @@
 ** generateVideo
 */
 
-#include <cstdio>
 #include <fmt/core.h>
+
+#include <cstdio>
 
 #include "compiler/Compiler.hpp"
 #include "opencv2/core/matx.hpp"

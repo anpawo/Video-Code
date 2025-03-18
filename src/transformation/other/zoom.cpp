@@ -6,6 +6,7 @@
 */
 
 #include <memory>
+
 #include "input/IInput.hpp"
 #include "transformation/transformation.hpp"
 
@@ -19,7 +20,8 @@ void transformation::zoom(std::shared_ptr<IInput> input, [[maybe_unused]] Regist
     const int nbFrames = input->size();
     int i = 0;
 
-    for (auto& [frame, _] : *input) {
+    for (auto &[frame, _] : *input)
+    {
         float currentZoomFactor;
 
         if (staticZoom)

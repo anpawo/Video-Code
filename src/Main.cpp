@@ -6,8 +6,8 @@
 */
 
 #include <argparse/argparse.hpp>
-#include <opencv2/opencv.hpp>
 #include <nlohmann/json.hpp>
+#include <opencv2/opencv.hpp>
 
 #include "vm/VideoCode.hpp"
 
