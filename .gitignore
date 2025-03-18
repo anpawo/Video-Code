@@ -22,7 +22,7 @@ video/
 __pycache__/
 
 # CMake
-build/
+*build*/
 vcpkg_installed/
 
 # dependencies
