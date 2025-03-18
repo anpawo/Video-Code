@@ -19,11 +19,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y \
-          build-essential \
-          cmake \
-          libopencv-dev \
-          python3.12-dev
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake libopencv-dev python3-dev
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -61,12 +57,12 @@ jobs:
       - name: Run video-code
         run: |
           ./video-code --generate out.mp4
-          if [ $? -ne 0 && -f "out.mp4" ]; then
+          if [ $? -ne 0 ] || [ ! -f "out.mp4" ]; then
             echo "Error: video-code failed to generate out.mp4."
             exit 1
           fi
 
-      # - name: Run fonctional tests
+      # - name: Run functional tests
       #   run: |
       #     ./tests/functional_tests.sh
       #     if [ $? -ne 0 ]; then
