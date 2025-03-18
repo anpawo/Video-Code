@@ -15,14 +15,14 @@ The project is organized into several directories, each serving a specific purpo
 - `docs/`: Contains the documentation files.
 - `tests/`: Contains the test cases.
 
-## Code Style and Guidelines
+## Architecture
 
-Follow these guidelines to maintain code quality and consistency:
+The architecture of the Video-Code project is designed to be modular and extensible. It consists of the following main components:
 
-- Use `clang-format` for formatting C++ code.
-- Write clear and concise comments.
+- **Inputs**: These are the basic building blocks of the video, such as images, videos, and text. Inputs are defined in the `videocode/input` directory.
+- **Transformations**: These are operations that modify the inputs, such as translating, fading, and overlaying. Transformations are defined in the `videocode/transformation` directory.
+- **Timeline**: This is the sequence of frames that make up the video. Inputs are added to the timeline, and transformations are applied over time.
 
 ## Adding New Features
 To add a new feature, follow these different documentation files:
 - **[transformations](addEffect.md)**
-
