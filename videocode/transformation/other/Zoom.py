@@ -12,7 +12,7 @@ class zoom(Transformation):
 
     def __init__(self, zoomFactor: float = 1.0, zoomCenter: tuple[float, float] = (0.5, 0.5)) -> None:
         """
-        :param zoomFactor: zoom factor, 1.0 = no zoom, 2.0 = double size
+        :param zoomFactor: zoom factor must be greater than 0, 1.0 = no zoom, 2.0 = 2x zoom
         :param zoomCenter: center of zoom, (0.5, 0.5) = center of the image
         """
         if zoomFactor < 1:
