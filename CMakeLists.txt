@@ -9,8 +9,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
 endif()
 
-set(VCPKG_BUILD_TYPE "release")
-
 if (NOT DEFINED ENV{CMAKE_BINARY_DIR})
     set(CMAKE_BINARY_DIR "${CMAKE_SOURCE_DIR}/build")
 endif()
@@ -20,7 +18,6 @@ if (NOT DEFINED ENV{VCPKG_ROOT})
 endif()
 
 set(VCPKG_ROOT $ENV{VCPKG_ROOT})
-
 set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 set(VCPKG_FEATURE_FLAGS "manifests")
 
@@ -46,14 +43,9 @@ if (NOT DEFINED ENV{Qt6_DIR})
     set(Qt6_DIR "/usr/include/qt6/6.8.2/gcc_64/lib/cmake/Qt6")
 endif()
 
-find_package(OpenCV QUIET)
-if (NOT OpenCV_FOUND)
-    message(WARNING "OpenCV not found, installing...")
-    execute_process(COMMAND ${VCPKG_ROOT}/vcpkg install opencv4)
-    find_package(OpenCV REQUIRED)
-endif()
-
+find_package(OpenCV REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -75,13 +67,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(fmt)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
-
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/include
     ${Python3_INCLUDE_DIRS}
-    ${Python3_INCLUDE_DIRS}/../include
 )
 
 set(SOURCES
