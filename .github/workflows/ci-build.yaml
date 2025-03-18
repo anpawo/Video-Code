@@ -23,9 +23,7 @@ jobs:
           build-essential \
           cmake \
           libopencv-dev \
-          python3-dev \
-          libpython3.12 \
-          libpython3.12-dev
+          python3-dev
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
