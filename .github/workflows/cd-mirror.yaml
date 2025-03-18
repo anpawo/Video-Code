@@ -17,8 +17,6 @@ jobs:
   push_to_mirror:
     name: "Pushing To The Mirror Repository"
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
 
     if: github.event.repository.name != 'G-EIP-600-PAR-6-1-eip-marius.rousset'
     steps:
