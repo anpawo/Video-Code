@@ -90,6 +90,7 @@ set(SOURCES
     src/transformation/color/fade.cpp
     src/transformation/other/overlay.cpp
     src/transformation/other/repeat.cpp
+    src/transformation/other/zoom.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
