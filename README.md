@@ -78,7 +78,7 @@ go to [qt6](https://www.qt.io/download) and download the latest version of qt6.
     ```sh
     cmake -B build
     make -C build
-    cp build/video-code vc
+    cp build/video-code video-code
     ```
 
 ### Launch
