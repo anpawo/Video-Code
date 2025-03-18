@@ -6,6 +6,9 @@ on:
       - opened
     branches-ignore:
       - 'ga-ignore-**'
+  push:
+    branches-ignore:
+      - 'ga-ignore-**'
 
 jobs:
   build:
