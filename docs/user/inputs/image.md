@@ -1,5 +1,7 @@
 # Image Input
 
+[go back to the inputs documentation](inputs.md)
+
 The `image` input allows you to import an image file into your project. This input can be manipulated using various transformations.
 
 ## Usage

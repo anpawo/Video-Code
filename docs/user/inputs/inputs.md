@@ -1,5 +1,7 @@
 # Inputs
 
+[go back to the user documentation](../user.md)
+
 Inputs are the basic building blocks of your video project. They can be images, videos, or text that you import or create. Each input can be manipulated using various transformations.
 
 ## Available Inputs

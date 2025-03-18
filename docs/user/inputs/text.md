@@ -1,5 +1,7 @@
 # Text Input
 
+[go back to the inputs documentation](inputs.md)
+
 The `text` input allows you to create text overlays in your project. This input can be manipulated using various transformations.
 
 ## Usage

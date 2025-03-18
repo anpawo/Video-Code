@@ -1,5 +1,7 @@
 # Grayscale Transformation
 
+[go back to the transformations documentation](transformation.md)
+
 The `grayscale` transformation allows you to convert an input to grayscale.
 
 ## Usage

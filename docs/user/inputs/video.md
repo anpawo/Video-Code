@@ -1,5 +1,7 @@
 # Video Input
 
+[go back to the inputs documentation](inputs.md)
+
 The `video` input allows you to import a video file into your project. This input can be manipulated using various transformations.
 
 ## Usage
