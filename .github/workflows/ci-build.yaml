@@ -26,6 +26,8 @@ jobs:
 
       - name: Set CXX environment variable
         run: |
+          which g++-13
+          which g++
           echo "CXX=/usr/bin/g++" >> $GITHUB_ENV
 
       - name: Install Qt
