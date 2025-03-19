@@ -5,14 +5,13 @@
 ** generateVideo
 */
 
-#include <fmt/core.h>
-
 #include <cstdio>
 
 #include "compiler/Compiler.hpp"
 #include "opencv2/core/matx.hpp"
 #include "utils/Debug.hpp"
 #include "utils/Exception.hpp"
+#include <format>
 
 int Compiler::Writer::generateVideo(
     int width,
@@ -23,7 +22,7 @@ int Compiler::Writer::generateVideo(
 )
 {
     FILE *ffmpegPipe = popen(
-        fmt::format(
+        std::format(
             "ffmpeg"
             " -y"                 // override existing file
             " -f rawvideo"        // rawvideo codec (the pipe receives pixels in stdin)
