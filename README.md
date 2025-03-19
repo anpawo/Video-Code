@@ -56,9 +56,9 @@ v.keep()
     pip install -r requirements.txt
     ```
 
-    Ensure you have `vcpkg` installed and set up. Then run:
+    Ensure you have `vcpkg` installed and set up in **manifest** mode. Then run:
     ```sh
-    vcpkg install opencv4 nlohmann-json
+    vcpkg install
     ```
 
 3. **install qt6**
