@@ -3,21 +3,26 @@ from videocode.VideoCode import *
 x = 700
 y = 10
 
+t = text("Hello", fontSize=3, duration=2).apply(translate(x, y))
+t.apply(fadeIn(duration=1))
+t.apply(fadeOut(duration=1))
+t.add()
+
 # text: Video-Code
-t = text("Video-Code", 3).apply(translate(x, y), repeat(24 * 4))
-t[: 24 * 3].apply(fadeIn(LEFT))
+t = text("Video-Code", fontSize=3, duration=2).apply(translate(x, y))
+t.apply(fadeIn(sides=LEFT))
 t.add()
 t.keep()
 
 # text: Made by
-t = text("made by", 3).apply(translate(x, y + 80), repeat(24 * 4))
-t[: 24 * 3].apply(fadeIn(LEFT))
+t = text("made by", fontSize=3, duration=2).apply(translate(x, y + 80))
+t.apply(fadeIn(sides=LEFT))
 t.add()
 t.keep()
 
 
 # Me
 v = video("video/v.mp4").apply(translate(x, y + 175))
-v[0:20].apply(fadeIn())
+v.apply(fadeIn())
 v.add()
 v.keep()

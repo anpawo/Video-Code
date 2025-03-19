@@ -23,7 +23,7 @@ __pycache__/
 
 # CMake
 build/
-vcpkg_installed/
+vcpkg*
 
 # dependencies
 include/argparse/
