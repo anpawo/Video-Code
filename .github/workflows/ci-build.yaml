@@ -26,9 +26,12 @@ jobs:
 
       - name: Set CXX environment variable
         run: |
-          which g++-13
-          which g++
-          echo "CXX=/usr/bin/g++" >> $GITHUB_ENV
+          g++-13 --version
+          if [ $? -ne 0 ]; then
+            echo "Error: g++-13 is not installed."
+            exit 1
+          fi
+          echo "CXX=$(which g++-13)" >> $GITHUB_ENV
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -40,7 +43,7 @@ jobs:
 
       - name: Configure CMake
         env:
-          CXX: /usr/bin/g++
+          CXX: /usr/bin/g++-13
         run: cmake -S . -B build
 
       - name: Build the project
