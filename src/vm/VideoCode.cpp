@@ -7,7 +7,6 @@
 
 #include "vm/VideoCode.hpp"
 
-#include <fmt/core.h>
 #include <qapplication.h>
 #include <qboxlayout.h>
 #include <qimage.h>
