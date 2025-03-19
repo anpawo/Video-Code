@@ -27,10 +27,7 @@ jobs:
       - name: Set CXX environment variable
         run: |
           g++-13 --version
-          if [ $? -ne 0 ]; then
-            echo "Error: g++-13 is not installed."
-            exit 1
-          fi
+          g++ --version
           echo "CXX=$(which g++-13)" >> $GITHUB_ENV
 
       - name: Install Qt
@@ -42,7 +39,7 @@ jobs:
           arch: 'gcc_64'
 
       - name: Configure CMake
-        run: cmake -S . -B build -CMAKE_CXX_COMPILER=$(which g++-13) -DCI_BUILD=ON
+        run: cmake -S . -B build -DCMAKE_CXX_COMPILER=$(which g++-13) -DCI_BUILD=ON
 
       - name: Build the project
         run: make -C build
