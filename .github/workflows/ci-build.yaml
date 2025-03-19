@@ -36,7 +36,7 @@ jobs:
           arch: 'gcc_64'
 
       - name: Configure CMake
-        run: cmake -S . -B build
+        run: cmake -S . -B build -DCMAKE_CXX_COMPILER=/usr/bin/g++-13
 
       - name: Build the project
         run: make -C build
