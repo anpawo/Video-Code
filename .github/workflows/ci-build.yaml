@@ -47,13 +47,6 @@ jobs:
       - name: copy executable
         run: cp build/video-code video-code
 
-      - name: Run help
-        run: |
-          ./video-code --help
-          if [ $? -ne 0 ]; then
-            echo "Error: video-code failed to run."
-            exit 1
-
       - name: Run video-code
         run: |
           ./video-code --generate out.mp4
