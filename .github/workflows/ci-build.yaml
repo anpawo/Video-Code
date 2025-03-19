@@ -22,7 +22,7 @@ jobs:
         run: echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake libopencv-dev python3-dev ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-dev ffmpeg
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -31,6 +31,14 @@ jobs:
           host: 'linux'
           target: 'desktop'
           arch: 'gcc_64'
+
+      - name: Install vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+          ./vcpkg/bootstrap-vcpkg.sh
+
+      - name: Install dependencies from vcpkg manifest
+        run: ./vcpkg/vcpkg install --triplet x64-linux
 
       - name: Configure CMake
         run: cmake -S . -B build
