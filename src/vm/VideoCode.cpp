@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
+#include <format>
 #include <iostream>
 #include <iterator>
 #include <memory>
@@ -28,7 +29,6 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <string>
-#include <format>
 
 #include "compiler/Compiler.hpp"
 #include "opencv2/core/types.hpp"

@@ -6,12 +6,12 @@
 */
 
 #include <cstdio>
+#include <format>
 
 #include "compiler/Compiler.hpp"
 #include "opencv2/core/matx.hpp"
 #include "utils/Debug.hpp"
 #include "utils/Exception.hpp"
-#include <format>
 
 int Compiler::Writer::generateVideo(
     int width,
