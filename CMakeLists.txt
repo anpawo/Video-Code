@@ -34,6 +34,20 @@ if (NOT DEFINED ENV{Qt6_DIR})
     set(Qt6_DIR "/usr/include/qt6/6.8.2/gcc_64/lib/cmake/Qt6")
 endif()
 
+#use for build ci process
+include(FetchContent)
+FetchContent_Declare(
+    argparse
+    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+)
+FetchContent_MakeAvailable(argparse)
+
+FetchContent_Declare(
+    nlohmann_json
+    GIT_REPOSITORY https://github.com/nlohmann/json.git
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
 find_package(OpenCV REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
