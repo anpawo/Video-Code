@@ -3,14 +3,12 @@ project(video-code VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-deprecated -pipe -O2 -D_REENTRANT -DVC_DEBUG_ON -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -DQT_NO_KEYWORDS")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -Wall -Wextra -Wno-deprecated -pipe -O2 -D_REENTRANT -DVC_DEBUG_ON -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -DQT_NO_KEYWORDS")
 
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-endif()
+set_property(GLOBAL PROPERTY CXX_STANDARD 20)
 
-if (NOT DEFINED ENV{CMAKE_BINARY_DIR})
-    set(CMAKE_BINARY_DIR "${CMAKE_SOURCE_DIR}/build")
+if (UNIX AND NOT APPLE)
+    set(CMAKE_CXX_COMPILER "g++-13")
 endif()
 
 if (NOT DEFINED ENV{VCPKG_ROOT})
@@ -30,14 +28,7 @@ if(NOT DEFINED VCPKG_TARGET_TRIPLET)
         set(VCPKG_TARGET_TRIPLET "x64-osx")
     endif()
 endif()
-set(CMAKE_PREFIX_PATH "${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}")
-
-if (UNIX AND NOT APPLE)
-    find_package(X11)
-    if (NOT X11_Xi_FOUND OR NOT X11_Xtst_FOUND)
-        message(WARNING "You must install libxi-dev and libxtst-dev on Linux.\nrun : apt-get install libxi-dev libxtst-dev")
-    endif()
-endif()
+set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CMAKE_SOURCE_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}")
 
 if (NOT DEFINED ENV{Qt6_DIR})
     set(Qt6_DIR "/usr/include/qt6/6.8.2/gcc_64/lib/cmake/Qt6")
@@ -46,26 +37,9 @@ endif()
 find_package(OpenCV REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
-
-include(FetchContent)
-FetchContent_Declare(
-    argparse
-    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
-)
-FetchContent_MakeAvailable(argparse)
-
-FetchContent_Declare(
-    nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-)
-FetchContent_MakeAvailable(nlohmann_json)
-
-FetchContent_Declare(
-    fmt
-    GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-    GIT_TAG 8.0.1
-)
-FetchContent_MakeAvailable(fmt)
+find_package(nlohmann_json CONFIG REQUIRED)
+set(argparse_DIR "${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/share/argparse")
+find_package(argparse CONFIG REQUIRED)
 
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
@@ -102,16 +76,6 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Widgets
     Qt6::Core
     Qt6::Gui
-    fmt::fmt
     stdc++fs
     Python3::Python
-)
-
-add_custom_target(format
-    COMMAND clang-format -i ${CMAKE_SOURCE_DIR}/**/*.cpp ${CMAKE_SOURCE_DIR}/**/*.hpp
-)
-
-add_custom_target(docs
-    COMMAND ${CMAKE_SOURCE_DIR}/vc --generate
-    COMMAND ${CMAKE_SOURCE_DIR}/docs/readme/generate.sh
 )
