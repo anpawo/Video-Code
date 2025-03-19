@@ -69,7 +69,7 @@ public:
 private:
 
     ///< TODO: frame rate
-    const int _frameRate{24};
+    const int _framerate{24};
 
     ///< Window size
     const int _width;
