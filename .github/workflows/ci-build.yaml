@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-dev ffmpeg libopencv-dev g++-13
 
+      - name: Set CXX environment variable
+        run: echo "CXX=/usr/bin/g++-13" >> $GITHUB_ENV
+
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -33,6 +36,8 @@ jobs:
           arch: 'gcc_64'
 
       - name: Configure CMake
+        env:
+          CXX: /usr/bin/g++-13
         run: cmake -S . -B build
 
       - name: Build the project
@@ -47,7 +52,6 @@ jobs:
           if [ $? -ne 0 ]; then
             echo "Error: video-code failed to run."
             exit 1
-          fi
 
       - name: Run video-code
         run: |
@@ -55,7 +59,6 @@ jobs:
           if [ $? -ne 0 ] || [ ! -f "out.mp4" ]; then
             echo "Error: video-code failed to generate out.mp4."
             exit 1
-          fi
 
       # - name: Run functional tests
       #   run: |
@@ -63,4 +66,3 @@ jobs:
       #     if [ $? -ne 0 ]; then
       #       echo "Error: Functional tests failed."
       #       exit 1
-      #     fi
