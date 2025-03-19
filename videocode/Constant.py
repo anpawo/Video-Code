@@ -51,3 +51,6 @@ class default:
 T = TypeVar("T")
 
 Defaultable = Union[default, T]
+
+# position as a ratio of the w, h or as a pixel x, y
+type position = int | float

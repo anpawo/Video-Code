@@ -103,10 +103,6 @@ void VideoCode::executeStack()
         }
         else if (i["action"] == "Apply") {
             ///< {"action": 'Apply', "input": 0, "transformation": 'overlay', args: {"fg": 1}}
-            VC_LOG_DEBUG("transformation: " << i["transformation"] << ": " << i["input"]);
-
-            i["args"]["framerate"] = _framerate;
-
             transformation::map.at(i["transformation"])(IterableInput(_register[i["input"]], i["startTime"], i["endTime"], _framerate), i["args"]);
         }
         else if (i["action"] == "Wait") {
@@ -239,14 +235,6 @@ static void overlayKeptInput(cv::Mat &background, const Frame &frame)
                 const cv::Vec4b &bgPixel = background.at<cv::Vec4b>(y + dst.y, x + dst.x);
                 const cv::Vec4b &ovPixel = overlay.at<cv::Vec4b>(y + src.y, x + src.x);
 
-                // if (ovPixel[0] == 0 && ovPixel[1] == 0 && ovPixel[1] == 0 && ovPixel[3] != 0)
-                // {
-                //     // std::cout << "x:" << x << std::endl;
-                //     // std::cout << "y:" << y << std::endl;
-                //     // std::cout << "alpha:" << (int)ovPixel[3] << std::endl;
-                //     continue;
-                // }
-
                 const float alphaBg = bgPixel[3] / 255.0f;
                 const float alphaOv = ovPixel[3] / 255.0f;
 
@@ -300,28 +288,20 @@ void VideoCode::goToLastFrame()
     std::cout << std::format("Current Label set to '{}' at frame '{}'.", _currentLabel, _index) << std::endl;
 }
 
-void VideoCode::goToPreviousLabel()
+void VideoCode::backward3frame()
 {
-    if (_labels[_currentLabel] == 0) {
-        goToLabel(_currentLabel);
-        std::cout << std::format("Timeline set to the start of the current label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
+    if (_index < 3 * _framerate) {
+        _index = 0;
     }
     else {
-        goToLabel(std::prev(_labelsByVal.find(_labels[_currentLabel]))->second);
-        std::cout << std::format("Timeline set to the previous label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
+        _index -= 3 * _framerate;
     }
 }
 
-void VideoCode::goToNextLabel()
+void VideoCode::forward3frame()
 {
-    auto next = std::next(_labelsByVal.find(_labels[_currentLabel]));
-
-    if (next == _labelsByVal.end()) {
+    _index += 5 * _framerate;
+    if (_index > _frames.size()) {
         _index = _frames.size() - 1;
-        std::cout << std::format("Timeline set to last index, '{}'", _index) << std::endl;
-    }
-    else {
-        goToLabel(next->second);
-        std::cout << std::format("Timeline set to the next label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
     }
 }

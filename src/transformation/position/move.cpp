@@ -11,9 +11,9 @@ void transformation::move(IterableInput input, const json::object_t& args)
 {
     const int dstX = args.at("x");
     const int dstY = args.at("y");
-    const int srcX = input->begin()->_meta.x;
-    const int srcY = input->begin()->_meta.y;
-    const int nbFrames = input->size();
+    const int srcX = input.get()->begin()->_meta.x;
+    const int srcY = input.get()->begin()->_meta.y;
+    const int nbFrames = input._nbFrames;
 
     if (nbFrames == 0) {
         return;

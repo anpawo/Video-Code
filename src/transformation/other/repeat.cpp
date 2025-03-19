@@ -10,5 +10,5 @@
 
 void transformation::repeat(IterableInput input, const json::object_t& args)
 {
-    input->repeat(args.at("n"));
+    input.get()->repeat(args.at("n"));
 }

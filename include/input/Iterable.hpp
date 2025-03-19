@@ -44,7 +44,7 @@ public:
             _endIndex = endTime.get<float>() * framerate;
         }
 
-        _size = _endIndex - _beginIndex;
+        _nbFrames = _endIndex - _beginIndex;
 
         _beginIterator = input->begin() + _beginIndex;
         _endIterator = input->begin() + _endIndex;
@@ -56,9 +56,9 @@ public:
 
     std::vector<Frame>::iterator end() { return _endIterator; }
 
-    IInput* operator->() { return _input.get(); }
+    IInput* get() { return _input.get(); }
 
-    size_t nbFrames() { return _size; };
+    size_t _nbFrames;
 
 private:
 
@@ -66,7 +66,6 @@ private:
 
     size_t _beginIndex;
     size_t _endIndex;
-    size_t _size;
 
     ///< Different begin and start than the size of the frames of the input
     std::vector<Frame>::iterator _beginIterator;

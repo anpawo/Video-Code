@@ -104,10 +104,12 @@ SRC_TSF_POS		=	src/transformation/position/translate.cpp		\
 
 
 SRC_TSF_COLOR	=	src/transformation/color/fade.cpp				\
+					src/transformation/color/grayscale.cpp			\
 
 
 SRC_TSF_OTHER	=	src/transformation/other/overlay.cpp			\
-					src/transformation/other/repeat.cpp			\
+					src/transformation/other/repeat.cpp				\
+					src/transformation/other/zoom.cpp				\
 
 
 OBJ				=	$(SRC:.cpp=.o)

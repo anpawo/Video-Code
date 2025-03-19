@@ -5,35 +5,23 @@
 ** zoom
 */
 
-#include <memory>
-
-#include "input/IInput.hpp"
 #include "transformation/transformation.hpp"
 
-void transformation::zoom(std::shared_ptr<IInput> input, [[maybe_unused]] Register &reg, const json::object_t &args)
+void transformation::zoom(IterableInput input, const json::object_t &args)
 {
-    const float zoomFactor = args.at("zoomFactor");
-    const std::pair<float, float> zoomCenter = args.at("zoomCenter");
-    const bool staticZoom = args.at("mode") == "static";
-    const float startZoomFactor = args.at("zoomstart");
-    const float endZoomFactor = args.at("zoomend");
-    const int nbFrames = input->size();
-    int i = 0;
+    const int x = args.at("x").is_number_integer() ? args.at("x").get<int>() : args.at("x").get<float>() * input.get()->begin()->_mat.cols;
+    const int y = args.at("y").is_number_integer() ? args.at("y").get<int>() : args.at("y").get<float>() * input.get()->begin()->_mat.rows;
+    const cv::Point2f center(x, y);
 
-    for (auto &[frame, _] : *input)
-    {
-        float currentZoomFactor;
+    const float startFactor = args.at("factor")[0];
+    const float endFactor = args.at("factor")[1];
 
-        if (staticZoom)
-            currentZoomFactor = zoomFactor;
-        else
-            currentZoomFactor = startZoomFactor + (endZoomFactor - startZoomFactor) * (static_cast<float>(i) / (nbFrames - 1));
+    const float zoomIncr = (endFactor - startFactor) / (input._nbFrames - 1);
+    float zoomAcc = startFactor - zoomIncr;
 
-        cv::Mat zoomedFrame;
-        cv::Point2f center(frame.cols * zoomCenter.first, frame.rows * zoomCenter.second);
-        cv::Mat zoomMatrix = cv::getRotationMatrix2D(center, 0, currentZoomFactor);
-        cv::warpAffine(frame, zoomedFrame, zoomMatrix, frame.size());
-        frame = zoomedFrame;
-        i++;
+    for (auto &[frame, _] : input) {
+        zoomAcc += zoomIncr;
+        cv::Mat zoomMatrix = cv::getRotationMatrix2D(center, 0, zoomAcc);
+        cv::warpAffine(frame, frame, zoomMatrix, frame.size());
     }
 }

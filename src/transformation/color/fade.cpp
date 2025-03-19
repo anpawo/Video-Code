@@ -15,7 +15,7 @@ void transformation::fade(IterableInput input, const json::object_t& args)
     const bool affectTransparentPixel = args.at("affectTransparentPixel");
     const float startOpacity = args.at("startOpacity");
     const float endOpacity = args.at("endOpacity");
-    const int nbFrames = input.nbFrames();
+    const size_t nbFrames = input._nbFrames;
 
     int frameIndex = 0;
     for (auto& [frame, _] : input) {
@@ -39,6 +39,7 @@ void transformation::fade(IterableInput input, const json::object_t& args)
                     }
                     else if (side == "right") {
                         if (cols > 1) {
+                            ///< FIX: maybe error. try with fadeIn from Left then fadeOut from Right
                             alpha *= 1 - static_cast<float>(cols - 1 - x) / (cols - 1) * (1 - static_cast<float>(frameIndex) / (nbFrames - 1));
                         }
                     }

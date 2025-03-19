@@ -60,8 +60,8 @@ public:
     void reloadSourceFile(); ///< Update the timeline if any changes occured in the source file
     void goToFirstFrame();
     void goToLastFrame();
-    void goToPreviousLabel();
-    void goToNextLabel();
+    void backward3frame();
+    void forward3frame();
 
     ///< Execute the instructions in the stack
     void executeStack();
@@ -69,7 +69,7 @@ public:
 private:
 
     ///< TODO: frame rate
-    const int _framerate{24};
+    const size_t _framerate{24};
 
     ///< Window size
     const int _width;
@@ -105,8 +105,8 @@ private:
         {Qt::Key_R,         bindCmd(reloadSourceFile)},
         {Qt::Key_Down,      bindCmd(goToFirstFrame)},
         {Qt::Key_Up,        bindCmd(goToLastFrame)},
-        {Qt::Key_Left,      bindCmd(goToPreviousLabel)},   
-        {Qt::Key_Right,     bindCmd(goToNextLabel)},       
+        {Qt::Key_Left,      bindCmd(backward3frame)},   
+        {Qt::Key_Right,     bindCmd(forward3frame)},       
     };
     // clang-format on
 
