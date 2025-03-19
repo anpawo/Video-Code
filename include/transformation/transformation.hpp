@@ -29,6 +29,8 @@ namespace transformation
 
     // Other
     transformation(repeat);
+    transformation(zoom);
+
     /***
         TODO: transformation(concat);
         TODO: transformation(merge);
@@ -43,5 +45,6 @@ namespace transformation
         {"move", move},
         // Other
         {"repeat", repeat},
+        {"zoom", zoom},
     };
-};
+}

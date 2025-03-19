@@ -21,8 +21,9 @@ t.add()
 t.keep()
 
 
+
 # Me
 v = video("video/v.mp4").apply(translate(x, y + 175))
-v.apply(fadeIn())
+v.apply(zoomOut(4, (0.1,0.1)))
 v.add()
 v.keep()
