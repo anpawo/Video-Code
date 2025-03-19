@@ -69,6 +69,7 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
 <br>
 
 - `fade`
+- `grayscale`
 
 <br>
 
@@ -88,6 +89,7 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
     <summary><code>Patchs</code></summary>
 <br>
 
+- `transformation`: grayscale (18/03/25)
 - `feature`: keep last frame of input on screen (06/03/25)
 - `rework`: one stack (06/03/25)
 - `transformation`: repeat (03/03/25)
@@ -96,4 +98,3 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
 - `transformation`: move (02/03/25)
 
 </details>
-

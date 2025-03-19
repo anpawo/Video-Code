@@ -1,17 +1,23 @@
 name: Formatting
 
 on:
+  pull_request:
+    types:
+      - opened
+    branches-ignore:
+      - 'ga-ignore-**'
   push:
-    branches: [main]
+    branches-ignore:
+      - 'ga-ignore-**'
 
 jobs:
   check-formatting:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v4
-      
+
       # The following trick exists only because Ubuntu doesn't support the latest version of clang-format
       # and because the fedora runner I tried to used took 30min to do nothing so I had to stop it.
       - name: Run clang-format
