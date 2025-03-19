@@ -20,3 +20,4 @@ from videocode.transformation.other.Concat import *
 from videocode.transformation.other.Merge import *
 from videocode.transformation.other.Overlay import *
 from videocode.transformation.other.Repeat import *
+from videocode.transformation.other.Zoom import *

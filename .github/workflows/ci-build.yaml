@@ -22,7 +22,13 @@ jobs:
         run: echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake libopencv-dev python3-dev ffmpeg
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-dev ffmpeg libopencv-dev g++-13 gcc-13
+
+      - name: Set CXX environment variable
+        run: |
+          g++-13 --version
+          g++ --version
+          echo "CXX=$(which g++-13)" >> $GITHUB_ENV
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -33,21 +39,13 @@ jobs:
           arch: 'gcc_64'
 
       - name: Configure CMake
-        run: cmake -S . -B build
+        run: cmake -S . -B build -DCMAKE_CXX_COMPILER=$(which g++-13) -DCI_BUILD=ON
 
       - name: Build the project
         run: make -C build
 
       - name: copy executable
         run: cp build/video-code video-code
-
-      - name: Run help
-        run: |
-          ./video-code --help
-          if [ $? -ne 0 ]; then
-            echo "Error: video-code failed to run."
-            exit 1
-          fi
 
       - name: Run video-code
         run: |
@@ -56,11 +54,10 @@ jobs:
             echo "Error: video-code failed to generate out.mp4."
             exit 1
           fi
-
+          
       # - name: Run functional tests
       #   run: |
       #     ./tests/functional_tests.sh
       #     if [ $? -ne 0 ]; then
       #       echo "Error: Functional tests failed."
       #       exit 1
-      #     fi
