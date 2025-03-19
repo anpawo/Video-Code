@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.21)
 project(video-code VERSION 1.0.0 LANGUAGES CXX)
 
+option(CI_BUILD "CI Build" OFF)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -Wall -Wextra -Wno-deprecated -pipe -O2 -D_REENTRANT -DVC_DEBUG_ON -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -DQT_NO_KEYWORDS")
@@ -34,26 +36,30 @@ if (NOT DEFINED ENV{Qt6_DIR})
     set(Qt6_DIR "/usr/include/qt6/6.8.2/gcc_64/lib/cmake/Qt6")
 endif()
 
-#use for build ci process
-include(FetchContent)
-FetchContent_Declare(
-    argparse
-    GIT_REPOSITORY https://github.com/p-ranav/argparse.git
-)
-FetchContent_MakeAvailable(argparse)
+if (CI_BUILD)
+    message(STATUS "CI_BUILD is defined")
+    include(FetchContent)
+    FetchContent_Declare(
+        argparse
+        GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+    )
+    FetchContent_MakeAvailable(argparse)
 
-FetchContent_Declare(
-    nlohmann_json
-    GIT_REPOSITORY https://github.com/nlohmann/json.git
-)
-FetchContent_MakeAvailable(nlohmann_json)
+    FetchContent_Declare(
+        nlohmann_json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+    )
+    FetchContent_MakeAvailable(nlohmann_json)
+endif()
 
 find_package(OpenCV REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
-find_package(nlohmann_json CONFIG REQUIRED)
-set(argparse_DIR "${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/share/argparse")
-find_package(argparse CONFIG REQUIRED)
+if (NOT CI_BUILD)
+    find_package(nlohmann_json CONFIG REQUIRED)
+    set(argparse_DIR "${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/share/argparse")
+    find_package(argparse CONFIG REQUIRED)
+endif()
 
 include_directories(
     ${OpenCV_INCLUDE_DIRS}
