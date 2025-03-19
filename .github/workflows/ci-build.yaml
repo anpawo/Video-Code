@@ -53,7 +53,8 @@ jobs:
           if [ $? -ne 0 ] || [ ! -f "out.mp4" ]; then
             echo "Error: video-code failed to generate out.mp4."
             exit 1
-
+          fi
+          
       # - name: Run functional tests
       #   run: |
       #     ./tests/functional_tests.sh
