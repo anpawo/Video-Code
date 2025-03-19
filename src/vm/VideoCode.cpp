@@ -20,7 +20,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
-#include <fmt/core.h>
 #include <iostream>
 #include <iterator>
 #include <memory>
@@ -29,6 +28,7 @@
 #include <opencv2/highgui.hpp>
 #include <opencv2/imgproc.hpp>
 #include <string>
+#include <format>
 
 #include "compiler/Compiler.hpp"
 #include "opencv2/core/types.hpp"
@@ -304,7 +304,7 @@ void VideoCode::addFrame(const Frame &frame)
 void VideoCode::pause()
 {
     _paused = !_paused;
-    std::cout << fmt::format("Timeline {} at frame '{}'.", _paused ? "paused" : "unpaused", _index) << std::endl;
+    std::cout << std::format("Timeline {} at frame '{}'.", _paused ? "paused" : "unpaused", _index) << std::endl;
 }
 
 void VideoCode::stop()
@@ -316,13 +316,13 @@ void VideoCode::stop()
 void VideoCode::goToFirstFrame()
 {
     goToLabel(_labelsByVal[0]);
-    std::cout << fmt::format("Current Label set to '{}' at frame '0'.", _currentLabel) << std::endl;
+    std::cout << std::format("Current Label set to '{}' at frame '0'.", _currentLabel) << std::endl;
 }
 
 void VideoCode::goToLastFrame()
 {
     goToLabel(std::prev(_labelsByVal.end())->second);
-    std::cout << fmt::format("Current Label set to '{}' at frame '{}'.", _currentLabel, _index) << std::endl;
+    std::cout << std::format("Current Label set to '{}' at frame '{}'.", _currentLabel, _index) << std::endl;
 }
 
 void VideoCode::goToPreviousLabel()
@@ -330,12 +330,12 @@ void VideoCode::goToPreviousLabel()
     if (_labels[_currentLabel] == 0)
     {
         goToLabel(_currentLabel);
-        std::cout << fmt::format("Timeline set to the start of the current label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
+        std::cout << std::format("Timeline set to the start of the current label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
     }
     else
     {
         goToLabel(std::prev(_labelsByVal.find(_labels[_currentLabel]))->second);
-        std::cout << fmt::format("Timeline set to the previous label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
+        std::cout << std::format("Timeline set to the previous label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
     }
 }
 
@@ -346,11 +346,11 @@ void VideoCode::goToNextLabel()
     if (next == _labelsByVal.end())
     {
         _index = _frames.size() - 1;
-        std::cout << fmt::format("Timeline set to last index, '{}'", _index) << std::endl;
+        std::cout << std::format("Timeline set to last index, '{}'", _index) << std::endl;
     }
     else
     {
         goToLabel(next->second);
-        std::cout << fmt::format("Timeline set to the next label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
+        std::cout << std::format("Timeline set to the next label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
     }
 }

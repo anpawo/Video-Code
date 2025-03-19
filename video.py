@@ -18,6 +18,6 @@ t.keep()
 
 # Me
 v = video("video/v.mp4").apply(translate(x, y + 175))
-v[0:20].apply(fadeIn())
+v.apply(grayscale())
 v.add()
 v.keep()
