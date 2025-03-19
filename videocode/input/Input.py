@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
+from typing import Self
+
 import copy
-from typing import Any, Self, overload
 
 from videocode.transformation.Transformation import Transformation
 from videocode.Global import *
+from videocode.Constant import *
 
 
 class Input(ABC):
@@ -50,17 +52,31 @@ class Input(ABC):
         )
         return self
 
-    def apply(self, *ts: Transformation) -> Input:
+    def apply(self, *ts: Transformation, startTime: Defaultable[sec] = default(None), endTime: Defaultable[sec | None] = default(None)) -> Input:
         """
-        Applies the `Transformations` `ts` to all the `frames` of `self`.
+        Applies the `Transformations` `ts` to all the `frames` of `self` between [`startTime`, `endTime`].
         """
         for t in ts:
+            if hasattr(t, "startTime"):
+                startTime = t.startTime
+                del t.startTime
+            elif isinstance(startTime, default):
+                startTime = startTime.defaultValue
+
+            if hasattr(t, "endTime"):
+                endTime = t.endTime
+                del t.endTime
+            elif isinstance(endTime, default):
+                endTime = endTime.defaultValue
+
             Global.stack.append(
                 {
                     "action": "Apply",
                     "input": self.index,
                     "transformation": t.__class__.__name__,
                     "args": vars(t),
+                    "startTime": startTime,
+                    "endTime": endTime,
                 }
             )
         return self

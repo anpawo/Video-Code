@@ -20,7 +20,6 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
-#include <fmt/core.h>
 #include <iostream>
 #include <iterator>
 #include <memory>
@@ -48,14 +47,12 @@ VideoCode::VideoCode(int argc, char **argv, int width, int height, std::string s
     ///< Parse the source file
     reloadSourceFile();
 
-    if (generate)
-    {
+    if (generate) {
         _outputFile = outputFile;
     }
-    else
-    {
+    else {
         ///< If we want to edit the video, we create the window for it
-        _app.reset(new AppWindow(argc, argv, _events, _sourceFile, _width, _height, _frameRate, [this](QLabel &imageLabel) { this->updateFrame(imageLabel); }));
+        _app.reset(new AppWindow(argc, argv, _events, _sourceFile, _width, _height, _framerate, [this](QLabel &imageLabel) { this->updateFrame(imageLabel); }));
     }
 }
 
@@ -68,21 +65,19 @@ void VideoCode::reloadSourceFile()
 
     std::string serializedScene;
 
-    try
-    {
+    try {
         serializedScene = python::API::call<std::string>("Serialize", "serializeScene", _sourceFile);
-    } catch (const Error &e)
-    {
+    } catch (const Error &e) {
         std::cout << "Invalid source file, could not parse the instructions." << std::endl;
         return;
     }
 
     json::array_t stack = json::parse(serializedScene);
 
-    for (const auto &i : stack)
-    {
-        std::cout << i << std::endl;
-    }
+    // for (const auto &i : stack)
+    // {
+    //     std::cout << i << std::endl;
+    // }
 
     _stack = std::move(stack);
 
@@ -94,46 +89,39 @@ void VideoCode::reloadSourceFile()
 
 void VideoCode::executeStack()
 {
-    for (const auto &i : _stack)
-    {
-        if (i["action"] == "Create")
-        {
+    for (auto &i : _stack) {
+        VC_LOG_DEBUG(i);
+
+        if (i["action"] == "Create") {
             ///< {"action": 'Create', "type": Image, **kwargs}
             _register.newInput(i["type"], i);
         }
-        else if (i["action"] == "Add")
-        {
+        else if (i["action"] == "Add") {
             ///< {"action": 'Add', "input": 0}
             addFrames(_register[i["input"]]);
         }
-        else if (i["action"] == "Apply")
-        {
-            ///< {"action": 'Apply', "input": 0, "transformation": 'overlay', "fg": 1}
-
+        else if (i["action"] == "Apply") {
+            ///< {"action": 'Apply', "input": 0, "transformation": 'overlay', args: {"fg": 1}}
             VC_LOG_DEBUG("transformation: " << i["transformation"] << ": " << i["input"]);
 
-            transformation::map.at(i["transformation"])(_register[i["input"]], _register, i["args"]);
+            i["args"]["framerate"] = _framerate;
+
+            transformation::map.at(i["transformation"])(IterableInput(_register[i["input"]], i["startTime"], i["endTime"], _framerate), i["args"]);
         }
-        else if (i["action"] == "Wait")
-        {
-            for (size_t n = 0; n < i["n"]; n++)
-            {
-                if (_frames.empty())
-                {
+        else if (i["action"] == "Wait") {
+            for (size_t n = 0; n < i["n"]; n++) {
+                if (_frames.empty()) {
                     _frames.push_back(_defaultBlackFrame.clone());
                 }
-                else
-                {
+                else {
                     _frames.push_back(_frames.back().clone());
                 }
             }
         }
-        else if (i["action"] == "Keep")
-        {
+        else if (i["action"] == "Keep") {
             _keptInputs.push_back(i["input"]);
         }
-        else if (i["action"] == "Drop")
-        {
+        else if (i["action"] == "Drop") {
             _keptInputs.erase(std::remove_if(_keptInputs.begin(), _keptInputs.end(), [](int i) { return i == i["input"]; }));
         }
     }
@@ -143,18 +131,15 @@ void VideoCode::updateFrame(QLabel &imageLabel)
 {
     cv::Mat frame;
 
-    if (_frames.size() == 0)
-    {
+    if (_frames.size() == 0) {
         // show black background if no frames are loaded
         cv::resize(_defaultBlackFrame, frame, cv::Size(_width / 2, _height / 2), _width / 2.0, 0, cv::INTER_LINEAR);
     }
-    else
-    {
+    else {
         cv::resize(_frames[_index], frame, cv::Size(_width / 2, _height / 2), _width / 2.0, 0, cv::INTER_LINEAR);
 
         // load next frame if not in pause and not at the end
-        if (_paused == false && _index < _frames.size() - 1)
-        {
+        if (_paused == false && _index < _frames.size() - 1) {
             _index += 1;
         }
     }
@@ -171,12 +156,10 @@ void VideoCode::updateFrame(QLabel &imageLabel)
 
 int VideoCode::run()
 {
-    if (_app == nullptr)
-    {
-        return Compiler::Writer::generateVideo(_width, _height, _frameRate, _outputFile, _frames);
+    if (_app == nullptr) {
+        return Compiler::Writer::generateVideo(_width, _height, _framerate, _outputFile, _frames);
     }
-    else
-    {
+    else {
         return _app->run();
     }
 }
@@ -185,8 +168,7 @@ void VideoCode::goToLabel(const std::string &label)
 {
     auto it = _labels.find(label);
 
-    if (it != _labels.end())
-    {
+    if (it != _labels.end()) {
         _index = it->second;
         _currentLabel = label;
     }
@@ -195,13 +177,11 @@ void VideoCode::goToLabel(const std::string &label)
 void VideoCode::addLabel(const std::string &label, std::size_t index)
 {
     // update the current label if we override it
-    if (_labels[_currentLabel] == index)
-    {
+    if (_labels[_currentLabel] == index) {
         _currentLabel = label;
     }
     // erase any label with the same value
-    if (_labelsByVal.contains(index))
-    {
+    if (_labelsByVal.contains(index)) {
         _labels.erase(_labelsByVal[index]);
     }
 
@@ -217,8 +197,7 @@ void VideoCode::removeLabel(const std::string &label)
 
 void VideoCode::addFrames(const std::shared_ptr<IInput> frames)
 {
-    for (const Frame &f : *frames)
-    {
+    for (const Frame &f : *frames) {
         addFrame(f);
     }
 }
@@ -253,12 +232,9 @@ static void overlayKeptInput(cv::Mat &background, const Frame &frame)
     cv::Rect dst(dstX, dstY, dstW, dstH);
 
     // Only copy if we have valid regions
-    if (src.width > 0 && src.height > 0 && dst.width > 0 && dst.height > 0)
-    {
-        for (int y = 0; y < src.height; y++)
-        {
-            for (int x = 0; x < src.width; x++)
-            {
+    if (src.width > 0 && src.height > 0 && dst.width > 0 && dst.height > 0) {
+        for (int y = 0; y < src.height; y++) {
+            for (int x = 0; x < src.width; x++) {
                 const cv::Vec4b &bgPixel = background.at<cv::Vec4b>(y + dst.y, x + dst.x);
                 const cv::Vec4b &ovPixel = overlay.at<cv::Vec4b>(y + src.y, x + src.x);
 
@@ -274,8 +250,7 @@ static void overlayKeptInput(cv::Mat &background, const Frame &frame)
                 const float alphaOv = ovPixel[3] / 255.0f;
 
                 cv::Vec4b tmp;
-                for (int i = 0; i < 3; i++)
-                {
+                for (int i = 0; i < 3; i++) {
                     tmp[i] = static_cast<uchar>(
                         (ovPixel[i] * alphaOv + bgPixel[i] * (1.0f - alphaOv))
                     );
@@ -292,8 +267,7 @@ void VideoCode::addFrame(const Frame &frame)
 {
     cv::Mat finalFrame = _defaultBlackFrame.clone();
 
-    for (const auto &i : _keptInputs)
-    {
+    for (const auto &i : _keptInputs) {
         overlayKeptInput(finalFrame, _register[i]->back());
     }
     overlayKeptInput(finalFrame, frame);
@@ -304,7 +278,7 @@ void VideoCode::addFrame(const Frame &frame)
 void VideoCode::pause()
 {
     _paused = !_paused;
-    std::cout << fmt::format("Timeline {} at frame '{}'.", _paused ? "paused" : "unpaused", _index) << std::endl;
+    std::cout << std::format("Timeline {} at frame '{}'.", _paused ? "paused" : "unpaused", _index) << std::endl;
 }
 
 void VideoCode::stop()
@@ -316,26 +290,24 @@ void VideoCode::stop()
 void VideoCode::goToFirstFrame()
 {
     goToLabel(_labelsByVal[0]);
-    std::cout << fmt::format("Current Label set to '{}' at frame '0'.", _currentLabel) << std::endl;
+    std::cout << std::format("Current Label set to '{}' at frame '0'.", _currentLabel) << std::endl;
 }
 
 void VideoCode::goToLastFrame()
 {
     goToLabel(std::prev(_labelsByVal.end())->second);
-    std::cout << fmt::format("Current Label set to '{}' at frame '{}'.", _currentLabel, _index) << std::endl;
+    std::cout << std::format("Current Label set to '{}' at frame '{}'.", _currentLabel, _index) << std::endl;
 }
 
 void VideoCode::goToPreviousLabel()
 {
-    if (_labels[_currentLabel] == 0)
-    {
+    if (_labels[_currentLabel] == 0) {
         goToLabel(_currentLabel);
-        std::cout << fmt::format("Timeline set to the start of the current label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
+        std::cout << std::format("Timeline set to the start of the current label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
     }
-    else
-    {
+    else {
         goToLabel(std::prev(_labelsByVal.find(_labels[_currentLabel]))->second);
-        std::cout << fmt::format("Timeline set to the previous label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
+        std::cout << std::format("Timeline set to the previous label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
     }
 }
 
@@ -343,14 +315,12 @@ void VideoCode::goToNextLabel()
 {
     auto next = std::next(_labelsByVal.find(_labels[_currentLabel]));
 
-    if (next == _labelsByVal.end())
-    {
+    if (next == _labelsByVal.end()) {
         _index = _frames.size() - 1;
-        std::cout << fmt::format("Timeline set to last index, '{}'", _index) << std::endl;
+        std::cout << std::format("Timeline set to last index, '{}'", _index) << std::endl;
     }
-    else
-    {
+    else {
         goToLabel(next->second);
-        std::cout << fmt::format("Timeline set to the next label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
+        std::cout << std::format("Timeline set to the next label '{}', at frame '{}'.", _currentLabel, _index) << std::endl;
     }
 }
