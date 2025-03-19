@@ -12,7 +12,7 @@
 #include "input/Frame.hpp"
 #include "opencv2/core/types.hpp"
 
-Text::Text(const std::string &text, double fontSize, int fontThickness, const std::vector<int> &color, int font)
+Text::Text(const std::string &text, double fontSize, int fontThickness, const std::vector<int> &color, float duration, int framerate, int font)
     : _text(text)
 {
     int baseLine = 0;
@@ -24,5 +24,8 @@ Text::Text(const std::string &text, double fontSize, int fontThickness, const st
 
     cv::putText(bg, text, cv::Point(0, size.height), font, fontSize, cv::Scalar(color[0], color[1], color[2], color[3]), fontThickness, cv::LINE_AA);
 
-    _frames.push_back(Frame(std::move(bg)));
+    for (size_t i = framerate * duration; i; i--)
+    {
+        _frames.push_back(Frame(bg.clone()));
+    }
 }

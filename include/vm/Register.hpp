@@ -40,6 +40,9 @@ public:
 
 private:
 
+    ///< frame rate
+    const int _framerate{24};
+
     ///< Variables representing the Inputs currently used in the program
     std::vector<std::shared_ptr<IInput>> _inputs{};
 
@@ -49,7 +52,7 @@ private:
         {"Video", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Video>(args.at("filepath"))); }},
         {"Copy", [this](const json::object_t &args) { _inputs.push_back(std::shared_ptr<IInput>(_inputs[args.at("input")]->copy())); }},
         {"Slice", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Slice>(_inputs[args.at("input")], args.at("start"), args.at("stop"))); }},
-        {"Text", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Text>(args.at("text"), args.at("fontSize"), args.at("fontThickness"), args.at("color"))); }},
+        {"Text", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Text>(args.at("text"), args.at("fontSize"), args.at("fontThickness"), args.at("color"), args.at("duration"), _framerate)); }},
         /// TODO: Shapes (Circle, Square)
         /// TODO: Formula (not important)
     };

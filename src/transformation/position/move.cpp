@@ -5,12 +5,9 @@
 ** translate
 */
 
-#include <memory>
-
-#include "input/IInput.hpp"
 #include "transformation/transformation.hpp"
 
-void transformation::move(std::shared_ptr<IInput> input, [[maybe_unused]] Register &reg, const json::object_t &args)
+void transformation::move(IterableInput input, const json::object_t& args)
 {
     const int dstX = args.at("x");
     const int dstY = args.at("y");
@@ -18,8 +15,7 @@ void transformation::move(std::shared_ptr<IInput> input, [[maybe_unused]] Regist
     const int srcY = input->begin()->_meta.y;
     const int nbFrames = input->size();
 
-    if (nbFrames == 0)
-    {
+    if (nbFrames == 0) {
         return;
     }
 
@@ -27,8 +23,7 @@ void transformation::move(std::shared_ptr<IInput> input, [[maybe_unused]] Regist
     const float velY = (dstY - srcY) / static_cast<float>(nbFrames);
 
     int index = 1;
-    for (auto &[_, meta] : *input)
-    {
+    for (auto& [_, meta] : input) {
         meta.x += velX * index;
         meta.y += velY * index;
         index += 1;

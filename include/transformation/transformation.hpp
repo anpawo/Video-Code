@@ -9,11 +9,12 @@
 
 #include <nlohmann/json.hpp>
 
+#include "input/Iterable.hpp"
 #include "vm/Register.hpp"
 
 using json = nlohmann::json;
 
-#define transformation(t) void t(std::shared_ptr<IInput> input, Register &reg, const json::object_t &args)
+#define transformation(t) void t(IterableInput input, const json::object_t &args)
 
 namespace transformation
 {
@@ -27,7 +28,6 @@ namespace transformation
     transformation(move);
 
     // Other
-    transformation(overlay);
     transformation(repeat);
     transformation(zoom);
 
@@ -36,7 +36,7 @@ namespace transformation
         TODO: transformation(merge);
     ***/
 
-    static const std::map<std::string, std::function<void(std::shared_ptr<IInput>, Register &, const json::object_t &)>> map{
+    static const std::map<std::string, std::function<void(IterableInput input, const json::object_t &args)>> map{
         // Color
         {"grayscale", grayscale},
         {"fade", fade},
@@ -44,7 +44,6 @@ namespace transformation
         {"translate", translate},
         {"move", move},
         // Other
-        {"overlay", overlay},
         {"repeat", repeat},
         {"zoom", zoom},
     };

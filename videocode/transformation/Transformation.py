@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
+from videocode.Constant import *
 
 
 class Transformation:
@@ -14,3 +15,6 @@ class Transformation:
         def grayscale() -> Transformation: ...
 
     """
+
+    startTime: sec
+    endTime: sec | None  # None for the last frame included.

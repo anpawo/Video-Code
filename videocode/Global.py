@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
 
 
-from videocode.Constant import RGBA
-
-
-type Action = dict[str, int | float | str | dict[str, Action] | list[Action] | RGBA]
+from typing import Any
 
 
 class Global:
@@ -13,7 +10,7 @@ class Global:
     """
 
     # Represents the steps to generate the video.
-    stack: list[Action] = []
+    stack: list[dict[str, Any]] = []
 
     # Index of the next `Input`
     inputCounter: int = 0

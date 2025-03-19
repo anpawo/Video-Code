@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from typing import Optional
 from videocode.transformation.Transformation import *
 
 from videocode.Constant import *
@@ -14,21 +15,34 @@ class fade(Transformation):
     Default: `Fade in`.
     """
 
-    def __init__(self, sides: list[side] = ALL, startOpacity: uint = 0, endOpacity: uint = 255, affectTransparentPixel: bool = False) -> None:
-        self.sides = sides
+    def __init__(
+        self,
+        *,
+        startOpacity: uint = 0,
+        endOpacity: uint = 255,
+        startTime: sec,
+        endTime: sec | None,  # if None, the endTime is the last frame.
+        sides: list[side] = ALL,
+        affectTransparentPixel: bool = False,  # Text `Inputs` have a black transparent background, we don't want it to be shown.
+    ):
         self.startOpacity = startOpacity
         self.endOpacity = endOpacity
-        # Text `Inputs` have a black transparent background, we don't want it to be shown.
+
+        self.startTime = startTime
+        self.endTime = endTime
+
+        self.sides = sides
+
         self.affectTransparentPixel = affectTransparentPixel
 
 
 class fadeIn:
     """
-    `Fade in` from `sides`.
+    `Fade in` from all `sides` if any and in `duration` second.
     """
 
-    def __new__(cls, sides: list[side] = ALL) -> fade:
-        return fade(sides, startOpacity=0, endOpacity=255)
+    def __new__(cls, *, sides: list[side] = ALL, duration: sec = 1) -> fade:
+        return fade(startOpacity=0, endOpacity=255, startTime=0, endTime=duration, sides=sides)
 
 
 class fadeOut:
@@ -36,8 +50,8 @@ class fadeOut:
     `Fade out` from `sides`.
     """
 
-    def __new__(cls, sides: list[side] = ALL) -> fade:
-        return fade(sides, startOpacity=255, endOpacity=0)
+    def __new__(cls, *, sides: list[side] = ALL, duration: sec = 1) -> fade:
+        return fade(startOpacity=255, endOpacity=0, startTime=-duration, endTime=None, sides=sides)
 
 
 # fadeFromLeft etc...

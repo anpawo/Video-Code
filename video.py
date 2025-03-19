@@ -3,17 +3,23 @@ from videocode.VideoCode import *
 x = 700
 y = 10
 
-# # text: Video-Code
-# t = text("Video-Code", 3).apply(translate(x, y), repeat(24 * 4))
-# t[: 24 * 3].apply(fadeIn(LEFT))
-# t.add()
-# t.keep()
+t = text("Hello", fontSize=3, duration=2).apply(translate(x, y))
+t.apply(fadeIn(duration=1))
+t.apply(fadeOut(duration=1))
+t.add()
 
-# # text: Made by
-# t = text("made by", 3).apply(translate(x, y + 80), repeat(24 * 4))
-# t[: 24 * 3].apply(fadeIn(LEFT))
-# t.add()
-# t.keep()
+# text: Video-Code
+t = text("Video-Code", fontSize=3, duration=2).apply(translate(x, y))
+t.apply(fadeIn(sides=LEFT))
+t.add()
+t.keep()
+
+# text: Made by
+t = text("made by", fontSize=3, duration=2).apply(translate(x, y + 80))
+t.apply(fadeIn(sides=LEFT))
+t.add()
+t.keep()
+
 
 
 # Me

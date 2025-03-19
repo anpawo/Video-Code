@@ -111,8 +111,8 @@ SRC_TSF_OTHER	=	src/transformation/other/overlay.cpp			\
 
 
 OBJ				=	$(SRC:.cpp=.o)
-NAME			=	vc
-
+NAME			=	video-code
+BUILD_DIR		=	build
 
 # >>> Rules <<<
 
@@ -150,7 +150,15 @@ debug: fclean
 format:
 	clang-format -i **/*.cpp **/*.hpp
 
+
 .PHONY: docs
 docs:
 	./vc --generate
 	./docs/readme/generate.sh
+
+
+.PHONY: cmake
+cmake:
+	cmake -B $(BUILD_DIR)
+	$(MAKE) -C $(BUILD_DIR)
+	cp $(BUILD_DIR)/video-code .
