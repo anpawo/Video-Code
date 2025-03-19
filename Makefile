@@ -155,7 +155,7 @@ format:
 
 .PHONY: docs
 docs:
-	./vc --generate
+	./$(NAME) --generate
 	./docs/readme/generate.sh
 
 

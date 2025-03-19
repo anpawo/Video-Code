@@ -18,22 +18,14 @@ from videocode.VideoCode import *
 x = 700
 y = 10
 
-# text: Video-Code
-t = text("Video-Code", 3).apply(translate(x, y), repeat(24 * 4))
-t[: 24 * 3].apply(fadeIn(LEFT))
+t = text("Hello", fontSize=3, duration=2).apply(translate(x, y + 175))
+t.apply(fadeIn())
+t.apply(fadeOut(), zoom(factor=(1, 3)))
 t.add()
-t.keep()
 
-# text: Made by
-t = text("made by", 3).apply(translate(x, y + 80), repeat(24 * 4))
-t[: 24 * 3].apply(fadeIn(LEFT))
-t.add()
-t.keep()
-
-
-# Me
 v = video("video/v.mp4").apply(translate(x, y + 175))
-v[0:20].apply(fadeIn())
+v.apply(zoom(factor=(1, 3)), endTime=1)
+v.apply(zoom(factor=(3, 1)), startTime=1)
 v.add()
 v.keep()
 ```
@@ -41,66 +33,16 @@ v.keep()
 <img src="docs/readme/example.gif" style="width: 50%;">
 
 ## Getting Started with Video-Code
+To create a video with Video-Code, you need to write some simple code in Python.
 
-### Installation
+The flow of the Video comes from the __Inputs__ that you, first import or create, then modify with __Transformations__ and finally add to the __timeline__.
 
-1. **Clone the repository:**
-    ```sh
-    git clone git@github.com:anpawo/Video-Code.git
-    cd video-code
-    ```
-
-2. **Install dependencies:**
-    Ensure you have 'python3' and 'pip' installed. Then run:
-    ```sh
-    pip install -r requirements.txt
-    ```
-
-    Ensure you have `vcpkg` installed and set up in **manifest** mode. Then run:
-    ```sh
-    vcpkg install
-    ```
-
-3. **install qt6**
-
-go to [qt6](https://www.qt.io/download) and download the latest version of qt6.
-   - Select the components you need (e.g., Qt 6.x.x, CMake, etc.).
-   - Follow the installation instructions.
-   - Make sure to add the Qt installation path to your system's PATH environment variable.
-   - Set the `Qt6_DIR` to the Qt installation path
-   - For example:
-     ```sh
-     export Qt6_DIR="path/to/qt6/6.x.x/gcc_64/lib/cmake/Qt6"
-     ```
-
-4. **Build the project:**
-    Ensure you have CMake installed. Then run:
-    ```sh
-    cmake -B build
-    make -C build
-    cp build/video-code video-code
-    ```
-
-### Launch
-
-To launch the project, run:
-```sh
-./vc --sourceFile path/to/your/script.py
-```
-If you want to generate a video directly, use:
-```sh
-./vc --sourceFile path/to/your/script.py --generate
-```
-
-### Usage
-
-To create a video with Video-Code, you need to write some simple code in Python. The flow of the video comes from the **Inputs** that you first import or create, then modify with **Transformations**, and finally add to the **timeline**.
-
-For more detailed usage instructions, refer to the [user documentation](docs/user/user.md).
-
-You can also check the [development documentation](docs/dev/dev.md) for more technical details.
+To import or create an __Input__, you need to create a __video__, __image__ or a __text__ instance (soon shapes).<br>
+To modify it, you need to use __Transformations__ like __translate__ or __fade__.<br>
+To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ function.
 
 ## Patch Notes
+
 
 <details>
     <summary><code>Inputs</code></summary>
@@ -130,6 +72,7 @@ You can also check the [development documentation](docs/dev/dev.md) for more tec
 
 - `overlay`
 - `repeat`
+- `zoom`
 
 </details>
 
@@ -139,7 +82,9 @@ You can also check the [development documentation](docs/dev/dev.md) for more tec
     <summary><code>Patchs</code></summary>
 <br>
 
-- `transformation`: grayscale (18/03/25)
+- `transformation`: zoom (19/03/25)
+- `rework`: duration off effects (19/03/25)
+- `transformation`: grayscale (19/03/25)
 - `feature`: keep last frame of input on screen (06/03/25)
 - `rework`: one stack (06/03/25)
 - `transformation`: repeat (03/03/25)
@@ -148,3 +93,4 @@ You can also check the [development documentation](docs/dev/dev.md) for more tec
 - `transformation`: move (02/03/25)
 
 </details>
+
