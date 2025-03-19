@@ -8,8 +8,6 @@
 #include <cstdio>
 #include <format>
 
-#include <cstdio>
-
 #include "compiler/Compiler.hpp"
 #include "opencv2/core/matx.hpp"
 #include "utils/Debug.hpp"
