@@ -9,7 +9,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -Wall -Wextra -Wno-deprecated
 
 set_property(GLOBAL PROPERTY CXX_STANDARD 20)
 
-if (UNIX AND NOT APPLE AND NOT DEFINED CMAKE_CXX_COMPILER)
+if (UNIX AND NOT APPLE)
+    message(STATUS "Setting C++ compiler to g++-13")
     set(CMAKE_CXX_COMPILER "g++-13")
 endif()
 
@@ -36,7 +37,7 @@ if (NOT DEFINED ENV{Qt6_DIR})
     set(Qt6_DIR "/usr/include/qt6/6.8.2/gcc_64/lib/cmake/Qt6")
 endif()
 
-if (CI_BUILD)
+if (CI_BUILD EQUAL 1)
     message(STATUS "CI_BUILD is defined")
     include(FetchContent)
     FetchContent_Declare(
@@ -55,7 +56,7 @@ endif()
 find_package(OpenCV REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
-if (NOT CI_BUILD)
+if (NOT CI_BUILD EQUAL 1)
     find_package(nlohmann_json CONFIG REQUIRED)
     set(argparse_DIR "${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/share/argparse")
     find_package(argparse CONFIG REQUIRED)
@@ -86,6 +87,7 @@ set(SOURCES
     src/transformation/other/overlay.cpp
     src/transformation/other/repeat.cpp
     src/transformation/other/zoom.cpp
+    src/transformation/other/scale.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

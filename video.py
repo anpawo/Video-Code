@@ -9,7 +9,6 @@ t.apply(fadeOut(), zoom(factor=(1, 3)))
 t.add()
 
 v = video("video/v.mp4").apply(translate(x, y + 175))
-v.apply(zoom(factor=(1, 3)), endTime=1)
-v.apply(zoom(factor=(3, 1)), startTime=1)
+v.apply(scale(factor=(1, 0.2)))
 v.add()
 v.keep()
