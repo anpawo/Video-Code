@@ -7,7 +7,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -Wall -Wextra -Wno-deprecated
 
 set_property(GLOBAL PROPERTY CXX_STANDARD 20)
 
-if (UNIX AND NOT APPLE)
+if (UNIX AND NOT APPLE AND NOT DEFINED CMAKE_CXX_COMPILER)
     message(STATUS "Setting C++ compiler to g++-13")
     set(CMAKE_CXX_COMPILER "g++-13")
 endif()
