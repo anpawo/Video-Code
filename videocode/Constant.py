@@ -10,7 +10,7 @@ from typing import Annotated, Any, Literal, TypeVar, Union
 uint = Annotated[int, "unsigned"]
 
 # modes
-type mode = Literal["static", "dynamic"]
+type mode = Literal["Origin", "Center"]
 
 # sides
 type side = Literal["left", "right", "up", "down"]
