@@ -24,8 +24,7 @@ IInput* ABCConcreteInput::copy()
     ABCConcreteInput* cp = new ABCConcreteInput();
 
     VC_LOG_DEBUG("fully cloned")
-    for (const Frame& frame : _frames)
-    {
+    for (const Frame& frame : _frames) {
         cp->_frames.push_back(frame.clone());
     }
 
@@ -51,10 +50,8 @@ void ABCConcreteInput::repeat(size_t n)
 {
     const size_t initialSize = _frames.size();
 
-    while (n--)
-    {
-        for (size_t i = 0; i < initialSize; i++)
-        {
+    while (n--) {
+        for (size_t i = 0; i < initialSize; i++) {
             _frames.push_back(_frames[i].clone());
         }
     }

@@ -24,8 +24,7 @@ Text::Text(const std::string &text, double fontSize, int fontThickness, const st
 
     cv::putText(bg, text, cv::Point(0, size.height), font, fontSize, cv::Scalar(color[0], color[1], color[2], color[3]), fontThickness, cv::LINE_AA);
 
-    for (size_t i = framerate * duration; i; i--)
-    {
+    for (size_t i = framerate * duration; i; i--) {
         _frames.push_back(Frame(bg.clone()));
     }
 }
