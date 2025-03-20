@@ -37,6 +37,14 @@ v.apply(grayscale())
 v.add()
 ```
 
+### methods
+
+- `add()`: Adds the input to the timeline.
+
+- `apply(transformation)`: Applies a transformation to the input. The transformation can be any of the available transformations such as `grayscale()`, `fade()`, etc.
+
+- `keep()`: Keeps the last frame of the input on the timeline after the input ends.
+
 ## Detailed Documentation
 
 For more detailed usage instructions, refer to the following user documentation:
@@ -52,6 +60,7 @@ For more detailed usage instructions, refer to the following user documentation:
   - [Move](transformation/move.md)
   - [Overlay](transformation/overlay.md)
   - [Repeat](transformation/repeat.md)
+  - [Scale](transformation/scale.md)
 
 ## Conclusion
 
