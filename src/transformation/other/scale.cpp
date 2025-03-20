@@ -12,7 +12,7 @@ void transformation::scale(IterableInput input, const json::object_t &args)
     const float startFactor = args.at("factor")[0];
     const float endFactor = args.at("factor")[1];
 
-    const bool isCentered = args.at("mode") == "Center";
+    const bool isCentered = args.at("centered").get<bool>();
 
     const float scaleIncr = (endFactor - startFactor) / (input._nbFrames - 1);
     float scaleAcc = startFactor - scaleIncr;

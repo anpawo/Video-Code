@@ -9,9 +9,6 @@ from typing import Annotated, Any, Literal, TypeVar, Union
 # unsigned int
 uint = Annotated[int, "unsigned"]
 
-# modes
-type mode = Literal["Origin", "Center"]
-
 # sides
 type side = Literal["left", "right", "up", "down"]
 

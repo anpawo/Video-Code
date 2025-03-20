@@ -8,7 +8,7 @@ class scale(Transformation):
     `Scale` an `Input` keeping the pixels outside the dimension of the `Input` unlike `Zoom`.
     """
 
-    def __init__(self, *, factor: float | int | tuple[float, float] = 2, mode: mode = "Origin") -> None:
+    def __init__(self, *, factor: float | int | tuple[float, float] = 2, centered : bool = False) -> None:
         """
         :param factor: The scale factor. If a tuple, the first value is the x scale and the second value is the y scale.
         :param mode: The mode of the scale. Can be "Origin" or "Center".
@@ -17,4 +17,4 @@ class scale(Transformation):
             self.factor = factor
         else:
             self.factor = (factor, factor)
-        self.mode = mode
+        self.centered = centered
