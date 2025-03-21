@@ -30,6 +30,7 @@ namespace transformation
     // Other
     transformation(repeat);
     transformation(zoom);
+    transformation(scale);
 
     /***
         TODO: transformation(concat);
@@ -46,5 +47,6 @@ namespace transformation
         // Other
         {"repeat", repeat},
         {"zoom", zoom},
+        {"scale", scale},
     };
 }

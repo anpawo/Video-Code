@@ -45,22 +45,18 @@ int Compiler::Writer::generateVideo(
         "w"
     );
 
-    if (!ffmpegPipe)
-    {
+    if (!ffmpegPipe) {
         throw Error("Could not start the ffmpeg pipe.");
     }
 
-    for (const auto &f : frames)
-    {
+    for (const auto &f : frames) {
         const int nbRows = f.rows;
         const int nbCols = f.cols;
 
         cv::Mat frame(nbRows, nbCols, CV_8UC4); // BGRA -> RGBA
 
-        for (int y = 0; y < nbRows; y++)
-        {
-            for (int x = 0; x < nbCols; x++)
-            {
+        for (int y = 0; y < nbRows; y++) {
+            for (int x = 0; x < nbCols; x++) {
                 const cv::Vec4b pixel = f.at<cv::Vec4b>(y, x);
 
                 const float alpha = pixel[3] / 255.0;

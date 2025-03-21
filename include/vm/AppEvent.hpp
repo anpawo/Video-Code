@@ -28,8 +28,7 @@ protected:
     {
         auto e = _events.find(event->key());
 
-        if (e != _events.end())
-        {
+        if (e != _events.end()) {
             e->second();
         }
 
