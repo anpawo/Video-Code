@@ -9,8 +9,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -Wall -Wextra -Wno-deprecated
 
 set_property(GLOBAL PROPERTY CXX_STANDARD 20)
 
-if (UNIX AND NOT APPLE AND NOT DEFINED CMAKE_CXX_COMPILER)
-    set(CMAKE_CXX_COMPILER "g++-13")
+if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
+    message(FATAL_ERROR "C++20 requires GCC 13 or higher")
 endif()
 
 if (NOT DEFINED ENV{VCPKG_ROOT})
@@ -20,6 +20,10 @@ endif()
 set(VCPKG_ROOT $ENV{VCPKG_ROOT})
 set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 set(VCPKG_FEATURE_FLAGS "manifests")
+set(VCPKG_MANIFEST_MODE ON)
+
+set(OPENCV_LOG_LEVEL "ERROR")
+set(WITH_FFMPEG "ON")
 
 if(NOT DEFINED VCPKG_TARGET_TRIPLET)
     if (WIN32)
@@ -65,6 +69,7 @@ include_directories(
     ${OpenCV_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/include
     ${Python3_INCLUDE_DIRS}
+    ${FFMPEG_INCLUDE_DIRS}
 )
 
 set(SOURCES
@@ -90,10 +95,15 @@ set(SOURCES
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+target_link_directories(${PROJECT_NAME} PRIVATE
+    ${FFMPEG_LIBRARY_DIRS}
+)
+
 target_link_libraries(${PROJECT_NAME}
     argparse::argparse
     nlohmann_json::nlohmann_json
     ${OpenCV_LIBS}
+    ${FFMPEG_LIBRARIES}
     Qt6::Widgets
     Qt6::Core
     Qt6::Gui
