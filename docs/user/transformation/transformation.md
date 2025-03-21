@@ -13,6 +13,7 @@ Transformations allow you to manipulate inputs in various ways. They can change 
 - [Overlay](overlay.md)
 - [Repeat](repeat.md)
 - [Scale](scale.md)
+- [Zoom](zoom.md)
 
 ## Usage
 
