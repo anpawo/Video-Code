@@ -130,10 +130,10 @@ void VideoCode::updateFrame(QLabel &imageLabel)
 
     if (_frames.size() == 0) {
         // show black background if no frames are loaded
-        cv::resize(_defaultBlackFrame, frame, cv::Size(_width / 2, _height / 2), _width / 2.0, 0, cv::INTER_LINEAR);
+        cv::resize(_defaultBlackFrame, frame, cv::Size(_width / 2, _height / 2), _width / 2.0, 2.0, cv::INTER_LINEAR);
     }
     else {
-        cv::resize(_frames[_index], frame, cv::Size(_width / 2, _height / 2), _width / 2.0, 0, cv::INTER_LINEAR);
+        cv::resize(_frames[_index], frame, cv::Size(_width / 2, _height / 2), _width / 2.0, _height / 2.0, cv::INTER_LINEAR);
 
         // load next frame if not in pause and not at the end
         if (_paused == false && _index < _frames.size() - 1) {

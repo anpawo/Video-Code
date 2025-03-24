@@ -12,8 +12,6 @@ class text(Input):
     def __init__(
         self,
         s: str,
-        /,
-        *,
         fontSize: float = 1,
         color: RGBA = WHITE,
         fontThickness: Optional[int] = None,

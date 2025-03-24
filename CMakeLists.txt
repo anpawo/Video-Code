@@ -69,20 +69,32 @@ include_directories(
 
 set(SOURCES
     src/Main.cpp
+    
     src/vm/VideoCode.cpp
     src/vm/Register.cpp
     src/vm/AppWindow.cpp
     src/vm/AppEvent.cpp
+
     src/compiler/generateVideo.cpp
+    
     src/input/concrete/ABCConcreteInput.cpp
+
     src/input/concrete/media/Image.cpp
     src/input/concrete/media/Video.cpp
+
     src/input/concrete/text/Text.cpp
+
+    src/input/concrete/shape/Circle.cpp
+    src/input/concrete/shape/Rectangle.cpp
+
     src/input/composite/Slice.cpp
+    
     src/transformation/position/translate.cpp
     src/transformation/position/move.cpp
+    
     src/transformation/color/fade.cpp
     src/transformation/color/grayscale.cpp
+    
     src/transformation/other/overlay.cpp
     src/transformation/other/repeat.cpp
     src/transformation/other/zoom.cpp

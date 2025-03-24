@@ -16,23 +16,16 @@ Below is an example of the last feature added (code) and the result (video).
 from videocode.VideoCode import *
 
 x = 700
-y = 10
+y = 50
 
-t = text("Hello", fontSize=3, duration=2).apply(translate(x, y + 175))
-t.apply(fadeIn())
-t.apply(fadeOut(), zoom(factor=(1, 3)))
-t.add()
-
-v = video("video/v.mp4").apply(translate(x, y + 175))
-v.apply(zoom(factor=(1, 3)), endTime=1)
-v.apply(zoom(factor=(3, 1)), startTime=1)
-v.add()
-v.keep()
+square(filled=True, cornerRadius=30, thickness=20).apply(translate(x, y + 175)).add().keep()
+circle(filled=True, color=RED).apply(translate(x, y + 500)).add().keep()
+rectangle(cornerRadius=0, thickness=8, color=GREEN).apply(translate(x + 300, y + 300)).add().keep()
 ```
 
 <img src="docs/readme/example.gif" style="width: 50%;">
 
-## Getting Started with Video-Code
+## Getting Started
 To create a video with Video-Code, you need to write some simple code in Python.
 
 The flow of the Video comes from the __Inputs__ that you, first import or create, then modify with __Transformations__ and finally add to the __timeline__.
@@ -40,6 +33,10 @@ The flow of the Video comes from the __Inputs__ that you, first import or create
 To import or create an __Input__, you need to create a __video__, __image__ or a __text__ instance (soon shapes).<br>
 To modify it, you need to use __Transformations__ like __translate__ or __fade__.<br>
 To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ function.
+
+### Installation
+
+To install the project, checkout the [documentation](docs/user/user.md#installation).
 
 ## Patch Notes
 
@@ -50,7 +47,12 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
 
 - `image`
 - `video`
+
 - `text`
+
+- `circle`
+- `rectangle`
+- `square`
 
 </details>
 
@@ -60,8 +62,8 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
     <summary><code>Transformations</code></summary>
 <br>
 
-- `fade`
 - `grayscale`
+- `fade`
 
 <br>
 
@@ -82,8 +84,11 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
     <summary><code>Patchs</code></summary>
 <br>
 
+- `input`: rectangle (24/03/25)
+- `input`: circle (24/03/25)
+- `transformation`: scale (20/03/25)
 - `transformation`: zoom (19/03/25)
-- `rework`: duration off effects (19/03/25)
+- `rework`: effects' duration (19/03/25)
 - `transformation`: grayscale (19/03/25)
 - `feature`: keep last frame of input on screen (06/03/25)
 - `rework`: one stack (06/03/25)

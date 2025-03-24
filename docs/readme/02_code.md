@@ -3,16 +3,9 @@
 from videocode.VideoCode import *
 
 x = 700
-y = 10
+y = 50
 
-t = text("Hello", fontSize=3, duration=2).apply(translate(x, y + 175))
-t.apply(fadeIn())
-t.apply(fadeOut(), zoom(factor=(1, 3)))
-t.add()
-
-v = video("video/v.mp4").apply(translate(x, y + 175))
-v.apply(zoom(factor=(1, 3)), endTime=1)
-v.apply(zoom(factor=(3, 1)), startTime=1)
-v.add()
-v.keep()
+square(filled=True, cornerRadius=30, thickness=20).apply(translate(x, y + 175)).add().keep()
+circle(filled=True, color=RED).apply(translate(x, y + 500)).add().keep()
+rectangle(cornerRadius=0, thickness=8, color=GREEN).apply(translate(x + 300, y + 300)).add().keep()
 ```
