@@ -40,9 +40,9 @@ For more detailed usage instructions, refer to the [user documentation](docs/use
 
 You can also check the [development documentation](docs/dev/dev.md) for more technical details.
 
-### install
+### Install
 
-To install the project, you need to have the follow [this documentation](docs/user/user.md#installation).
+To install the project, checkout the [documentation](docs/user/user.md#installation).
 
 ## Patch Notes
 
