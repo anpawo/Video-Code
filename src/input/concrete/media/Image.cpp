@@ -18,13 +18,11 @@ Image::Image(const std::string& inputName)
 {
     cv::Mat image = cv::imread(inputName);
 
-    if (image.empty())
-    {
+    if (image.empty()) {
         throw Error("Could not load Image: " + inputName);
     }
 
-    if (image.channels() != 4)
-    {
+    if (image.channels() != 4) {
         cv::cvtColor(image, image, cv::COLOR_BGR2BGRA);
     }
 

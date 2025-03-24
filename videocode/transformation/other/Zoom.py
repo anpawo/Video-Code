@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from typing import Generator, Iterator
 from videocode.transformation.Transformation import Transformation
 
 from videocode.Constant import *

@@ -1,16 +1,19 @@
 cmake_minimum_required(VERSION 3.21)
 project(video-code VERSION 1.0.0 LANGUAGES CXX)
 
-option(CI_BUILD "CI Build" OFF)
-
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++20 -Wall -Wextra -Wno-deprecated -pipe -O2 -D_REENTRANT -DVC_DEBUG_ON -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -DQT_NO_KEYWORDS")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-deprecated -pipe -O2 -D_REENTRANT -DVC_DEBUG_ON -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -DQT_NO_KEYWORDS")
+
+if (DEBUG)
+    message(STATUS "Debug build")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3")
+endif()
 
 set_property(GLOBAL PROPERTY CXX_STANDARD 20)
 
-if (UNIX AND NOT APPLE AND NOT DEFINED CMAKE_CXX_COMPILER)
-    set(CMAKE_CXX_COMPILER "g++-13")
+if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
+    message(FATAL_ERROR "C++20 requires GCC 13 or higher")
 endif()
 
 if (NOT DEFINED ENV{VCPKG_ROOT})
@@ -20,6 +23,10 @@ endif()
 set(VCPKG_ROOT $ENV{VCPKG_ROOT})
 set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
 set(VCPKG_FEATURE_FLAGS "manifests")
+set(VCPKG_MANIFEST_MODE ON)
+
+set(OPENCV_LOG_LEVEL "ERROR")
+set(WITH_FFMPEG "ON")
 
 if(NOT DEFINED VCPKG_TARGET_TRIPLET)
     if (WIN32)
@@ -65,6 +72,7 @@ include_directories(
     ${OpenCV_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/include
     ${Python3_INCLUDE_DIRS}
+    ${FFMPEG_INCLUDE_DIRS}
 )
 
 set(SOURCES
@@ -98,14 +106,20 @@ set(SOURCES
     src/transformation/other/overlay.cpp
     src/transformation/other/repeat.cpp
     src/transformation/other/zoom.cpp
+    src/transformation/other/scale.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+target_link_directories(${PROJECT_NAME} PRIVATE
+    ${FFMPEG_LIBRARY_DIRS}
+)
 
 target_link_libraries(${PROJECT_NAME}
     argparse::argparse
     nlohmann_json::nlohmann_json
     ${OpenCV_LIBS}
+    ${FFMPEG_LIBRARIES}
     Qt6::Widgets
     Qt6::Core
     Qt6::Gui

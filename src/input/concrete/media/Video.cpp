@@ -20,24 +20,20 @@ Video::Video(const std::string &inputName)
 {
     cv::VideoCapture video(inputName, cv::CAP_FFMPEG);
 
-    if (!video.isOpened())
-    {
+    if (!video.isOpened()) {
         throw Error("Could not load Video: " + inputName);
     }
 
-    while (true)
-    {
+    while (true) {
         cv::Mat currentFrame;
 
         video >> currentFrame;
 
-        if (currentFrame.empty())
-        {
+        if (currentFrame.empty()) {
             break;
         }
 
-        if (currentFrame.channels() != 4)
-        {
+        if (currentFrame.channels() != 4) {
             cv::cvtColor(currentFrame, currentFrame, cv::COLOR_BGR2BGRA);
         }
 

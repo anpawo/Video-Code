@@ -54,7 +54,9 @@ jobs:
             echo "Error: video-code failed to generate out.mp4."
             exit 1
           fi
-          
+          mkdir -p video
+          mv out.mp4 video/video_result.mp4
+
       # - name: Run functional tests
       #   run: |
       #     ./tests/functional_tests.sh
