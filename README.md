@@ -18,79 +18,23 @@ from videocode.VideoCode import *
 x = 700
 y = 10
 
-# text: Video-Code
-t = text("Video-Code", 3).apply(translate(x, y), repeat(24 * 4))
-t[: 24 * 3].apply(fadeIn(LEFT))
+t = text("Hello", fontSize=3, duration=2).apply(translate(x, y + 175))
+t.apply(fadeIn())
+t.apply(fadeOut(), zoom(factor=(1, 3)))
 t.add()
-t.keep()
 
-# text: Made by
-t = text("made by", 3).apply(translate(x, y + 80), repeat(24 * 4))
-t[: 24 * 3].apply(fadeIn(LEFT))
-t.add()
-t.keep()
-
-
-# Me
 v = video("video/v.mp4").apply(translate(x, y + 175))
-v[0:20].apply(fadeIn())
+v.apply(zoom(factor=(1, 3)), endTime=1)
+v.apply(zoom(factor=(3, 1)), startTime=1)
 v.add()
 v.keep()
 ```
 
 <img src="docs/readme/example.gif" style="width: 50%;">
 
-## Getting Started with Video-Code
+### install
 
-### Installation
-
-1. **Clone the repository:**
-    ```sh
-    git clone git@github.com:anpawo/Video-Code.git
-    cd video-code
-    ```
-
-2. **Install dependencies:**
-    Ensure you have 'python3' and 'pip' installed. Then run:
-    ```sh
-    pip install -r requirements.txt
-    ```
-
-    Ensure you have `vcpkg` installed and set up in **manifest** mode. Then run:
-    ```sh
-    vcpkg install
-    ```
-
-3. **install qt6**
-
-go to [qt6](https://www.qt.io/download) and download the latest version of qt6.
-   - Select the components you need (e.g., Qt 6.x.x, CMake, etc.).
-   - Follow the installation instructions.
-   - Make sure to add the Qt installation path to your system's PATH environment variable.
-   - Set the `Qt6_DIR` to the Qt installation path
-   - For example:
-     ```sh
-     export Qt6_DIR="path/to/qt6/6.x.x/gcc_64/lib/cmake/Qt6"
-     ```
-
-4. **Build the project:**
-    Ensure you have CMake installed. Then run:
-    ```sh
-    cmake -B build
-    make -C build
-    cp build/video-code video-code
-    ```
-
-### Launch
-
-To launch the project, run:
-```sh
-./video-code --sourceFile path/to/your/script.py
-```
-If you want to generate a video directly, use:
-```sh
-./video-code --sourceFile path/to/your/script.py --generate
-```
+to istall the project, you need to have the follow [this documentation](docs/user/user.md#installation).
 
 ### Usage
 
