@@ -32,17 +32,19 @@ v.keep()
 
 <img src="docs/readme/example.gif" style="width: 50%;">
 
-## Getting Started with Video-Code
-To create a video with Video-Code, you need to write some simple code in Python.
+### Usage
 
-The flow of the Video comes from the __Inputs__ that you, first import or create, then modify with __Transformations__ and finally add to the __timeline__.
+To create a video with Video-Code, you need to write some simple code in Python. The flow of the video comes from the **Inputs** that you first import or create, then modify with **Transformations**, and finally add to the **timeline**.
 
-To import or create an __Input__, you need to create a __video__, __image__ or a __text__ instance (soon shapes).<br>
-To modify it, you need to use __Transformations__ like __translate__ or __fade__.<br>
-To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ function.
+For more detailed usage instructions, refer to the [user documentation](docs/user/user.md).
+
+You can also check the [development documentation](docs/dev/dev.md) for more technical details.
+
+### Installation
+
+To install the project, checkout the [documentation](docs/user/user.md#installation).
 
 ## Patch Notes
-
 
 <details>
     <summary><code>Inputs</code></summary>
@@ -72,7 +74,6 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
 
 - `overlay`
 - `repeat`
-- `zoom`
 
 </details>
 
@@ -82,9 +83,7 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
     <summary><code>Patchs</code></summary>
 <br>
 
-- `transformation`: zoom (19/03/25)
-- `rework`: duration off effects (19/03/25)
-- `transformation`: grayscale (19/03/25)
+- `transformation`: grayscale (18/03/25)
 - `feature`: keep last frame of input on screen (06/03/25)
 - `rework`: one stack (06/03/25)
 - `transformation`: repeat (03/03/25)
@@ -93,4 +92,3 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
 - `transformation`: move (02/03/25)
 
 </details>
-
