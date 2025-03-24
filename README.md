@@ -40,7 +40,7 @@ For more detailed usage instructions, refer to the [user documentation](docs/use
 
 You can also check the [development documentation](docs/dev/dev.md) for more technical details.
 
-### Install
+### Installation
 
 To install the project, checkout the [documentation](docs/user/user.md#installation).
 
