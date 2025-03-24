@@ -32,10 +32,6 @@ v.keep()
 
 <img src="docs/readme/example.gif" style="width: 50%;">
 
-### install
-
-to istall the project, you need to have the follow [this documentation](docs/user/user.md#installation).
-
 ### Usage
 
 To create a video with Video-Code, you need to write some simple code in Python. The flow of the video comes from the **Inputs** that you first import or create, then modify with **Transformations**, and finally add to the **timeline**.
@@ -43,6 +39,10 @@ To create a video with Video-Code, you need to write some simple code in Python.
 For more detailed usage instructions, refer to the [user documentation](docs/user/user.md).
 
 You can also check the [development documentation](docs/dev/dev.md) for more technical details.
+
+### install
+
+To install the project, you need to have the follow [this documentation](docs/user/user.md#installation).
 
 ## Patch Notes
 
