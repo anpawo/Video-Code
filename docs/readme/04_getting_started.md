@@ -1,4 +1,4 @@
-## Getting Started with Video-Code
+## Getting Started
 To create a video with Video-Code, you need to write some simple code in Python.
 
 The flow of the Video comes from the __Inputs__ that you, first import or create, then modify with __Transformations__ and finally add to the __timeline__.

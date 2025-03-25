@@ -7,7 +7,12 @@
 
 - `image`
 - `video`
+
 - `text`
+
+- `circle`
+- `rectangle`
+- `square`
 
 </details>
 
@@ -17,8 +22,8 @@
     <summary><code>Transformations</code></summary>
 <br>
 
-- `fade`
 - `grayscale`
+- `fade`
 
 <br>
 
@@ -39,8 +44,11 @@
     <summary><code>Patchs</code></summary>
 <br>
 
+- `input`: rectangle (24/03/25)
+- `input`: circle (24/03/25)
+- `transformation`: scale (20/03/25)
 - `transformation`: zoom (19/03/25)
-- `rework`: duration off effects (19/03/25)
+- `rework`: effects' duration (19/03/25)
 - `transformation`: grayscale (19/03/25)
 - `feature`: keep last frame of input on screen (06/03/25)
 - `rework`: one stack (06/03/25)

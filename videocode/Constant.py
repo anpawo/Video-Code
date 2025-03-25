@@ -32,7 +32,11 @@ END = -1
 # Colors
 type RGBA = tuple[int, int, int, int]
 
+TRANSPARENT: RGBA = (0, 0, 0, 0)
 WHITE: RGBA = (255, 255, 255, 255)
+RED: RGBA = (255, 0, 0, 255)
+GREEN: RGBA = (0, 255, 0, 255)
+BLUE: RGBA = (0, 0, 255, 255)
 
 
 # time

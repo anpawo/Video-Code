@@ -15,6 +15,7 @@ AppWindow::AppWindow(int argc, char **argv, const std::map<int, std::function<vo
     , _mainLoop(mainLoop)
 {
     ///< Setup the layouts and images
+    _imageLayout.setContentsMargins(0, 0, 0, 0);
     _imageLayout.addWidget(&_imageLabel);
     _window.setLayout(&_imageLayout);
 

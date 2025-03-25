@@ -18,6 +18,8 @@
 #include "input/composite/Slice.hpp"
 #include "input/concrete/media/Image.hpp"
 #include "input/concrete/media/Video.hpp"
+#include "input/concrete/shape/Circle.hpp"
+#include "input/concrete/shape/Rectangle.hpp"
 #include "input/concrete/text/Text.hpp"
 
 using json = nlohmann::json;
@@ -53,7 +55,10 @@ private:
         {"Copy", [this](const json::object_t &args) { _inputs.push_back(std::shared_ptr<IInput>(_inputs[args.at("input")]->copy())); }},
         {"Slice", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Slice>(_inputs[args.at("input")], args.at("start"), args.at("stop"))); }},
         {"Text", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Text>(args.at("text"), args.at("fontSize"), args.at("fontThickness"), args.at("color"), args.at("duration"), _framerate)); }},
-        /// TODO: Shapes (Circle, Square)
+        ///< Shapes
+        {"Circle", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Circle>(args, _framerate)); }},
+        {"Rectangle", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Rectangle>(args, _framerate)); }},
+        /// TODO: Square
         /// TODO: Formula (not important)
     };
 
