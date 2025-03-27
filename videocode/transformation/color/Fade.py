@@ -22,7 +22,7 @@ class fade(Transformation):
         endOpacity: uint = 255,
         startTime: sec,
         endTime: sec | None,  # if None, the endTime is the last frame.
-        sides: list[side] = ALL,
+        sides: side | list[side] | None = None,
         affectTransparentPixel: bool = False,  # Text `Inputs` have a black transparent background, we don't want it to be shown.
     ):
         self.startOpacity = startOpacity
@@ -31,7 +31,12 @@ class fade(Transformation):
         self.startTime = startTime
         self.endTime = endTime
 
-        self.sides = sides
+        if sides is None:
+            self.sides = []
+        elif isinstance(sides, list):
+            self.sides = sides
+        else:
+            self.sides = [sides]
 
         self.affectTransparentPixel = affectTransparentPixel
 
@@ -41,7 +46,7 @@ class fadeIn:
     `Fade in` from all `sides` if any and in `duration` second.
     """
 
-    def __new__(cls, *, sides: list[side] = ALL, duration: sec = 1) -> fade:
+    def __new__(cls, *, sides: side | list[side] | None = None, duration: sec = 1) -> fade:
         return fade(startOpacity=0, endOpacity=255, startTime=0, endTime=duration, sides=sides)
 
 
@@ -50,7 +55,7 @@ class fadeOut:
     `Fade out` from `sides`.
     """
 
-    def __new__(cls, *, sides: list[side] = ALL, duration: sec = 1) -> fade:
+    def __new__(cls, *, sides: side | list[side] | None = None, duration: sec = 1) -> fade:
         return fade(startOpacity=255, endOpacity=0, startTime=-duration, endTime=None, sides=sides)
 
 

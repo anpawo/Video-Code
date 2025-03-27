@@ -9,6 +9,7 @@ import copy
 from videocode.transformation.Transformation import Transformation
 from videocode.Global import *
 from videocode.Constant import *
+from videocode.transformation.position.SetPosition import setPosition
 
 
 class Input(ABC):
@@ -27,14 +28,20 @@ class Input(ABC):
         def circle(radius: int) -> Input: ...
     """
 
-    index: int
+    """
+    Metadata of the `Input`.
+    """
+    metadata: Metadata
+
     """
     Index of the `Input`.
     """
+    index: int
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = super().__new__(cls)
         instance.index = Global.getIndex()
+        instance.metadata = Global.defaultMetadata
         return instance
 
     @abstractmethod
@@ -52,7 +59,7 @@ class Input(ABC):
         )
         return self
 
-    def apply(self, *ts: Transformation, startTime: Defaultable[sec] = default(None), endTime: Defaultable[sec | None] = default(None)) -> Input:
+    def apply(self, *ts: Transformation, startTime: Defaultable[sec] = default(None), endTime: Defaultable[sec | None] = default(None)) -> Input:  # type: ignore
         """
         Applies the `Transformations` `ts` to all the `frames` of `self` between [`startTime`, `endTime`].
         """
@@ -111,6 +118,9 @@ class Input(ABC):
                 "input": self.index,
             }
         )
+
+    def setPosition(self, x: int | float | None = None, y: int | float | None = None):
+        return self.apply(setPosition(x, y))
 
     def __getitem__(self, i: int | slice[int | None, int | None, None]) -> Slice:
         """

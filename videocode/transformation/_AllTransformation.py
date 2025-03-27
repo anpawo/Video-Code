@@ -8,7 +8,7 @@
 from videocode.transformation.Transformation import *
 
 # Position Transformations
-from videocode.transformation.position.Translate import *
+from videocode.transformation.position.SetPosition import *
 from videocode.transformation.position.Move import *
 
 # Color Transformations

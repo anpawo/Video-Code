@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "input/IInput.hpp"
+#include "input/composite/Group.hpp"
 #include "input/composite/Slice.hpp"
 #include "input/concrete/media/Image.hpp"
 #include "input/concrete/media/Video.hpp"
@@ -58,8 +59,9 @@ private:
         ///< Shapes
         {"Circle", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Circle>(args, _framerate)); }},
         {"Rectangle", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Rectangle>(args, _framerate)); }},
-        /// TODO: Square
         /// TODO: Formula (not important)
+        ///< Group
+        {"Group", [this](const json::object_t &args) { _inputs.push_back(std::make_shared<Group>(_inputs, args)); }},
     };
 
     /// TODO: env to keep track of already loaded images. prevent reload everytime

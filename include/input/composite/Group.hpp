@@ -2,28 +2,21 @@
 ** EPITECH PROJECT, 2025
 ** video-code
 ** File description:
-** Slice
+** Group
 */
 
 #pragma once
 
-class Slice
+#include <nlohmann/json.hpp>
+
+#include "input/concrete/ABCConcreteInput.hpp"
+
+using json = nlohmann::json;
+
+class Group final : public ABCConcreteInput
 {
 public:
 
-    Slice() = default;
-    virtual ~Slice() = 0;
-
-    ///< Deep copy of `this`
-    IInput* copy() = 0;
-
-    ///< Iteration
-    virtual std::vector<cv::Mat>::iterator begin() = 0;
-    virtual std::vector<cv::Mat>::iterator end() = 0;
-
-    ///< Size
-    virtual size_t size() = 0;
-
-protected:
-private:
+    Group(const std::vector<std::shared_ptr<IInput>>& inputs, const json::object_t& args);
+    ~Group() = default;
 };

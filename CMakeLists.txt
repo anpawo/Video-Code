@@ -96,8 +96,9 @@ set(SOURCES
     src/input/concrete/shape/Rectangle.cpp
 
     src/input/composite/Slice.cpp
+    src/input/composite/Group.cpp
     
-    src/transformation/position/translate.cpp
+    src/transformation/position/setPosition.cpp
     src/transformation/position/move.cpp
     
     src/transformation/color/fade.cpp

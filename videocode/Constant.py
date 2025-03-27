@@ -9,19 +9,20 @@ from typing import Annotated, Any, Literal, TypeVar, Union
 # unsigned int
 uint = Annotated[int, "unsigned"]
 
-# sides
+# sides and align
 type side = Literal["left", "right", "up", "down"]
+type align = Literal["left", "right", "up", "down", "center"]
 
-ALL: list[side] = []
-LEFT: list[side] = ["left"]
-RIGHT: list[side] = ["right"]
-UP: list[side] = ["up"]
-DOWN: list[side] = ["down"]
+CENTER: align = "center"
+LEFT: side | align = "left"
+RIGHT: side | align = "right"
+UP: side | align = "up"
+DOWN: side | align = "down"
 
-UL = UP + LEFT
-UR = UP + RIGHT
-DL = DOWN + LEFT
-DR = DOWN + RIGHT
+UL = [UP, LEFT]
+UR = [UP, RIGHT]
+DL = [DOWN, LEFT]
+DR = [DOWN, RIGHT]
 
 
 # index
