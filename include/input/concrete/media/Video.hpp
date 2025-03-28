@@ -13,6 +13,6 @@ class Video final : public ABCConcreteInput
 {
 public:
 
-    Video(const std::string& inputName);
+    Video(json::object_t&& args);
     ~Video() = default;
 };

@@ -6,7 +6,6 @@
 */
 
 #include "transformation/transformation.hpp"
-#include "vm/Register.hpp"
 
 void transformation::repeat(IterableInput input, const json::object_t& args)
 {

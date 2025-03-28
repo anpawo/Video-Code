@@ -25,15 +25,17 @@ static void line(cv::Mat &bg, const size_t x, const size_t y, const size_t w, co
     }
 }
 
-Rectangle::Rectangle(const json::object_t &args, int framerate)
+Rectangle::Rectangle(json::object_t &&args)
+    : ABCConcreteInput(std::move(args))
 {
-    size_t w = args.at("width");
-    size_t h = args.at("height");
-    size_t t = args.at("thickness");
-    const std::vector<int> &color = args.at("color");
-    size_t r = args.at("cornerRadius");
-    bool filled = args.at("filled");
-    float duration = args.at("duration");
+    size_t w = _args.at("width");
+    size_t h = _args.at("height");
+    size_t t = _args.at("thickness");
+    int framerate = _args.at("framerate");
+    const std::vector<int> &color = _args.at("color");
+    size_t r = _args.at("cornerRadius");
+    bool filled = _args.at("filled");
+    float duration = _args.at("duration");
     const cv::Vec4b bgra = cv::Scalar(color[2], color[1], color[0], color[3]);
     cv::LineTypes lineType = cv::LINE_AA;
 

@@ -12,7 +12,11 @@
 #include <utility>
 
 #include "input/IInput.hpp"
-#include "utils/Debug.hpp"
+
+ABCConcreteInput::ABCConcreteInput(json::object_t&& args)
+    : _args(std::move(args))
+{
+}
 
 ABCConcreteInput::ABCConcreteInput(std::vector<Frame>&& frames)
     : _frames(std::move(frames))
@@ -21,9 +25,9 @@ ABCConcreteInput::ABCConcreteInput(std::vector<Frame>&& frames)
 
 IInput* ABCConcreteInput::copy()
 {
-    ABCConcreteInput* cp = new ABCConcreteInput();
+    json::object_t args = _args;
+    ABCConcreteInput* cp = new ABCConcreteInput(std::move(args));
 
-    VC_LOG_DEBUG("fully cloned")
     for (const Frame& frame : _frames) {
         cp->_frames.push_back(frame.clone());
     }

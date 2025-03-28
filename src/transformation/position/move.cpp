@@ -11,8 +11,8 @@ void transformation::move(IterableInput input, const json::object_t& args)
 {
     const int dstX = args.at("x");
     const int dstY = args.at("y");
-    const int srcX = input.get()->begin()->_meta.x;
-    const int srcY = input.get()->begin()->_meta.y;
+    const int srcX = input.get()->begin()->meta.position.x;
+    const int srcY = input.get()->begin()->meta.position.y;
     const int nbFrames = input._nbFrames;
 
     if (nbFrames == 0) {
@@ -24,8 +24,8 @@ void transformation::move(IterableInput input, const json::object_t& args)
 
     int index = 1;
     for (auto& [_, meta] : input) {
-        meta.x += velX * index;
-        meta.y += velY * index;
+        meta.position.x += velX * index;
+        meta.position.y += velY * index;
         index += 1;
     }
 }

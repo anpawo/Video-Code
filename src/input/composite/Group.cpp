@@ -13,18 +13,18 @@
 
 static void overlayFrame(cv::Mat &background, const Frame &frame)
 {
-    const auto &meta = frame._meta;
-    const auto &overlay = frame._mat;
+    const auto &meta = frame.meta;
+    const auto &overlay = frame.mat;
 
     // Calculate the source rectangle
-    int srcX = std::max(0, -meta.x);
-    int srcY = std::max(0, -meta.y);
+    int srcX = std::max(0, -meta.position.x);
+    int srcY = std::max(0, -meta.position.y);
     int srcW = std::min(overlay.cols - srcX, background.cols);
     int srcH = std::min(overlay.rows - srcY, background.rows);
 
     // Calculate the destination rectangle
-    int dstX = std::max(0, meta.x);
-    int dstY = std::max(0, meta.y);
+    int dstX = std::max(0, meta.position.x);
+    int dstY = std::max(0, meta.position.y);
     int dstW = srcW;
     int dstH = srcH;
 
@@ -64,9 +64,10 @@ static void overlayFrame(cv::Mat &background, const Frame &frame)
     }
 }
 
-Group::Group(const std::vector<std::shared_ptr<IInput>> &inputs, const json::object_t &args)
+Group::Group(const std::vector<std::shared_ptr<IInput>> &inputs, json::object_t &&args)
+    : ABCConcreteInput(std::move(args))
 {
-    const std::vector<size_t> &composition = args.at("inputs");
+    const std::vector<size_t> &composition = _args.at("inputs");
     std::vector<std::pair<std::vector<Frame>::iterator, std::vector<Frame>::iterator>> iterators;
 
     for (auto i : composition) {

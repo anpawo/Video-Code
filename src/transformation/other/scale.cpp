@@ -5,6 +5,7 @@
 ** scale
 */
 
+#include "opencv2/imgproc.hpp"
 #include "transformation/transformation.hpp"
 
 void transformation::scale(IterableInput input, const json::object_t &args)
@@ -24,11 +25,11 @@ void transformation::scale(IterableInput input, const json::object_t &args)
     float offsetY = 0;
 
     if (isCentered) {
-        const int srcX = input.get()->begin()->_meta.x;
-        const int srcY = input.get()->begin()->_meta.y;
+        const int srcX = input.get()->begin()->meta.position.x;
+        const int srcY = input.get()->begin()->meta.position.y;
 
-        const float centerX = srcX + (input.get()->begin()->_mat.cols / 2);
-        const float centerY = srcY + (input.get()->begin()->_mat.rows / 2);
+        const float centerX = srcX + (input.get()->begin()->mat.cols / 2.0);
+        const float centerY = srcY + (input.get()->begin()->mat.rows / 2.0);
 
         const float moveX = startFactor <= endFactor ? (srcX - centerX) : (centerX - srcX);
         const float moveY = startFactor <= endFactor ? (srcY - centerY) : (centerY - srcY);
@@ -47,8 +48,8 @@ void transformation::scale(IterableInput input, const json::object_t &args)
         scaleAcc += scaleIncr;
         cv::resize(frame, frame, cv::Size(), scaleAcc, scaleAcc);
         if (isCentered) {
-            meta.x += velX * index - offsetX;
-            meta.y += velY * index - offsetY;
+            meta.position.x += velX * index - offsetX;
+            meta.position.y += velY * index - offsetY;
         }
         index += 1;
     }

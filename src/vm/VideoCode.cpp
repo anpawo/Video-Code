@@ -38,6 +38,7 @@
 #include "utils/Exception.hpp"
 #include "utils/Map.hpp"
 #include "vm/AppWindow.hpp"
+#include "vm/Factory.hpp"
 
 VideoCode::VideoCode(int argc, char **argv, int width, int height, std::string sourceFile, bool generate, std::string outputFile)
     : _width(width)
@@ -61,7 +62,7 @@ void VideoCode::reloadSourceFile()
 {
     ///< TODO: add a cache
     _frames.clear();
-    _register.clear();
+    _inputs.clear();
     _keptInputs.clear();
 
     std::string serializedScene;
@@ -95,15 +96,16 @@ void VideoCode::executeStack()
 
         if (i["action"] == "Create") {
             ///< {"action": 'Create', "type": Image, **kwargs}
-            _register.newInput(i["type"], i);
+            i["framerate"] = _framerate;
+            _inputs.push_back(Factory::create(i["type"], i, _inputs));
         }
         else if (i["action"] == "Add") {
             ///< {"action": 'Add', "input": 0}
-            addFrames(_register[i["input"]]);
+            addFrames(_inputs[i["input"]]);
         }
         else if (i["action"] == "Apply") {
             ///< {"action": 'Apply', "input": 0, "transformation": 'overlay', args: {"fg": 1}}
-            transformation::map.at(i["transformation"])(IterableInput(_register[i["input"]], i["startTime"], i["endTime"], _framerate), i["args"]);
+            transformation::map.at(i["transformation"])(IterableInput(_inputs[i["input"]], i["startTime"], i["endTime"], _framerate), i["args"]);
         }
         else if (i["action"] == "Wait") {
             for (size_t n = 0; n < i["n"]; n++) {
@@ -201,18 +203,18 @@ void VideoCode::addFrames(const std::shared_ptr<IInput> frames)
 
 static void overlayKeptInput(cv::Mat &background, const Frame &frame)
 {
-    const auto &meta = frame._meta;
-    const auto &overlay = frame._mat;
+    const auto &meta = frame.meta;
+    const auto &overlay = frame.mat;
 
     // Calculate the source rectangle
-    int srcX = std::max(0, -meta.x);
-    int srcY = std::max(0, -meta.y);
+    int srcX = std::max(0, -meta.position.x);
+    int srcY = std::max(0, -meta.position.y);
     int srcW = std::min(overlay.cols - srcX, background.cols);
     int srcH = std::min(overlay.rows - srcY, background.rows);
 
     // Calculate the destination rectangle
-    int dstX = std::max(0, meta.x);
-    int dstY = std::max(0, meta.y);
+    int dstX = std::max(0, meta.position.x);
+    int dstY = std::max(0, meta.position.y);
     int dstW = srcW;
     int dstH = srcH;
 
@@ -257,7 +259,7 @@ void VideoCode::addFrame(const Frame &frame)
     cv::Mat finalFrame = _defaultBlackFrame.clone();
 
     for (const auto &i : _keptInputs) {
-        overlayKeptInput(finalFrame, _register[i]->back());
+        overlayKeptInput(finalFrame, _inputs[i]->back());
     }
     overlayKeptInput(finalFrame, frame);
 

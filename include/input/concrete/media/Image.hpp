@@ -13,6 +13,6 @@ class Image final : public ABCConcreteInput
 {
 public:
 
-    Image(const std::string& inputName);
+    Image(json::object_t &&args);
     ~Image() = default;
 };

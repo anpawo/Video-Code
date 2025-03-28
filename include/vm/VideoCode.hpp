@@ -23,7 +23,7 @@
 #include "qlabel.h"
 #include "qnamespace.h"
 #include "vm/AppWindow.hpp"
-#include "vm/Register.hpp"
+#include "vm/Factory.hpp"
 
 #define bindCmd(x) ([this]() { this->x(); })
 
@@ -116,8 +116,8 @@ private:
     ///< Timeline running
     bool _running{true};
 
-    ///< Register handling the Inputs
-    Register _register{};
+    ///< Currently used `Inputs`
+    std::vector<std::shared_ptr<IInput>> _inputs{};
 
     ///< Stack containing the transformations to apply to the Inputs
     json::array_t _stack{};

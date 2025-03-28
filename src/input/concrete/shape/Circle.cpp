@@ -13,13 +13,15 @@
 #include "opencv2/core/types.hpp"
 #include "opencv2/imgproc.hpp"
 
-Circle::Circle(const json::object_t &args, int framerate)
+Circle::Circle(json::object_t &&args)
+    : ABCConcreteInput(std::move(args))
 {
-    int radius = args.at("radius");
-    int thickness = args.at("thickness");
-    const std::vector<int> &color = args.at("color");
-    float duration = args.at("duration");
-    bool filled = args.at("filled");
+    int framerate = _args.at("framerate");
+    int radius = _args.at("radius");
+    int thickness = _args.at("thickness");
+    const std::vector<int> &color = _args.at("color");
+    float duration = _args.at("duration");
+    bool filled = _args.at("filled");
 
     if (thickness == 0) {
         thickness = 1;

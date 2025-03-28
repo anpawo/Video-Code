@@ -10,7 +10,6 @@
 #include <nlohmann/json.hpp>
 
 #include "input/Iterable.hpp"
-#include "vm/Register.hpp"
 
 using json = nlohmann::json;
 

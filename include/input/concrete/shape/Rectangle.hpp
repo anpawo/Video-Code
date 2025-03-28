@@ -18,7 +18,7 @@ class Rectangle final : public ABCConcreteInput
 {
 public:
 
-    Rectangle(const json::object_t &args, int framerate);
+    Rectangle(json::object_t &&args);
     ~Rectangle() = default;
 
 private:

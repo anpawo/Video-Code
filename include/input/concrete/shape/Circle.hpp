@@ -18,7 +18,7 @@ class Circle final : public ABCConcreteInput
 {
 public:
 
-    Circle(const json::object_t &args, int framerate);
+    Circle(json::object_t &&args);
     ~Circle() = default;
 
 private:

@@ -17,6 +17,6 @@ class Group final : public ABCConcreteInput
 {
 public:
 
-    Group(const std::vector<std::shared_ptr<IInput>>& inputs, const json::object_t& args);
+    Group(const std::vector<std::shared_ptr<IInput>>& inputs, json::object_t&& args);
     ~Group() = default;
 };

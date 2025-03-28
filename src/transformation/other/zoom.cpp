@@ -5,12 +5,13 @@
 ** zoom
 */
 
+#include "opencv2/imgproc.hpp"
 #include "transformation/transformation.hpp"
 
 void transformation::zoom(IterableInput input, const json::object_t &args)
 {
-    const int x = args.at("x").is_number_integer() ? args.at("x").get<int>() : args.at("x").get<float>() * input.get()->begin()->_mat.cols;
-    const int y = args.at("y").is_number_integer() ? args.at("y").get<int>() : args.at("y").get<float>() * input.get()->begin()->_mat.rows;
+    const int x = args.at("x").is_number_integer() ? args.at("x").get<int>() : args.at("x").get<float>() * input.get()->begin()->mat.cols;
+    const int y = args.at("y").is_number_integer() ? args.at("y").get<int>() : args.at("y").get<float>() * input.get()->begin()->mat.rows;
     const cv::Point2f center(x, y);
 
     const float startFactor = args.at("factor")[0];

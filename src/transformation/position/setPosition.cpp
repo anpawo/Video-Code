@@ -15,18 +15,18 @@ void transformation::setPosition(IterableInput input, const json::object_t& args
     for (auto& [_, meta] : input) {
         if (!x.is_null()) {
             if (x.is_number_integer()) {
-                meta.x = x;
+                meta.position.x = x;
             }
             else {
-                meta.x = 1920 * x.get<float>();
+                meta.position.x = 1920 * x.get<float>();
             }
         }
         if (!y.is_null()) {
             if (y.is_number_integer()) {
-                meta.y = y;
+                meta.position.y = y;
             }
             else {
-                meta.y = 1080 * y.get<float>();
+                meta.position.y = 1080 * y.get<float>();
             }
         }
     }

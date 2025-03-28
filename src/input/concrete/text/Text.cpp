@@ -11,10 +11,19 @@
 
 #include "input/Frame.hpp"
 #include "opencv2/core/types.hpp"
+#include "opencv2/imgproc.hpp"
 
-Text::Text(const std::string &text, double fontSize, int fontThickness, const std::vector<int> &color, float duration, int framerate, int font)
-    : _text(text)
+Text::Text(json::object_t &&args)
+    : ABCConcreteInput(std::move(args))
 {
+    const std::string &text = _args.at("text");
+    double fontSize = _args.at("fontSize");
+    int fontThickness = _args.at("fontThickness");
+    const std::vector<int> &color = _args.at("color");
+    float duration = _args.at("duration");
+    int framerate = _args.at("framerate");
+    int font = cv::FONT_HERSHEY_SIMPLEX;
+
     int baseLine = 0;
 
     // get the size of the text and the baseline (line where letters sit)

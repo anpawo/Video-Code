@@ -79,7 +79,6 @@ set(SOURCES
     src/Main.cpp
     
     src/vm/VideoCode.cpp
-    src/vm/Register.cpp
     src/vm/AppWindow.cpp
     src/vm/AppEvent.cpp
 

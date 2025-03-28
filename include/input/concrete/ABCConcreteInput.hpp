@@ -16,7 +16,7 @@ class ABCConcreteInput : public IInput
 {
 public:
 
-    ABCConcreteInput() = default;
+    ABCConcreteInput(json::object_t&& args);
     ABCConcreteInput(std::vector<Frame>&& frames);
     ~ABCConcreteInput() = default;
 
@@ -36,5 +36,6 @@ public:
 
 protected:
 
+    json::object_t _args;
     std::vector<Frame> _frames{}; ///< Frames of the Input
 };

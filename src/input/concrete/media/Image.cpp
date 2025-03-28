@@ -9,17 +9,22 @@
 
 #include <opencv2/core/mat.hpp>
 #include <opencv2/imgcodecs.hpp>
+#include <utility>
 #include <vector>
 
+#include "input/concrete/ABCConcreteInput.hpp"
 #include "opencv2/imgproc.hpp"
 #include "utils/Exception.hpp"
 
-Image::Image(const std::string& inputName)
+Image::Image(json::object_t&& args)
+    : ABCConcreteInput(std::move(args))
 {
-    cv::Mat image = cv::imread(inputName);
+    std::string filepath = _args.at("filepath");
+
+    cv::Mat image = cv::imread(filepath);
 
     if (image.empty()) {
-        throw Error("Could not load Image: " + inputName);
+        throw Error("Could not load Image: " + filepath);
     }
 
     if (image.channels() != 4) {
@@ -28,6 +33,3 @@ Image::Image(const std::string& inputName)
 
     _frames.push_back(Frame(std::move(image)));
 }
-
-///< After lots of tests, I feel like opencv crashs with the handling of RGBA.
-///< So I'll keep them BGRA until the last second which is the display.

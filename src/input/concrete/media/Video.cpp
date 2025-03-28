@@ -16,12 +16,15 @@
 #include "opencv2/videoio.hpp"
 #include "utils/Exception.hpp"
 
-Video::Video(const std::string &inputName)
+Video::Video(json::object_t&& args)
+    : ABCConcreteInput(std::move(args))
 {
-    cv::VideoCapture video(inputName, cv::CAP_FFMPEG);
+    std::string filepath = _args.at("filepath");
+
+    cv::VideoCapture video(filepath, cv::CAP_FFMPEG);
 
     if (!video.isOpened()) {
-        throw Error("Could not load Video: " + inputName);
+        throw Error("Could not load Video: " + filepath);
     }
 
     while (true) {
