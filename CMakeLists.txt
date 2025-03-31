@@ -83,30 +83,32 @@ set(SOURCES
     src/vm/AppEvent.cpp
 
     src/compiler/generateVideo.cpp
-    
-    src/input/concrete/ABCConcreteInput.cpp
 
-    src/input/concrete/media/Image.cpp
-    src/input/concrete/media/Video.cpp
+    ### Inputs
+    src/input/AInput.cpp
+    # Media
+    src/input/media/Image.cpp
+    src/input/media/Video.cpp
+    # Text
+    src/input/text/Text.cpp
+    # Shape
+    src/input/shape/Circle.cpp
+    src/input/shape/Rectangle.cpp
+    # Composition of Inputs
+    src/input/composition/Group.cpp
 
-    src/input/concrete/text/Text.cpp
-
-    src/input/concrete/shape/Circle.cpp
-    src/input/concrete/shape/Rectangle.cpp
-
-    src/input/composite/Slice.cpp
-    src/input/composite/Group.cpp
-    
+    # ### Transformation
+    # Position
     src/transformation/position/setPosition.cpp
-    src/transformation/position/move.cpp
-    
-    src/transformation/color/fade.cpp
-    src/transformation/color/grayscale.cpp
-    
-    src/transformation/other/overlay.cpp
-    src/transformation/other/repeat.cpp
-    src/transformation/other/zoom.cpp
-    src/transformation/other/scale.cpp
+    # src/transformation/position/move.cpp
+    # Color
+    # src/transformation/color/fade.cpp
+    # src/transformation/color/grayscale.cpp
+    # Other    
+    # src/transformation/other/overlay.cpp
+    # src/transformation/other/repeat.cpp
+    # src/transformation/other/zoom.cpp
+    # src/transformation/other/scale.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

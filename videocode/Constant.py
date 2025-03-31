@@ -46,13 +46,13 @@ sec = float
 
 # default parameters to specify that it's the default value
 class default:
+    """
+    Default value to specify that a value is the default one and should be overriden by a given one.
+    """
+
     def __init__(self, defaultValue: Any) -> None:
         self.defaultValue = defaultValue
 
-
-T = TypeVar("T")
-
-Defaultable = Union[default, T]
 
 # position as a ratio of the w, h or as a pixel x, y
 type position = int | float

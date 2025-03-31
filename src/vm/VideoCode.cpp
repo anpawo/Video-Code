@@ -17,7 +17,6 @@
 #include <qtimer.h>
 #include <unistd.h>
 
-#include <algorithm>
 #include <cstddef>
 #include <cstdlib>
 #include <format>
@@ -60,11 +59,6 @@ VideoCode::VideoCode(int argc, char **argv, int width, int height, std::string s
 
 void VideoCode::reloadSourceFile()
 {
-    ///< TODO: add a cache
-    _frames.clear();
-    _inputs.clear();
-    _keptInputs.clear();
-
     std::string serializedScene;
 
     try {
@@ -76,14 +70,10 @@ void VideoCode::reloadSourceFile()
 
     json::array_t stack = json::parse(serializedScene);
 
-    // for (const auto &i : stack)
-    // {
-    //     std::cout << i << std::endl;
-    // }
-
     _stack = std::move(stack);
 
     executeStack();
+    addNewFrames();
 
     std::cout << _labels << std::endl;
     std::cout << _labelsByVal << std::endl;
@@ -91,21 +81,20 @@ void VideoCode::reloadSourceFile()
 
 void VideoCode::executeStack()
 {
+    _inputs.clear();
+
     for (auto &i : _stack) {
         VC_LOG_DEBUG(i);
 
         if (i["action"] == "Create") {
-            ///< {"action": 'Create', "type": Image, **kwargs}
-            i["framerate"] = _framerate;
             _inputs.push_back(Factory::create(i["type"], i, _inputs));
         }
         else if (i["action"] == "Add") {
-            ///< {"action": 'Add', "input": 0}
-            addFrames(_inputs[i["input"]]);
+            _addedInputs.push_back(i["input"]);
         }
         else if (i["action"] == "Apply") {
-            ///< {"action": 'Apply', "input": 0, "transformation": 'overlay', args: {"fg": 1}}
-            transformation::map.at(i["transformation"])(IterableInput(_inputs[i["input"]], i["startTime"], i["endTime"], _framerate), i["args"]);
+            i["args"]["duration"] = i["args"]["duration"].get<size_t>() * _framerate;
+            transformation::map.at(i["transformation"])(_inputs[i["input"]], i["args"]);
         }
         else if (i["action"] == "Wait") {
             for (size_t n = 0; n < i["n"]; n++) {
@@ -117,12 +106,33 @@ void VideoCode::executeStack()
                 }
             }
         }
-        else if (i["action"] == "Keep") {
-            _keptInputs.push_back(i["input"]);
+        // else if (i["action"] == "Keep") {
+        //     _keptInputs.push_back(i["input"]);
+        // }
+        // else if (i["action"] == "Drop") {
+        //     _keptInputs.erase(std::remove_if(_keptInputs.begin(), _keptInputs.end(), [](int i) { return i == i["input"]; }));
+        // }
+    }
+}
+
+void VideoCode::addNewFrames()
+{
+    _frames.clear();
+
+    bool anyInputChanged = _addedInputs.size();
+
+    while (anyInputChanged) {
+        anyInputChanged = false;
+
+        cv::Mat frame = _defaultBlackFrame.clone();
+
+        for (auto i : _addedInputs) {
+            _inputs[i]->overlayLastFrame(frame);
+
+            anyInputChanged |= _inputs[i]->hasChanged();
         }
-        else if (i["action"] == "Drop") {
-            _keptInputs.erase(std::remove_if(_keptInputs.begin(), _keptInputs.end(), [](int i) { return i == i["input"]; }));
-        }
+
+        _frames.push_back(std::move(frame));
     }
 }
 
@@ -192,78 +202,6 @@ void VideoCode::removeLabel(const std::string &label)
 {
     _labelsByVal.erase(_labels[label]);
     _labels.erase(label);
-}
-
-void VideoCode::addFrames(const std::shared_ptr<IInput> frames)
-{
-    for (const Frame &f : *frames) {
-        addFrame(f);
-    }
-}
-
-static void overlayKeptInput(cv::Mat &background, const Frame &frame)
-{
-    const auto &meta = frame.meta;
-    const auto &overlay = frame.mat;
-
-    // Calculate the source rectangle
-    int srcX = std::max(0, -meta.position.x);
-    int srcY = std::max(0, -meta.position.y);
-    int srcW = std::min(overlay.cols - srcX, background.cols);
-    int srcH = std::min(overlay.rows - srcY, background.rows);
-
-    // Calculate the destination rectangle
-    int dstX = std::max(0, meta.position.x);
-    int dstY = std::max(0, meta.position.y);
-    int dstW = srcW;
-    int dstH = srcH;
-
-    // Ensure the destination rectangle is within the frame bounds
-    dstW = std::min(dstW, background.cols - dstX);
-    dstH = std::min(dstH, background.rows - dstY);
-
-    // Adjust the source rectangle if the destination rectangle was reduced
-    srcW = dstW;
-    srcH = dstH;
-
-    // Define the source and destination regions
-    cv::Rect src(srcX, srcY, srcW, srcH);
-    cv::Rect dst(dstX, dstY, dstW, dstH);
-
-    // Only copy if we have valid regions
-    if (src.width > 0 && src.height > 0 && dst.width > 0 && dst.height > 0) {
-        for (int y = 0; y < src.height; y++) {
-            for (int x = 0; x < src.width; x++) {
-                const cv::Vec4b &bgPixel = background.at<cv::Vec4b>(y + dst.y, x + dst.x);
-                const cv::Vec4b &ovPixel = overlay.at<cv::Vec4b>(y + src.y, x + src.x);
-
-                const float alphaBg = bgPixel[3] / 255.0f;
-                const float alphaOv = ovPixel[3] / 255.0f;
-
-                cv::Vec4b tmp;
-                for (int i = 0; i < 3; i++) {
-                    tmp[i] = static_cast<uchar>(
-                        (ovPixel[i] * alphaOv + bgPixel[i] * (1.0f - alphaOv))
-                    );
-                }
-                tmp[3] = (alphaBg + alphaOv * (1.0f - alphaBg)) * 255.0f;
-
-                background.at<cv::Vec4b>(y + dst.y, x + dst.x) = tmp;
-            }
-        }
-    }
-}
-
-void VideoCode::addFrame(const Frame &frame)
-{
-    cv::Mat finalFrame = _defaultBlackFrame.clone();
-
-    for (const auto &i : _keptInputs) {
-        overlayKeptInput(finalFrame, _inputs[i]->back());
-    }
-    overlayKeptInput(finalFrame, frame);
-
-    _frames.push_back(finalFrame);
 }
 
 void VideoCode::pause()

@@ -16,5 +16,4 @@ class Transformation:
 
     """
 
-    startTime: sec
-    endTime: sec | None  # None for the last frame included.
+    duration: sec | default

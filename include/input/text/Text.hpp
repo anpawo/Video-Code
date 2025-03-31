@@ -7,9 +7,9 @@
 
 #pragma once
 
-#include "input/concrete/ABCConcreteInput.hpp"
+#include "input/AInput.hpp"
 
-class Text final : public ABCConcreteInput
+class Text final : public AInput
 {
 public:
 

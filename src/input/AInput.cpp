@@ -2,19 +2,58 @@
 ** EPITECH PROJECT, 2025
 ** video-code
 ** File description:
-** Group
+** AInput
 */
 
-#include "input/composite/Group.hpp"
+#include "input/AInput.hpp"
 
-#include <algorithm>
-#include <utility>
-#include <vector>
+#include <cassert>
+#include <memory>
 
-static void overlayFrame(cv::Mat &background, const Frame &frame)
+AInput::AInput(json::object_t&& args)
+    : _args(std::move(args))
 {
-    const auto &meta = frame.meta;
-    const auto &overlay = frame.mat;
+}
+
+void AInput::addTransformation(std::function<void(Frame&)>&& f)
+{
+}
+
+void AInput::generateNextFrame()
+{
+    if (_transformationIndex == _transformations.size()) {
+        _hasChanged = false;
+        return;
+    }
+
+    /// Reset the matrix but keep the metadata
+    _lastFrame->mat = _base->mat.clone();
+
+    for (const auto& t : _transformations[_transformationIndex]) {
+        t(*_lastFrame);
+    }
+
+    _transformationIndex += 1;
+}
+
+const Frame& AInput::getLastFrame()
+{
+    generateNextFrame();
+
+    if (_lastFrame) {
+        return *_lastFrame;
+    }
+    else {
+        return *_base;
+    }
+}
+
+void AInput::overlayLastFrame(cv::Mat& background)
+{
+    const Frame& frame = getLastFrame();
+
+    const auto& meta = frame.meta;
+    const auto& overlay = frame.mat;
 
     // Calculate the source rectangle
     int srcX = std::max(0, -meta.position.x);
@@ -44,8 +83,8 @@ static void overlayFrame(cv::Mat &background, const Frame &frame)
     if (src.width > 0 && src.height > 0 && dst.width > 0 && dst.height > 0) {
         for (int y = 0; y < src.height; y++) {
             for (int x = 0; x < src.width; x++) {
-                const cv::Vec4b &bgPixel = background.at<cv::Vec4b>(y + dst.y, x + dst.x);
-                const cv::Vec4b &ovPixel = overlay.at<cv::Vec4b>(y + src.y, x + src.x);
+                const cv::Vec4b& bgPixel = background.at<cv::Vec4b>(y + dst.y, x + dst.x);
+                const cv::Vec4b& ovPixel = overlay.at<cv::Vec4b>(y + src.y, x + src.x);
 
                 const float alphaBg = bgPixel[3] / 255.0f;
                 const float alphaOv = ovPixel[3] / 255.0f;
@@ -64,38 +103,7 @@ static void overlayFrame(cv::Mat &background, const Frame &frame)
     }
 }
 
-Group::Group(const std::vector<std::shared_ptr<IInput>> &inputs, json::object_t &&args)
-    : ABCConcreteInput(std::move(args))
+bool AInput::hasChanged()
 {
-    const std::vector<size_t> &composition = _args.at("inputs");
-    std::vector<std::pair<std::vector<Frame>::iterator, std::vector<Frame>::iterator>> iterators;
-
-    for (auto i : composition) {
-        iterators.push_back({inputs[i]->begin(), inputs[i]->end()});
-    }
-
-    while (iterators.size()) {
-        cv::Mat mat = cv::Mat(1080, 1920, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0));
-
-        for (auto &it : iterators) {
-            if (it.first == it.second) {
-                continue;
-            }
-
-            overlayFrame(mat, *it.first);
-            it.first++;
-        }
-        _frames.push_back(Frame(std::move(mat)));
-
-        iterators.erase(
-            std::remove_if(
-                iterators.begin(),
-                iterators.end(),
-                [](const std::pair<std::vector<Frame>::iterator, std::vector<Frame>::iterator> &i) {
-                    return i.first == i.second;
-                }
-            ),
-            iterators.end()
-        );
-    }
+    return _hasChanged;
 }

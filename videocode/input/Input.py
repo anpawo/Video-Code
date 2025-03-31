@@ -59,31 +59,30 @@ class Input(ABC):
         )
         return self
 
-    def apply(self, *ts: Transformation, startTime: Defaultable[sec] = default(None), endTime: Defaultable[sec | None] = default(None)) -> Input:  # type: ignore
+    def apply(self, *ts: Transformation, duration: sec | default = default(1)) -> Input:  # type: ignore
         """
-        Applies the `Transformations` `ts` to all the `frames` of `self` between [`startTime`, `endTime`].
+        Applies the `Transformations` `ts` to the `Input` `self`.
+
+        The duration is in seconds, so it will affect `duration * framerate` frames of the video.
         """
         for t in ts:
-            if hasattr(t, "startTime"):
-                startTime = t.startTime
-                del t.startTime
-            elif isinstance(startTime, default):
-                startTime = startTime.defaultValue
+            __duration: sec
 
-            if hasattr(t, "endTime"):
-                endTime = t.endTime
-                del t.endTime
-            elif isinstance(endTime, default):
-                endTime = endTime.defaultValue
+            if hasattr(t, "duration") and isinstance(t.duration, sec):
+                __duration = t.duration
+            elif isinstance(duration, sec):
+                __duration = duration
+            elif hasattr(t, "duration") and isinstance(t.duration, default):
+                __duration = t.duration.defaultValue
+            elif isinstance(duration, default):
+                __duration = duration.defaultValue
 
             Global.stack.append(
                 {
                     "action": "Apply",
                     "input": self.index,
                     "transformation": t.__class__.__name__,
-                    "args": vars(t),
-                    "startTime": startTime,
-                    "endTime": endTime,
+                    "args": vars(t) | {"duration": __duration},
                 }
             )
         return self
@@ -122,55 +121,56 @@ class Input(ABC):
     def setPosition(self, x: int | float | None = None, y: int | float | None = None):
         return self.apply(setPosition(x, y))
 
-    def __getitem__(self, i: int | slice[int | None, int | None, None]) -> Slice:
-        """
-        Creates a `reference` of the `frames` `i`.
 
-        Usefull if you want to apply a `Transformation` to a part of a video.
+#     def __getitem__(self, i: int | slice[int | None, int | None, None]) -> Slice:
+#         """
+#         Creates a `reference` of the `frames` `i`.
 
-        ---
-        ### Example
-        >>> v = video("test.mp4")
-        >>> v[0:20].apply(fadeIn()) # fade in during the first 20 frames.
-        >>> v.add() # adds it to the timeline
+#         Usefull if you want to apply a `Transformation` to a part of a video.
 
-        """
-        if isinstance(i, int):
-            s = slice(i, i + 1)  # stop is excluded
-        else:
-            s = slice(i.start or 0, i.stop or -1)
+#         ---
+#         ### Example
+#         >>> v = video("test.mp4")
+#         >>> v[0:20].apply(fadeIn()) # fade in during the first 20 frames.
+#         >>> v.add() # adds it to the timeline
 
-        # `Slice` of `Slice`
-        if isinstance(self, Slice):
-            start = -1 if s.start == -1 or self.s.start == -1 else self.s.start + s.start
-            stop = -1 if s.stop == -1 else self.s.start + s.stop
-            s = slice(start, stop)
+#         """
+#         if isinstance(i, int):
+#             s = slice(i, i + 1)  # stop is excluded
+#         else:
+#             s = slice(i.start or 0, i.stop or -1)
 
-        temp = Slice(self, s)
-        Global.stack.append(
-            {
-                "action": "Create",
-                "type": "Slice",
-                "input": self.index,
-                "start": s.start,
-                "stop": s.stop,
-            }
-        )
-        return temp
+#         # `Slice` of `Slice`
+#         if isinstance(self, Slice):
+#             start = -1 if s.start == -1 or self.s.start == -1 else self.s.start + s.start
+#             stop = -1 if s.stop == -1 else self.s.start + s.stop
+#             s = slice(start, stop)
+
+#         temp = Slice(self, s)
+#         Global.stack.append(
+#             {
+#                 "action": "Create",
+#                 "type": "Slice",
+#                 "input": self.index,
+#                 "start": s.start,
+#                 "stop": s.stop,
+#             }
+#         )
+#         return temp
 
 
-class Slice(Input):
-    """
-    Sliced `Input`.
+# class Slice(Input):
+#     """
+#     Sliced `Input`.
 
-    This class only exists for subsequent slices.
-    """
+#     This class only exists for subsequent slices.
+#     """
 
-    def __init__(self, i: Input, s: slice) -> None:
-        """
-        The base `Input` is `i`.
+#     def __init__(self, i: Input, s: slice) -> None:
+#         """
+#         The base `Input` is `i`.
 
-        The sliced portion is `s`.
-        """
-        self.i = i
-        self.s = s
+#         The sliced portion is `s`.
+#         """
+#         self.i = i
+#         self.s = s

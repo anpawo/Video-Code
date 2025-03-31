@@ -8,20 +8,15 @@
 #pragma once
 
 #include <nlohmann/json.hpp>
-#include <string>
 
-#include "input/concrete/ABCConcreteInput.hpp"
+#include "input/AInput.hpp"
 
 using json = nlohmann::json;
 
-class Circle final : public ABCConcreteInput
+class Circle final : public AInput
 {
 public:
 
     Circle(json::object_t &&args);
     ~Circle() = default;
-
-private:
-
-    const std::string _text;
 };

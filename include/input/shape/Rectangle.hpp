@@ -8,20 +8,15 @@
 #pragma once
 
 #include <nlohmann/json.hpp>
-#include <string>
 
-#include "input/concrete/ABCConcreteInput.hpp"
+#include "input/AInput.hpp"
 
 using json = nlohmann::json;
 
-class Rectangle final : public ABCConcreteInput
+class Rectangle final : public AInput
 {
 public:
 
     Rectangle(json::object_t &&args);
     ~Rectangle() = default;
-
-private:
-
-    const std::string _text;
 };

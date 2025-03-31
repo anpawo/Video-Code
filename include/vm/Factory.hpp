@@ -14,13 +14,12 @@
 #include <vector>
 
 #include "input/IInput.hpp"
-#include "input/composite/Group.hpp"
-#include "input/composite/Slice.hpp"
-#include "input/concrete/media/Image.hpp"
-#include "input/concrete/media/Video.hpp"
-#include "input/concrete/shape/Circle.hpp"
-#include "input/concrete/shape/Rectangle.hpp"
-#include "input/concrete/text/Text.hpp"
+#include "input/composition/Group.hpp"
+#include "input/media/Image.hpp"
+#include "input/media/Video.hpp"
+#include "input/shape/Circle.hpp"
+#include "input/shape/Rectangle.hpp"
+#include "input/text/Text.hpp"
 
 using json = nlohmann::json;
 
@@ -47,11 +46,11 @@ namespace Factory
     };
 
     const std::map<std::string, std::function<std::shared_ptr<IInput>(std::vector<std::shared_ptr<IInput>> &, json::object_t &&)>> composite{
-        composite(Copy, std::shared_ptr<IInput>(inputs[args.at("input")]->copy())),
+        // composite(Copy, std::shared_ptr<IInput>(inputs[args.at("input")]->copy())),
 
         composite(Group, std::make_shared<Group>(inputs, std::move(args))),
 
-        composite(Slice, std::make_shared<Slice>(inputs[args.at("input")], args.at("start"), args.at("stop"))),
+        // composite(Slice, std::make_shared<Slice>(inputs[args.at("input")], args.at("start"), args.at("stop"))),
     };
 
     ///< Create a new `Input`

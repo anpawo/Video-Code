@@ -58,7 +58,6 @@ struct Transformation
 };
 
 struct Frame
-
 {
     Frame(cv::Mat&& mat)
         : mat(mat) {}
