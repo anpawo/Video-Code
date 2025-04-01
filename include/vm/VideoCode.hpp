@@ -70,6 +70,9 @@ private:
     ///< TODO: frame rate
     const size_t _framerate{24};
 
+    ///< Output File for the generation
+    std::string _outputFile;
+
     ///< Window size
     const int _width;
     const int _height;
@@ -126,7 +129,4 @@ private:
 
     ///< Window to modify the video in real time
     std::unique_ptr<AppWindow> _app{nullptr};
-
-    ///< Output File for the generation
-    std::string _outputFile;
 };

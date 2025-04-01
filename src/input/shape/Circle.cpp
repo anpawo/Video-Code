@@ -29,5 +29,5 @@ Circle::Circle(json::object_t &&args)
 
     cv::circle(mat, cv::Point(radius, radius), radius - thickness / 2 * !filled, cv::Scalar(color[2], color[1], color[0], color[3]), filled ? cv::FILLED : thickness, cv::LINE_AA);
 
-    _base = std::make_unique<Frame>(std::move(mat));
+    setBase(std::move(mat));
 }

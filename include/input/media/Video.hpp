@@ -16,7 +16,7 @@ public:
     Video(json::object_t&& args);
     ~Video() = default;
 
-    void generateNextFrame() final;
+    Frame& generateNextFrame() final;
 
 private:
 

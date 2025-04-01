@@ -21,25 +21,21 @@ public:
     // ///< Deep copy of `_frames`
     // virtual IInput* copy() = 0;
 
-    // ///< Iteration
-    // virtual std::vector<Frame>::iterator begin() = 0;
-    // virtual std::vector<Frame>::iterator end() = 0;
-    // virtual Frame& back() = 0;
-
     // ///< Repeat
     // virtual void repeat(size_t n) = 0;
 
-    // ///< Size
-    // virtual size_t size() = 0;
+    virtual void apply(const std::string& name, const json::object_t& args) = 0;
+
+    virtual void setBase(cv::Mat&& mat) = 0;
 
     ///< Add a transformation
-    virtual void addTransformation(std::function<void(Frame&)>&& f) = 0;
+    virtual void addTransformation(size_t index, std::function<void(Frame&)>&& f) = 0;
 
     ///< Generate next frame
-    virtual void generateNextFrame() = 0;
+    virtual Frame& generateNextFrame() = 0;
 
     ///< Get the last frame generated
-    virtual const Frame& getLastFrame() = 0;
+    virtual Frame& getLastFrame() = 0;
 
     ///< Overlay the last frame generated
     virtual void overlayLastFrame(cv::Mat& background) = 0;

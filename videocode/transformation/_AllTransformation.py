@@ -9,7 +9,7 @@ from videocode.transformation.Transformation import *
 
 # Position Transformations
 from videocode.transformation.position.SetPosition import *
-from videocode.transformation.position.Move import *
+from videocode.transformation.position.MoveTo import *
 
 # Color Transformations
 from videocode.transformation.color.Grayscale import *

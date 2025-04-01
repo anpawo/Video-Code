@@ -7,7 +7,6 @@
 
 #include "input/media/Video.hpp"
 
-#include <memory>
 #include <opencv2/imgcodecs.hpp>
 #include <utility>
 
@@ -43,27 +42,25 @@ Video::Video(json::object_t&& args)
 
         _frames.push_back(std::move(currentFrame));
     }
+
+    setBase(_frames[0].clone());
 }
 
-void Video::generateNextFrame()
+Frame& Video::generateNextFrame()
 {
     bool videoEnded = false;
 
-    if (!_base) {
-        _base = std::make_unique<Frame>(std::move(_frames[0])); // Doesn't handle videos with 0 frame.
+    if (_frameIndex < _frames.size()) {
+        _base = std::move(_frames[_frameIndex]);
         _frameIndex += 1;
     }
     else {
-        if (_frameIndex < _frames.size()) {
-            _frameIndex += 1;
-            _base = std::make_unique<Frame>(std::move(_frames[_frameIndex]));
-        }
-        else {
-            videoEnded = true;
-        }
+        videoEnded = true;
     }
 
     AInput::generateNextFrame();
 
-    _hasChanged = !videoEnded;
+    _hasChanged |= !videoEnded;
+
+    return getLastFrame();
 }

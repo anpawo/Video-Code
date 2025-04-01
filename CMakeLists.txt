@@ -100,7 +100,7 @@ set(SOURCES
     # ### Transformation
     # Position
     src/transformation/position/setPosition.cpp
-    # src/transformation/position/move.cpp
+    src/transformation/position/moveTo.cpp
     # Color
     # src/transformation/color/fade.cpp
     # src/transformation/color/grayscale.cpp

@@ -7,7 +7,6 @@
 
 #include "input/text/Text.hpp"
 
-#include <memory>
 #include <vector>
 
 #include "input/Frame.hpp"
@@ -32,5 +31,5 @@ Text::Text(json::object_t &&args)
 
     cv::putText(mat, text, cv::Point(0, size.height), font, fontSize, cv::Scalar(color[0], color[1], color[2], color[3]), fontThickness, cv::LINE_AA);
 
-    _base = std::make_unique<Frame>(std::move(mat));
+    setBase(std::move(mat));
 }

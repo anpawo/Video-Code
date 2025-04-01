@@ -10,47 +10,62 @@
 #include <cassert>
 #include <memory>
 
+#include "input/IInput.hpp"
+#include "transformation/transformation.hpp"
+
 AInput::AInput(json::object_t&& args)
     : _args(std::move(args))
 {
 }
 
-void AInput::addTransformation(std::function<void(Frame&)>&& f)
+void AInput::apply(const std::string& name, const json::object_t& args)
 {
+    std::shared_ptr<IInput> i(this, [](IInput*) {});
+
+    transformation::map.at(name)(i, args);
 }
 
-void AInput::generateNextFrame()
+void AInput::setBase(cv::Mat&& mat)
+{
+    _base = std::move(mat);
+    _lastFrame = std::make_unique<Frame>(_base.clone());
+}
+
+void AInput::addTransformation(size_t index, std::function<void(Frame&)>&& f)
+{
+    ///< Take into account used stuff
+    while (_transformations.size() <= index) {
+        _transformations.push_back({});
+    }
+    _transformations[index].push_back(f);
+}
+
+Frame& AInput::generateNextFrame()
 {
     if (_transformationIndex == _transformations.size()) {
         _hasChanged = false;
-        return;
+        return getLastFrame();
     }
 
     /// Reset the matrix but keep the metadata
-    _lastFrame->mat = _base->mat.clone();
+    getLastFrame().mat = _base.clone();
 
     for (const auto& t : _transformations[_transformationIndex]) {
-        t(*_lastFrame);
+        t(getLastFrame());
     }
 
     _transformationIndex += 1;
+    return getLastFrame();
 }
 
-const Frame& AInput::getLastFrame()
+Frame& AInput::getLastFrame()
 {
-    generateNextFrame();
-
-    if (_lastFrame) {
-        return *_lastFrame;
-    }
-    else {
-        return *_base;
-    }
+    return *_lastFrame;
 }
 
 void AInput::overlayLastFrame(cv::Mat& background)
 {
-    const Frame& frame = getLastFrame();
+    const Frame& frame = generateNextFrame();
 
     const auto& meta = frame.meta;
     const auto& overlay = frame.mat;

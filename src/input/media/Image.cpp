@@ -29,5 +29,5 @@ Image::Image(json::object_t&& args)
         cv::cvtColor(mat, mat, cv::COLOR_BGR2BGRA);
     }
 
-    _base = std::make_unique<Frame>(std::move(mat));
+    setBase(std::move(mat));
 }

@@ -94,7 +94,9 @@ void VideoCode::executeStack()
         }
         else if (i["action"] == "Apply") {
             i["args"]["duration"] = i["args"]["duration"].get<size_t>() * _framerate;
-            transformation::map.at(i["transformation"])(_inputs[i["input"]], i["args"]);
+            i["args"]["width"] = _width;
+            i["args"]["height"] = _height;
+            _inputs[i["input"]]->apply(i["transformation"], i["args"]);
         }
         else if (i["action"] == "Wait") {
             for (size_t n = 0; n < i["n"]; n++) {
@@ -106,12 +108,6 @@ void VideoCode::executeStack()
                 }
             }
         }
-        // else if (i["action"] == "Keep") {
-        //     _keptInputs.push_back(i["input"]);
-        // }
-        // else if (i["action"] == "Drop") {
-        //     _keptInputs.erase(std::remove_if(_keptInputs.begin(), _keptInputs.end(), [](int i) { return i == i["input"]; }));
-        // }
     }
 }
 

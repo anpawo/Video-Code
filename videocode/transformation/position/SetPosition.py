@@ -20,3 +20,4 @@ class setPosition(Transformation):
     def __init__(self, x: int | float | None = None, y: int | float | None = None) -> None:
         self.x = x
         self.y = y
+        self.duration = 0.0

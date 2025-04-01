@@ -3,7 +3,7 @@
 from videocode.transformation.Transformation import Transformation
 
 
-class move(Transformation):
+class moveTo(Transformation):
     """
     `Moves` an `Input` by `x` `y`, you will arrive at `x` `y` at the last frame.
 

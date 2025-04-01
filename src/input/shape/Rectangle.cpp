@@ -72,5 +72,5 @@ Rectangle::Rectangle(json::object_t &&args)
         }
     }
 
-    _base = std::make_unique<Frame>(std::move(mat));
+    setBase(std::move(mat));
 }

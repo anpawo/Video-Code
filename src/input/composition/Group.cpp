@@ -10,6 +10,7 @@
 #include <utility>
 #include <vector>
 
+#include "transformation/transformation.hpp"
 #include "utils/Exception.hpp"
 
 Group::Group(std::vector<std::shared_ptr<IInput>> &inputs, json::object_t &&args)
@@ -22,7 +23,14 @@ Group::Group(std::vector<std::shared_ptr<IInput>> &inputs, json::object_t &&args
     }
 }
 
-void Group::generateNextFrame()
+void Group::apply(const std::string &name, const json::object_t &args)
+{
+    for (std::shared_ptr<IInput> &i : _inputs) {
+        transformation::map.at(name)(i, args);
+    }
+}
+
+Frame &Group::generateNextFrame()
 {
     throw Error("Group: generateNextFrame: Should never be called.");
 }

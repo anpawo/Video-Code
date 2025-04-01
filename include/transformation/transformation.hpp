@@ -14,7 +14,8 @@
 
 using json = nlohmann::json;
 
-#define transformation(t) void t(std::shared_ptr<IInput> input, const json::object_t &args)
+#define transformation(t) void t(std::shared_ptr<IInput> &input, const json::object_t &args)
+#define bind(n) {#n, n}
 
 namespace transformation
 {
@@ -24,8 +25,8 @@ namespace transformation
     // transformation(fade);
 
     // //< Position
-    // transformation(move);
     transformation(setPosition);
+    transformation(moveTo);
 
     // //< Other
     // transformation(repeat);
@@ -47,8 +48,8 @@ namespace transformation
         // {"grayscale", grayscale},
         // {"fade", fade},
         //< Position
-        {"setPosition", setPosition},
-        // {"move", move},
+        bind(setPosition),
+        bind(moveTo),
         //< Other
         // {"repeat", repeat},
         // {"zoom", zoom},
