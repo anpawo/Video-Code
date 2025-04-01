@@ -20,6 +20,8 @@ public:
     Group(std::vector<std::shared_ptr<IInput>>& inputs, json::object_t&& args);
     ~Group() = default;
 
+    void consumeTransformation() final;
+
     void apply(const std::string& name, const json::object_t& args) final;
 
     Frame& generateNextFrame() final;

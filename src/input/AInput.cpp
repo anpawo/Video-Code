@@ -18,6 +18,15 @@ AInput::AInput(json::object_t&& args)
 {
 }
 
+void AInput::generateTransformators()
+{
+}
+
+void AInput::consumeTransformation()
+{
+    _consumedTransformation = _transformations.size();
+}
+
 void AInput::apply(const std::string& name, const json::object_t& args)
 {
     std::shared_ptr<IInput> i(this, [](IInput*) {});
@@ -34,10 +43,10 @@ void AInput::setBase(cv::Mat&& mat)
 void AInput::addTransformation(size_t index, std::function<void(Frame&)>&& f)
 {
     ///< Take into account used stuff
-    while (_transformations.size() <= index) {
+    while (_transformations.size() <= index + _consumedTransformation) {
         _transformations.push_back({});
     }
-    _transformations[index].push_back(f);
+    _transformations[index + _consumedTransformation].push_back(f);
 }
 
 Frame& AInput::generateNextFrame()
@@ -67,8 +76,10 @@ void AInput::overlayLastFrame(cv::Mat& background)
 {
     const Frame& frame = generateNextFrame();
 
-    const auto& meta = frame.meta;
     const auto& overlay = frame.mat;
+    auto meta = frame.meta;
+    meta.position.x += meta.align.x * overlay.cols;
+    meta.position.y += meta.align.y * overlay.rows;
 
     // Calculate the source rectangle
     int srcX = std::max(0, -meta.position.x);

@@ -6,10 +6,23 @@ from videocode.input.Input import *
 
 class group(Input):
     def __init__(self, *inputs: Input):
-        Global.stack.append(
-            {
-                "action": "Create",
-                "type": "Group",
-                "inputs": [i.index for i in inputs],
-            }
-        )
+        self.inputs: list[Input] = [*inputs]
+
+    def add(self) -> Self:
+        """
+        Appends the `frames` of `self` to the `timeline`.
+        """
+        for i in self.inputs:
+            i.add()
+        return self
+
+    def apply(self, *ts: Transformation, duration: sec | default = default(1)) -> Input:
+        """
+        Applies the `Transformations` `ts` to all the `Inputs` of the `Group`.
+
+        The duration is in seconds, so it will affect `duration * framerate` frames of the video.
+        """
+        for i in self.inputs:
+            for t in ts:
+                i.apply(copy.deepcopy(t), duration=duration)
+        return self

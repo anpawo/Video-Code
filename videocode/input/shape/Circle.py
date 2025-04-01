@@ -10,7 +10,6 @@ class circle(Shape):
         radius: int = 100,
         thickness: int = 10,
         color: RGBA = BLUE,
-        duration: sec = 1,
         filled: bool = False,
     ):
         Global.stack.append(
@@ -20,7 +19,6 @@ class circle(Shape):
                 "radius": radius,
                 "thickness": thickness,
                 "color": color,
-                "duration": duration,
                 "filled": filled,
             }
         )

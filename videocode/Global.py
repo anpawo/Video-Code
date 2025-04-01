@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 
+import copy
 from typing import Any
 from videocode.Constant import *
 
@@ -17,6 +18,9 @@ class Metadata:
 
         # Opacity ?
         # Rotation ?
+
+    def __str__(self) -> str:
+        return f"x={self.x}, y={self.y}"
 
 
 class Global:
@@ -37,6 +41,10 @@ class Global:
     def getIndex() -> int:
         Global.inputCounter += 1
         return Global.inputCounter - 1
+
+    @staticmethod
+    def getDefaultMetadata() -> Metadata:
+        return copy.deepcopy(Global.defaultMetadata)
 
     def __str__(self) -> str:
         return f"Stack={self.stack}"

@@ -11,7 +11,6 @@ class rectangle(Shape):
         height: int = 200,
         thickness: int = 20,
         color: RGBA = BLUE,
-        duration: sec = 1,
         cornerRadius: int = 0,  # 0 <= cornerRadius <= 90
         filled: bool = False,
     ):
@@ -23,7 +22,6 @@ class rectangle(Shape):
                 "height": height,
                 "thickness": thickness,
                 "color": color,
-                "duration": duration,
                 "cornerRadius": cornerRadius,
                 "filled": filled,
             }
@@ -37,8 +35,7 @@ class square:
         size: int = 200,
         thickness: int = 20,
         color: RGBA = BLUE,
-        duration: sec = 1,
         cornerRadius: int = 0,
         filled: bool = False,
     ) -> rectangle:
-        return rectangle(size, size, thickness, color, duration, cornerRadius, filled)
+        return rectangle(size, size, thickness, color, cornerRadius, filled)

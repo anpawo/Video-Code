@@ -21,6 +21,10 @@ public:
     AInput(json::object_t&& args);
     virtual ~AInput() = default;
 
+    void generateTransformators() override;
+
+    void consumeTransformation() override;
+
     void apply(const std::string& name, const json::object_t& args) override;
 
     void setBase(cv::Mat&& mat) override;
@@ -41,6 +45,9 @@ protected:
 
     ///< Frame for the initial Input, before any transformation.
     cv::Mat _base;
+
+    ///< Consumed transformations
+    size_t _consumedTransformation{0};
 
     ///< Index of the transformations affecting the base.
     size_t _transformationIndex{0};

@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
+from abc import ABC
 from videocode.Constant import *
+from videocode.Global import Metadata
 
 
-class Transformation:
+class Transformation(ABC):
     """
     Represents a `Transformation`.
 
@@ -17,3 +19,12 @@ class Transformation:
     """
 
     duration: sec | default
+
+    def modificator(self, i: Metadata):
+        """
+        Modify the `Input` if any of it's metadata should be updated.
+        """
+        ...
+
+    def __str__(self) -> str:
+        return str(vars(self))

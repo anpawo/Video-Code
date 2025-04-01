@@ -23,6 +23,13 @@ Group::Group(std::vector<std::shared_ptr<IInput>> &inputs, json::object_t &&args
     }
 }
 
+void Group::consumeTransformation()
+{
+    for (auto &i : _inputs) {
+        i->consumeTransformation();
+    }
+}
+
 void Group::apply(const std::string &name, const json::object_t &args)
 {
     for (std::shared_ptr<IInput> &i : _inputs) {

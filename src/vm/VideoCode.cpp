@@ -17,6 +17,7 @@
 #include <qtimer.h>
 #include <unistd.h>
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdlib>
 #include <format>
@@ -90,12 +91,13 @@ void VideoCode::executeStack()
             _inputs.push_back(Factory::create(i["type"], i, _inputs));
         }
         else if (i["action"] == "Add") {
-            _addedInputs.push_back(i["input"]);
+            if (std::find(_addedInputs.begin(), _addedInputs.end(), i["input"]) == _addedInputs.end()) {
+                _addedInputs.push_back(i["input"]);
+            }
+            _inputs[i["input"]]->consumeTransformation();
         }
         else if (i["action"] == "Apply") {
             i["args"]["duration"] = i["args"]["duration"].get<size_t>() * _framerate;
-            i["args"]["width"] = _width;
-            i["args"]["height"] = _height;
             _inputs[i["input"]]->apply(i["transformation"], i["args"]);
         }
         else if (i["action"] == "Wait") {
@@ -123,6 +125,8 @@ void VideoCode::addNewFrames()
         cv::Mat frame = _defaultBlackFrame.clone();
 
         for (auto i : _addedInputs) {
+            _inputs[i]->generateTransformators();
+
             _inputs[i]->overlayLastFrame(frame);
 
             anyInputChanged |= _inputs[i]->hasChanged();

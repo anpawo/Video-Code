@@ -6,6 +6,10 @@
 
 from typing import Annotated, Any, Literal, TypeVar, Union
 
+# screen width
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
+
 # unsigned int
 uint = Annotated[int, "unsigned"]
 
