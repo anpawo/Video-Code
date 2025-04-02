@@ -73,6 +73,8 @@ void VideoCode::reloadSourceFile()
 
     _stack = std::move(stack);
 
+    _frames.clear();
+    _inputs.clear();
     executeStack();
     addNewFrames();
 
@@ -82,8 +84,6 @@ void VideoCode::reloadSourceFile()
 
 void VideoCode::executeStack()
 {
-    _inputs.clear();
-
     for (auto &i : _stack) {
         VC_LOG_DEBUG(i);
 
@@ -94,29 +94,28 @@ void VideoCode::executeStack()
             if (std::find(_addedInputs.begin(), _addedInputs.end(), i["input"]) == _addedInputs.end()) {
                 _addedInputs.push_back(i["input"]);
             }
-            _inputs[i["input"]]->consumeTransformation();
+            _inputs[i["input"]]->consumeTransformation(); // maybe should not exist and just be incremented when we apply every transformation
         }
         else if (i["action"] == "Apply") {
             i["args"]["duration"] = i["args"]["duration"].get<size_t>() * _framerate;
             _inputs[i["input"]]->apply(i["transformation"], i["args"]);
         }
         else if (i["action"] == "Wait") {
-            for (size_t n = 0; n < i["n"]; n++) {
-                if (_frames.empty()) {
-                    _frames.push_back(_defaultBlackFrame.clone());
-                }
-                else {
-                    _frames.push_back(_frames.back().clone());
-                }
-            }
+            // addNewFrames();
+            // for (size_t n = i["n"].get<size_t>() * _framerate; n; n--) {
+            //     if (_frames.empty()) {
+            //         _frames.push_back(_defaultBlackFrame.clone());
+            //     }
+            //     else {
+            //         _frames.push_back(_frames.back().clone());
+            //     }
+            // } TODO
         }
     }
 }
 
 void VideoCode::addNewFrames()
 {
-    _frames.clear();
-
     bool anyInputChanged = _addedInputs.size();
 
     while (anyInputChanged) {
@@ -125,8 +124,6 @@ void VideoCode::addNewFrames()
         cv::Mat frame = _defaultBlackFrame.clone();
 
         for (auto i : _addedInputs) {
-            _inputs[i]->generateTransformators();
-
             _inputs[i]->overlayLastFrame(frame);
 
             anyInputChanged |= _inputs[i]->hasChanged();

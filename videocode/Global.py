@@ -53,7 +53,7 @@ class Global:
         return str(self)
 
 
-def wait(n: int = 1) -> None:
+def wait(n: sec = 1) -> None:
     Global.stack.append(
         {
             "action": "Wait",

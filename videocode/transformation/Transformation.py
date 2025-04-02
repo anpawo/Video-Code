@@ -22,7 +22,7 @@ class Transformation(ABC):
 
     def modificator(self, i: Metadata):
         """
-        Modify the `Input` if any of it's metadata should be updated.
+        Modify the `Input`'s `Metadata` if it should be updated.
         """
         ...
 

@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-deprecated -pipe -O2 -D_REENTRANT -DVC_DEBUG_ON -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -DQT_NO_KEYWORDS")
 
-if (DEBUG)
+if(DEBUG)
     message(STATUS "Debug build")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3")
 endif()
@@ -16,7 +16,7 @@ if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
     message(FATAL_ERROR "C++20 requires GCC 13 or higher")
 endif()
 
-if (NOT DEFINED ENV{VCPKG_ROOT})
+if(NOT DEFINED ENV{VCPKG_ROOT})
     message(FATAL_ERROR "VCPKG_ROOT environment variable not set")
 endif()
 
@@ -29,21 +29,22 @@ set(OPENCV_LOG_LEVEL "ERROR")
 set(WITH_FFMPEG "ON")
 
 if(NOT DEFINED VCPKG_TARGET_TRIPLET)
-    if (WIN32)
+    if(WIN32)
         set(VCPKG_TARGET_TRIPLET "x64-windows")
-    elseif (UNIX AND NOT APPLE)
+    elseif(UNIX AND NOT APPLE)
         set(VCPKG_TARGET_TRIPLET "x64-linux")
-    elseif (APPLE)
+    elseif(APPLE)
         set(VCPKG_TARGET_TRIPLET "x64-osx")
     endif()
 endif()
+
 set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CMAKE_SOURCE_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}")
 
-if (NOT DEFINED ENV{Qt6_DIR})
+if(NOT DEFINED ENV{Qt6_DIR})
     set(Qt6_DIR "/usr/include/qt6/6.8.2/gcc_64/lib/cmake/Qt6")
 endif()
 
-if (CI_BUILD)
+if(CI_BUILD)
     message(STATUS "CI_BUILD is defined")
     include(FetchContent)
     FetchContent_Declare(
@@ -62,7 +63,8 @@ endif()
 find_package(OpenCV REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
-if (NOT CI_BUILD)
+
+if(NOT CI_BUILD)
     find_package(nlohmann_json CONFIG REQUIRED)
     set(argparse_DIR "${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/share/argparse")
     find_package(argparse CONFIG REQUIRED)
@@ -77,34 +79,43 @@ include_directories(
 
 set(SOURCES
     src/Main.cpp
-    
+
     src/vm/VideoCode.cpp
     src/vm/AppWindow.cpp
     src/vm/AppEvent.cpp
 
     src/compiler/generateVideo.cpp
 
-    ### Inputs
+    # ## Inputs
     src/input/AInput.cpp
+
     # Media
     src/input/media/Image.cpp
     src/input/media/Video.cpp
+
     # Text
     src/input/text/Text.cpp
+
     # Shape
     src/input/shape/Circle.cpp
     src/input/shape/Rectangle.cpp
+
     # Composition of Inputs
     src/input/composition/Group.cpp
 
     # ### Transformation
+    # Setter
+    src/transformation/setter/setPosition.cpp
+    # src/transformation/setter/setOpacity.cpp
+    # src/transformation/setter/setAlign.cpp
+
     # Position
-    src/transformation/position/setPosition.cpp
     src/transformation/position/moveTo.cpp
+
     # Color
     # src/transformation/color/fade.cpp
     # src/transformation/color/grayscale.cpp
-    # Other    
+    # Other
     # src/transformation/other/overlay.cpp
     # src/transformation/other/repeat.cpp
     # src/transformation/other/zoom.cpp

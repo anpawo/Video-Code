@@ -9,7 +9,7 @@ import copy
 from videocode.transformation.Transformation import Transformation
 from videocode.Global import *
 from videocode.Constant import *
-from videocode.transformation.position.SetPosition import setPosition
+from videocode.transformation.setter.SetPosition import setPosition
 
 
 class Input(ABC):
@@ -106,4 +106,4 @@ class Input(ABC):
         return cp
 
     def setPosition(self, x: int | float | None = None, y: int | float | None = None):
-        return self.apply(setPosition(x, y))
+        return self.apply(setPosition(x, y).enableSetter())

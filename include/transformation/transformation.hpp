@@ -20,39 +20,38 @@ using json = nlohmann::json;
 namespace transformation
 {
 
-    // //< Color
+    ///< Color
     // transformation(grayscale);
     // transformation(fade);
 
-    // //< Position
-    transformation(setPosition);
+    ///< Position
     transformation(moveTo);
 
-    // //< Other
+    ///< Other
     // transformation(repeat);
     // transformation(zoom);
     // transformation(scale);
 
-    /***
-        TODO: transformation(concat);
-        TODO: transformation(merge);
-    ***/
-
     ///< Setter
+    transformation(setPosition);
     /***
         TODO: transformation(setOpacity);
     ***/
 
     static const std::map<std::string, std::function<void(std::shared_ptr<IInput> &input, const json::object_t &args)>> map{
-        //< Color
+        ///< Color
         // {"grayscale", grayscale},
         // {"fade", fade},
-        //< Position
-        bind(setPosition),
+
+        ///< Position
         bind(moveTo),
-        //< Other
+
+        ///< Other
         // {"repeat", repeat},
         // {"zoom", zoom},
         // {"scale", scale},
+
+        ///< Setter
+        bind(setPosition),
     };
 }

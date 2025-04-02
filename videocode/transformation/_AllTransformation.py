@@ -8,7 +8,6 @@
 from videocode.transformation.Transformation import *
 
 # Position Transformations
-from videocode.transformation.position.SetPosition import *
 from videocode.transformation.position.MoveTo import *
 
 # Color Transformations
@@ -22,3 +21,8 @@ from videocode.transformation.other.Overlay import *
 from videocode.transformation.other.Repeat import *
 from videocode.transformation.other.Zoom import *
 from videocode.transformation.other.Scale import *
+
+# Setters
+from videocode.transformation.setter.SetPosition import *
+from videocode.transformation.setter.SetOpacity import *
+from videocode.transformation.setter.SetAlign import *

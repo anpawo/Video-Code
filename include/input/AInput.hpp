@@ -21,8 +21,6 @@ public:
     AInput(json::object_t&& args);
     virtual ~AInput() = default;
 
-    void generateTransformators() override;
-
     void consumeTransformation() override;
 
     void apply(const std::string& name, const json::object_t& args) override;

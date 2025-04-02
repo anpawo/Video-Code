@@ -18,10 +18,6 @@ AInput::AInput(json::object_t&& args)
 {
 }
 
-void AInput::generateTransformators()
-{
-}
-
 void AInput::consumeTransformation()
 {
     _consumedTransformation = _transformations.size();
