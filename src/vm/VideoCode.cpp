@@ -88,28 +88,30 @@ void VideoCode::executeStack()
         VC_LOG_DEBUG(i);
 
         if (i["action"] == "Create") {
-            _inputs.push_back(Factory::create(i["type"], i, _inputs));
+            _inputs.push_back(Factory::create(i["type"], i));
         }
         else if (i["action"] == "Add") {
-            if (std::find(_addedInputs.begin(), _addedInputs.end(), i["input"]) == _addedInputs.end()) {
-                _addedInputs.push_back(i["input"]);
+            for (size_t index : i["input"]) {
+                _inputs[index]->flushTransformation();
+                if (std::find(_addedInputs.begin(), _addedInputs.end(), index) == _addedInputs.end()) {
+                    _addedInputs.push_back(index);
+                }
             }
-            _inputs[i["input"]]->consumeTransformation(); // maybe should not exist and just be incremented when we apply every transformation
         }
         else if (i["action"] == "Apply") {
             i["args"]["duration"] = i["args"]["duration"].get<size_t>() * _framerate;
             _inputs[i["input"]]->apply(i["transformation"], i["args"]);
         }
         else if (i["action"] == "Wait") {
-            // addNewFrames();
-            // for (size_t n = i["n"].get<size_t>() * _framerate; n; n--) {
-            //     if (_frames.empty()) {
-            //         _frames.push_back(_defaultBlackFrame.clone());
-            //     }
-            //     else {
-            //         _frames.push_back(_frames.back().clone());
-            //     }
-            // } TODO
+            addNewFrames();
+            for (size_t n = i["n"].get<size_t>() * _framerate; n; n--) {
+                if (_frames.empty()) {
+                    _frames.push_back(_defaultBlackFrame.clone());
+                }
+                else {
+                    _frames.push_back(_frames.back().clone());
+                }
+            }
         }
     }
 }

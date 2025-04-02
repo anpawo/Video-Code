@@ -12,8 +12,12 @@ class group(Input):
         """
         Appends the `frames` of `self` to the `timeline`.
         """
-        for i in self.inputs:
-            i.add()
+        Global.stack.append(
+            {
+                "action": "Add",
+                "input": [i.index for i in self.inputs],
+            }
+        )
         return self
 
     def apply(self, *ts: Transformation, duration: sec | default = default(1)) -> Input:

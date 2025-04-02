@@ -18,9 +18,9 @@ AInput::AInput(json::object_t&& args)
 {
 }
 
-void AInput::consumeTransformation()
+void AInput::flushTransformation()
 {
-    _consumedTransformation = _transformations.size();
+    _flushedTransformationIndex = _transformations.size();
 }
 
 void AInput::apply(const std::string& name, const json::object_t& args)
@@ -39,10 +39,10 @@ void AInput::setBase(cv::Mat&& mat)
 void AInput::addTransformation(size_t index, std::function<void(Frame&)>&& f)
 {
     ///< Take into account used stuff
-    while (_transformations.size() <= index + _consumedTransformation) {
+    while (_transformations.size() <= index + _flushedTransformationIndex) {
         _transformations.push_back({});
     }
-    _transformations[index + _consumedTransformation].push_back(f);
+    _transformations[index + _flushedTransformationIndex].push_back(f);
 }
 
 Frame& AInput::generateNextFrame()
@@ -50,6 +50,9 @@ Frame& AInput::generateNextFrame()
     if (_transformationIndex == _transformations.size()) {
         _hasChanged = false;
         return getLastFrame();
+    }
+    else {
+        _hasChanged = true;
     }
 
     /// Reset the matrix but keep the metadata

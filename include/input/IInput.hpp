@@ -24,7 +24,7 @@ public:
     // ///< Repeat
     // virtual void repeat(size_t n) = 0;
 
-    virtual void consumeTransformation() = 0;
+    virtual void flushTransformation() = 0;
 
     virtual void apply(const std::string& name, const json::object_t& args) = 0;
 

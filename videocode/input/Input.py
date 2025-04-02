@@ -54,7 +54,7 @@ class Input(ABC):
         Global.stack.append(
             {
                 "action": "Add",
-                "input": self.index,
+                "input": [self.index],
             }
         )
         return self

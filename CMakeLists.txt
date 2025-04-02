@@ -100,9 +100,6 @@ set(SOURCES
     src/input/shape/Circle.cpp
     src/input/shape/Rectangle.cpp
 
-    # Composition of Inputs
-    src/input/composition/Group.cpp
-
     # ### Transformation
     # Setter
     src/transformation/setter/setPosition.cpp
