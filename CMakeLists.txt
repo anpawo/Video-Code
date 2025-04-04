@@ -110,13 +110,11 @@ set(SOURCES
     src/transformation/position/moveTo.cpp
 
     # Color
-    # src/transformation/color/fade.cpp
-    # src/transformation/color/grayscale.cpp
+    src/transformation/color/fade.cpp
+    src/transformation/color/grayscale.cpp
     # Other
-    # src/transformation/other/overlay.cpp
-    # src/transformation/other/repeat.cpp
-    # src/transformation/other/zoom.cpp
-    # src/transformation/other/scale.cpp
+    src/transformation/size/zoom.cpp
+    src/transformation/size/scale.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

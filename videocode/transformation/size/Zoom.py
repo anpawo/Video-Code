@@ -7,18 +7,16 @@ from videocode.Constant import *
 
 class zoom(Transformation):
     """
-    `Zoom` an `Input` not keeping the pixels outside the dimension of the `Input` unlike `Scale`.
+    `Zoom` an `Input` while keeping it's original width and height unlike `Scale`.
     """
 
     def __init__(
         self,
-        factor: float | int | tuple[float, float] = 2,
+        *,
+        factor: float = 2.0,
         x: position = 0.5,
         y: position = 0.5,
-    ) -> None:
-        if isinstance(factor, tuple):
-            self.factor = factor
-        else:
-            self.factor = (factor, factor)
+    ):
+        self.factor = (1.0, factor)
         self.x = x
         self.y = y

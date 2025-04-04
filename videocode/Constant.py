@@ -45,7 +45,7 @@ BLUE: RGBA = (0, 0, 255, 255)
 
 
 # time
-sec = float
+sec = float | int
 
 
 # default parameters to specify that it's the default value
@@ -58,5 +58,10 @@ class default:
         self.defaultValue = defaultValue
 
 
-# position as a ratio of the w, h or as a pixel x, y
 type position = int | float
+"""
+Represents a coordinate position in a 2D space.
+
+- `float`: `relative position` (ratio of window width/height).  
+- `int`: `absolute position` (exact pixel x/y coordinates).  
+"""

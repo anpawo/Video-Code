@@ -66,7 +66,7 @@ class Input(ABC):
         The duration is in seconds, so it will affect `duration * framerate` frames of the video.
         """
         for t in ts:
-            __duration: sec
+            __duration: sec  # type: ignore
 
             if hasattr(t, "duration") and isinstance(t.duration, sec):
                 __duration = t.duration
@@ -107,3 +107,6 @@ class Input(ABC):
 
     def setPosition(self, x: int | float | None = None, y: int | float | None = None):
         return self.apply(setPosition(x, y).enableSetter())
+
+    # def __setattr__(self, name: str, value: Any) -> None:
+    #     return super().__setattr__(name, value)

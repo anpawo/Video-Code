@@ -7,13 +7,11 @@ from videocode.transformation.setter.Setter import Setter
 
 class setPosition(Setter):
     """
-    set the `x` and `y` of an `Input`.
+    set the position `x` and `y` of an `Input`.
 
-    `integer` -> pixel value
-
-    `float`   -> ratio of the width/height of the window
-
-    `None`    -> doesn't change the position
+    - `float`: `relative position` (ratio of window width/height).
+    - `int`: `absolute position` (exact pixel x/y coordinates).
+    - `None` doesn't change the position
 
     This takes action on all frames instantly, there is no delay.
 

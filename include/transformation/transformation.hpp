@@ -21,35 +21,34 @@ namespace transformation
 {
 
     ///< Color
-    // transformation(grayscale);
-    // transformation(fade);
+    transformation(fade);
+    transformation(grayscale);
 
     ///< Position
     transformation(moveTo);
 
     ///< Other
-    // transformation(repeat);
-    // transformation(zoom);
-    // transformation(scale);
+    transformation(zoom);
+    transformation(scale);
 
     ///< Setter
     transformation(setPosition);
     /***
         TODO: transformation(setOpacity);
+        TODO: transformation(setAlign);
     ***/
 
     static const std::map<std::string, std::function<void(std::shared_ptr<IInput> &input, const json::object_t &args)>> map{
         ///< Color
-        // {"grayscale", grayscale},
-        // {"fade", fade},
+        bind(fade),
+        bind(grayscale),
 
         ///< Position
         bind(moveTo),
 
         ///< Other
-        // {"repeat", repeat},
-        // {"zoom", zoom},
-        // {"scale", scale},
+        bind(zoom),
+        bind(scale),
 
         ///< Setter
         bind(setPosition),
