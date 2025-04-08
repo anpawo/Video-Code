@@ -15,7 +15,7 @@ class Setter(Transformation):
     Otherwise, if used through `<Input>.apply(<Setter>())`, they take action on the next frame.
     """
 
-    duration: sec | default
+    duration: sec
 
     isSetter: bool
 
@@ -26,4 +26,5 @@ class Setter(Transformation):
 
     def enableSetter(self) -> Self:
         self.isSetter = True
+        self.duration = 0
         return self

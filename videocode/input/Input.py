@@ -59,23 +59,15 @@ class Input(ABC):
         )
         return self
 
-    def apply(self, *ts: Transformation, duration: sec | default = default(1)) -> Input:  # type: ignore
+    def apply(self, *ts: Transformation, start: sec = default(0), duration: sec = default(1)) -> Input:  # type: ignore
         """
         Applies the `Transformations` `ts` to the `Input` `self`.
 
         The duration is in seconds, so it will affect `duration * framerate` frames of the video.
         """
         for t in ts:
-            __duration: sec  # type: ignore
-
-            if hasattr(t, "duration") and isinstance(t.duration, sec):
-                __duration = t.duration
-            elif isinstance(duration, sec):
-                __duration = duration
-            elif hasattr(t, "duration") and isinstance(t.duration, default):
-                __duration = t.duration.defaultValue
-            elif isinstance(duration, default):
-                __duration = duration.defaultValue
+            __start = getValueByPriority(t, start)
+            __duration = getValueByPriority(t, duration)
 
             t.modificator(self.meta)
 
@@ -84,7 +76,7 @@ class Input(ABC):
                     "action": "Apply",
                     "input": self.index,
                     "transformation": t.__class__.__name__,
-                    "args": vars(t) | {"duration": __duration},
+                    "args": vars(t) | {"start": __start} | {"duration": __duration},
                 }
             )
 

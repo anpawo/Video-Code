@@ -18,7 +18,7 @@ class Transformation(ABC):
 
     """
 
-    duration: sec | default
+    duration: sec
 
     def modificator(self, i: Metadata):
         """

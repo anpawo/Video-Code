@@ -13,13 +13,14 @@ void transformation::scale(std::shared_ptr<IInput>& input, const json::object_t&
     const float startFactor = args.at("factor")[0];
     const float endFactor = args.at("factor")[1];
     const size_t duration = args.at("duration");
+    size_t start = args.at("start");
 
     const float scaleIncr = (endFactor - startFactor) / (duration - 1);
     float scaleAcc = startFactor - scaleIncr;
 
     for (size_t i = 0; i < duration; i++) {
         scaleAcc += scaleIncr;
-        input->addTransformation(i, [scaleAcc](Frame& frame) {
+        input->addTransformation(start + i, [scaleAcc](Frame& frame) {
             cv::resize(frame.mat, frame.mat, cv::Size(), scaleAcc, scaleAcc);
         });
     }

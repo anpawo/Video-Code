@@ -20,7 +20,7 @@ class group(Input):
         )
         return self
 
-    def apply(self, *ts: Transformation, duration: sec | default = default(1)) -> Input:
+    def apply(self, *ts: Transformation, start: sec = default(0), duration: sec = default(1)) -> Input:  # type: ignore
         """
         Applies the `Transformations` `ts` to all the `Inputs` of the `Group`.
 
@@ -28,5 +28,5 @@ class group(Input):
         """
         for i in self.inputs:
             for t in ts:
-                i.apply(copy.deepcopy(t), duration=duration)
+                i.apply(copy.deepcopy(t), start=start, duration=duration)
         return self

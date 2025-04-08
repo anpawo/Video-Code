@@ -1,40 +1,50 @@
 ## Patch Notes
 
 
-<details>
+<details open>
     <summary><code>Inputs</code></summary>
 <br>
 
 - `image`
 - `video`
 
+<br>
+
 - `text`
+
+<br>
 
 - `circle`
 - `rectangle`
 - `square`
 
+<br>
+
+- `group`
+
 </details>
 
 <br>
 
-<details>
+<details open>
     <summary><code>Transformations</code></summary>
 <br>
 
 - `grayscale`
-- `fade`
+- `fadeIn / fadeOut`
 
 <br>
 
-- `translate`
-- `move`
+- `moveTo`
 
 <br>
 
-- `overlay`
-- `repeat`
+- `scale`
 - `zoom`
+
+<br>
+
+- `setPosition`
 
 </details>
 
@@ -44,6 +54,12 @@
     <summary><code>Patchs</code></summary>
 <br>
 
+- `feature`: start and duration of transformation (08/04/25)
+- `rework`: keeping (08/04/25)
+- `feature`: wait -> freeze the screen for the duration (08/04/25)
+- `transformation`: setPosition (08/04/25)
+- `rework`: move -> moveTo (08/04/25)
+- `input`: group (08/04/25)
 - `input`: rectangle (24/03/25)
 - `input`: circle (24/03/25)
 - `transformation`: scale (20/03/25)

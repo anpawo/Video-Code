@@ -100,6 +100,7 @@ void VideoCode::executeStack()
         }
         else if (i["action"] == "Apply") {
             i["args"]["duration"] = i["args"]["duration"].get<size_t>() * _framerate;
+            i["args"]["start"] = i["args"]["start"].get<size_t>() * _framerate;
             _inputs[i["input"]]->apply(i["transformation"], i["args"]);
         }
         else if (i["action"] == "Wait") {

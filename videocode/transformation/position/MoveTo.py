@@ -7,9 +7,15 @@ from videocode.transformation.Transformation import Transformation
 
 class moveTo(Transformation):
     """
-    `Moves` an `Input` to `x` `y`, you will arrive at `x` `y` at the last frame.
+    move an `Input` to the position `x` and `y`.
 
-    The position of the `Input` changes over time.
+    - `float`: `relative position` (ratio of window width/height).
+    - `int`: `absolute position` (exact pixel x/y coordinates).
+    - `None` doesn't change the position
+
+    The movement takes action over the duration of the effect.
+
+    For an instantaneous movement, see `setPosition`.
     """
 
     def __init__(self, x: int | float | None = None, y: int | float | None = None) -> None:

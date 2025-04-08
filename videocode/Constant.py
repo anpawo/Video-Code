@@ -45,7 +45,7 @@ BLUE: RGBA = (0, 0, 255, 255)
 
 
 # time
-sec = float | int
+sec = Union[float, int]
 
 
 # default parameters to specify that it's the default value
@@ -56,6 +56,17 @@ class default:
 
     def __init__(self, defaultValue: Any) -> None:
         self.defaultValue = defaultValue
+
+
+def getValueByPriority(t: Any, duration: Any) -> sec:  # type: ignore
+    if hasattr(t, "duration") and isinstance(t.duration, sec):
+        return t.duration
+    elif isinstance(duration, sec):
+        return duration
+    elif hasattr(t, "duration") and isinstance(t.duration, default):
+        return t.duration.defaultValue
+    elif isinstance(duration, default):
+        return duration.defaultValue
 
 
 type position = int | float

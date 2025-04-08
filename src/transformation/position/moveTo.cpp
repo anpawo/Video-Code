@@ -14,6 +14,7 @@ void transformation::moveTo(std::shared_ptr<IInput>& input, const json::object_t
     json dstX = args.at("dstX");
     json dstY = args.at("dstY");
     size_t duration = args.at("duration");
+    size_t start = args.at("start");
 
     if (duration == 0) {
         return;
@@ -28,7 +29,7 @@ void transformation::moveTo(std::shared_ptr<IInput>& input, const json::object_t
     for (size_t i = 1; i < duration; i++) {
         currX += velX;
         currY += velY;
-        input->addTransformation(i, [currX, currY](Frame& f) {
+        input->addTransformation(start + i, [currX, currY](Frame& f) {
             f.meta.position.x = currX;
             f.meta.position.y = currY;
         });

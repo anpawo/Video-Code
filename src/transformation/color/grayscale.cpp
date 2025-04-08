@@ -12,9 +12,10 @@
 void transformation::grayscale(std::shared_ptr<IInput>& input, [[maybe_unused]] const json::object_t& args)
 {
     size_t duration = args.at("duration");
+    size_t start = args.at("start");
 
     for (size_t i = 0; i < duration; i++) {
-        input->addTransformation(i, [](Frame& frame) {
+        input->addTransformation(start + i, [](Frame& frame) {
             for (int y = 0; y < frame.mat.rows; y++) {
                 for (int x = 0; x < frame.mat.cols; x++) {
                     cv::Vec4b& pixel = frame.mat.at<cv::Vec4b>(y, x);
