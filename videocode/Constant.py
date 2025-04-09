@@ -6,22 +6,27 @@
 
 from typing import Annotated, Any, Literal, TypeVar, Union
 
+# screen width
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
+
 # unsigned int
 uint = Annotated[int, "unsigned"]
 
-# sides
+# sides and align
 type side = Literal["left", "right", "up", "down"]
+type align = Literal["left", "right", "up", "down", "center"]
 
-ALL: list[side] = []
-LEFT: list[side] = ["left"]
-RIGHT: list[side] = ["right"]
-UP: list[side] = ["up"]
-DOWN: list[side] = ["down"]
+CENTER: align = "center"
+LEFT: side | align = "left"
+RIGHT: side | align = "right"
+UP: side | align = "up"
+DOWN: side | align = "down"
 
-UL = UP + LEFT
-UR = UP + RIGHT
-DL = DOWN + LEFT
-DR = DOWN + RIGHT
+UL = [UP, LEFT]
+UR = [UP, RIGHT]
+DL = [DOWN, LEFT]
+DR = [DOWN, RIGHT]
 
 
 # index
@@ -40,18 +45,34 @@ BLUE: RGBA = (0, 0, 255, 255)
 
 
 # time
-sec = float
+sec = Union[float, int]
 
 
 # default parameters to specify that it's the default value
 class default:
+    """
+    Default value to specify that a value is the default one and should be overriden by a given one.
+    """
+
     def __init__(self, defaultValue: Any) -> None:
         self.defaultValue = defaultValue
 
 
-T = TypeVar("T")
+def getValueByPriority(t: Any, duration: Any) -> sec:  # type: ignore
+    if hasattr(t, "duration") and isinstance(t.duration, sec):
+        return t.duration
+    elif isinstance(duration, sec):
+        return duration
+    elif hasattr(t, "duration") and isinstance(t.duration, default):
+        return t.duration.defaultValue
+    elif isinstance(duration, default):
+        return duration.defaultValue
 
-Defaultable = Union[default, T]
 
-# position as a ratio of the w, h or as a pixel x, y
 type position = int | float
+"""
+Represents a coordinate position in a 2D space.
+
+- `float`: `relative position` (ratio of window width/height).  
+- `int`: `absolute position` (exact pixel x/y coordinates).  
+"""

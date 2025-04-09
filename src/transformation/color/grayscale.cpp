@@ -9,15 +9,20 @@
 
 #include "transformation/transformation.hpp"
 
-void transformation::grayscale(IterableInput input, [[maybe_unused]] const json::object_t &args)
+void transformation::grayscale(std::shared_ptr<IInput>& input, [[maybe_unused]] const json::object_t& args)
 {
-    for (auto &[frame, _] : input) {
-        for (int y = 0; y < frame.rows; y++) {
-            for (int x = 0; x < frame.cols; x++) {
-                cv::Vec4b &pixel = frame.at<cv::Vec4b>(y, x);
-                uchar gray_value = static_cast<uchar>(0.299 * pixel[2] + 0.587 * pixel[1] + 0.114 * pixel[0]);
-                pixel = cv::Vec4b(gray_value, gray_value, gray_value, pixel[3]);
+    size_t duration = args.at("duration");
+    size_t start = args.at("start");
+
+    for (size_t i = 0; i < duration; i++) {
+        input->addTransformation(start + i, [](Frame& frame) {
+            for (int y = 0; y < frame.mat.rows; y++) {
+                for (int x = 0; x < frame.mat.cols; x++) {
+                    cv::Vec4b& pixel = frame.mat.at<cv::Vec4b>(y, x);
+                    uchar gray_value = static_cast<uchar>(0.299 * pixel[2] + 0.587 * pixel[1] + 0.114 * pixel[0]);
+                    pixel = cv::Vec4b(gray_value, gray_value, gray_value, pixel[3]);
+                }
             }
-        }
+        });
     }
 }

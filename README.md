@@ -18,9 +18,26 @@ from videocode.VideoCode import *
 x = 700
 y = 50
 
-square(filled=True, cornerRadius=30, thickness=20).apply(translate(x, y + 175)).add().keep()
-circle(filled=True, color=RED).apply(translate(x, y + 500)).add().keep()
-rectangle(cornerRadius=0, thickness=8, color=GREEN).apply(translate(x + 300, y + 300)).add().keep()
+g = (
+    group(
+        # image("assets/icon.png").setPosition(0.5, 0.5),
+        # video("assets/v.mp4").setPosition(0.5, 0.5),
+        square(filled=True, cornerRadius=30, thickness=20).setPosition(x, y + 200),
+        circle(filled=True, color=RED).setPosition(x, y + 500),
+        rectangle(cornerRadius=0, thickness=8, color=GREEN).setPosition(x + 400, y + 350),
+    )
+    .apply(fadeIn())
+    .add()
+    .apply(
+        moveTo(
+            0.5,
+            0.5,
+        ),
+    )
+    .add()
+)
+
+g.apply(scale(), start=2, duration=3).add()
 ```
 
 <img src="docs/readme/example.gif" style="width: 50%;">
@@ -28,9 +45,11 @@ rectangle(cornerRadius=0, thickness=8, color=GREEN).apply(translate(x + 300, y +
 ## Getting Started
 To create a video with Video-Code, you need to write some simple code in Python.
 
-To create a video with Video-Code, you need to write some simple code in Python. The flow of the video comes from the **Inputs** that you first import or create, then modify with **Transformations**, and finally add to the **timeline**.
+The flow of the Video comes from the __Inputs__ that you, first import or create, then modify with __Transformations__ and finally add to the __timeline__.
 
-For more detailed usage instructions, refer to the [user documentation](docs/user/user.md).
+To import or create an __Input__, you need to create a __video__, __image__ or a __text__ instance (soon shapes).<br>
+To modify it, you need to use __Transformations__ like __translate__ or __fade__.<br>
+To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ function.
 
 ### Installation
 
@@ -38,43 +57,51 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 
 ## Patch Notes
 
-To install the project, checkout the [documentation](docs/user/user.md#installation).
 
-## Patch Notes
-
-<details>
+<details open>
     <summary><code>Inputs</code></summary>
 <br>
 
 - `image`
 - `video`
 
+<br>
+
 - `text`
+
+<br>
 
 - `circle`
 - `rectangle`
 - `square`
 
+<br>
+
+- `group`
+
 </details>
 
 <br>
 
-<details>
+<details open>
     <summary><code>Transformations</code></summary>
 <br>
 
 - `grayscale`
-- `fade`
+- `fadeIn / fadeOut`
 
 <br>
 
-- `translate`
-- `move`
+- `moveTo`
 
 <br>
 
-- `overlay`
-- `repeat`
+- `scale`
+- `zoom`
+
+<br>
+
+- `setPosition`
 
 </details>
 
@@ -84,6 +111,12 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
     <summary><code>Patchs</code></summary>
 <br>
 
+- `feature`: start and duration of transformation (08/04/25)
+- `rework`: keeping (08/04/25)
+- `feature`: wait -> freeze the screen for the duration (08/04/25)
+- `transformation`: setPosition (08/04/25)
+- `rework`: move -> moveTo (08/04/25)
+- `input`: group (08/04/25)
 - `input`: rectangle (24/03/25)
 - `input`: circle (24/03/25)
 - `transformation`: scale (20/03/25)
@@ -98,3 +131,4 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 - `transformation`: move (02/03/25)
 
 </details>
+

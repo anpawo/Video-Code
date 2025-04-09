@@ -23,7 +23,7 @@
 #include "qlabel.h"
 #include "qnamespace.h"
 #include "vm/AppWindow.hpp"
-#include "vm/Register.hpp"
+#include "vm/Factory.hpp"
 
 #define bindCmd(x) ([this]() { this->x(); })
 
@@ -50,10 +50,6 @@ public:
     ///< Remove a label
     void removeLabel(const std::string &index);
 
-    ///< Add a frame to the timeline
-    void addFrame(const Frame &frame);
-    void addFrames(const std::shared_ptr<IInput> input);
-
     ///< Events >///
     void pause();
     void stop();
@@ -66,10 +62,16 @@ public:
     ///< Execute the instructions in the stack
     void executeStack();
 
+    ///< Update the frames by displaying the newly generated Inputs
+    void addNewFrames();
+
 private:
 
     ///< TODO: frame rate
     const size_t _framerate{24};
+
+    ///< Output File for the generation
+    std::string _outputFile;
 
     ///< Window size
     const int _width;
@@ -116,18 +118,15 @@ private:
     ///< Timeline running
     bool _running{true};
 
-    ///< Register handling the Inputs
-    Register _register{};
+    ///< Inputs created
+    std::vector<std::shared_ptr<IInput>> _inputs{};
+
+    ///< Inputs that shoud be showed
+    std::vector<size_t> _addedInputs{};
 
     ///< Stack containing the transformations to apply to the Inputs
     json::array_t _stack{};
 
     ///< Window to modify the video in real time
     std::unique_ptr<AppWindow> _app{nullptr};
-
-    ///< Output File for the generation
-    std::string _outputFile;
-
-    ///< Kept Entities (Prevent them from disappearing)
-    std::vector<int> _keptInputs;
 };

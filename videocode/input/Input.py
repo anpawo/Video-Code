@@ -9,6 +9,7 @@ import copy
 from videocode.transformation.Transformation import Transformation
 from videocode.Global import *
 from videocode.Constant import *
+from videocode.transformation.setter.SetPosition import setPosition
 
 
 class Input(ABC):
@@ -27,14 +28,20 @@ class Input(ABC):
         def circle(radius: int) -> Input: ...
     """
 
-    index: int
+    """
+    Metadata of the `Input`.
+    """
+    meta: Metadata
+
     """
     Index of the `Input`.
     """
+    index: int
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = super().__new__(cls)
         instance.index = Global.getIndex()
+        instance.meta = Global.getDefaultMetadata()
         return instance
 
     @abstractmethod
@@ -47,38 +54,32 @@ class Input(ABC):
         Global.stack.append(
             {
                 "action": "Add",
-                "input": self.index,
+                "input": [self.index],
             }
         )
         return self
 
-    def apply(self, *ts: Transformation, startTime: Defaultable[sec] = default(None), endTime: Defaultable[sec | None] = default(None)) -> Input:
+    def apply(self, *ts: Transformation, start: sec = default(0), duration: sec = default(1)) -> Input:  # type: ignore
         """
-        Applies the `Transformations` `ts` to all the `frames` of `self` between [`startTime`, `endTime`].
+        Applies the `Transformations` `ts` to the `Input` `self`.
+
+        The duration is in seconds, so it will affect `duration * framerate` frames of the video.
         """
         for t in ts:
-            if hasattr(t, "startTime"):
-                startTime = t.startTime
-                del t.startTime
-            elif isinstance(startTime, default):
-                startTime = startTime.defaultValue
+            __start = getValueByPriority(t, start)
+            __duration = getValueByPriority(t, duration)
 
-            if hasattr(t, "endTime"):
-                endTime = t.endTime
-                del t.endTime
-            elif isinstance(endTime, default):
-                endTime = endTime.defaultValue
+            t.modificator(self.meta)
 
             Global.stack.append(
                 {
                     "action": "Apply",
                     "input": self.index,
                     "transformation": t.__class__.__name__,
-                    "args": vars(t),
-                    "startTime": startTime,
-                    "endTime": endTime,
+                    "args": vars(t) | {"start": __start} | {"duration": __duration},
                 }
             )
+
         return self
 
     def copy(self) -> Input:
@@ -96,71 +97,8 @@ class Input(ABC):
         )
         return cp
 
-    def keep(self) -> None:
-        Global.stack.append(
-            {
-                "action": "Keep",
-                "input": self.index,
-            }
-        )
+    def setPosition(self, x: int | float | None = None, y: int | float | None = None):
+        return self.apply(setPosition(x, y).enableSetter())
 
-    def drop(self) -> None:
-        Global.stack.append(
-            {
-                "action": "Drop",
-                "input": self.index,
-            }
-        )
-
-    def __getitem__(self, i: int | slice[int | None, int | None, None]) -> Slice:
-        """
-        Creates a `reference` of the `frames` `i`.
-
-        Usefull if you want to apply a `Transformation` to a part of a video.
-
-        ---
-        ### Example
-        >>> v = video("test.mp4")
-        >>> v[0:20].apply(fadeIn()) # fade in during the first 20 frames.
-        >>> v.add() # adds it to the timeline
-
-        """
-        if isinstance(i, int):
-            s = slice(i, i + 1)  # stop is excluded
-        else:
-            s = slice(i.start or 0, i.stop or -1)
-
-        # `Slice` of `Slice`
-        if isinstance(self, Slice):
-            start = -1 if s.start == -1 or self.s.start == -1 else self.s.start + s.start
-            stop = -1 if s.stop == -1 else self.s.start + s.stop
-            s = slice(start, stop)
-
-        temp = Slice(self, s)
-        Global.stack.append(
-            {
-                "action": "Create",
-                "type": "Slice",
-                "input": self.index,
-                "start": s.start,
-                "stop": s.stop,
-            }
-        )
-        return temp
-
-
-class Slice(Input):
-    """
-    Sliced `Input`.
-
-    This class only exists for subsequent slices.
-    """
-
-    def __init__(self, i: Input, s: slice) -> None:
-        """
-        The base `Input` is `i`.
-
-        The sliced portion is `s`.
-        """
-        self.i = i
-        self.s = s
+    # def __setattr__(self, name: str, value: Any) -> None:
+    #     return super().__setattr__(name, value)

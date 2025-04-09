@@ -7,46 +7,50 @@
 
 #pragma once
 
+#include <memory>
 #include <nlohmann/json.hpp>
 
-#include "input/Iterable.hpp"
-#include "vm/Register.hpp"
+#include "input/IInput.hpp"
 
 using json = nlohmann::json;
 
-#define transformation(t) void t(IterableInput input, const json::object_t &args)
+#define transformation(t) void t(std::shared_ptr<IInput> &input, const json::object_t &args)
+#define bind(n) {#n, n}
 
 namespace transformation
 {
 
-    // Color
-    transformation(grayscale);
+    ///< Color
     transformation(fade);
+    transformation(grayscale);
 
-    // Position
-    transformation(translate);
-    transformation(move);
+    ///< Position
+    transformation(moveTo);
 
-    // Other
-    transformation(repeat);
+    ///< Other
     transformation(zoom);
     transformation(scale);
 
+    ///< Setter
+    transformation(setPosition);
     /***
-        TODO: transformation(concat);
-        TODO: transformation(merge);
+        TODO: transformation(setOpacity);
+        TODO: transformation(setAlign);
     ***/
 
-    static const std::map<std::string, std::function<void(IterableInput input, const json::object_t &args)>> map{
-        // Color
-        {"grayscale", grayscale},
-        {"fade", fade},
-        // Position
-        {"translate", translate},
-        {"move", move},
-        // Other
-        {"repeat", repeat},
-        {"zoom", zoom},
-        {"scale", scale},
+    static const std::map<std::string, std::function<void(std::shared_ptr<IInput> &input, const json::object_t &args)>> map{
+        ///< Color
+        bind(fade),
+        bind(grayscale),
+
+        ///< Position
+        bind(moveTo),
+
+        ///< Other
+        bind(zoom),
+        bind(scale),
+
+        ///< Setter
+        bind(setPosition),
     };
 }

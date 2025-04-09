@@ -5,7 +5,6 @@ from typing import Type
 
 
 import json
-import inspect
 import sys
 
 sys.path.append(".")

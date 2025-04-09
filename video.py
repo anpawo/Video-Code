@@ -3,6 +3,23 @@ from videocode.VideoCode import *
 x = 700
 y = 50
 
-square(filled=True, cornerRadius=30, thickness=20).apply(translate(x, y + 175)).add().keep()
-circle(filled=True, color=RED).apply(translate(x, y + 500)).add().keep()
-rectangle(cornerRadius=0, thickness=8, color=GREEN).apply(translate(x + 300, y + 300)).add().keep()
+g = (
+    group(
+        # image("assets/icon.png").setPosition(0.5, 0.5),
+        # video("assets/v.mp4").setPosition(0.5, 0.5),
+        square(filled=True, cornerRadius=30, thickness=20).setPosition(x, y + 200),
+        circle(filled=True, color=RED).setPosition(x, y + 500),
+        rectangle(cornerRadius=0, thickness=8, color=GREEN).setPosition(x + 400, y + 350),
+    )
+    .apply(fadeIn())
+    .add()
+    .apply(
+        moveTo(
+            0.5,
+            0.5,
+        ),
+    )
+    .add()
+)
+
+g.apply(scale(), start=2, duration=3).add()
