@@ -33,9 +33,9 @@ namespace transformation
 
     ///< Setter
     transformation(setPosition);
+    transformation(setAlign);
     /***
-        TODO: transformation(setOpacity);
-        TODO: transformation(setAlign);
+    TODO: transformation(setOpacity);
     ***/
 
     static const std::map<std::string, std::function<void(std::shared_ptr<IInput> &input, const json::object_t &args)>> map{
@@ -52,5 +52,6 @@ namespace transformation
 
         ///< Setter
         bind(setPosition),
+        bind(setAlign),
     };
 }

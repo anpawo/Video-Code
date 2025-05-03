@@ -103,8 +103,8 @@ set(SOURCES
     # ### Transformation
     # Setter
     src/transformation/setter/setPosition.cpp
+    src/transformation/setter/setAlign.cpp
     # src/transformation/setter/setOpacity.cpp
-    # src/transformation/setter/setAlign.cpp
 
     # Position
     src/transformation/position/moveTo.cpp

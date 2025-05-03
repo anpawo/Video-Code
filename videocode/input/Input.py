@@ -9,7 +9,9 @@ import copy
 from videocode.transformation.Transformation import Transformation
 from videocode.Global import *
 from videocode.Constant import *
+from videocode.transformation.setter.SetAlign import setAlign
 from videocode.transformation.setter.SetPosition import setPosition
+from videocode.transformation.setter.Setter import AttributeSetter
 
 
 class Input(ABC):
@@ -59,7 +61,7 @@ class Input(ABC):
         )
         return self
 
-    def apply(self, *ts: Transformation, start: sec = default(0), duration: sec = default(1)) -> Input:  # type: ignore
+    def apply(self, *ts: Transformation, start: sec = default(0), duration: sec = default(1)) -> Self:  # type: ignore
         """
         Applies the `Transformations` `ts` to the `Input` `self`.
 
@@ -97,8 +99,13 @@ class Input(ABC):
         )
         return cp
 
-    def setPosition(self, x: int | float | None = None, y: int | float | None = None):
-        return self.apply(setPosition(x, y).enableSetter())
+    def setPosition(self, x: int | float | None = None, y: int | float | None = None) -> Self:
+        return self.apply(setPosition(x, y))
 
-    # def __setattr__(self, name: str, value: Any) -> None:
-    #     return super().__setattr__(name, value)
+    def setAlign(self, x: align | None = None, y: align | None = None) -> Self:
+        return self.apply(setAlign(x, y))
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if hasattr(self, name):
+            self.apply(AttributeSetter(name, value))
+        object.__setattr__(self, name, value)

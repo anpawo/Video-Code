@@ -14,9 +14,12 @@ class Metadata:
 
         # Align
         # Center, Left, Right, Top, Bottom
-        self.align: align | None = None
+        self.alignX: align = CENTER
+        self.alignY: align = CENTER
 
-        # Opacity ?
+        # Opacity
+        self.opacity: uint = 255
+
         # Rotation ?
 
     def __str__(self) -> str:

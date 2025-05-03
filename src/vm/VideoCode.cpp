@@ -22,7 +22,6 @@
 #include <cstdlib>
 #include <format>
 #include <iostream>
-#include <iterator>
 #include <memory>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/core/matx.hpp>
@@ -218,14 +217,16 @@ void VideoCode::stop()
 
 void VideoCode::goToFirstFrame()
 {
-    goToLabel(_labelsByVal[0]);
-    std::cout << std::format("Current Label set to '{}' at frame '0'.", _currentLabel) << std::endl;
+    _index = 0;
+    std::cout << std::format("Jumped backward to the first frame of the video: {}", _index) << std::endl;
 }
 
 void VideoCode::goToLastFrame()
 {
-    goToLabel(std::prev(_labelsByVal.end())->second);
-    std::cout << std::format("Current Label set to '{}' at frame '{}'.", _currentLabel, _index) << std::endl;
+    if (_frames.size()) {
+        _index = _frames.size() - 1;
+    }
+    std::cout << std::format("Jumped forward to the last frame of the video: {}", _index) << std::endl;
 }
 
 void VideoCode::backward3frame()
@@ -240,7 +241,7 @@ void VideoCode::backward3frame()
 
 void VideoCode::forward3frame()
 {
-    _index += 5 * _framerate;
+    _index += 3 * _framerate;
     if (_index > _frames.size()) {
         _index = _frames.size() - 1;
     }

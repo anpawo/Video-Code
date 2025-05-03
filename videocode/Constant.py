@@ -6,46 +6,48 @@
 
 from typing import Annotated, Any, Literal, TypeVar, Union
 
-# screen width
+# screen dimension
 SCREEN_WIDTH = 1920
 SCREEN_HEIGHT = 1080
 
-# unsigned int
-uint = Annotated[int, "unsigned"]
+
+# Integer values
+type uint = int
+type uint8 = int
+
+# Float values
+type ufloat = float
+
 
 # sides and align
-type side = Literal["left", "right", "up", "down"]
-type align = Literal["left", "right", "up", "down", "center"]
+type side = Literal["left", "right", "top", "bottom"]
+type align = Literal["left", "right", "top", "bottom", "center"]
 
 CENTER: align = "center"
 LEFT: side | align = "left"
 RIGHT: side | align = "right"
-UP: side | align = "up"
-DOWN: side | align = "down"
+TOP: side | align = "top"
+BOTTOM: side | align = "bottom"
 
-UL = [UP, LEFT]
-UR = [UP, RIGHT]
-DL = [DOWN, LEFT]
-DR = [DOWN, RIGHT]
-
-
-# index
-START = 0
-END = -1
+UL = [TOP, LEFT]
+UR = [TOP, RIGHT]
+DL = [BOTTOM, LEFT]
+DR = [BOTTOM, RIGHT]
 
 
 # Colors
-type RGBA = tuple[int, int, int, int]
+type rgba = tuple[uint8, uint8, uint8, uint8]
 
-TRANSPARENT: RGBA = (0, 0, 0, 0)
-WHITE: RGBA = (255, 255, 255, 255)
-RED: RGBA = (255, 0, 0, 255)
-GREEN: RGBA = (0, 255, 0, 255)
-BLUE: RGBA = (0, 0, 255, 255)
+TRANSPARENT: rgba = (0, 0, 0, 0)
+WHITE: rgba = (255, 255, 255, 255)
+BLACK: rgba = (0, 0, 0, 255)
+RED: rgba = (255, 0, 0, 255)
+GREEN: rgba = (0, 255, 0, 255)
+BLUE: rgba = (0, 0, 255, 255)
 
 
 # time
-sec = Union[float, int]
+type sec = Union[ufloat, uint]
 
 
 # default parameters to specify that it's the default value
@@ -59,9 +61,9 @@ class default:
 
 
 def getValueByPriority(t: Any, duration: Any) -> sec:  # type: ignore
-    if hasattr(t, "duration") and isinstance(t.duration, sec):
+    if hasattr(t, "duration") and isinstance(t.duration, int | float):  # sec
         return t.duration
-    elif isinstance(duration, sec):
+    elif isinstance(duration, int | float):  # sec
         return duration
     elif hasattr(t, "duration") and isinstance(t.duration, default):
         return t.duration.defaultValue

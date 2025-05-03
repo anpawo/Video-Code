@@ -20,7 +20,7 @@ class Transformation(ABC):
 
     duration: sec
 
-    def modificator(self, i: Metadata):
+    def modificator(self, _: Metadata):
         """
         Modify the `Input`'s `Metadata` if it should be updated.
         """
