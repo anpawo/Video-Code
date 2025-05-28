@@ -31,6 +31,7 @@ clean:
 .PHONY: fclean
 fclean: clean
 	@ $(RM) -r $(BUILD_DIR)
+	@ $(RM) $(BINARY_NAME)
 
 
 .PHONY: format

@@ -7,17 +7,25 @@
 
 #pragma once
 
-#include <vector>
+#include <argparse/argparse.hpp>
+#include <opencv2/opencv.hpp>
 
-#include "opencv2/core/mat.hpp"
+#include "core/Core.hpp"
 
-namespace Compiler::Writer
+namespace VC
 {
-    int generateVideo(
-        int width,
-        int height,
-        int fps,
-        std::string filename,
-        const std::vector<cv::Mat> &frames
-    );
+    class Compiler
+    {
+    public:
+
+        Compiler(const argparse::ArgumentParser& parser);
+        ~Compiler();
+
+        int generateVideo();
+
+    private:
+
+        ///< Core handling the images
+        Core _core;
+    };
 };

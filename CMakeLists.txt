@@ -28,6 +28,10 @@ set(VCPKG_MANIFEST_MODE ON)
 set(OPENCV_LOG_LEVEL "ERROR")
 set(WITH_FFMPEG "ON")
 
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)
+set(CMAKE_AUTOUIC ON)
+
 if(NOT DEFINED VCPKG_TARGET_TRIPLET)
     if(WIN32)
         set(VCPKG_TARGET_TRIPLET "x64-windows")
@@ -78,43 +82,44 @@ include_directories(
 )
 
 set(SOURCES
+    # --- Main ---
     src/Main.cpp
 
-    src/vm/VideoCode.cpp
-    src/vm/AppWindow.cpp
-    src/vm/AppEvent.cpp
+    # --- Window ---
+    include/window/Window.hpp # Needed for the MOC (Meta-Object Compiler) Q_OBJECT
+    src/window/Window.cpp
 
-    src/compiler/generateVideo.cpp
+    # --- Compiler ---
+    src/compiler/Compiler.cpp
 
-    # ## Inputs
+    # --- Core ---
+    src/core/Core.cpp
+
+    # --- Inputs ---
     src/input/AInput.cpp
-
     # Media
     src/input/media/Image.cpp
     src/input/media/Video.cpp
-
     # Text
     src/input/text/Text.cpp
-
     # Shape
     src/input/shape/Circle.cpp
     src/input/shape/Rectangle.cpp
 
-    # ### Transformation
+    # --- Transformation ---
     # Setter
     src/transformation/setter/setPosition.cpp
     src/transformation/setter/setAlign.cpp
     # src/transformation/setter/setOpacity.cpp
-
     # Position
     src/transformation/position/moveTo.cpp
-
     # Color
     src/transformation/color/fade.cpp
     src/transformation/color/grayscale.cpp
     # Other
     src/transformation/size/zoom.cpp
     src/transformation/size/scale.cpp
+
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

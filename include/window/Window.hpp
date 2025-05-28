@@ -1,0 +1,59 @@
+/*
+** EPITECH PROJECT, 2025
+** video-code
+** File description:
+** QtWindow
+*/
+
+#pragma once
+
+#include <QBoxLayout>
+#include <QImage>
+#include <QKeyEvent>
+#include <QLabel>
+#include <QMainWindow>
+#include <QTimer>
+#include <argparse/argparse.hpp>
+#include <opencv2/opencv.hpp>
+
+#include "core/Core.hpp"
+
+namespace VC
+{
+    class Window : public QMainWindow
+    {
+        Q_OBJECT
+
+    public:
+
+        Window(const argparse::ArgumentParser& parser, QWidget* parent = nullptr);
+        ~Window() override;
+
+        void mainRoutine();
+
+    protected:
+
+        void keyPressEvent(QKeyEvent* event) override;
+
+    private:
+
+        ///< Window size
+        const int _width;
+        const int _height;
+
+        ///< Framerate of the video
+        const int _framerate;
+
+        ///< Core handling the images
+        Core _core;
+
+        ///< Timer handling the Routine
+        QTimer* _timer;
+        ///< Image Label
+        QLabel* _imageLabel;
+        ///< Image Layout
+        QVBoxLayout* _imageLayout;
+        ///< Widget containing the laout
+        QWidget* _centralWidget;
+    };
+};
