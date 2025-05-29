@@ -7,6 +7,8 @@
 
 #include "window/Window.hpp"
 
+#include "qnamespace.h"
+
 VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     : QMainWindow(parent)
     , _width(parser.get<int>("--width"))
@@ -42,6 +44,16 @@ void VC::Window::keyPressEvent(QKeyEvent* event)
 {
     if (event->key() == Qt::Key_Escape) {
         close();
+    } else if (event->key() == Qt::Key_Space) {
+        _core.pause();
+    } else if (event->key() == Qt::Key_Down) {
+        _core.goToFirstFrame();
+    } else if (event->key() == Qt::Key_Up) {
+        _core.goToLastFrame();
+    } else if (event->key() == Qt::Key_Left) {
+        _core.backward3frames();
+    } else if (event->key() == Qt::Key_Right) {
+        _core.forward3frames();
     } else {
         QMainWindow::keyPressEvent(event);
     }
@@ -51,46 +63,3 @@ void VC::Window::mainRoutine()
 {
     _core.updateFrame(*_imageLabel);
 }
-
-// void VideoCode::pause()
-// {
-//     _paused = !_paused;
-//     std::cout << std::format("Timeline {} at frame '{}'.", _paused ? "paused" : "unpaused", _index) << std::endl;
-// }
-
-// void VideoCode::stop()
-// {
-//     _running = false;
-//     QApplication::quit();
-// }
-
-// void VideoCode::goToFirstFrame()
-// {
-//     _index = 0;
-//     std::cout << std::format("Jumped backward to the first frame of the video: {}", _index) << std::endl;
-// }
-
-// void VideoCode::goToLastFrame()
-// {
-//     if (_frames.size()) {
-//         _index = _frames.size() - 1;
-//     }
-//     std::cout << std::format("Jumped forward to the last frame of the video: {}", _index) << std::endl;
-// }
-
-// void VideoCode::backward3frame()
-// {
-//     if (_index < 3 * _framerate) {
-//         _index = 0;
-//     } else {
-//         _index -= 3 * _framerate;
-//     }
-// }
-
-// void VideoCode::forward3frame()
-// {
-//     _index += 3 * _framerate;
-//     if (_index > _frames.size()) {
-//         _index = _frames.size() - 1;
-//     }
-// }

@@ -38,11 +38,11 @@ namespace VC
     private:
 
         ///< Window size
-        const int _width;
-        const int _height;
+        const size_t _width;
+        const size_t _height;
 
         ///< Framerate of the video
-        const int _framerate;
+        const size_t _framerate;
 
         ///< Core handling the images
         Core _core;
@@ -53,7 +53,7 @@ namespace VC
         QLabel* _imageLabel;
         ///< Image Layout
         QVBoxLayout* _imageLayout;
-        ///< Widget containing the laout
+        ///< Widget containing the layout
         QWidget* _centralWidget;
     };
 };

@@ -33,14 +33,21 @@ namespace VC
         ///< Generate the video
         int generateVideo();
 
+        ///< Time control
+        void pause();
+        void goToFirstFrame();
+        void goToLastFrame();
+        void forward3frames();
+        void backward3frames();
+
     private:
 
         ///< Window size
-        const int _width;
-        const int _height;
+        const size_t _width;
+        const size_t _height;
 
         ///< Framerate of the video
-        const int _framerate;
+        const size_t _framerate;
 
         ///< Source file
         const std::string _sourceFile;
@@ -51,7 +58,7 @@ namespace VC
         const cv::Mat _bgFrame;
 
         ///< Index of the frame currently being displayed
-        std::size_t _index{0};
+        size_t _index{0};
 
         ///< The video editor is paused
         bool _paused{false};

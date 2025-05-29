@@ -54,11 +54,10 @@ void VC::Core::executeStack()
         if (i["action"] == "Create") {
             _inputs.push_back(Factory::create(i["type"], i));
         } else if (i["action"] == "Add") {
-            for (size_t index : i["input"]) {
-                _inputs[index]->flushTransformation();
-                if (std::find(_addedInputs.begin(), _addedInputs.end(), index) == _addedInputs.end()) {
-                    _addedInputs.push_back(index);
-                }
+            size_t index = i["input"];
+            _inputs[index]->flushTransformation();
+            if (std::find(_addedInputs.begin(), _addedInputs.end(), index) == _addedInputs.end()) {
+                _addedInputs.push_back(index);
             }
         } else if (i["action"] == "Apply") {
             i["args"]["duration"] = i["args"]["duration"].get<size_t>() * _framerate;
@@ -182,4 +181,41 @@ int VC::Core::generateVideo()
     VC_LOG_DEBUG("video generated as: " + _outputFile)
 
     return 0;
+}
+
+void VC::Core::pause()
+{
+    _paused = !_paused;
+    std::cout << std::format("Timeline {} at frame {}/{}.", _paused ? "paused" : "unpaused", _index, _frames.size() - 1) << std::endl;
+}
+
+void VC::Core::goToFirstFrame()
+{
+    _index = 0;
+    std::cout << std::format("Jumped backward to the first frame of the video: {}", _index) << std::endl;
+}
+
+void VC::Core::goToLastFrame()
+{
+    if (_frames.size()) {
+        _index = _frames.size() - 1;
+    }
+    std::cout << std::format("Jumped forward to the last frame of the video: {}", _index) << std::endl;
+}
+
+void VC::Core::backward3frames()
+{
+    if (_index < 3 * _framerate) {
+        _index = 0;
+    } else {
+        _index -= 3 * _framerate;
+    }
+}
+
+void VC::Core::forward3frames()
+{
+    _index += 3 * _framerate;
+    if (_index > _frames.size()) {
+        _index = _frames.size() - 1;
+    }
 }

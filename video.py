@@ -3,6 +3,7 @@ from videocode.VideoCode import *
 x = 700
 y = 50
 
+automaticAdderOn()
 
 g = (
     group(
@@ -13,22 +14,22 @@ g = (
         r := rectangle(cornerRadius=0, thickness=8, color=GREEN).setPosition(x + 400, y + 350),
     )
     .apply(fadeIn())
-    .add()
-    .apply(
-        moveTo(
-            0.5,
-            0.5,
-        ),
-    )
-    .add()
+    .apply(moveTo(0.5, 0.5))
 )
 
-# g.apply(scale(), start=2, duration=3).add()
 
-# s.setAlign(x=LEFT)
+wait(2)
+g.setAlign(x=RIGHT, y=TOP)
+wait(2)
+g.setAlign(x=LEFT, y=BOTTOM)
+wait(2)
+g.setAlign(x=CENTER, y=CENTER)
+wait(2)
+# g.automaticAddOff()
 
-for i in range(0, 50):
-    g.apply(setPosition(y=0.5 + i / 100)).add()
-    # s.width += 10
-    # c.radius += 1
-    # r.smth
+
+# for i in range(0, 50):
+#     g.apply(setPosition(y=0.5 + i / 100)).add()
+#     c.radius += 3
+# c.radius += 1
+# r.smth

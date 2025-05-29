@@ -18,12 +18,6 @@ public:
     IInput() = default;
     virtual ~IInput() = default;
 
-    // ///< Deep copy of `_frames`
-    // virtual IInput* copy() = 0;
-
-    // ///< Repeat
-    // virtual void repeat(size_t n) = 0;
-
     virtual void flushTransformation() = 0;
 
     virtual void apply(const std::string& name, const json::object_t& args) = 0;

@@ -56,7 +56,7 @@ class Input(ABC):
         Global.stack.append(
             {
                 "action": "Add",
-                "input": [self.index],
+                "input": self.index,
             }
         )
         return self
@@ -82,7 +82,10 @@ class Input(ABC):
                 }
             )
 
-        return self
+        if self.meta.automaticAdder or Global.automaticAdder:
+            return self.add()
+        else:
+            return self
 
     def copy(self) -> Input:
         """

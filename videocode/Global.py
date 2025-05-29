@@ -8,19 +8,22 @@ from videocode.Constant import *
 
 class Metadata:
     def __init__(self, *, x: int, y: int) -> None:
-        # Position
+        # --- Position ---
         self.x: int = x
         self.y: int = y
 
-        # Align
+        # --- Align ---
         # Center, Left, Right, Top, Bottom
         self.alignX: align = CENTER
         self.alignY: align = CENTER
 
-        # Opacity
+        # --- Opacity ---
         self.opacity: uint = 255
 
-        # Rotation ?
+        # --- Rotation --- ?
+
+        # --- Automatic Add ---
+        self.automaticAdder = False
 
     def __str__(self) -> str:
         return f"x={self.x}, y={self.y}"
@@ -39,6 +42,9 @@ class Global:
 
     # Default Metadata
     defaultMetadata: Metadata = Metadata(x=0, y=0)
+
+    # --- Automatic Add ---
+    automaticAdder = False
 
     @staticmethod
     def getIndex() -> int:
@@ -63,3 +69,11 @@ def wait(n: sec = 1) -> None:
             "n": n,
         }
     )
+
+
+def automaticAdderOn():
+    Global.automaticAdder = True
+
+
+def automaticAdderOff():
+    Global.automaticAdder = False
