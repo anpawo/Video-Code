@@ -53,14 +53,13 @@ Frame& Video::generateNextFrame()
     if (_frameIndex < _frames.size()) {
         _base = std::move(_frames[_frameIndex]);
         _frameIndex += 1;
-    }
-    else {
+    } else {
         videoEnded = true;
     }
 
     AInput::generateNextFrame();
 
-    _hasChanged |= !videoEnded;
+    _frameHasChanged |= !videoEnded;
 
     return getLastFrame();
 }

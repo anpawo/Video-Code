@@ -35,7 +35,7 @@ public:
 
     void overlayLastFrame(cv::Mat& background) override;
 
-    bool hasChanged() final;
+    bool frameHasChanged() final;
 
 protected:
 
@@ -55,6 +55,10 @@ protected:
     ///< Last generated frame in case we do not need to re-generate it.
     std::unique_ptr<Frame> _lastFrame{nullptr};
 
-    ///< Did the Input change ?
-    bool _hasChanged{true};
+    ///< Did the Input change ? (The frame of the video advanced)
+    bool _frameHasChanged{true};
+
+    ///< Did the arguments of the Input change ?
+    // (Usually for shapes but could be opacity for other stuff)
+    bool _argsHaveChanged{true};
 };

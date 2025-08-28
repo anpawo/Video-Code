@@ -29,7 +29,5 @@ wait(2)
 
 
 # for i in range(0, 50):
-#     g.apply(setPosition(y=0.5 + i / 100)).add()
+#     # g.apply(setPosition(y=0.5 + i / 100)).add()
 #     c.radius += 3
-# c.radius += 1
-# r.smth

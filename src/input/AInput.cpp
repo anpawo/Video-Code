@@ -48,11 +48,10 @@ void AInput::addTransformation(size_t index, std::function<void(Frame&)>&& f)
 Frame& AInput::generateNextFrame()
 {
     if (_transformationIndex == _transformations.size()) {
-        _hasChanged = false;
+        _frameHasChanged = false;
         return getLastFrame();
-    }
-    else {
-        _hasChanged = true;
+    } else {
+        _frameHasChanged = true;
     }
 
     /// Reset the matrix but keep the metadata
@@ -128,7 +127,7 @@ void AInput::overlayLastFrame(cv::Mat& background)
     }
 }
 
-bool AInput::hasChanged()
+bool AInput::frameHasChanged()
 {
-    return _hasChanged;
+    return _frameHasChanged;
 }

@@ -11,7 +11,7 @@ from videocode.Global import *
 from videocode.Constant import *
 from videocode.transformation.setter.SetAlign import setAlign
 from videocode.transformation.setter.SetPosition import setPosition
-from videocode.transformation.setter.Setter import AttributeSetter
+from videocode.transformation.setter.Setter import setArgument
 
 
 class Input(ABC):
@@ -110,5 +110,5 @@ class Input(ABC):
 
     def __setattr__(self, name: str, value: Any) -> None:
         if hasattr(self, name):
-            self.apply(AttributeSetter(name, value))
+            self.apply(setArgument(name, value))
         object.__setattr__(self, name, value)

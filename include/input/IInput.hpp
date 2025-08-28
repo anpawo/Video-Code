@@ -37,5 +37,5 @@ public:
     virtual void overlayLastFrame(cv::Mat& background) = 0;
 
     ///< Did the Input change ?
-    virtual bool hasChanged() = 0;
+    virtual bool frameHasChanged() = 0;
 };

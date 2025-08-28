@@ -9,7 +9,7 @@ from videocode.transformation.Transformation import Transformation
 
 class Setter(Transformation, ABC):
     """
-    Represents a `Setter`, a kind of `Transformation`.
+    A `Setter`, is a kind of `Transformation`.
 
     Setters are persistent unless overridden and they take action instantly on the current frame of the `Input`, not over time.
     """
@@ -23,7 +23,11 @@ class Setter(Transformation, ABC):
         return instance
 
 
-class AttributeSetter(Setter):
+class setArgument(Setter):
+    """
+    `setArgument` is a setter that modifies the base of an `Input` before any other transformation, e.g. the radius of a circle.
+    """
+
     def __init__(self, name: str, value: Any) -> None:
         self.name = name
         self.value = value

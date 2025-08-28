@@ -88,7 +88,7 @@ void VC::Core::addNewFrames()
         for (auto i : _addedInputs) {
             _inputs[i]->overlayLastFrame(frame);
 
-            anyInputChanged |= _inputs[i]->hasChanged();
+            anyInputChanged |= _inputs[i]->frameHasChanged();
         }
 
         _frames.push_back(std::move(frame));
