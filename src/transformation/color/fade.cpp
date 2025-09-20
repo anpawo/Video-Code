@@ -42,12 +42,12 @@ void transformation::fade(std::shared_ptr<IInput>& input, const json::object_t& 
                                 opacity *= 1 - static_cast<float>(cols - 1 - x) / (cols - 1) * (1 - i / (duration - 1.0));
                             }
                         }
-                        else if (side == "up") {
+                        else if (side == "top") {
                             if (rows > 1) {
                                 opacity *= 1 - static_cast<float>(y) / (rows - 1) * (1 - i / (duration - 1.0));
                             }
                         }
-                        else if (side == "down") {
+                        else if (side == "bottom") {
                             if (rows > 1) {
                                 opacity *= 1 - static_cast<float>(rows - 1 - y) / (rows - 1) * (1 - i / (duration - 1.0));
                             }

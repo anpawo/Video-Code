@@ -5,15 +5,18 @@ from typing import Optional
 
 
 from videocode.Constant import *
+from videocode.Decorators import inputCreation
 from videocode.input.Input import *
 
 
 class text(Input):
+
+    # @inputCreation
     def __init__(
         self,
         s: str,
         fontSize: float = 1,
-        color: RGBA = WHITE,
+        color: rgba = WHITE,
         fontThickness: Optional[int] = None,
         duration: sec = 1,
     ):

@@ -19,4 +19,6 @@ public:
 
     Rectangle(json::object_t &&args);
     ~Rectangle() = default;
+
+    void construct() final;
 };

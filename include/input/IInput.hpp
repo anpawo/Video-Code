@@ -18,12 +18,6 @@ public:
     IInput() = default;
     virtual ~IInput() = default;
 
-    // ///< Deep copy of `_frames`
-    // virtual IInput* copy() = 0;
-
-    // ///< Repeat
-    // virtual void repeat(size_t n) = 0;
-
     virtual void flushTransformation() = 0;
 
     virtual void apply(const std::string& name, const json::object_t& args) = 0;
@@ -32,6 +26,7 @@ public:
 
     ///< Add a transformation
     virtual void addTransformation(size_t index, std::function<void(Frame&)>&& f) = 0;
+    virtual void addSetter(size_t index, std::function<void(json::object_t&)>&& f) = 0;
 
     ///< Generate next frame
     virtual Frame& generateNextFrame() = 0;
@@ -43,5 +38,11 @@ public:
     virtual void overlayLastFrame(cv::Mat& background) = 0;
 
     ///< Did the Input change ?
-    virtual bool hasChanged() = 0;
+    virtual bool frameHasChanged() = 0;
+
+    ///< Construction of the Input; on start and when args change.
+    virtual void construct() = 0;
+
+    ///< Getter
+    virtual json::object_t& getArgs() = 0;
 };

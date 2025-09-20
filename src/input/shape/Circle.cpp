@@ -16,6 +16,11 @@
 Circle::Circle(json::object_t &&args)
     : AInput(std::move(args))
 {
+    construct();
+}
+
+void Circle::construct()
+{
     int radius = _args.at("radius");
     int thickness = _args.at("thickness");
     const std::vector<int> &color = _args.at("color");

@@ -9,7 +9,9 @@ import copy
 from videocode.transformation.Transformation import Transformation
 from videocode.Global import *
 from videocode.Constant import *
+from videocode.transformation.setter.SetAlign import setAlign
 from videocode.transformation.setter.SetPosition import setPosition
+from videocode.transformation.setter.Setter import setArgument
 
 
 class Input(ABC):
@@ -51,15 +53,33 @@ class Input(ABC):
         """
         Appends the `frames` of `self` to the `timeline`.
         """
+
+        # Prevent double add error TODO: WARNING
+        if self.meta.automaticAdder or Global.automaticAdder:
+            return self
+
         Global.stack.append(
             {
                 "action": "Add",
-                "input": [self.index],
+                "input": self.index,
             }
         )
         return self
 
-    def apply(self, *ts: Transformation, start: sec = default(0), duration: sec = default(1)) -> Input:  # type: ignore
+    def automaticAdd(self) -> Self:
+        """
+        Appends the `frames` of `self` to the `timeline` automatically after applying a `Transformation`.
+        """
+
+        Global.stack.append(
+            {
+                "action": "Add",
+                "input": self.index,
+            }
+        )
+        return self
+
+    def apply(self, *ts: Transformation, start: sec = default(0), duration: sec = default(1)) -> Self:  # type: ignore
         """
         Applies the `Transformations` `ts` to the `Input` `self`.
 
@@ -80,7 +100,10 @@ class Input(ABC):
                 }
             )
 
-        return self
+        if self.meta.automaticAdder or Global.automaticAdder:
+            return self.automaticAdd()
+        else:
+            return self
 
     def copy(self) -> Input:
         """
@@ -97,8 +120,13 @@ class Input(ABC):
         )
         return cp
 
-    def setPosition(self, x: int | float | None = None, y: int | float | None = None):
-        return self.apply(setPosition(x, y).enableSetter())
+    def setPosition(self, x: int | float | None = None, y: int | float | None = None) -> Self:
+        return self.apply(setPosition(x, y))
 
-    # def __setattr__(self, name: str, value: Any) -> None:
-    #     return super().__setattr__(name, value)
+    def setAlign(self, x: align | None = None, y: align | None = None) -> Self:
+        return self.apply(setAlign(x, y))
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        if hasattr(self, name):
+            self.apply(setArgument(name, value))
+        object.__setattr__(self, name, value)

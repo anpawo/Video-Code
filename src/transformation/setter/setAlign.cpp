@@ -7,7 +7,7 @@
 
 #include "transformation/transformation.hpp"
 
-void transformation::setPosition(std::shared_ptr<IInput>& input, const json::object_t& args)
+void transformation::setAlign(std::shared_ptr<IInput>& input, const json::object_t& args)
 {
     json x = args.at("x");
     json y = args.at("y");
@@ -15,10 +15,10 @@ void transformation::setPosition(std::shared_ptr<IInput>& input, const json::obj
 
     input->addTransformation(start, [x, y](Frame& frame) {
         if (!x.is_null()) {
-            frame.meta.position.x = x;
+            frame.meta.align.x = alignRatio.at(x);
         }
         if (!y.is_null()) {
-            frame.meta.position.y = y;
+            frame.meta.align.y = alignRatio.at(y);
         }
     });
 }

@@ -30,3 +30,7 @@ include/argparse/
 
 # executables
 video-code
+
+# misc
+wherewasi
+todo
