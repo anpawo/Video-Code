@@ -12,6 +12,7 @@ class Setter(Transformation, ABC):
     A `Setter`, is a kind of `Transformation`.
 
     Setters are persistent unless overridden and they take action instantly on the current frame of the `Input`, not over time.
+    The reason for that is that they affect the metadata of the `Input`.
     """
 
     @abstractmethod

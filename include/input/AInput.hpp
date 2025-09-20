@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <functional>
 #include <memory>
 #include <vector>
 
@@ -28,6 +27,7 @@ public:
     void setBase(cv::Mat&& mat) override;
 
     void addTransformation(size_t index, std::function<void(Frame&)>&& f) override;
+    void addSetter(size_t index, std::function<void(json::object_t&)>&& f) override;
 
     Frame& generateNextFrame() override;
 
@@ -35,7 +35,12 @@ public:
 
     void overlayLastFrame(cv::Mat& background) override;
 
+    void construct() override;
+
     bool frameHasChanged() final;
+
+    ///< Getter
+    json::object_t& getArgs() final;
 
 protected:
 
@@ -52,13 +57,12 @@ protected:
     ///< Transformation that should affect the current frame.
     std::vector<std::vector<std::function<void(Frame&)>>> _transformations;
 
+    ///< Setters affecting the base from the current frame and onward.
+    std::vector<std::vector<std::function<void(json::object_t&)>>> _setters;
+
     ///< Last generated frame in case we do not need to re-generate it.
     std::unique_ptr<Frame> _lastFrame{nullptr};
 
     ///< Did the Input change ? (The frame of the video advanced)
     bool _frameHasChanged{true};
-
-    ///< Did the arguments of the Input change ?
-    // (Usually for shapes but could be opacity for other stuff)
-    bool _argsHaveChanged{true};
 };

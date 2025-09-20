@@ -53,6 +53,24 @@ class Input(ABC):
         """
         Appends the `frames` of `self` to the `timeline`.
         """
+
+        # Prevent double add error TODO: WARNING
+        if self.meta.automaticAdder or Global.automaticAdder:
+            return self
+
+        Global.stack.append(
+            {
+                "action": "Add",
+                "input": self.index,
+            }
+        )
+        return self
+
+    def automaticAdd(self) -> Self:
+        """
+        Appends the `frames` of `self` to the `timeline` automatically after applying a `Transformation`.
+        """
+
         Global.stack.append(
             {
                 "action": "Add",
@@ -83,7 +101,7 @@ class Input(ABC):
             )
 
         if self.meta.automaticAdder or Global.automaticAdder:
-            return self.add()
+            return self.automaticAdd()
         else:
             return self
 

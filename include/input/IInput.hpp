@@ -26,6 +26,7 @@ public:
 
     ///< Add a transformation
     virtual void addTransformation(size_t index, std::function<void(Frame&)>&& f) = 0;
+    virtual void addSetter(size_t index, std::function<void(json::object_t&)>&& f) = 0;
 
     ///< Generate next frame
     virtual Frame& generateNextFrame() = 0;
@@ -38,4 +39,10 @@ public:
 
     ///< Did the Input change ?
     virtual bool frameHasChanged() = 0;
+
+    ///< Construction of the Input; on start and when args change.
+    virtual void construct() = 0;
+
+    ///< Getter
+    virtual json::object_t& getArgs() = 0;
 };

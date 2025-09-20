@@ -37,6 +37,7 @@ namespace transformation
     /***
     TODO: transformation(setOpacity);
     ***/
+    transformation(setArgument);
 
     static const std::map<std::string, std::function<void(std::shared_ptr<IInput> &input, const json::object_t &args)>> map{
         ///< Color
@@ -53,5 +54,6 @@ namespace transformation
         ///< Setter
         bind(setPosition),
         bind(setAlign),
+        bind(setArgument),
     };
 }

@@ -28,6 +28,11 @@ static void line(cv::Mat &bg, const size_t x, const size_t y, const size_t w, co
 Rectangle::Rectangle(json::object_t &&args)
     : AInput(std::move(args))
 {
+    construct();
+}
+
+void Rectangle::construct()
+{
     size_t w = _args.at("width");
     size_t h = _args.at("height");
     size_t t = _args.at("thickness");

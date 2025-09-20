@@ -33,7 +33,11 @@ void AInput::apply(const std::string& name, const json::object_t& args)
 void AInput::setBase(cv::Mat&& mat)
 {
     _base = std::move(mat);
-    _lastFrame = std::make_unique<Frame>(_base.clone());
+    if (_lastFrame) {
+        _lastFrame = std::make_unique<Frame>(_base.clone(), _lastFrame->meta);
+    } else {
+        _lastFrame = std::make_unique<Frame>(_base.clone());
+    }
 }
 
 void AInput::addTransformation(size_t index, std::function<void(Frame&)>&& f)
@@ -41,8 +45,19 @@ void AInput::addTransformation(size_t index, std::function<void(Frame&)>&& f)
     ///< Take into account used stuff
     while (_transformations.size() <= index + _flushedTransformationIndex) {
         _transformations.push_back({});
+        _setters.push_back({});
     }
     _transformations[index + _flushedTransformationIndex].push_back(f);
+}
+
+void AInput::addSetter(size_t index, std::function<void(json::object_t&)>&& f)
+{
+    ///< Take into account used stuff
+    while (_setters.size() <= index + _flushedTransformationIndex) {
+        _transformations.push_back({});
+        _setters.push_back({});
+    }
+    _setters[index + _flushedTransformationIndex].push_back(f);
 }
 
 Frame& AInput::generateNextFrame()
@@ -54,9 +69,21 @@ Frame& AInput::generateNextFrame()
         _frameHasChanged = true;
     }
 
+    /// Apply the setters
+    bool constructNeeded = false;
+
+    for (const auto& s : _setters[_transformationIndex]) {
+        s(getArgs());
+        constructNeeded = true;
+    }
+    if (constructNeeded) {
+        construct();
+    }
+
     /// Reset the matrix but keep the metadata
     getLastFrame().mat = _base.clone();
 
+    /// Apply the transformations
     for (const auto& t : _transformations[_transformationIndex]) {
         t(getLastFrame());
     }
@@ -130,4 +157,14 @@ void AInput::overlayLastFrame(cv::Mat& background)
 bool AInput::frameHasChanged()
 {
     return _frameHasChanged;
+}
+
+json::object_t& AInput::getArgs()
+{
+    return _args;
+}
+
+void AInput::construct()
+{
+    // Does nothing, the Input doesn't have any arguments that would affect it.
 }

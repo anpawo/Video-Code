@@ -16,6 +16,11 @@
 Text::Text(json::object_t &&args)
     : AInput(std::move(args))
 {
+    construct();
+}
+
+void Text::construct()
+{
     const std::string &text = _args.at("text");
     double fontSize = _args.at("fontSize");
     int fontThickness = _args.at("fontThickness");

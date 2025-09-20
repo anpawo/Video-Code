@@ -15,4 +15,6 @@ public:
 
     Text(json::object_t &&args);
     ~Text() = default;
+
+    void construct() final;
 };

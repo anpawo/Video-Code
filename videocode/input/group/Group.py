@@ -17,7 +17,7 @@ class group(Input):
 
         return self
 
-    def apply(self, *ts: Transformation, start: sec = default(0), duration: sec = default(1)) -> Input:  # type: ignore
+    def apply(self, *ts: Transformation, start: sec = default(0), duration: sec = default(1)) -> Self:  # type: ignore
         """
         Applies the `Transformations` `ts` to all the `Inputs` of the `Group`.
 

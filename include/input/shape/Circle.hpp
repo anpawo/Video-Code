@@ -19,4 +19,6 @@ public:
 
     Circle(json::object_t &&args);
     ~Circle() = default;
+
+    void construct() final;
 };
