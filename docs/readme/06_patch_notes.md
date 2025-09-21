@@ -72,5 +72,7 @@
 - `input`: text (03/03/25)
 - `rework`: position of the frames (02/03/25)
 - `transformation`: move (02/03/25)
+- `feature`: setters (update in real time the proportions of a shape) (20/09/25)
+- `fix`: different framerate between the window and the generated video
 
 </details>

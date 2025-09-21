@@ -21,24 +21,22 @@ g = (
     .apply(moveTo(0.5, 0.5))
 )
 
-### ===> Changing the alignment
-wait(2)
-g.setAlign(x=RIGHT, y=TOP)
-wait(2)
-g.setAlign(x=LEFT, y=BOTTOM)
-wait(2)
-g.setAlign(x=CENTER, y=CENTER)
-wait(2)
-
 # Set the automatic adder off because we do more than one action; we change the position and then augment the radius' size.
 # We could join them both into one apply and keep the automatic adder.
 automaticAdderOff()
 
-### ===> Changing the base of the shapes while applying a transformation
+### ===> Changing the circle and the rectangle
 for i in range(0, 40):
-    g.setPosition(y=0.5 + i / 100)
     c.radius += 1
     r.width += 10
-
+    r.height -= 2
     g.add()
+
+# Separate
+wait(0)
+
+### ===> Changing the square
+for i in range(0, 30):
+    s.cornerRadius += 2
+    s.add()
 ```

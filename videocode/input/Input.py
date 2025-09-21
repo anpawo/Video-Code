@@ -18,7 +18,7 @@ class Input(ABC):
     """
     Represents an `Input` which is a list of frames.
 
-    A frame is a matrix of pixel. `1 second` == `24 frames`.
+    A frame is a matrix of pixel. `1 second` == `30 frames`.
 
     You cannot create an `Input` from the base class.
 

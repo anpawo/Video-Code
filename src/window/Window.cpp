@@ -19,7 +19,7 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     ///< Routine settings
     _timer = new QTimer(this);
     connect(_timer, &QTimer::timeout, this, &Window::mainRoutine);
-    _timer->start(_framerate);
+    _timer->start(1000 / _framerate);
 
     ///< Setup the layout and image
     _imageLabel = new QLabel(this);
