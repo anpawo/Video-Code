@@ -58,11 +58,9 @@ namespace python::API
     {
         if constexpr (std::is_same_v<RetTy, int>) {
             return PyLong_AsLong(o);
-        }
-        else if constexpr (std::is_same_v<RetTy, double> || std::is_same_v<RetTy, float>) {
+        } else if constexpr (std::is_same_v<RetTy, double> || std::is_same_v<RetTy, float>) {
             return PyFloat_AsDouble(o);
-        }
-        else if constexpr (std::is_same_v<RetTy, std::string>) {
+        } else if constexpr (std::is_same_v<RetTy, std::string>) {
             return PyUnicode_AsUTF8(o);
         }
     }
@@ -107,13 +105,11 @@ namespace python::API
                     Py_Finalize();
                     return result;
                 }
-            }
-            else {
+            } else {
                 Py_Finalize();
                 throw Error("Python function '" + functionName + "' is not callable.");
             }
-        }
-        else {
+        } else {
             Py_Finalize();
             throw Error("Failed to load Python module: '" + moduleName + "'.");
         }

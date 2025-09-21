@@ -35,19 +35,16 @@ void transformation::fade(std::shared_ptr<IInput>& input, const json::object_t& 
                             if (cols > 1) {
                                 opacity *= 1 - static_cast<float>(x) / (cols - 1) * (1 - i / (duration - 1.0));
                             }
-                        }
-                        else if (side == "right") {
+                        } else if (side == "right") {
                             if (cols > 1) {
                                 ///< FIX: maybe error. try with fadeIn from Left then fadeOut from Right
                                 opacity *= 1 - static_cast<float>(cols - 1 - x) / (cols - 1) * (1 - i / (duration - 1.0));
                             }
-                        }
-                        else if (side == "top") {
+                        } else if (side == "top") {
                             if (rows > 1) {
                                 opacity *= 1 - static_cast<float>(y) / (rows - 1) * (1 - i / (duration - 1.0));
                             }
-                        }
-                        else if (side == "bottom") {
+                        } else if (side == "bottom") {
                             if (rows > 1) {
                                 opacity *= 1 - static_cast<float>(rows - 1 - y) / (rows - 1) * (1 - i / (duration - 1.0));
                             }

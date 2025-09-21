@@ -25,22 +25,18 @@ public:
         ///< Start/Begin Index
         if (startTime.is_null()) {
             _beginIndex = 0;
-        }
-        else if (startTime < 0.0f) {
+        } else if (startTime < 0.0f) {
             _beginIndex = startTime.get<float>() * framerate + static_cast<int>(input->size());
-        }
-        else {
+        } else {
             _beginIndex = startTime.get<float>() * framerate;
         }
 
         ///< End Index
         if (endTime.is_null()) {
             _endIndex = input->size();
-        }
-        else if (endTime < 0.0f) {
+        } else if (endTime < 0.0f) {
             _endIndex = endTime.get<float>() * framerate + static_cast<int>(input->size());
-        }
-        else {
+        } else {
             _endIndex = endTime.get<float>() * framerate;
         }
 
