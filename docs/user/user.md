@@ -69,7 +69,7 @@ To create a video with Video-Code, follow these steps:
 ## Principles
 
 ### Frame Rate
-The project operates at a frame rate of 24 frames per second (fps). This means that each second of video consists of 24 individual frames.
+The project operates at a frame rate of 30 frames per second (fps). This means that each second of video consists of 30 individual frames.
 
 ### Timeline
 The timeline is a sequence of frames that represent the video. Inputs such as images, videos, and text are added to the timeline, and transformations are applied to these inputs over time.

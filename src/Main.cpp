@@ -39,7 +39,7 @@ void setParserArgument(argparse::ArgumentParser &p)
 
     p
         .add_argument("--framerate")
-        .default_value(24)
+        .default_value(30)
         .scan<'i', int>();
 }
 

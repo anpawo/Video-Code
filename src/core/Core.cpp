@@ -186,13 +186,13 @@ int VC::Core::generateVideo()
 void VC::Core::pause()
 {
     _paused = !_paused;
-    std::cout << std::format("Timeline {} at frame {}/{}.", _paused ? "paused" : "unpaused", _index, _frames.size() - 1) << std::endl;
+    std::cout << std::format("Timeline {} at frame {}/{}.", _paused ? "paused" : "unpaused", _index + 1, _frames.size()) << std::endl;
 }
 
 void VC::Core::goToFirstFrame()
 {
     _index = 0;
-    std::cout << std::format("Jumped backward to the first frame of the video: {}", _index) << std::endl;
+    std::cout << std::format("Jumped backward to the first frame {}/{}.", _index + 1, _frames.size()) << std::endl;
 }
 
 void VC::Core::goToLastFrame()
@@ -200,21 +200,22 @@ void VC::Core::goToLastFrame()
     if (_frames.size()) {
         _index = _frames.size() - 1;
     }
-    std::cout << std::format("Jumped forward to the last frame of the video: {}", _index) << std::endl;
+    std::cout << std::format("Jumped forward to the last frame {}/{}.", _index + 1, _frames.size()) << std::endl;
 }
 
 void VC::Core::backward3frames()
 {
-    if (_index < 3 * _framerate) {
+    if (_index < 1 * _framerate) {
         _index = 0;
     } else {
-        _index -= 3 * _framerate;
+        _index -= 1 * _framerate;
     }
+    std::cout << std::format("Jumped backward to the frame {}/{}.", _index + 1, _frames.size()) << std::endl;
 }
 
 void VC::Core::forward3frames()
 {
-    _index += 3 * _framerate;
+    _index += 1 * _framerate;
     if (_index > _frames.size()) {
         _index = _frames.size() - 1;
     }
