@@ -4,6 +4,7 @@
   "dependencies": [
     "opencv4",
     "nlohmann-json",
-    "qtbase"
+    "argparse",
+    "ffmpeg"
   ]
 }

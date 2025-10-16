@@ -1,10 +1,32 @@
 #!/usr/bin/env python3
 
 
-from videocode.Constant import RGBA
+import copy
+from typing import Any
+from videocode.Constant import *
 
 
-type Action = dict[str, int | float | str | dict[str, Action] | list[Action] | RGBA]
+class Metadata:
+    def __init__(self, *, x: int, y: int) -> None:
+        # --- Position ---
+        self.x: int = x
+        self.y: int = y
+
+        # --- Align ---
+        # Center, Left, Right, Top, Bottom
+        self.alignX: align = CENTER
+        self.alignY: align = CENTER
+
+        # --- Opacity ---
+        self.opacity: uint = 255
+
+        # --- Rotation --- ?
+
+        # --- Automatic Add ---
+        self.automaticAdder = False
+
+    def __str__(self) -> str:
+        return f"x={self.x}, y={self.y}"
 
 
 class Global:
@@ -13,15 +35,25 @@ class Global:
     """
 
     # Represents the steps to generate the video.
-    stack: list[Action] = []
+    stack: list[dict[str, Any]] = []
 
     # Index of the next `Input`
     inputCounter: int = 0
+
+    # Default Metadata
+    defaultMetadata: Metadata = Metadata(x=0, y=0)
+
+    # --- Automatic Add ---
+    automaticAdder = False
 
     @staticmethod
     def getIndex() -> int:
         Global.inputCounter += 1
         return Global.inputCounter - 1
+
+    @staticmethod
+    def getDefaultMetadata() -> Metadata:
+        return copy.deepcopy(Global.defaultMetadata)
 
     def __str__(self) -> str:
         return f"Stack={self.stack}"
@@ -30,10 +62,18 @@ class Global:
         return str(self)
 
 
-def wait(n: int = 1) -> None:
+def wait(n: sec = 1) -> None:
     Global.stack.append(
         {
             "action": "Wait",
             "n": n,
         }
     )
+
+
+def automaticAdderOn():
+    Global.automaticAdder = True
+
+
+def automaticAdderOff():
+    Global.automaticAdder = False

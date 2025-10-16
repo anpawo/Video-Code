@@ -16,31 +16,47 @@ Below is an example of the last feature added (code) and the result (video).
 from videocode.VideoCode import *
 
 x = 700
-y = 10
+y = 50
 
-# text: Video-Code
-t = text("Video-Code", 3).apply(translate(x, y), repeat(24 * 4))
-t[: 24 * 3].apply(fadeIn(LEFT))
-t.add()
-t.keep()
+# Set the automatic adder on because we only do one action at a time.
+automaticAdderOn()
 
-# text: Made by
-t = text("made by", 3).apply(translate(x, y + 80), repeat(24 * 4))
-t[: 24 * 3].apply(fadeIn(LEFT))
-t.add()
-t.keep()
+### ===> Creating shapes and setting their positions
+g = (
+    group(
+        # image("assets/icon.png").setPosition(0.5, 0.5),
+        # video("assets/v.mp4").setPosition(0.5, 0.5),
+        c := circle(filled=True, color=RED).setPosition(x, y + 500),
+        s := square(filled=True, cornerRadius=30, thickness=20).setPosition(x, y + 200),
+        r := rectangle(cornerRadius=0, thickness=8, color=GREEN).setPosition(x + 400, y + 350),
+    )
+    # .apply(fadeIn())
+    .apply(moveTo(0.5, 0.5))
+)
 
+# Set the automatic adder off because we do more than one action; we change the position and then augment the radius' size.
+# We could join them both into one apply and keep the automatic adder.
+automaticAdderOff()
 
-# Me
-v = video("video/v.mp4").apply(translate(x, y + 175))
-v[0:20].apply(fadeIn())
-v.add()
-v.keep()
+### ===> Changing the circle and the rectangle
+for i in range(0, 40):
+    c.radius += 1
+    r.width += 10
+    r.height -= 2
+    g.add()
+
+# Separate
+wait(0)
+
+### ===> Changing the square
+for i in range(0, 30):
+    s.cornerRadius += 2
+    s.add()
 ```
 
 <img src="docs/readme/example.gif" style="width: 50%;">
 
-## Getting Started with Video-Code
+## Getting Started
 To create a video with Video-Code, you need to write some simple code in Python.
 
 The flow of the Video comes from the __Inputs__ that you, first import or create, then modify with __Transformations__ and finally add to the __timeline__.
@@ -49,36 +65,57 @@ To import or create an __Input__, you need to create a __video__, __image__ or a
 To modify it, you need to use __Transformations__ like __translate__ or __fade__.<br>
 To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ function.
 
+### Installation
+
+To install the project, checkout the [documentation](docs/user/user.md#installation).
+
 ## Patch Notes
 
 
-<details>
+<details open>
     <summary><code>Inputs</code></summary>
 <br>
 
 - `image`
 - `video`
+
+<br>
+
 - `text`
+
+<br>
+
+- `circle`
+- `rectangle`
+- `square`
+
+<br>
+
+- `group`
 
 </details>
 
 <br>
 
-<details>
+<details open>
     <summary><code>Transformations</code></summary>
 <br>
 
-- `fade`
+- `grayscale`
+- `fadeIn / fadeOut`
 
 <br>
 
-- `translate`
-- `move`
+- `moveTo`
 
 <br>
 
-- `overlay`
-- `repeat`
+- `scale`
+- `zoom`
+
+<br>
+
+- `setPosition`
 
 </details>
 
@@ -88,12 +125,26 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
     <summary><code>Patchs</code></summary>
 <br>
 
+- `feature`: start and duration of transformation (08/04/25)
+- `rework`: keeping (08/04/25)
+- `feature`: wait -> freeze the screen for the duration (08/04/25)
+- `transformation`: setPosition (08/04/25)
+- `rework`: move -> moveTo (08/04/25)
+- `input`: group (08/04/25)
+- `input`: rectangle (24/03/25)
+- `input`: circle (24/03/25)
+- `transformation`: scale (20/03/25)
+- `transformation`: zoom (19/03/25)
+- `rework`: effects' duration (19/03/25)
+- `transformation`: grayscale (19/03/25)
 - `feature`: keep last frame of input on screen (06/03/25)
 - `rework`: one stack (06/03/25)
 - `transformation`: repeat (03/03/25)
 - `input`: text (03/03/25)
 - `rework`: position of the frames (02/03/25)
 - `transformation`: move (02/03/25)
+- `feature`: setters (update in real time the proportions of a shape) (20/09/25)
+- `fix`: different framerate between the window and the generated video
 
 </details>
 

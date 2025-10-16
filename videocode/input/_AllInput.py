@@ -16,6 +16,8 @@ from videocode.input.text.Formula import *
 
 # Shapes
 from videocode.input.shape.Circle import *
-from videocode.input.shape.Line import *
+from videocode.input.shape.Line import *  # TODO
 from videocode.input.shape.Rectangle import *
-from videocode.input.shape.Square import *
+
+# Group
+from videocode.input.group.Group import *

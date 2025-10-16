@@ -2,8 +2,38 @@
 
 
 from videocode.input.shape._Shape import *
+from videocode.Decorators import inputCreation
 
 
 class rectangle(Shape):
-    def __init__(self, width: int, height: int) -> None:
-        Global.stack.append(("Rectangle", [width, height]))
+    width: uint
+    height: uint
+    thickness: uint
+    color: rgba
+    cornerRadius: uint
+    filled: bool
+
+    @inputCreation
+    def __init__(
+        self,
+        width: uint = 400,
+        height: uint = 200,
+        thickness: uint = 20,
+        color: rgba = BLUE,
+        cornerRadius: uint = 0,  # 0 <= cornerRadius <= 90
+        filled: bool = False,
+    ): ...
+
+
+class square(Shape):
+    def __new__(
+        cls,
+        side: uint = 200,
+        thickness: uint = 20,
+        color: rgba = BLUE,
+        cornerRadius: uint = 0,  # 0 <= cornerRadius <= 90
+        filled: bool = False,
+    ) -> rectangle:
+        return rectangle(width=side, height=side, thickness=thickness, color=color, cornerRadius=cornerRadius, filled=filled)
+
+    def __init__(self): ...

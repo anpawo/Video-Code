@@ -33,7 +33,7 @@ BraceWrapping:
     AfterNamespace: true
     AfterCaseLabel: false
     AfterClass: true
-    AfterControlStatement: true
+    AfterControlStatement: false
     AfterEnum: false
     AfterFunction: true
     AfterObjCDeclaration: false
@@ -41,7 +41,7 @@ BraceWrapping:
     AfterUnion: false
     AfterExternBlock: false
     BeforeCatch: false
-    BeforeElse: true
+    BeforeElse: false
     BeforeLambdaBody: false
     BeforeWhile: false
     IndentBraces: false

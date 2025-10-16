@@ -5,23 +5,24 @@
 ** grayscale
 */
 
-// #include <memory>
+#include <opencv2/opencv.hpp>
 
-// #include "input/IInput.hpp"
-// #include "opencv2/imgproc.hpp"
-// #include "transformation/transformation.hpp"
+#include "transformation/transformation.hpp"
 
-// void transformation::grayscale(std::shared_ptr<IInput> input, [[maybe_unused]] Register &reg, [[maybe_unused]] const json::array_t &args)
-// {
-//     if (input->getFrames().empty() || input->getFrames()[0].channels() == 1)
-//     {
-//         return;
-//     }
+void transformation::grayscale(std::shared_ptr<IInput>& input, [[maybe_unused]] const json::object_t& args)
+{
+    size_t duration = args.at("duration");
+    size_t start = args.at("start");
 
-// for (auto &m : input->getFrames())
-// {
-//     cv::cvtColor(m, m, cv::COLOR_BGR2GRAY); // TODO: should be deduced or does it needs it ?
-// }
-// }
-
-// TODO: update colors instead of chaning to 1 channel
+    for (size_t i = 0; i < duration; i++) {
+        input->addTransformation(start + i, [](Frame& frame) {
+            for (int y = 0; y < frame.mat.rows; y++) {
+                for (int x = 0; x < frame.mat.cols; x++) {
+                    cv::Vec4b& pixel = frame.mat.at<cv::Vec4b>(y, x);
+                    uchar gray_value = static_cast<uchar>(0.299 * pixel[2] + 0.587 * pixel[1] + 0.114 * pixel[0]);
+                    pixel = cv::Vec4b(gray_value, gray_value, gray_value, pixel[3]);
+                }
+            }
+        });
+    }
+}

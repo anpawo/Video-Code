@@ -7,43 +7,53 @@
 
 #pragma once
 
+#include <memory>
 #include <nlohmann/json.hpp>
 
-#include "vm/Register.hpp"
+#include "input/IInput.hpp"
 
 using json = nlohmann::json;
 
-#define transformation(t) void t(std::shared_ptr<IInput> input, Register &reg, const json::object_t &args)
+#define transformation(t) void t(std::shared_ptr<IInput> &input, const json::object_t &args)
+#define bind(n) {#n, n}
 
 namespace transformation
 {
 
-    // Color
-    /***
-        TODO: transformation(grayscale);
-    ***/
+    ///< Color
     transformation(fade);
+    transformation(grayscale);
 
-    // Position
-    transformation(translate);
-    transformation(move);
+    ///< Position
+    transformation(moveTo);
 
-    // Other
-    transformation(overlay);
-    transformation(repeat);
+    ///< Other
+    transformation(zoom);
+    transformation(scale);
+
+    ///< Setter
+    transformation(setPosition);
+    transformation(setAlign);
     /***
-        TODO: transformation(concat);
-        TODO: transformation(merge);
+    TODO: transformation(setOpacity);
     ***/
+    transformation(setArgument);
 
-    static const std::map<std::string, std::function<void(std::shared_ptr<IInput>, Register &, const json::object_t &)>> map{
-        // Color
-        {"fade", fade},
-        // Position
-        {"translate", translate},
-        {"move", move},
-        // Other
-        {"overlay", overlay},
-        {"repeat", repeat},
+    static const std::map<std::string, std::function<void(std::shared_ptr<IInput> &input, const json::object_t &args)>> map{
+        ///< Color
+        bind(fade),
+        bind(grayscale),
+
+        ///< Position
+        bind(moveTo),
+
+        ///< Other
+        bind(zoom),
+        bind(scale),
+
+        ///< Setter
+        bind(setPosition),
+        bind(setAlign),
+        bind(setArgument),
     };
-};
+}

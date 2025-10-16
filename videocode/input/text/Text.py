@@ -4,12 +4,22 @@
 from typing import Optional
 
 
-from videocode.Constant import RGBA, WHITE
+from videocode.Constant import *
+from videocode.Decorators import inputCreation
 from videocode.input.Input import *
 
 
 class text(Input):
-    def __init__(self, s: str, fontSize: float = 1, color: RGBA = WHITE, fontThickness: Optional[int] = None) -> None:
+
+    # @inputCreation
+    def __init__(
+        self,
+        s: str,
+        fontSize: float = 1,
+        color: rgba = WHITE,
+        fontThickness: Optional[int] = None,
+        duration: sec = 1,
+    ):
         Global.stack.append(
             {
                 "action": "Create",
@@ -18,5 +28,6 @@ class text(Input):
                 "fontSize": fontSize,
                 "color": color,
                 "fontThickness": fontThickness or fontSize * 2,
+                "duration": duration,
             }
         )

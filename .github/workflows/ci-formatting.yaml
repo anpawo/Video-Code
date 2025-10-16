@@ -1,17 +1,23 @@
 name: Formatting
 
 on:
+  pull_request:
+    types:
+      - opened
+    branches-ignore:
+      - 'ga-ignore-**'
   push:
-    branches: [main]
+    branches-ignore:
+      - 'ga-ignore-**'
 
 jobs:
   check-formatting:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout the repo
         uses: actions/checkout@v4
-      
+
       # The following trick exists only because Ubuntu doesn't support the latest version of clang-format
       # and because the fedora runner I tried to used took 30min to do nothing so I had to stop it.
       - name: Run clang-format
@@ -19,9 +25,11 @@ jobs:
           docker run --rm -v ${{ github.workspace }}:/workspace fedora:latest /bin/bash -c "
           dnf install -y clang-tools-extra > /dev/null 2>&1 && \
           echo '-' && \
+          echo '-' && \
           clang-format --version && \
           echo '-' && \
           echo 'Errors below if any' && \
+          echo '-' && \
           echo '-' && \
           clang-format -n -Werror \$(find /workspace -regex '.*\\.\(cpp\\|hpp\\)')
           "

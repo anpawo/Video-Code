@@ -11,8 +11,7 @@
 
 #ifdef VC_DEBUG_ON
     #define VC_LOG_DEBUG(x)              \
-        do                               \
-        {                                \
+        do {                             \
             std::cout << x << std::endl; \
         } while (0);
 #else
