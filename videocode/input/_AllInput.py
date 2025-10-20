@@ -9,6 +9,7 @@ from videocode.input.Input import *
 # External Inputs
 from videocode.input.media.Image import *
 from videocode.input.media.Video import *
+from videocode.input.media.WebImage import *
 
 # Text
 from videocode.input.text.Text import *

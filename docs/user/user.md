@@ -49,11 +49,11 @@ go to [qt6](https://www.qt.io/download) and download the latest version of qt6.
 
 To launch the project, run:
 ```sh
-./video-code --sourceFile path/to/your/script.py
+./video-code --file path/to/your/script.py
 ```
 If you want to generate a video directly, use:
 ```sh
-./video-code --sourceFile path/to/your/script.py --generate
+./video-code --file path/to/your/script.py --generate
 
 ```
 

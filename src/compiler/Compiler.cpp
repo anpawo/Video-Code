@@ -7,8 +7,6 @@
 
 #include "compiler/Compiler.hpp"
 
-#include <cstdio>
-
 VC::Compiler::Compiler(const argparse::ArgumentParser &parser)
     : _core(parser)
 {

@@ -67,6 +67,7 @@ endif()
 find_package(OpenCV REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
+find_package(cpr CONFIG REQUIRED)
 
 if(NOT CI_BUILD)
     find_package(nlohmann_json CONFIG REQUIRED)
@@ -100,6 +101,7 @@ set(SOURCES
     # Media
     src/input/media/Image.cpp
     src/input/media/Video.cpp
+    src/input/media/WebImage.cpp
     # Text
     src/input/text/Text.cpp
     # Shape
@@ -139,4 +141,5 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Gui
     stdc++fs
     Python3::Python
+    cpr::cpr
 )

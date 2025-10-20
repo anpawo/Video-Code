@@ -15,14 +15,21 @@ VC::Core::Core(const argparse::ArgumentParser& parser)
     : _width(parser.get<int>("--width"))
     , _height(parser.get<int>("--height"))
     , _framerate(parser.get<int>("--framerate"))
-    , _sourceFile(parser.get("--sourceFile"))
+    , _sourceFile(parser.get("--file"))
     , _outputFile(parser.get("--generate"))
+    , _showstack(parser.get<bool>("--showstack"))
+    , _timeit(parser.get<bool>("--time"))
     , _bgFrame(cv::Mat(_height, _width, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0)))
 {
     reloadSourceFile();
 }
 
 VC::Core::~Core() = default;
+
+void timeit(bool reset = false)
+{
+    static auto start = nullptr; // null or second
+}
 
 void VC::Core::reloadSourceFile()
 {
@@ -49,7 +56,9 @@ void VC::Core::reloadSourceFile()
 void VC::Core::executeStack()
 {
     for (auto& i : _stack) {
-        VC_LOG_DEBUG(i);
+        if (_showstack) {
+            VC_LOG_DEBUG(i);
+        }
 
         if (i["action"] == "Create") {
             _inputs.push_back(Factory::create(i["type"], i));
@@ -91,7 +100,9 @@ void VC::Core::addNewFrames()
             anyInputChanged |= _inputs[i]->frameHasChanged();
         }
 
-        _frames.push_back(std::move(frame));
+        if (anyInputChanged) {
+            _frames.push_back(std::move(frame));
+        }
     }
 }
 
@@ -219,4 +230,5 @@ void VC::Core::forward3frames()
     if (_index > _frames.size()) {
         _index = _frames.size() - 1;
     }
+    std::cout << std::format("Jumped forward to the frame {}/{}.", _index + 1, _frames.size()) << std::endl;
 }
