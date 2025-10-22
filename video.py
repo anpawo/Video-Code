@@ -15,6 +15,5 @@ r = RuneSet(
     shard=(Shard.AdaptativeForce, Shard.AttackSpeed, Shard.HealthScaling),
 )  # .animate()
 
-# w = webImage(url).setPosition(x, y)
 
 automaticAdderOff()

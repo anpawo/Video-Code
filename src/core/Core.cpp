@@ -7,6 +7,8 @@
 
 #include "core/Core.hpp"
 
+#include <iostream>
+
 #include "core/Factory.hpp"
 #include "python/API.hpp"
 #include "utils/Debug.hpp"
@@ -26,11 +28,6 @@ VC::Core::Core(const argparse::ArgumentParser& parser)
 
 VC::Core::~Core() = default;
 
-void timeit(bool reset = false)
-{
-    static auto start = nullptr; // null or second
-}
-
 void VC::Core::reloadSourceFile()
 {
     std::string serializedScene;
@@ -38,7 +35,7 @@ void VC::Core::reloadSourceFile()
     try {
         serializedScene = python::API::call<std::string>("Serialize", "serializeScene", _sourceFile);
     } catch (const Error& e) {
-        std::cout << "Invalid source file, could not parse the instructions." << std::endl;
+        std::cerr << "VideoCode: Invalid source file '" << _sourceFile << "', could not parse the instructions." << std::endl;
         return;
     }
 

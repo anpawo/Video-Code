@@ -130,3 +130,9 @@ class Input(ABC):
         if hasattr(self, name):
             self.apply(setArgument(name, value))
         object.__setattr__(self, name, value)
+
+    def __str__(self) -> str:
+        s = ""
+        for i in self.__dict__:
+            s += f"{i}='{self.__getattribute__(i)}'"
+        return s
