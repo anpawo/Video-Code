@@ -11,7 +11,7 @@ y = 0.5
 
 r = RuneSet(
     main=(Path.Precision, Rune.LethalTempo, Rune.Triumph, Rune.LegendAlacrity, Rune.LastStand),
-    sub=(Path.Resolve, Rune.ShieldBash, Rune.BonePlating),
+    sub=(Path.Resolve, Rune.BonePlating, Rune.ShieldBash),
     shard=(Shard.AdaptativeForce, Shard.AttackSpeed, Shard.HealthScaling),
 )  # .animate()
 

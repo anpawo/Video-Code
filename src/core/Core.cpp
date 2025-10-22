@@ -66,8 +66,8 @@ void VC::Core::executeStack()
                 _addedInputs.push_back(index);
             }
         } else if (i["action"] == "Apply") {
-            i["args"]["duration"] = i["args"]["duration"].get<size_t>() * _framerate;
-            i["args"]["start"] = i["args"]["start"].get<size_t>() * _framerate;
+            i["args"]["duration"] = i["args"]["duration"].get<double>() * _framerate;
+            i["args"]["start"] = i["args"]["start"].get<double>() * _framerate;
             _inputs[i["input"]]->apply(i["transformation"], i["args"]);
         } else if (i["action"] == "Wait") {
             addNewFrames();

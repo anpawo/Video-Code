@@ -5,6 +5,12 @@ from videocode.input.Input import *
 
 
 class group(Input):
+    def __new__(cls, *args, **kwargs) -> Self:
+        instance = object.__new__(cls)
+        instance.index = None
+        instance.meta = Global.getDefaultMetadata()
+        return instance
+
     def __init__(self, *inputs: Input):
         self.inputs: list[Input] = [*inputs]
 

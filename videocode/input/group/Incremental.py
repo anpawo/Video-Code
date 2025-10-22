@@ -6,12 +6,9 @@ from videocode.input.Input import *
 from videocode.input.group.Group import group
 
 
-type Index = int
-
-
 class incremental(group):
     def __init__(self, incrementals: dict[type, Callable[[Transformation, Index], Transformation]], *inputs: Input):
-        super().__init__(*inputs)
+        group.__init__(self, *inputs)
         self.incrementals = incrementals
 
     def apply(self, *ts: Transformation, start: sec = default(0), duration: sec = default(1)) -> Self:  # type: ignore
@@ -33,14 +30,11 @@ class incremental(group):
             return self
 
 
-def incrAdd(**kwargs) -> Callable[[Transformation, Index], Transformation]:
+def linearAdd(**kwargs) -> Callable[[Transformation, Index], Transformation]:
 
     def wrapper(t: Transformation, i: Index) -> Transformation:
         for k, v in kwargs.items():
-            try:
-                t.__setattr__(k, t.__getattribute__(k) + v * i)
-            except:
-                continue
+            t.__setattr__(k, t.__getattribute__(k) + v * i)
 
         return t
 

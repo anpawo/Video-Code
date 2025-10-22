@@ -2,15 +2,16 @@
 
 from __future__ import annotations
 from enum import Enum
-from videocode.input.group.Incremental import incrAdd, incremental
+from typing import Callable
+from videocode.Constant import SH, SW, Index, Url
+from videocode.input.group.Incremental import incremental, linearAdd
 from videocode.input.media.WebImage import webImage
 
 import requests
 
+from videocode.transformation.Transformation import Transformation
+from videocode.transformation.position.MoveTo import moveTo
 from videocode.transformation.setter.SetPosition import setPosition
-
-
-type Url = str
 
 
 class Path(Enum):
@@ -42,16 +43,9 @@ class Shard(Enum):
     Tenacity = "Tenacity_and_Slow_Resist"
 
 
-class RuneInput:
-    def __init__(self, rune: Rune, url: Url, input: webImage) -> None:
-        self.name: Rune = rune
-        self.url: Url = url
-        self.input: webImage = input
-
-
-class ShardInput:
-    def __init__(self, shard: Shard, url: Url, input: webImage) -> None:
-        self.name: Shard = shard
+class RuneData:
+    def __init__(self, elem: Rune | Shard, url: Url, input: webImage) -> None:
+        self.name: Rune | Shard = elem
         self.url: Url = url
         self.input: webImage = input
 
@@ -92,23 +86,32 @@ class UrlKind(Enum):
         raise ValueError(f"{kind} '{fmt}' not found.")
 
 
-class RuneBranch:
-    def __init__(self, path: Path, *runes: Rune) -> None:
-        self.color = Color[path]
-        self.path = UrlKind.get(UrlKind.Icon, path.value)
-        self.runes = [RuneInput(rune, u := UrlKind.get(UrlKind.Rune, rune.value), webImage(u)) for rune in runes]
-        self.incrementalInputs = incremental({setPosition: incrAdd(y=200)}, *(r.input for r in self.runes))
+class Branch:
+    def __init__(
+        self,
+        incr1: Callable[[Transformation, Index], Transformation],
+        incr2: Callable[[Transformation, Index], Transformation],
+        path: Path | None,
+        *elems: Rune | Shard,
+    ) -> None:
+        self.color = Color[path] if path else None
+        self.path = UrlKind.get(UrlKind.Icon, path.value) if path else None
+        self.elems = [RuneData(e, u := UrlKind.get(UrlKind.Rune if path else UrlKind.Shard, e.value), webImage(u)) for e in elems]
+        self.incrementalInputs = incremental({setPosition: incr1, moveTo: incr2}, *(e.input for e in self.elems))
 
     def __str__(self) -> str:
-        return f"Color:[{self.color}]\nPath:[{self.path}]\nRunes:{self.runes}"
+        return f"Color:[{self.color}]\nPath:[{self.path}]\nElems:{self.elems}"
 
 
-class RuneShard:
-    def __init__(self, s1: Shard, s2: Shard, s3: Shard) -> None:
-        self.s1 = ShardInput(s1, u := UrlKind.get(UrlKind.Shard, s1.value), ss1 := webImage(u))
-        self.s2 = ShardInput(s2, u := UrlKind.get(UrlKind.Shard, s2.value), ss2 := webImage(u))
-        self.s3 = ShardInput(s3, u := UrlKind.get(UrlKind.Shard, s3.value), ss3 := webImage(u))
-        self.incrementalInputs = incremental({setPosition: incrAdd(y=200)}, ss1, ss2, ss3)
+def linearAfterOneAdd(**kwargs) -> Callable[[Transformation, Index], Transformation]:
+
+    def wrapper(t: Transformation, i: Index) -> Transformation:
+        for k, v in kwargs.items():
+            t.__setattr__(k, t.__getattribute__(k) + v * i + (v * 0.25 if i else 0))
+
+        return t
+
+    return wrapper
 
 
 class RuneSet:
@@ -120,15 +123,27 @@ class RuneSet:
         shard: tuple[Shard, Shard, Shard],
         animate: bool = True,
     ) -> None:
-        self.main = RuneBranch(main[0], *main[1:])
-        self.sub = RuneBranch(sub[0], *sub[1:])
-        self.shard = RuneShard(*shard)
+        # Y spacing
+        runeSpacing = 180
+        shardSpacing = 75
 
-        self.main.incrementalInputs.setPosition(200, 200)
-        self.sub.incrementalInputs.setPosition(600, 200)
-        # self.shard.incrementalInputs.setPosition(600, 600)
+        mainX = SW * 0.35
+        mainY = SH * 0.2
+        subX = SW * 0.65
+        subY = mainY + runeSpacing * 0.6
+        shardX = subX
+        shardY = subY + runeSpacing * 2
 
-        # print(self.sub)
+        diffY = 2000
+        duration = 0.3
+
+        self.main = Branch(linearAfterOneAdd(y=runeSpacing), linearAfterOneAdd(dstY=runeSpacing), *main)
+        self.sub = Branch(linearAdd(y=runeSpacing), linearAdd(dstY=runeSpacing), *sub)
+        self.shard = Branch(linearAdd(y=shardSpacing), linearAdd(dstY=shardSpacing), None, *shard)
+
+        self.main.incrementalInputs.apply(setPosition(mainX, mainY + diffY), moveTo(y=mainY), duration=duration)
+        self.sub.incrementalInputs.apply(setPosition(subX, subY + diffY), moveTo(y=subY), duration=duration)
+        self.shard.incrementalInputs.apply(setPosition(shardX, shardY + diffY), moveTo(y=shardY), duration=duration)
 
 
 # TODO:

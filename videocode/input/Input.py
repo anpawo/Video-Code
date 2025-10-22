@@ -37,8 +37,10 @@ class Input(ABC):
 
     """
     Index of the `Input`.
+
+    Groups do not have an index (they are just python wrapper)
     """
-    index: int
+    index: int | None
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = super().__new__(cls)
@@ -128,11 +130,15 @@ class Input(ABC):
 
     def __setattr__(self, name: str, value: Any) -> None:
         if hasattr(self, name):
+            print(f"name=[{name}], value=[{value}], index=[{self.index}], self=[{str(self)}]")
             self.apply(setArgument(name, value))
         object.__setattr__(self, name, value)
 
     def __str__(self) -> str:
-        s = ""
+        s = f"\n{self.__class__.__name__}:\n"
         for i in self.__dict__:
-            s += f"{i}='{self.__getattribute__(i)}'"
+            s += f"\t{i}='{self.__getattribute__(i)}'\n"
         return s
+
+    def __repr__(self) -> str:
+        return self.__str__()

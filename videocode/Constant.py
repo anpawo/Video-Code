@@ -7,8 +7,8 @@
 from typing import Annotated, Any, Literal, TypeVar, Union
 
 # screen dimension
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
+SCREEN_WIDTH = SW = 1920
+SCREEN_HEIGHT = SH = 1080
 
 
 # Integer values
@@ -78,3 +78,6 @@ Represents a coordinate position in a 2D space.
 - `float`: `relative position` (ratio of window width/height).  
 - `int`: `absolute position` (exact pixel x/y coordinates).  
 """
+
+type Index = int
+type Url = str
