@@ -47,7 +47,7 @@ BLUE: rgba = (0, 0, 255, 255)
 
 
 # time
-type sec = Union[ufloat, uint]
+type sec = Union[ufloat, uint, default]
 
 
 # default parameters to specify that it's the default value
@@ -61,14 +61,16 @@ class default:
 
 
 def getValueByPriority(t: Any, duration: Any) -> sec:  # type: ignore
-    if hasattr(t, "duration") and isinstance(t.duration, int | float):  # sec
+    if hasattr(t, "duration") and isinstance(t.duration, int | float):
         return t.duration
-    elif isinstance(duration, int | float):  # sec
+    elif isinstance(duration, int | float):
         return duration
     elif hasattr(t, "duration") and isinstance(t.duration, default):
         return t.duration.defaultValue
     elif isinstance(duration, default):
         return duration.defaultValue
+    else:
+        raise ValueError(duration)
 
 
 type position = int | float
@@ -81,3 +83,10 @@ Represents a coordinate position in a 2D space.
 
 type Index = int
 type Url = str
+
+FRAMERATE = FR = 30
+
+SINGLE_FRAME = SR = 1 / FRAMERATE
+"""
+Framerate multiplicator to get one single frame.
+"""

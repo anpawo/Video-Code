@@ -135,7 +135,7 @@ class RuneSet:
         shardY = subY + runeSpacing * 2
 
         diffY = 2000
-        duration = 0.3
+        duration = 0.4
 
         self.main = Branch(linearAfterOneAdd(y=runeSpacing), linearAfterOneAdd(dstY=runeSpacing), *main)
         self.sub = Branch(linearAdd(y=runeSpacing), linearAdd(dstY=runeSpacing), *sub)
