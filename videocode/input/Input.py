@@ -128,7 +128,7 @@ class Input(ABC):
     def setPosition(self, x: int | float | None = None, y: int | float | None = None) -> Self:
         return self.apply(setPosition(x, y))
 
-    def slideTo(self, x: position, y: position, *, easing: cubicBezier = Easing.Linear, start: sec = 0, duration: sec = 0.3) -> Self:
+    def slideTo(self, x: position, y: position, *, easing: cubicBezier = Easing.Linear, start: sec = 0, duration: sec = 0.4) -> Self:
         slideTo(self, x, y, easing=easing, start=start, duration=duration)
         return self
 

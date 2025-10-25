@@ -8,7 +8,7 @@ from videocode.utils.bezier import cubicBezier
 from videocode.utils.easings import Easing
 
 
-def slideTo(input, x: position, y: position, *, easing: cubicBezier = Easing.Linear, start: int | float = 0, duration: int | float = 0.3) -> None:
+def slideTo(input, x: position, y: position, *, easing: cubicBezier = Easing.Linear, start: int | float = 0, duration: int | float = 0.4) -> None:
     n = int((duration - start) * FR) + 1
     srcX = input.meta.x
     srcY = input.meta.y
