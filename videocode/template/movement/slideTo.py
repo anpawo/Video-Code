@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 
 
-from videocode.Constant import FR, SR, position
+from videocode.Constant import FR, SR, default, position, sec
 from videocode.Global import Global
-from videocode.input.Input import Input
-from videocode.transformation.Transformation import Transformation
 from videocode.transformation.setter.SetPosition import setPosition
 from videocode.utils.bezier import cubicBezier
 from videocode.utils.easings import Easing
 
 
-def slideTo(input: Input, x: position, y: position, *, easing: cubicBezier = Easing.Linear, start=0, duration=0.3) -> None:
+def slideTo(input, x: position, y: position, *, easing: cubicBezier = Easing.Linear, start: int | float = 0, duration: int | float = 0.3) -> None:
     n = int((duration - start) * FR) + 1
     srcX = input.meta.x
     srcY = input.meta.y

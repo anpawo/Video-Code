@@ -5,6 +5,10 @@ from videocode.input.Input import *
 
 
 class group(Input):
+    """
+    A `Group` contains many inputs and will apply each transformations it gets to all of its inputs.
+    """
+
     def __new__(cls, *args, **kwargs) -> Self:
         instance = object.__new__(cls)
         instance.index = None
@@ -23,7 +27,7 @@ class group(Input):
 
         return self
 
-    def apply(self, *ts: Transformation, start: sec = default(0), duration: sec = default(1)) -> Self:  # type: ignore
+    def apply(self, *ts: Transformation, start: t = default(0), duration: t = default(1)) -> Self:
         """
         Applies the `Transformations` `ts` to all the `Inputs` of the `Group`.
 
@@ -31,6 +35,8 @@ class group(Input):
         """
         for i in self.inputs:
             for t in ts:
+                t.modificator(self.meta)
+
                 i.apply(copy.deepcopy(t), start=start, duration=duration)
 
         if self.meta.automaticAdder:

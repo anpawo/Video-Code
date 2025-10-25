@@ -47,7 +47,8 @@ BLUE: rgba = (0, 0, 255, 255)
 
 
 # time
-type sec = Union[ufloat, uint, default]
+type sec = Union[ufloat, uint]
+type t = Union[ufloat, uint, default]
 
 
 # default parameters to specify that it's the default value
@@ -59,8 +60,11 @@ class default:
     def __init__(self, defaultValue: Any) -> None:
         self.defaultValue = defaultValue
 
+    def __str__(self) -> str:
+        return f"default({self.defaultValue})"
 
-def getValueByPriority(t: Any, duration: Any) -> sec:  # type: ignore
+
+def getValueByPriority(t: Any, duration: Any) -> sec:
     if hasattr(t, "duration") and isinstance(t.duration, int | float):
         return t.duration
     elif isinstance(duration, int | float):

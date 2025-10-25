@@ -6,12 +6,15 @@ from typing import Self
 
 import copy
 
+from videocode.template.movement.slideTo import slideTo
 from videocode.transformation.Transformation import Transformation
 from videocode.Global import *
 from videocode.Constant import *
 from videocode.transformation.setter.SetAlign import setAlign
 from videocode.transformation.setter.SetPosition import setPosition
 from videocode.transformation.setter.Setter import setArgument
+from videocode.utils.bezier import cubicBezier
+from videocode.utils.easings import Easing
 
 
 class Input(ABC):
@@ -81,7 +84,7 @@ class Input(ABC):
         )
         return self
 
-    def apply(self, *ts: Transformation, start: sec = default(0), duration: sec = default(1)) -> Self:  # type: ignore
+    def apply(self, *ts: Transformation, start: t = default(0), duration: t = default(1)) -> Self:  # type: ignore
         """
         Applies the `Transformations` `ts` to the `Input` `self`.
 
@@ -124,6 +127,10 @@ class Input(ABC):
 
     def setPosition(self, x: int | float | None = None, y: int | float | None = None) -> Self:
         return self.apply(setPosition(x, y))
+
+    def slideTo(self, x: position, y: position, *, easing: cubicBezier = Easing.Linear, start: sec = 0, duration: sec = 0.3) -> Self:
+        slideTo(self, x, y, easing=easing, start=start, duration=duration)
+        return self
 
     def setAlign(self, x: align | None = None, y: align | None = None) -> Self:
         return self.apply(setAlign(x, y))
