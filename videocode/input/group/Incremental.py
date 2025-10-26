@@ -31,10 +31,10 @@ class incremental(group):
                 else:
                     input.apply(copy.deepcopy(t), start=start, duration=duration)
 
-        if self.meta.automaticAdder:
-            return self.add()
-        else:
-            return self
+        return self
+
+
+# --- Incremental Functions ---
 
 
 def linearAdd(**kwargs) -> Callable[[Transformation, Index], Transformation]:

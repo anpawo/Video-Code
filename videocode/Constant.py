@@ -80,9 +80,6 @@ def getValueByPriority(t: Any, duration: Any) -> sec:
 type position = int | float
 """
 Represents a coordinate position in a 2D space.
-
-- `float`: `relative position` (ratio of window width/height).  
-- `int`: `absolute position` (exact pixel x/y coordinates).  
 """
 
 type Index = int

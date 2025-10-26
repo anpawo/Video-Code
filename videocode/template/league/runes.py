@@ -129,7 +129,7 @@ class RuneSet:
         shardSpacing = 75
 
         self.x = SW * 0.3
-        self.y = SH * 0.2
+        self.y = SH * 0.25
         self.duration = 0.4
 
         xDiffSub = SW * 0.3

@@ -19,8 +19,8 @@ class moveTo(Transformation):
     """
 
     def __init__(self, x: int | float | None = None, y: int | float | None = None) -> None:
-        self.srcX: int
-        self.srcY: int
+        self.srcX: position
+        self.srcY: position
         self.dstX = int(x) if isinstance(x, float) else x
         self.dstY = int(y) if isinstance(y, float) else y
 

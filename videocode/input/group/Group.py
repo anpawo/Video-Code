@@ -39,7 +39,4 @@ class group(Input):
 
                 i.apply(copy.deepcopy(t), start=start, duration=duration)
 
-        if self.meta.automaticAdder:
-            return self.add()
-        else:
-            return self
+        return self

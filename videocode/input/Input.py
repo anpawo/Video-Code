@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Self
+from typing import Callable, Self
 
 import copy
 
@@ -59,8 +59,8 @@ class Input(ABC):
         Appends the `frames` of `self` to the `timeline`.
         """
 
-        # Prevent double add error TODO: WARNING
-        if self.meta.automaticAdder or Global.automaticAdder:
+        # Prevent double add error
+        if Global.automaticAdder:
             return self
 
         Global.stack.append(
@@ -71,20 +71,29 @@ class Input(ABC):
         )
         return self
 
-    def automaticAdd(self) -> Self:
+    @staticmethod
+    def autoAdd(f: Callable[..., Input]):
         """
         Appends the `frames` of `self` to the `timeline` automatically after applying a `Transformation`.
         """
 
-        Global.stack.append(
-            {
-                "action": "Add",
-                "input": self.index,
-            }
-        )
-        return self
+        def autoAddWrapper(*args, **kwargs):
+            input = f(*args, **kwargs)
 
-    def apply(self, *ts: Transformation, start: t = default(0), duration: t = default(1)) -> Self:  # type: ignore
+            if Global.automaticAdder:
+                Global.stack.append(
+                    {
+                        "action": "Add",
+                        "input": input.index,
+                    }
+                )
+
+            return input
+
+        return autoAddWrapper
+
+    @autoAdd
+    def apply(self, *ts: Transformation, start: t = default(0), duration: t = default(1)) -> Self:
         """
         Applies the `Transformations` `ts` to the `Input` `self`.
 
@@ -105,10 +114,7 @@ class Input(ABC):
                 }
             )
 
-        if self.meta.automaticAdder or Global.automaticAdder:
-            return self.automaticAdd()
-        else:
-            return self
+        return self
 
     def copy(self) -> Input:
         """
