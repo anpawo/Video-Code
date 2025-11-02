@@ -8,18 +8,18 @@ class CompilerTests : public ::testing::Test {
 protected:
     void SetUp() override {
         parser.add_argument("--width")
-            .default_value("1920")
+            .default_value(1920)
             .scan<'i', int>();
         parser.add_argument("--height")
-            .default_value("1080")
+            .default_value(1080)
             .scan<'i', int>();
         parser.add_argument("--framerate")
-            .default_value("60")
+            .default_value(60)
             .scan<'i', int>();
         parser.add_argument("--sourceFile")
-            .default_value(std::string("test.json"));
+            .default_value("test.json");
         parser.add_argument("--generate")
-            .default_value(std::string("out.mp4"));
+            .default_value("out.mp4");
             
         std::vector<std::string> args = {"test-parser"};
         parser.parse_args(args);
@@ -52,18 +52,18 @@ TEST_F(CompilerTests, InvalidConfiguration) {
     // Create new parser with invalid output path
     argparse::ArgumentParser customParser{"test-parser"};
     customParser.add_argument("--width")
-        .default_value("1920")
+        .default_value(1920)
         .scan<'i', int>();
     customParser.add_argument("--height")
-        .default_value("1080")
+        .default_value(1080)
         .scan<'i', int>();
     customParser.add_argument("--framerate")
-        .default_value("60")
+        .default_value(60)
         .scan<'i', int>();
-        customParser.add_argument("--sourceFile")
-            .default_value(std::string("test.json"));
-        customParser.add_argument("--generate")
-            .default_value(std::string("/nonexistent/path/out.mp4"));    std::vector<std::string> args = {"test-parser"};
+    customParser.add_argument("--sourceFile")
+        .default_value("test.json");
+    customParser.add_argument("--generate")
+        .default_value("/nonexistent/path/out.mp4");    std::vector<std::string> args = {"test-parser"};
     customParser.parse_args(args);
 
     Compiler compiler(customParser);
@@ -74,18 +74,18 @@ TEST_F(CompilerTests, MissingSourceFile) {
     // Create new parser with nonexistent source file
     argparse::ArgumentParser customParser{"test-parser"};
     customParser.add_argument("--width")
-        .default_value("1920")
+        .default_value(1920)
         .scan<'i', int>();
     customParser.add_argument("--height")
-        .default_value("1080")
+        .default_value(1080)
         .scan<'i', int>();
     customParser.add_argument("--framerate")
-        .default_value("60")
+        .default_value(60)
         .scan<'i', int>();
-        customParser.add_argument("--sourceFile")
-            .default_value(std::string("nonexistent.json"));
-        customParser.add_argument("--generate")
-            .default_value(std::string("out.mp4"));    std::vector<std::string> args = {"test-parser"};
+    customParser.add_argument("--sourceFile")
+        .default_value("nonexistent.json");
+    customParser.add_argument("--generate")
+        .default_value("out.mp4");    std::vector<std::string> args = {"test-parser"};
     customParser.parse_args(args);
 
     Compiler compiler(customParser);

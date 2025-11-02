@@ -8,18 +8,7 @@ using namespace VC;
 
 class WindowTests : public ::testing::Test {
 protected:
-    WindowTests() : testFrame(cv::Mat(480, 640, CV_8UC3, cv::Scalar(255, 0, 0))) {
-        // Create test parser with required arguments
-        parser.add_argument("--width")
-            .default_value("640")
-            .scan<'i', int>();
-        parser.add_argument("--height")
-            .default_value("480")
-            .scan<'i', int>();
-        parser.add_argument("--framerate")
-            .default_value("30")
-            .scan<'i', int>();
-    }
+    WindowTests() : testFrame(cv::Mat(480, 640, CV_8UC3, cv::Scalar(255, 0, 0))) {}
 
     void SetUp() override {
         // Ensure we have a QApplication instance for the tests
@@ -38,6 +27,9 @@ protected:
         parser.add_argument("--framerate")
             .default_value(30)
             .scan<'i', int>();
+        parser.add_argument("--sourceFile")
+            .required()
+            .default_value("/home/hippo/code/Video-Code/build/tests/resources/test_video.mp4");
             
         std::vector<std::string> args = {"test-parser"};
         parser.parse_args(args);

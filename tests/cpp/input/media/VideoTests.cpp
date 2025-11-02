@@ -6,7 +6,7 @@ class VideoTests : public ::testing::Test {
 protected:
     void SetUp() override {
         validArgs = {
-            {"filepath", "test_video.mp4"},
+            {"filepath", "/home/hippo/code/Video-Code/build/tests/resources/test_video.mp4"},
             {"start", 0.0},
             {"duration", 5.0}
         };
@@ -25,8 +25,8 @@ TEST_F(VideoTests, ConstructorBasicValidation) {
 TEST_F(VideoTests, ConstructorErrorHandling) {
     json::object_t args = validArgs;
     
-    // Test missing path
-    args.erase("path");
+    // Test missing filepath
+    args.erase("filepath");
     EXPECT_THROW({
         Video video(std::move(args));
     }, std::exception);

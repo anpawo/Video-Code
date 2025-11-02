@@ -36,3 +36,7 @@ video-code
 # misc
 wherewasi
 todo
+
+# exeption
+!tests/resources/test_video.mp4
+!tests/resources/test_image.png

@@ -6,7 +6,7 @@ class ImageTests : public ::testing::Test {
 protected:
     void SetUp() override {
         validArgs = {
-            {"filepath", "test_image.png"},
+            {"filepath", "/home/hippo/code/Video-Code/build/tests/resources/test_image.png"},
             {"width", 1920},
             {"height", 1080}
         };
@@ -26,7 +26,7 @@ TEST_F(ImageTests, ConstructorErrorHandling) {
     json::object_t args = validArgs;
     
     // Test missing path
-    args.erase("path");
+    args.erase("filepath");
     EXPECT_THROW({
         Image image(std::move(args));
     }, std::exception);
@@ -61,5 +61,5 @@ TEST_F(ImageTests, ArgsAccess) {
     
     EXPECT_EQ(actualArgs.at("width"), validArgs.at("width"));
     EXPECT_EQ(actualArgs.at("height"), validArgs.at("height"));
-    EXPECT_EQ(actualArgs.at("path"), validArgs.at("path"));
+    EXPECT_EQ(actualArgs.at("filepath"), validArgs.at("filepath"));
 }
