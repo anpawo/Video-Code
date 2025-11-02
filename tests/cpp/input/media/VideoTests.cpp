@@ -6,7 +6,7 @@ class VideoTests : public ::testing::Test {
 protected:
     void SetUp() override {
         validArgs = {
-            {"path", "test_video.mp4"},
+            {"filepath", "test_video.mp4"},
             {"start", 0.0},
             {"duration", 5.0}
         };
@@ -17,7 +17,8 @@ protected:
 
 TEST_F(VideoTests, ConstructorBasicValidation) {
     EXPECT_NO_THROW({
-        Video video(validArgs);
+        json::object_t args = validArgs;
+        Video video(std::move(args));
     });
 }
 
@@ -27,23 +28,24 @@ TEST_F(VideoTests, ConstructorErrorHandling) {
     // Test missing path
     args.erase("path");
     EXPECT_THROW({
-        Video video(args);
+        Video video(std::move(args));
     }, std::exception);
     
     // Test negative duration
     args = validArgs;
     args["duration"] = -1.0;
     EXPECT_THROW({
-        Video video(args);
+        Video video(std::move(args));
     }, std::exception);
 }
 
-TEST_F(VideoTests, MetadataAccess) {
-    Video video(validArgs);
-    const auto& meta = video.metadata();
-    
-    EXPECT_GE(meta.width, 0);
-    EXPECT_GE(meta.height, 0);
-    EXPECT_EQ(meta.start, validArgs["start"]);
-    EXPECT_EQ(meta.duration, validArgs["duration"]);
+TEST_F(VideoTests, ArgsAccess) {
+    json::object_t args = validArgs;
+    Video video(std::move(args));
+    const auto& actualArgs = video.getArgs();
+
+    EXPECT_GT(actualArgs.at("width").get<int>(), 0);
+    EXPECT_GT(actualArgs.at("height").get<int>(), 0);
+    EXPECT_FLOAT_EQ(actualArgs.at("start").get<float>(), validArgs.at("start").get<float>());
+    EXPECT_FLOAT_EQ(actualArgs.at("duration").get<float>(), validArgs.at("duration").get<float>());
 }

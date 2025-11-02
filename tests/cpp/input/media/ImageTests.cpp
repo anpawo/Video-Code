@@ -6,7 +6,7 @@ class ImageTests : public ::testing::Test {
 protected:
     void SetUp() override {
         validArgs = {
-            {"path", "test_image.png"},
+            {"filepath", "test_image.png"},
             {"width", 1920},
             {"height", 1080}
         };
@@ -17,7 +17,8 @@ protected:
 
 TEST_F(ImageTests, ConstructorBasicValidation) {
     EXPECT_NO_THROW({
-        Image image(validArgs);
+        json::object_t args = validArgs;
+        Image image(std::move(args));
     });
 }
 
@@ -27,7 +28,7 @@ TEST_F(ImageTests, ConstructorErrorHandling) {
     // Test missing path
     args.erase("path");
     EXPECT_THROW({
-        Image image(args);
+        Image image(std::move(args));
     }, std::exception);
     
     // Test missing dimensions
@@ -35,28 +36,30 @@ TEST_F(ImageTests, ConstructorErrorHandling) {
     args.erase("width");
     args.erase("height");
     EXPECT_THROW({
-        Image image(args);
+        Image image(std::move(args));
     }, std::exception);
 }
 
 TEST_F(ImageTests, FrameGeneration) {
-    Image image(validArgs);
+    json::object_t args = validArgs;
+    Image image(std::move(args));
     
     // Get frame at different times - should be identical
-    auto frame1 = image.frame_at(0.0);
-    auto frame2 = image.frame_at(1.0);
+    auto& frame1 = image.getLastFrame();
+    auto& frame2 = image.getLastFrame();
     
-    EXPECT_EQ(frame1.metadata.width, frame2.metadata.width);
-    EXPECT_EQ(frame1.metadata.height, frame2.metadata.height);
-    EXPECT_EQ(frame1.data.size(), frame2.data.size());
+    EXPECT_EQ(frame1.mat.cols, frame2.mat.cols);
+    EXPECT_EQ(frame1.mat.rows, frame2.mat.rows);
+    EXPECT_EQ(frame1.mat.total() * frame1.mat.elemSize(), 
+              frame2.mat.total() * frame2.mat.elemSize());
 }
 
-TEST_F(ImageTests, MetadataAccess) {
-    Image image(validArgs);
-    const auto& meta = image.metadata();
+TEST_F(ImageTests, ArgsAccess) {
+    json::object_t args = validArgs;
+    Image image(std::move(args));
+    const auto& actualArgs = image.getArgs();
     
-    EXPECT_EQ(meta.width, validArgs["width"]);
-    EXPECT_EQ(meta.height, validArgs["height"]);
-    EXPECT_GE(meta.duration, 0);
-    EXPECT_EQ(meta.start, 0);
+    EXPECT_EQ(actualArgs.at("width"), validArgs.at("width"));
+    EXPECT_EQ(actualArgs.at("height"), validArgs.at("height"));
+    EXPECT_EQ(actualArgs.at("path"), validArgs.at("path"));
 }

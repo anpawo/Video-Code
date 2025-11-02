@@ -17,15 +17,15 @@ protected:
         _parser.add_argument("-f", "--framerate")
             .default_value(60)
             .help("framerate of the video");
-        _parser.add_argument("-s", "--source")
+        _parser.add_argument("-s", "--sourceFile")
             .default_value(std::string("test.json"))
             .help("path to the json file containing the video's data");
-        _parser.add_argument("-o", "--output")
+        _parser.add_argument("-o", "--generate")
             .default_value(std::string("output.mp4"))
             .help("path to the output file");
 
         // Ensure parser has parsed values so Core constructor won't throw
-        std::vector<std::string> argv = {"videocode", "--width", "1920", "--height", "1080", "--framerate", "60", "--source", "test.json", "--output", "out.mp4"};
+        std::vector<std::string> argv = {"videocode", "--width", "1920", "--height", "1080", "--framerate", "60", "--sourceFile", "test.json", "--generate", "out.mp4"};
         _parser.parse_args(argv);
     }
 
