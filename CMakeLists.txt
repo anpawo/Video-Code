@@ -12,6 +12,14 @@ endif()
 
 set_property(GLOBAL PROPERTY CXX_STANDARD 20)
 
+# Coverage support
+option(ENABLE_COVERAGE "Enable coverage flags for C/C++" OFF)
+if(ENABLE_COVERAGE)
+    message(STATUS "Enabling coverage flags")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 --coverage")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
+endif()
+
 if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
     message(FATAL_ERROR "C++20 requires GCC 13 or higher")
 endif()
@@ -81,10 +89,7 @@ include_directories(
     ${FFMPEG_INCLUDE_DIRS}
 )
 
-set(SOURCES
-    # --- Main ---
-    src/Main.cpp
-
+set(LIB_SOURCES
     # --- Window ---
     include/window/Window.hpp # Needed for the MOC (Meta-Object Compiler) Q_OBJECT
     src/window/Window.cpp
@@ -120,16 +125,23 @@ set(SOURCES
     # Other
     src/transformation/size/zoom.cpp
     src/transformation/size/scale.cpp
-
 )
 
-add_executable(${PROJECT_NAME} ${SOURCES})
+# Create the core library target
+add_library(${PROJECT_NAME}-lib ${LIB_SOURCES})
 
-target_link_directories(${PROJECT_NAME} PRIVATE
+# Set output name and export settings for the library
+set_target_properties(${PROJECT_NAME}-lib PROPERTIES
+    OUTPUT_NAME "${PROJECT_NAME}"
+    ENABLE_EXPORTS ON
+)
+
+target_link_directories(${PROJECT_NAME}-lib PRIVATE
     ${FFMPEG_LIBRARY_DIRS}
 )
 
-target_link_libraries(${PROJECT_NAME}
+# Link dependencies to the library
+target_link_libraries(${PROJECT_NAME}-lib PUBLIC
     argparse::argparse
     nlohmann_json::nlohmann_json
     ${OpenCV_LIBS}
@@ -140,3 +152,23 @@ target_link_libraries(${PROJECT_NAME}
     stdc++fs
     Python3::Python
 )
+
+# Create the executable target
+add_executable(${PROJECT_NAME} src/Main.cpp)
+
+# Link the executable with our library
+target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}-lib)
+
+# Build tests and coverage
+option(BUILD_TESTS "Build C++ unit tests" ON)
+find_package(GTest CONFIG REQUIRED)
+enable_testing()
+
+if(BUILD_TESTS)
+    add_subdirectory(${CMAKE_SOURCE_DIR}/tests/cpp)
+    
+    if(ENABLE_COVERAGE)
+        target_compile_options(${PROJECT_NAME}-lib PRIVATE --coverage)
+        target_link_options(${PROJECT_NAME}-lib PRIVATE --coverage)
+    endif()
+endif()

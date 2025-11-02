@@ -5,6 +5,7 @@
     "opencv4",
     "nlohmann-json",
     "argparse",
-    "ffmpeg"
+    "ffmpeg",
+    "gtest"
   ]
 }

@@ -20,7 +20,8 @@ video/
 
 # Python
 __pycache__/
-.venv/
+.*/
+.coverage
 
 # CMake
 build/
