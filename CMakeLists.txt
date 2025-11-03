@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.21)
 
 # --- Force GCC 14 if available ---
 # Fix GCC 15 Crashs
-if (EXISTS "/usr/bin/g++-14")
-    message(STATUS "Using GCC 14 compiler")
-    set(CMAKE_C_COMPILER "/usr/bin/gcc-14" CACHE FILEPATH "C compiler" FORCE)
-    set(CMAKE_CXX_COMPILER "/usr/bin/g++-14" CACHE FILEPATH "C++ compiler" FORCE)
-endif()
+# if (EXISTS "/usr/bin/g++-14")
+#     message(STATUS "Using GCC 14 compiler")
+#     set(CMAKE_C_COMPILER "/usr/bin/gcc-14" CACHE FILEPATH "C compiler" FORCE)
+#     set(CMAKE_CXX_COMPILER "/usr/bin/g++-14" CACHE FILEPATH "C++ compiler" FORCE)
+# endif()
 
 project(video-code VERSION 1.0.0 LANGUAGES CXX)
 
