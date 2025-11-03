@@ -191,16 +191,18 @@ int VC::Core::generateVideo()
     return 0;
 }
 
+#define currIndex(i, s) (s == 0 ? 0 : (i + 1))
+
 void VC::Core::pause()
 {
     _paused = !_paused;
-    std::cout << std::format("Timeline {} at frame {}/{}.", _paused ? "paused" : "unpaused", _index + 1, _frames.size()) << std::endl;
+    std::cout << std::format("Timeline {} at frame {}/{}.", _paused ? "paused" : "unpaused", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
 }
 
 void VC::Core::goToFirstFrame()
 {
     _index = 0;
-    std::cout << std::format("Jumped backward to the first frame {}/{}.", _index + 1, _frames.size()) << std::endl;
+    std::cout << std::format("Jumped backward to the first frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
 }
 
 void VC::Core::goToLastFrame()
@@ -208,7 +210,7 @@ void VC::Core::goToLastFrame()
     if (_frames.size()) {
         _index = _frames.size() - 1;
     }
-    std::cout << std::format("Jumped forward to the last frame {}/{}.", _index + 1, _frames.size()) << std::endl;
+    std::cout << std::format("Jumped forward to the last frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
 }
 
 void VC::Core::backward3frames()
@@ -218,7 +220,7 @@ void VC::Core::backward3frames()
     } else {
         _index -= 1 * _framerate;
     }
-    std::cout << std::format("Jumped backward to the frame {}/{}.", _index + 1, _frames.size()) << std::endl;
+    std::cout << std::format("Jumped backward to the frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
 }
 
 void VC::Core::forward3frames()
@@ -227,5 +229,5 @@ void VC::Core::forward3frames()
     if (_index > _frames.size()) {
         _index = _frames.size() - 1;
     }
-    std::cout << std::format("Jumped forward to the frame {}/{}.", _index + 1, _frames.size()) << std::endl;
+    std::cout << std::format("Jumped forward to the frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
 }
