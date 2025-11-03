@@ -19,7 +19,7 @@ class rectangle(Shape):
         width: uint = 400,
         height: uint = 200,
         thickness: uint = 20,
-        color: rgba = BLUE,
+        color: rgba = GREEN,
         cornerRadius: uint = 0,  # 0 <= cornerRadius <= 90
         filled: bool = False,
     ): ...
@@ -29,7 +29,7 @@ class square(Shape):
     def __new__(
         cls,
         side: uint = 200,
-        thickness: uint = 20,
+        thickness: uint = 5,
         color: rgba = BLUE,
         cornerRadius: uint = 0,  # 0 <= cornerRadius <= 90
         filled: bool = False,
