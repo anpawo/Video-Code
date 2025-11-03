@@ -20,8 +20,6 @@ video/
 
 # Python
 __pycache__/
-.*/
-*coverage*
 
 # CMake
 build/
@@ -36,6 +34,10 @@ video-code
 # misc
 wherewasi
 todo
+*coverage*
+.*/
+*.gcov
+
 
 # exeption
 !.github/workflows/*

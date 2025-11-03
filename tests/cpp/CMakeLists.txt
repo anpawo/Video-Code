@@ -13,9 +13,11 @@ add_executable(video-code-tests
     # Core tests
     core/CoreTests.cpp
     core/FactoryTests.cpp
+    core/CoreAdvancedTests.cpp
 
     # Input tests
     input/AInputTests.cpp
+    input/AInputAdvancedTests.cpp
     input/FrameTests.cpp
     input/media/VideoTests.cpp
     input/shape/CircleTests.cpp
@@ -29,10 +31,18 @@ add_executable(video-code-tests
 
     # Window tests
     window/WindowTests.cpp
+    window/WindowAdvancedTests.cpp
     
     # Additional single-header/source tests (added to ensure each public header has a direct test)
     compiler/CompilerTests.cpp
     transformation/TransformationTests.cpp
+    transformation/FadeTests.cpp
+    transformation/GrayscaleTests.cpp
+    transformation/MoveToTests.cpp
+    transformation/ZoomTests.cpp
+    transformation/ScaleTests.cpp
+    transformation/SetAlignTests.cpp
+    transformation/SetArgumentTests.cpp
     utils/MapTests.cpp
     utils/DebugTests.cpp
     python/APITests.cpp
