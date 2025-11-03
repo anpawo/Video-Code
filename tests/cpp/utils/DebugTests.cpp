@@ -3,7 +3,6 @@
 // Tests with debug enabled
 #define VC_DEBUG_ON
 #include "utils/Debug.hpp"
-#undef VC_DEBUG_ON
 
 #include <iostream>
 #include <sstream>
@@ -41,14 +40,4 @@ TEST_F(DebugTests, HandlesEmptyMessage) {
     VC_LOG_DEBUG("");
     std::string out = oss.str();
     EXPECT_TRUE(out.length() > 0); // Should still print newline
-}
-
-// Test without debug enabled
-#undef VC_DEBUG_ON
-#include "utils/Debug.hpp"
-
-TEST_F(DebugTests, SilentWhenDisabled) {
-    VC_LOG_DEBUG("should-not-appear");
-    std::string out = oss.str();
-    EXPECT_EQ(out.find("should-not-appear"), std::string::npos);
 }

@@ -21,7 +21,7 @@ video/
 # Python
 __pycache__/
 .*/
-.coverage
+*coverage*
 
 # CMake
 build/
@@ -38,5 +38,6 @@ wherewasi
 todo
 
 # exeption
+!.github/workflows/*
 !tests/resources/test_video.mp4
 !tests/resources/test_image.png
