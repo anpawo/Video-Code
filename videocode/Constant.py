@@ -77,10 +77,11 @@ def getValueByPriority(t: Any, duration: Any) -> sec:
         raise ValueError(duration)
 
 
-type position = int | float
+type number = int | float
 """
-Represents a coordinate position in a 2D space.
+`int`  |  `float`
 """
+type position = tuple[number, number]
 
 type Index = int
 type Url = str

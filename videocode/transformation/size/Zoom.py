@@ -14,8 +14,8 @@ class zoom(Transformation):
         self,
         *,
         factor: float = 2.0,
-        x: position = 0.5,
-        y: position = 0.5,
+        x: number = 0.5,
+        y: number = 0.5,
     ):
         self.factor = (1.0, factor)
         self.x = x

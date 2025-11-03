@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 
 
-from typing import Any
+from videocode.Constant import number
 
 
 class cubicBezier:
     def __init__(
         self,
         #
-        x1: int | float,
-        y1: int | float,
-        x2: int | float,
-        y2: int | float,
+        x1: number,
+        y1: number,
+        x2: number,
+        y2: number,
     ) -> None:
         self.x1 = x1
         self.y1 = y1

@@ -7,10 +7,10 @@ from videocode.Constant import *
 
 
 class Metadata:
-    def __init__(self, *, x: position, y: position) -> None:
+    def __init__(self, *, x: number, y: number) -> None:
         # --- Position ---
-        self.x: position = x
-        self.y: position = y
+        self.x: number = x
+        self.y: number = y
 
         # --- Align ---
         # Center, Left, Right, Top, Bottom

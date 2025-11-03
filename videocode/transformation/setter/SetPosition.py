@@ -18,9 +18,9 @@ class setPosition(Setter):
     For a movement over time, see `moveTo`.
     """
 
-    def __init__(self, x: int | float | None = None, y: int | float | None = None, **kwargs) -> None:
-        self.x = int(x) if isinstance(x, float) else x
-        self.y = int(y) if isinstance(y, float) else y
+    def __init__(self, x: number | None = None, y: number | None = None, **kwargs) -> None:
+        self.x = x
+        self.y = y
 
     def modificator(self, meta: Metadata):
         # Update the position of the Input
