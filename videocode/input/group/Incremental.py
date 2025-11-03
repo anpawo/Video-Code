@@ -7,6 +7,9 @@ from videocode.input.Input import *
 from videocode.input.group.Group import group
 
 
+# TODO: Needs a rework
+
+
 class incremental(group):
     """
     An `Incremental` is a `Group` that modify the transformations it receives before applying them to each of its `Input`.

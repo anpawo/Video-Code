@@ -7,12 +7,10 @@ from videocode.Constant import SH, SINGLE_FRAME, SW, Index, Url
 from videocode.input.group.Group import group
 from videocode.input.group.Incremental import constantAdd, incremental, linearAdd
 from videocode.input.media.WebImage import webImage
-from videocode.utils.composition import compose
 
 import requests
 
 from videocode.transformation.Transformation import Transformation
-from videocode.transformation.position.MoveTo import moveTo
 from videocode.transformation.setter.SetPosition import setPosition
 from videocode.utils.easings import Easing
 
@@ -89,33 +87,6 @@ class UrlKind(Enum):
         raise ValueError(f"{kind} '{fmt}' not found.")
 
 
-class Branch:
-    def __init__(
-        self,
-        incr: tuple[Callable[[Transformation, Index], Transformation], ...],
-        path: Path | None,
-        *elems: Rune | Shard,
-    ) -> None:
-        self.color = Color[path] if path else None
-        self.path = UrlKind.get(UrlKind.Icon, path.value) if path else None
-        self.elems = [RuneData(e, u := UrlKind.get(UrlKind.Rune if path else UrlKind.Shard, e.value), webImage(u)) for e in elems]
-        self.incrementalInputs = incremental({setPosition: incr}, *(e.input for e in self.elems))
-
-    def __str__(self) -> str:
-        return f"Color:[{self.color}]\nPath:[{self.path}]\nElems:{self.elems}"
-
-
-def linearAfterOneAdd(**kwargs) -> Callable[[Transformation, Index], Transformation]:
-
-    def wrapper(t: Transformation, i: Index) -> Transformation:
-        for k, v in kwargs.items():
-            t.__setattr__(k, t.__getattribute__(k) + v * i + (v * 0.25 if i else 0))
-
-        return t
-
-    return wrapper
-
-
 class RuneSet:
     def __init__(
         self,
@@ -140,15 +111,41 @@ class RuneSet:
 
         offscreenStart = 2000
 
-        self.main = Branch((linearAfterOneAdd(y=runeSpacing),), *main)
-        self.sub = Branch((linearAdd(y=runeSpacing), constantAdd(x=xDiffSub, y=yDiffSub)), *sub)
-        self.shard = Branch((linearAdd(y=shardSpacing), constantAdd(x=xDiffShard, y=yDiffShard)), None, *shard)
+        self.main = group(
+            *(
+                (
+                    (0, idx * runeSpacing + (runeSpacing * 0.25 if idx > 0 else 0)),
+                    webImage(UrlKind.get(UrlKind.Rune, i.value)),
+                )
+                for idx, i in enumerate(main[1:])
+            ),
+        )
+
+        self.sub = group(
+            *(
+                (
+                    (xDiffSub, yDiffSub + idx * runeSpacing),
+                    webImage(UrlKind.get(UrlKind.Rune, i.value)),
+                )
+                for idx, i in enumerate(sub[1:])
+            ),
+        )
+
+        self.shard = group(
+            *(
+                (
+                    (xDiffShard, yDiffShard + idx * shardSpacing),
+                    webImage(UrlKind.get(UrlKind.Shard, i.value)),
+                )
+                for idx, i in enumerate(shard)
+            ),
+        )
 
         self.all = (
             group(
-                self.main.incrementalInputs,
-                self.sub.incrementalInputs,
-                self.shard.incrementalInputs,
+                self.main,
+                self.sub,
+                self.shard,
             )
             .setPosition(self.x, self.y + offscreenStart)
             .add()
@@ -156,6 +153,7 @@ class RuneSet:
 
     def animate(self):
         self.all.slideTo(self.x, self.y, easing=Easing.Out, start=SINGLE_FRAME, duration=0.4).add()
+        return self
 
 
 # TODO:

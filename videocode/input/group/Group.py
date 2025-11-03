@@ -2,6 +2,7 @@
 
 
 from videocode.input.Input import *
+from videocode.transformation.setter.SetPosition import setPosition
 
 
 class group(Input):
@@ -15,8 +16,9 @@ class group(Input):
         instance.meta = Global.getDefaultMetadata()
         return instance
 
-    def __init__(self, *inputs: Input):
-        self.inputs: list[Input] = [*inputs]
+    def __init__(self, *inputs: Input | tuple[position, Input]):
+        self.inputs: list[Input] = [i[1] if isinstance(i, tuple) else i for i in inputs]
+        self.modifiers: list[position] = [i[0] if isinstance(i, tuple) else (0, 0) for i in inputs]
 
     def add(self) -> Self:
         """
@@ -33,10 +35,30 @@ class group(Input):
 
         The duration is in seconds, so it will affect `duration * framerate` frames of the video.
         """
-        for i in self.inputs:
+        for idx, i in enumerate(self.inputs):
             for t in ts:
                 t.modificator(self.meta)
 
-                i.apply(copy.deepcopy(t), start=start, duration=duration)
+                # Relative Position
+                if type(t) == setPosition:
+                    __t = copy.deepcopy(t)
+                    if __t.x:
+                        __t.x += self.modifiers[idx][0]
+                    if __t.y:
+                        __t.y += self.modifiers[idx][1]
+
+                    __t.modificator(i.meta)
+
+                    i.apply(copy.deepcopy(__t), start=start, duration=duration)
+                else:
+                    t.modificator(i.meta)
+
+                    i.apply(copy.deepcopy(t), start=start, duration=duration)
 
         return self
+
+    def __str__(self) -> str:
+        return "".join(f"idx=[{idx}], i=[{type(i).__name__}, pos=[{self.modifiers[idx]}]]\n" for idx, i in enumerate(self.inputs))
+
+    def __repr__(self) -> str:
+        return self.__str__()
