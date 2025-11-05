@@ -15,6 +15,7 @@
 #include "input/IInput.hpp"
 #include "input/media/Image.hpp"
 #include "input/media/Video.hpp"
+#include "input/media/WebImage.hpp"
 #include "input/shape/Circle.hpp"
 #include "input/shape/Rectangle.hpp"
 #include "input/text/Text.hpp"
@@ -31,6 +32,9 @@ namespace Factory
         ///< Media
         input(Image),
         input(Video),
+
+        ///< Web Media
+        input(WebImage),
 
         ///< Text
         input(Text),

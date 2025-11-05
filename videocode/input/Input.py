@@ -2,16 +2,19 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Self
+from typing import Callable, Self
 
 import copy
 
+from videocode.template.movement.slideTo import slideTo
 from videocode.transformation.Transformation import Transformation
 from videocode.Global import *
 from videocode.Constant import *
 from videocode.transformation.setter.SetAlign import setAlign
 from videocode.transformation.setter.SetPosition import setPosition
 from videocode.transformation.setter.Setter import setArgument
+from videocode.utils.bezier import cubicBezier
+from videocode.utils.easings import Easing
 
 
 class Input(ABC):
@@ -37,8 +40,10 @@ class Input(ABC):
 
     """
     Index of the `Input`.
+
+    Groups do not have an index (they are just python wrapper)
     """
-    index: int
+    index: int | None
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = super().__new__(cls)
@@ -54,8 +59,8 @@ class Input(ABC):
         Appends the `frames` of `self` to the `timeline`.
         """
 
-        # Prevent double add error TODO: WARNING
-        if self.meta.automaticAdder or Global.automaticAdder:
+        # Prevent double add error
+        if Global.automaticAdder:
             return self
 
         Global.stack.append(
@@ -66,20 +71,29 @@ class Input(ABC):
         )
         return self
 
-    def automaticAdd(self) -> Self:
+    @staticmethod
+    def autoAdd(f: Callable[..., Input]):
         """
         Appends the `frames` of `self` to the `timeline` automatically after applying a `Transformation`.
         """
 
-        Global.stack.append(
-            {
-                "action": "Add",
-                "input": self.index,
-            }
-        )
-        return self
+        def autoAddWrapper(*args, **kwargs):
+            input = f(*args, **kwargs)
 
-    def apply(self, *ts: Transformation, start: sec = default(0), duration: sec = default(1)) -> Self:  # type: ignore
+            if Global.automaticAdder:
+                Global.stack.append(
+                    {
+                        "action": "Add",
+                        "input": input.index,
+                    }
+                )
+
+            return input
+
+        return autoAddWrapper
+
+    @autoAdd
+    def apply(self, *ts: Transformation, start: t = default(0), duration: t = default(1)) -> Self:
         """
         Applies the `Transformations` `ts` to the `Input` `self`.
 
@@ -100,10 +114,7 @@ class Input(ABC):
                 }
             )
 
-        if self.meta.automaticAdder or Global.automaticAdder:
-            return self.automaticAdd()
-        else:
-            return self
+        return self
 
     def copy(self) -> Input:
         """
@@ -120,13 +131,27 @@ class Input(ABC):
         )
         return cp
 
-    def setPosition(self, x: int | float | None = None, y: int | float | None = None) -> Self:
+    def setPosition(self, x: number | None = None, y: number | None = None) -> Self:
         return self.apply(setPosition(x, y))
+
+    def slideTo(self, x: number, y: number, *, easing: cubicBezier = Easing.Linear, start: sec = 0, duration: sec = 0.4) -> Self:
+        slideTo(self, x, y, easing=easing, start=start, duration=duration)
+        return self
 
     def setAlign(self, x: align | None = None, y: align | None = None) -> Self:
         return self.apply(setAlign(x, y))
 
     def __setattr__(self, name: str, value: Any) -> None:
         if hasattr(self, name):
+            print(f"name=[{name}], value=[{value}], index=[{self.index}], self=[{str(self)}]")
             self.apply(setArgument(name, value))
         object.__setattr__(self, name, value)
+
+    def __str__(self) -> str:
+        s = f"\n{self.__class__.__name__}:\n"
+        for i in self.__dict__:
+            s += f"\t{i}='{self.__getattribute__(i)}'\n"
+        return s
+
+    def __repr__(self) -> str:
+        return self.__str__()

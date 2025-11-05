@@ -15,3 +15,6 @@ from videocode.Global import *
 
 # Constant
 from videocode.Constant import *
+
+# Utils
+from videocode.utils.easings import *

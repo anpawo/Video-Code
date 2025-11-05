@@ -54,6 +54,10 @@ namespace VC
         ///< Output file
         const std::string _outputFile;
 
+        ///< Information display
+        const bool _showstack;
+        const bool _timeit;
+
         ///< Background frame, black with alpha 0
         const cv::Mat _bgFrame;
 

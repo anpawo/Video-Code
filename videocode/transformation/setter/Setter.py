@@ -20,7 +20,7 @@ class Setter(Transformation, ABC):
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = super().__new__(cls)
-        instance.duration = 0
+        instance.duration = default(0)
         return instance
 
 
