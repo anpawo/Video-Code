@@ -5,8 +5,9 @@
     <summary><code>Inputs</code></summary>
 <br>
 
-- `image`
-- `video`
+- `local image`
+- `local video`
+- `web image`
 
 <br>
 
@@ -21,6 +22,7 @@
 <br>
 
 - `group`
+- `incremental`
 
 </details>
 
@@ -36,6 +38,7 @@
 <br>
 
 - `moveTo`
+- `slideTo`
 
 <br>
 
@@ -45,6 +48,7 @@
 <br>
 
 - `setPosition`
+- `setArgument`
 
 </details>
 
@@ -74,5 +78,8 @@
 - `transformation`: move (02/03/25)
 - `feature`: setters (update in real time the proportions of a shape) (20/09/25)
 - `fix`: different framerate between the window and the generated video
+- `feature`: incrementals: groups that alterate the modifications you receive according to you're index
+- `feature`: image from url
+- `feature`: first template example (runeset)
 
 </details>

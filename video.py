@@ -23,3 +23,5 @@ r = RuneSet(
         Shard.HealthScaling,
     ),
 ).animate()
+
+wait(1)

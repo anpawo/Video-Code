@@ -41,5 +41,14 @@ format:
 
 .PHONY: docs
 docs: cmake
+docs: docdoc
+docs: docvid
+
+
+.PHONY: docvid
+docvid:
 	./$(BINARY_NAME) --generate
+
+.PHONY: docdoc
+docdoc:
 	./docs/readme/generate.sh

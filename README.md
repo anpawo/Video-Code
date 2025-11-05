@@ -13,45 +13,33 @@ Below is an example of the last feature added (code) and the result (video).
 
 
 ```py
+#!/usr/bin/env python3
+
+
 from videocode.VideoCode import *
+from videocode.template.league.runes import *
 
-x = 700
-y = 50
+r = RuneSet(
+    main=(
+        Path.Precision,
+        Rune.LethalTempo,
+        Rune.Triumph,
+        Rune.LegendAlacrity,
+        Rune.LastStand,
+    ),
+    sub=(
+        Path.Resolve,
+        Rune.BonePlating,
+        Rune.ShieldBash,
+    ),
+    shard=(
+        Shard.AdaptativeForce,
+        Shard.AttackSpeed,
+        Shard.HealthScaling,
+    ),
+).animate()
 
-# Set the automatic adder on because we only do one action at a time.
-automaticAdderOn()
-
-### ===> Creating shapes and setting their positions
-g = (
-    group(
-        # image("assets/icon.png").setPosition(0.5, 0.5),
-        # video("assets/v.mp4").setPosition(0.5, 0.5),
-        c := circle(filled=True, color=RED).setPosition(x, y + 500),
-        s := square(filled=True, cornerRadius=30, thickness=20).setPosition(x, y + 200),
-        r := rectangle(cornerRadius=0, thickness=8, color=GREEN).setPosition(x + 400, y + 350),
-    )
-    # .apply(fadeIn())
-    .apply(moveTo(0.5, 0.5))
-)
-
-# Set the automatic adder off because we do more than one action; we change the position and then augment the radius' size.
-# We could join them both into one apply and keep the automatic adder.
-automaticAdderOff()
-
-### ===> Changing the circle and the rectangle
-for i in range(0, 40):
-    c.radius += 1
-    r.width += 10
-    r.height -= 2
-    g.add()
-
-# Separate
-wait(0)
-
-### ===> Changing the square
-for i in range(0, 30):
-    s.cornerRadius += 2
-    s.add()
+wait(1)
 ```
 
 <img src="docs/readme/example.gif" style="width: 50%;">
@@ -61,7 +49,7 @@ To create a video with Video-Code, you need to write some simple code in Python.
 
 The flow of the Video comes from the __Inputs__ that you, first import or create, then modify with __Transformations__ and finally add to the __timeline__.
 
-To import or create an __Input__, you need to create a __video__, __image__ or a __text__ instance (soon shapes).<br>
+To import or create an __Input__, you need to create a __video__, __image__ or a __text__, etc...<br>
 To modify it, you need to use __Transformations__ like __translate__ or __fade__.<br>
 To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ function.
 
@@ -76,8 +64,9 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
     <summary><code>Inputs</code></summary>
 <br>
 
-- `image`
-- `video`
+- `local image`
+- `local video`
+- `web image`
 
 <br>
 
@@ -92,6 +81,7 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 <br>
 
 - `group`
+- `incremental`
 
 </details>
 
@@ -107,6 +97,7 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 <br>
 
 - `moveTo`
+- `slideTo`
 
 <br>
 
@@ -116,6 +107,7 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 <br>
 
 - `setPosition`
+- `setArgument`
 
 </details>
 
@@ -145,6 +137,9 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 - `transformation`: move (02/03/25)
 - `feature`: setters (update in real time the proportions of a shape) (20/09/25)
 - `fix`: different framerate between the window and the generated video
+- `feature`: incrementals: groups that alterate the modifications you receive according to you're index
+- `feature`: image from url
+- `feature`: first template example (runeset)
 
 </details>
 
