@@ -24,9 +24,6 @@ namespace transformation
     transformation(fade);
     transformation(grayscale);
 
-    ///< Position
-    transformation(moveTo);
-
     ///< Other
     transformation(zoom);
     transformation(scale);
@@ -43,9 +40,6 @@ namespace transformation
         ///< Color
         bind(fade),
         bind(grayscale),
-
-        ///< Position
-        bind(moveTo),
 
         ///< Other
         bind(zoom),

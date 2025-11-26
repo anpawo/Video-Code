@@ -7,7 +7,6 @@
 
 #include "input/shape/Rectangle.hpp"
 
-#include <cmath>
 #include <cstddef>
 #include <vector>
 

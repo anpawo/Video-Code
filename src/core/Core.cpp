@@ -8,6 +8,7 @@
 #include "core/Core.hpp"
 
 #include <iostream>
+#include <memory>
 
 #include "core/Factory.hpp"
 #include "python/API.hpp"
@@ -22,11 +23,16 @@ VC::Core::Core(const argparse::ArgumentParser& parser)
     , _showstack(parser.get<bool>("--showstack"))
     , _timeit(parser.get<bool>("--time"))
     , _bgFrame(cv::Mat(_height, _width, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0)))
+    , _camera(new Camera(_bgFrame.clone(), {}))
 {
+    python::API::initialize();
     reloadSourceFile();
 }
 
-VC::Core::~Core() = default;
+VC::Core::~Core()
+{
+    python::API::finalize();
+}
 
 void VC::Core::reloadSourceFile()
 {
@@ -35,7 +41,7 @@ void VC::Core::reloadSourceFile()
     try {
         serializedScene = python::API::call<std::string>("Serialize", "serializeScene", _sourceFile);
     } catch (const Error& e) {
-        std::cerr << "VideoCode: Invalid source file '" << _sourceFile << "', could not parse the instructions." << std::endl;
+        std::cerr << "\nVideoCode: Invalid source file '" << _sourceFile << "', could not parse the instructions." << std::endl;
         return;
     }
 
@@ -50,28 +56,42 @@ void VC::Core::reloadSourceFile()
     addNewFrames();
 }
 
+#define CAMERA (-1)
+
 void VC::Core::executeStack()
 {
-    for (auto& i : _stack) {
+    for (auto& s : _stack) {
         if (_showstack) {
-            VC_LOG_DEBUG(i);
+            VC_LOG_DEBUG(s);
         }
 
-        if (i["action"] == "Create") {
-            _inputs.push_back(Factory::create(i["type"], i));
-        } else if (i["action"] == "Add") {
-            size_t index = i["input"];
-            _inputs[index]->flushTransformation();
-            if (std::find(_addedInputs.begin(), _addedInputs.end(), index) == _addedInputs.end()) {
-                _addedInputs.push_back(index);
+        if (s["action"] == "Create") {
+            _inputs.push_back(Factory::create(s["type"], s));
+        } else if (s["action"] == "Add") {
+            ssize_t index = s["input"];
+
+            if (index == CAMERA) {
+                _camera->flushTransformation();
+            } else {
+                _inputs[index]->flushTransformation();
+                if (std::find(_addedInputs.begin(), _addedInputs.end(), index) == _addedInputs.end()) {
+                    _addedInputs.push_back(index);
+                }
             }
-        } else if (i["action"] == "Apply") {
-            i["args"]["duration"] = i["args"]["duration"].get<double>() * _framerate;
-            i["args"]["start"] = i["args"]["start"].get<double>() * _framerate;
-            _inputs[i["input"]]->apply(i["transformation"], i["args"]);
-        } else if (i["action"] == "Wait") {
+        } else if (s["action"] == "Apply") {
+            ssize_t index = s["input"];
+
+            s["args"]["duration"] = s["args"]["duration"].get<double>() * _framerate;
+            s["args"]["start"] = s["args"]["start"].get<double>() * _framerate;
+
+            if (index == CAMERA) {
+                _camera->apply(s["transformation"], s["args"]);
+            } else {
+                _inputs[index]->apply(s["transformation"], s["args"]);
+            }
+        } else if (s["action"] == "Wait") {
             addNewFrames();
-            for (size_t n = i["n"].get<size_t>() * _framerate; n; n--) {
+            for (size_t n = s["n"].get<size_t>() * _framerate; n; n--) {
                 if (_frames.empty()) {
                     _frames.push_back(_bgFrame.clone());
                 } else {
@@ -84,21 +104,27 @@ void VC::Core::executeStack()
 
 void VC::Core::addNewFrames()
 {
-    bool anyInputChanged = _addedInputs.size();
+    std::cout << _frames.size() << std::endl;
+    bool anythingChanged = _addedInputs.size();
 
-    while (anyInputChanged) {
-        anyInputChanged = false;
+    while (anythingChanged) {
+        anythingChanged = false;
 
-        cv::Mat frame = _bgFrame.clone();
+        _camera->reset();
+        cv::Mat& mat = _camera->getLastFrame().mat;
 
+        const v2i& pos = _camera->getPosition();
         for (auto i : _addedInputs) {
-            _inputs[i]->overlayLastFrame(frame);
+            _inputs[i]->overlayLastFrame(mat, pos);
 
-            anyInputChanged |= _inputs[i]->frameHasChanged();
+            anythingChanged |= _inputs[i]->frameHasChanged();
         }
 
-        if (anyInputChanged) {
-            _frames.push_back(std::move(frame));
+        ///< TODO: Camera needs a fix because if we change an arg, it will reset the cam
+        auto _ = _camera->generateNextFrame();
+        anythingChanged |= _camera->frameHasChanged();
+        if (anythingChanged) {
+            _frames.push_back(std::move(mat));
         }
     }
 }

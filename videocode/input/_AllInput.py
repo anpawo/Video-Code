@@ -6,6 +6,9 @@
 
 from videocode.input.Input import *
 
+# Group
+from videocode.input.camera.Camera import *
+
 # External Inputs
 from videocode.input.media.Image import *
 from videocode.input.media.Video import *

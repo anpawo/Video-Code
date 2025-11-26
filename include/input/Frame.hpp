@@ -74,5 +74,4 @@ struct Frame
 
     cv::Mat mat;
     Metadata meta;
-    // std::vector<Transformation> transformations;
 };

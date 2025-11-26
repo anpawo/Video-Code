@@ -6,7 +6,7 @@ from typing import Callable, Self
 
 import copy
 
-from videocode.template.movement.slideTo import slideTo
+from videocode.template.movement.moveTo import moveTo
 from videocode.transformation.Transformation import Transformation
 from videocode.Global import *
 from videocode.Constant import *
@@ -57,6 +57,8 @@ class Input(ABC):
     def add(self) -> Self:
         """
         Appends the `frames` of `self` to the `timeline`.
+
+        The first add also displays the `Input`.
         """
 
         # Prevent double add error
@@ -134,8 +136,8 @@ class Input(ABC):
     def setPosition(self, x: number | None = None, y: number | None = None) -> Self:
         return self.apply(setPosition(x, y))
 
-    def slideTo(self, x: number, y: number, *, easing: cubicBezier = Easing.Linear, start: sec = 0, duration: sec = 0.4) -> Self:
-        slideTo(self, x, y, easing=easing, start=start, duration=duration)
+    def moveTo(self, x: number | None = None, y: number | None = None, *, easing: cubicBezier = Easing.Out, start: sec = 0, duration: sec = 0.4) -> Self:
+        moveTo(self, x, y, easing=easing, start=start, duration=duration)
         return self
 
     def setAlign(self, x: align | None = None, y: align | None = None) -> Self:
@@ -143,7 +145,7 @@ class Input(ABC):
 
     def __setattr__(self, name: str, value: Any) -> None:
         if hasattr(self, name):
-            print(f"name=[{name}], value=[{value}], index=[{self.index}], self=[{str(self)}]")
+            # print(f"name=[{name}], value=[{value}], index=[{self.index}], self=[{str(self)}]")
             self.apply(setArgument(name, value))
         object.__setattr__(self, name, value)
 

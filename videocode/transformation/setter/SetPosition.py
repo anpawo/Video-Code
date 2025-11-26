@@ -9,8 +9,6 @@ class setPosition(Setter):
     """
     set the position `x` and `y` of an `Input`.
 
-    - `float`: `relative position` (ratio of window width/height).
-    - `int`: `absolute position` (exact pixel x/y coordinates).
     - `None` doesn't change the position
 
     This takes action on all frames instantly, there is no delay.

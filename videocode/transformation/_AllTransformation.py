@@ -7,8 +7,8 @@
 # Transformation base class
 from videocode.transformation.Transformation import *
 
-# Position Transformations
-from videocode.transformation.position.MoveTo import *
+# Position Template
+from videocode.template.movement.moveTo import *
 
 # Color Transformations
 from videocode.transformation.color.Grayscale import *

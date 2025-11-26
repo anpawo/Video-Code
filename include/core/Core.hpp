@@ -9,9 +9,11 @@
 
 #include <QLabel>
 #include <argparse/argparse.hpp>
+#include <memory>
 #include <opencv2/opencv.hpp>
 
 #include "input/IInput.hpp"
+#include "input/camera/Camera.hpp"
 
 namespace VC
 {
@@ -78,5 +80,8 @@ namespace VC
 
         ///< Stack containing the steps of the video
         json::array_t _stack{};
+
+        ///< Input representing the Camera / The final frame to display
+        std::unique_ptr<Camera> _camera;
     };
 };

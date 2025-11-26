@@ -10,6 +10,7 @@
 #include <cassert>
 #include <memory>
 
+#include "input/Frame.hpp"
 #include "input/IInput.hpp"
 #include "transformation/transformation.hpp"
 
@@ -33,6 +34,8 @@ void AInput::apply(const std::string& name, const json::object_t& args)
 void AInput::setBase(cv::Mat&& mat)
 {
     _base = std::move(mat);
+
+    ///< Keep the metadata if existing
     if (_lastFrame) {
         _lastFrame = std::make_unique<Frame>(_base.clone(), _lastFrame->meta);
     } else {
@@ -50,14 +53,14 @@ void AInput::addTransformation(size_t index, std::function<void(Frame&)>&& f)
     _transformations[index + _flushedTransformationIndex].push_back(f);
 }
 
-void AInput::addSetter(size_t index, std::function<void(json::object_t&)>&& f)
+void AInput::addSetter(size_t index, std::string&& setterName, std::function<void(json::object_t&, Metadata&)>&& f)
 {
     ///< Take into account used stuff
     while (_setters.size() <= index + _flushedTransformationIndex) {
         _transformations.push_back({});
         _setters.push_back({});
     }
-    _setters[index + _flushedTransformationIndex].push_back(f);
+    _setters[index + _flushedTransformationIndex].push_back({setterName, f});
 }
 
 Frame& AInput::generateNextFrame()
@@ -69,24 +72,8 @@ Frame& AInput::generateNextFrame()
         _frameHasChanged = true;
     }
 
-    /// Apply the setters
-    bool constructNeeded = false;
-
-    for (const auto& s : _setters[_transformationIndex]) {
-        s(getArgs());
-        constructNeeded = true;
-    }
-    if (constructNeeded) {
-        construct();
-    }
-
-    /// Reset the matrix but keep the metadata
-    getLastFrame().mat = _base.clone();
-
-    /// Apply the transformations
-    for (const auto& t : _transformations[_transformationIndex]) {
-        t(getLastFrame());
-    }
+    applySetters();
+    applyTransformations();
 
     _transformationIndex += 1;
     return getLastFrame();
@@ -97,14 +84,36 @@ Frame& AInput::getLastFrame()
     return *_lastFrame;
 }
 
-void AInput::overlayLastFrame(cv::Mat& background)
+void AInput::applySetters()
+{
+    bool constructNeeded = false;
+
+    for (const auto& s : _setters[_transformationIndex]) {
+        s.second(getArgs(), getLastFrame().meta);
+        constructNeeded = true;
+    }
+    if (constructNeeded) {
+        construct();
+        ///< Update shape or smth.
+        getLastFrame().mat = _base.clone();
+    }
+}
+
+void AInput::applyTransformations()
+{
+    for (const auto& t : _transformations[_transformationIndex]) {
+        t(getLastFrame());
+    }
+}
+
+void AInput::overlayLastFrame(cv::Mat& background, const v2i& camera) // TODO: add offside x, y from camera
 {
     const Frame& frame = generateNextFrame();
 
     const auto& overlay = frame.mat;
     auto meta = frame.meta;
-    meta.position.x += meta.align.x * overlay.cols;
-    meta.position.y += meta.align.y * overlay.rows;
+    meta.position.x += meta.align.x * overlay.cols - camera.x;
+    meta.position.y += meta.align.y * overlay.rows - camera.y;
 
     // Calculate the source rectangle
     int srcX = std::max(0, -meta.position.x);
@@ -164,6 +173,7 @@ json::object_t& AInput::getArgs()
     return _args;
 }
 
+// TODO: should only construct bases on some arguments defined in each input
 void AInput::construct()
 {
     // Does nothing, the Input doesn't have any arguments that would affect it.

@@ -24,9 +24,9 @@ public:
 
     virtual void setBase(cv::Mat&& mat) = 0;
 
-    ///< Add a transformation
+    ///< Add a setter / transformation
     virtual void addTransformation(size_t index, std::function<void(Frame&)>&& f) = 0;
-    virtual void addSetter(size_t index, std::function<void(json::object_t&)>&& f) = 0;
+    virtual void addSetter(size_t index, std::string&& setterName, std::function<void(json::object_t&, Metadata&)>&& f) = 0;
 
     ///< Generate next frame
     virtual Frame& generateNextFrame() = 0;
@@ -34,8 +34,12 @@ public:
     ///< Get the last frame generated
     virtual Frame& getLastFrame() = 0;
 
+    ///< Apply the setters / transformations
+    virtual void applySetters() = 0;
+    virtual void applyTransformations() = 0;
+
     ///< Overlay the last frame generated
-    virtual void overlayLastFrame(cv::Mat& background) = 0;
+    virtual void overlayLastFrame(cv::Mat& background, const v2i& camera) = 0;
 
     ///< Did the Input change ?
     virtual bool frameHasChanged() = 0;

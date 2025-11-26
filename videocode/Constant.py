@@ -10,6 +10,7 @@ from typing import Annotated, Any, Literal, TypeVar, Union
 SCREEN_WIDTH = SW = 1920
 SCREEN_HEIGHT = SH = 1080
 
+MIDDLE = (SW * 0.5, SH * 0.5)
 
 # Integer values
 type uint = int

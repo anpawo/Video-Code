@@ -81,5 +81,6 @@
 - `feature`: incrementals: groups that alterate the modifications you receive according to you're index
 - `feature`: image from url
 - `feature`: first template example (runeset)
+- `rework`: slideTo becomes moveTo and the old moveTo is removed
 
 </details>
