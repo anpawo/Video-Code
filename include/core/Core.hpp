@@ -45,8 +45,8 @@ namespace VC
     private:
 
         ///< Window size
-        const size_t _width;
-        const size_t _height;
+        const int _width;
+        const int _height;
 
         ///< Framerate of the video
         const size_t _framerate;

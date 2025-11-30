@@ -10,6 +10,7 @@
 #include <iostream>
 #include <memory>
 #include <opencv2/core/mat.hpp>
+#include <string>
 
 #include "core/Factory.hpp"
 #include "python/API.hpp"
@@ -156,30 +157,25 @@ void VC::Core::updateFrame(QLabel& imageLabel)
 
 int VC::Core::generateVideo()
 {
-    std::cout << "size: " << _frames.size() << std::endl;
-    std::cout << "_width: " << _width << std::endl;
-    std::cout << "_height: " << _height << std::endl;
-    std::cout << "_framerate: " << _framerate << std::endl;
-    std::cout << "_outputFile: " << _outputFile << std::endl;
     FILE* ffmpegPipe = popen(
         std::format(
             "ffmpeg"
-            " -y"                 // override existing file
-            " -f rawvideo"        // rawvideo codec (the pipe receives pixels in stdin)
-            " -pixel_format rgba" // the format of the pixel sent
-            " -video_size {}x{}"  // width and height
-            " -framerate {}"      // input framerate
-            " -an"                // tells ffmpeg to expect no audio
-            " -i -"               // the inputs comes from a pipe (stdin)
-            " -codec:v libx264"   // the codec defines how are the frames compressed in the output file
-            " -r {}"              // output framerate
-            " -pix_fmt yuv420p"   // the pixel format defines how the colors are represented in the file
-            " -crf 23"            // video quality (recommended for libx264)
-            " -loglevel warning"  // display only warnings
-            " {}",                // output filename
+            " -y"                   // override existing file
+            " -f rawvideo"          // rawvideo codec (the pipe receives pixels in stdin)
+            " -pixel_format rgba"   // the format of the pixel sent
+            " -video_size {}x{}"    // width and height
+            " -framerate {}"        // input framerate
+            " -an"                  // tells ffmpeg to expect no audio
+            " -i -"                 // the inputs comes from a pipe (stdin)
+            " -c:v libx264"         // the codec defines how are the frames compressed in the output file
+            " -preset veryfast"     // speed up the process
+            " -pix_fmt yuv420p"     // the pixel format defines how the colors are represented in the file
+            " -crf 23"              // video quality (recommended for libx264)
+            " -movflags +faststart" // metadata is at the start of the video so it can start playing even if not full loaded
+            " -loglevel warning"    // display only warnings
+            " {}",                  // output filename
             _width,
             _height,
-            _framerate,
             _framerate,
             _outputFile
         )
@@ -191,37 +187,28 @@ int VC::Core::generateVideo()
         throw Error("Could not start the ffmpeg pipe.");
     }
 
-    size_t index = 0;
     for (const auto& f : _frames) {
-        std::cout << "index: " << index++ << std::endl;
-        const int nbRows = f.rows;
-        const int nbCols = f.cols;
-
-        cv::Mat frame(nbRows, nbCols, CV_8UC4); // BGRA -> RGBA
-
-        for (int y = 0; y < nbRows; y++) {
-            for (int x = 0; x < nbCols; x++) {
-                const cv::Vec4b pixel = f.at<cv::Vec4b>(y, x);
-
-                const float alpha = pixel[3] / 255.0;
-
-                frame.at<cv::Vec4b>(y, x) = {
-                    cv::saturate_cast<uchar>(pixel[2] * alpha), // r
-                    cv::saturate_cast<uchar>(pixel[1] * alpha), // g
-                    cv::saturate_cast<uchar>(pixel[0] * alpha), // b
-                    pixel[3]                                    // a
-                };
-            }
+        if (f.rows != _height && f.cols != _width) {
+            throw Error("Frame size mismatch. width: " + std::to_string(f.cols) + "!=" + std::to_string(_width) + ", height: " + std::to_string(f.rows) + "!=" + std::to_string(_height));
         }
 
-        fwrite(frame.data, 1, frame.total() * frame.elemSize(), ffmpegPipe);
-        fflush(ffmpegPipe);
+        cv::Mat frame;
+        cv::cvtColor(f, frame, cv::COLOR_BGRA2RGBA); ///< BGRA -> RGBA
+
+        if (!frame.isContinuous()) {
+            frame = frame.clone();
+        }
+
+        size_t bytes = frame.total() * frame.elemSize();
+        size_t written = fwrite(frame.data, 1, bytes, ffmpegPipe);
+
+        if (written != bytes) {
+            throw Error("Wrote only " + std::to_string(written) + " out of " + std::to_string(bytes) + " bytes.");
+        }
     }
 
     pclose(ffmpegPipe);
-
     VC_LOG_DEBUG("video generated as: " + _outputFile)
-
     return 0;
 }
 

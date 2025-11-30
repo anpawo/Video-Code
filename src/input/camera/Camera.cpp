@@ -44,7 +44,7 @@ void Camera::applySetters()
     }
 }
 
-Frame& Camera::generateNextFrame() // TODO: find a better way than overriding to just remove a line
+Frame& Camera::generateNextFrame()
 {
     if (_transformationIndex == _transformations.size()) {
         _frameHasChanged = false;

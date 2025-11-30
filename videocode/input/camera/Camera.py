@@ -10,6 +10,9 @@ class camera(Input):
     The `Camera` represents what we see of the video.
 
     The `Camera` can move and `Transformations` can be applied to it.
+
+    !!! Warning !!!
+    The Camera cannot work because it would crop stuff on scale downs
     """
 
     """

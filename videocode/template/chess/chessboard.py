@@ -94,16 +94,25 @@ class ChessBoard:
         self.addInputs()
 
     def addInputs(self):
-        self.inputs[BOARD] = webImage(BOARD_URL).setPosition(*MIDDLE).apply(scale(0.5)).moveTo(x=0.75 * SW).add()
-        # self.inputs[(KING, BLACK)] = webImage(self.getUrl(KING, BLACK)).setPosition(0.5 * SW + 50, 0.5 * SH + 50).apply(zoom(factor=1.7)).add()
-        # TODO: you need to remove Scale and Make Zoom a scale and a setter
-        # You should have 2 bases, the original that you should modify and set as the second skin whenever a setter is used.
-        # Some setters can have the ability to add a transformation for each frame (scale)
+        self.inputs[BOARD] = webImage(BOARD_URL).setPosition(*MIDDLE).apply(scale(0.5)).add()
+
+        defaultScaling = 0.7
+        ox = 0.3175 * SW
+        oy = 0.175 * SH
+        tileSize = 100.2
+
+        for y, row in enumerate(self.board):
+            for x, col in enumerate(row):
+                # Empty
+                if col is None:
+                    continue
+
+                self.inputs[col] = webImage(self.getUrl(*col)).setPosition(ox + x * tileSize, oy + y * tileSize).apply(scale(0.7)).add()
 
     def splitPGN(self, pgn: str):
         return [i.split() for i in re.split(r"\d+\.\s", pgn.split("\n\n1.")[1])]
 
-    def getUrl(self, piece: Piece, color: Color):
+    def getUrl(self, color: Color, piece: Piece):
         return f"https://assets-themes.chess.com/image/ejgfv/150/{'w' if color else 'b'}{URL[piece]}.png"
 
 
