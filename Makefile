@@ -23,6 +23,13 @@ cmake:
 	cp $(BUILD_DIR)/$(BINARY_NAME) .
 
 
+.PHONY: debug
+debug:
+	cmake -B $(BUILD_DIR) -DDEBUG=ON
+	$(MAKE) -C $(BUILD_DIR)
+	cp $(BUILD_DIR)/$(BINARY_NAME) .
+
+
 .PHONY: clean
 clean:
 	@ $(RM) vgcore*
@@ -41,14 +48,17 @@ format:
 
 .PHONY: docs
 docs: cmake
-docs: docdoc
 docs: docvid
+docs: docdoc
 
 
 .PHONY: docvid
 docvid:
 	./$(BINARY_NAME) --generate
 
+
+# 1. Generate the Readme
+# 2. Copies the generated video to example.gif
 .PHONY: docdoc
 docdoc:
 	./docs/readme/generate.sh

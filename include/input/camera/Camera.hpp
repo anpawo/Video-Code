@@ -16,9 +16,9 @@ public:
     Camera(cv::Mat&& mat, json::object_t&& args);
     ~Camera() = default;
 
-    ///< Reset it to the black frame
-    void reset();
+    ///< Check _transformationIndex bounds
+    void applySetters();
 
-    ///< Consumes setPosition if any and get the position of the last frame
-    const v2i& getPosition();
+    ///< Generates the next frame without reseting the mat
+    Frame& generateNextFrame() final;
 };

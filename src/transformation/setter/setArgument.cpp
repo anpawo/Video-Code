@@ -14,7 +14,7 @@ void transformation::setArgument(std::shared_ptr<IInput>& input, const json::obj
     json value = args.at("value");
     size_t start = args.at("start");
 
-    input->addSetter(start, "setArgument", [name, value](json::object_t& args, Metadata& _) {
+    input->addSetter(start, {name}, [name, value](json::object_t& args, [[maybe_unused]] Metadata& _) {
         args[name] = value;
     });
 }

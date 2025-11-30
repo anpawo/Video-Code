@@ -9,7 +9,7 @@ class camera(Input):
     """
     The `Camera` represents what we see of the video.
 
-    The `Camera` can move and `Shaders` can be applied to it.
+    The `Camera` can move and `Transformations` can be applied to it.
     """
 
     """

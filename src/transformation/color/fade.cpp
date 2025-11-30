@@ -19,7 +19,7 @@ void transformation::fade(std::shared_ptr<IInput>& input, const json::object_t& 
     size_t start = args.at("start");
 
     for (size_t i = 0; i < duration; i++) {
-        input->addTransformation(start + i, [affectTransparentPixel, sides, i, duration, startOpacity, endOpacity](Frame& frame) {
+        input->addTransformation(start + i, false, "fade", [affectTransparentPixel, sides, i, duration, startOpacity, endOpacity](Frame& frame) {
             float opacity = startOpacity + (endOpacity - startOpacity) * (static_cast<float>(i) / (duration - 1));
             const auto& cols = frame.mat.cols;
             const auto& rows = frame.mat.rows;

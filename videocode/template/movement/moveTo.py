@@ -10,7 +10,7 @@ from videocode.utils.easings import Easing
 
 @noAutoAdd
 def moveTo(input, x: number | None = None, y: number | None = None, *, easing: cubicBezier = Easing.Linear, start: number = 0, duration: number = 0.4) -> None:
-    n = int((duration - start) * FR) + 1
+    n = int((duration - start) * FR)
     srcX = input.meta.x
     srcY = input.meta.y
 

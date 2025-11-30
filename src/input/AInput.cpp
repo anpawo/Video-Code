@@ -7,15 +7,19 @@
 
 #include "input/AInput.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <memory>
 
 #include "input/Frame.hpp"
 #include "input/IInput.hpp"
 #include "transformation/transformation.hpp"
+#include "utils/Debug.hpp"
+#include "utils/Vector.hpp"
 
-AInput::AInput(json::object_t&& args)
+AInput::AInput(json::object_t&& args, std::set<std::string_view>&& triggers)
     : _args(std::move(args))
+    , _triggers(std::move(triggers))
 {
 }
 
@@ -34,79 +38,124 @@ void AInput::apply(const std::string& name, const json::object_t& args)
 void AInput::setBase(cv::Mat&& mat)
 {
     _base = std::move(mat);
+    resetCurrentFrameToBase();
+}
 
+void AInput::resetCurrentFrameToBase()
+{
     ///< Keep the metadata if existing
-    if (_lastFrame) {
-        _lastFrame = std::make_unique<Frame>(_base.clone(), _lastFrame->meta);
+    if (_currentFrame) {
+        _currentFrame = std::make_unique<Frame>(_base.clone(), _currentFrame->meta);
     } else {
-        _lastFrame = std::make_unique<Frame>(_base.clone());
+        _currentFrame = std::make_unique<Frame>(_base.clone());
     }
 }
 
-void AInput::addTransformation(size_t index, std::function<void(Frame&)>&& f)
+void AInput::addTransformation(size_t index, bool persistent, std::string&& name, std::function<void(Frame&)>&& f)
 {
     ///< Take into account used stuff
     while (_transformations.size() <= index + _flushedTransformationIndex) {
         _transformations.push_back({});
         _setters.push_back({});
     }
-    _transformations[index + _flushedTransformationIndex].push_back(f);
+    _transformations[index + _flushedTransformationIndex].push_back({persistent, name, f});
 }
 
-void AInput::addSetter(size_t index, std::string&& setterName, std::function<void(json::object_t&, Metadata&)>&& f)
+void AInput::addPersistent(std::string& name, std::function<void(Frame&)>& f)
+{
+    _persistents.push_back({name, f});
+}
+
+void AInput::addSetter(size_t index, std::vector<std::string>&& name, std::function<void(json::object_t&, Metadata&)>&& f)
 {
     ///< Take into account used stuff
     while (_setters.size() <= index + _flushedTransformationIndex) {
         _transformations.push_back({});
         _setters.push_back({});
     }
-    _setters[index + _flushedTransformationIndex].push_back({setterName, f});
+    _setters[index + _flushedTransformationIndex].push_back({name, f});
 }
 
 Frame& AInput::generateNextFrame()
 {
     if (_transformationIndex == _transformations.size()) {
         _frameHasChanged = false;
-        return getLastFrame();
-    } else {
-        _frameHasChanged = true;
+        return getCurrentFrame();
     }
+    _frameHasChanged = true;
 
+    resetCurrentFrameToBase();
     applySetters();
+    applyPersistents();
     applyTransformations();
 
     _transformationIndex += 1;
-    return getLastFrame();
+    return getCurrentFrame();
 }
 
-Frame& AInput::getLastFrame()
+Frame& AInput::getCurrentFrame()
 {
-    return *_lastFrame;
+    return *_currentFrame;
 }
 
 void AInput::applySetters()
 {
-    bool constructNeeded = false;
+    for (const auto& [names, t] : _setters[_transformationIndex]) {
+        VC_LOG_DEBUG("applySetter: " << names);
 
-    for (const auto& s : _setters[_transformationIndex]) {
-        s.second(getArgs(), getLastFrame().meta);
-        constructNeeded = true;
+        t(getArgs(), getCurrentFrame().meta);
+
+        for (const auto& n : names) {
+            if (_triggers.contains(n)) {
+                _constructNeeded = true;
+                break;
+            }
+        }
     }
-    if (constructNeeded) {
+    if (_constructNeeded) {
+        _constructNeeded = false;
+        ///< Update shape or remove a transformation.
         construct();
-        ///< Update shape or smth.
-        getLastFrame().mat = _base.clone();
+    }
+}
+
+void AInput::applyPersistents()
+{
+    ///< Remove any persistents that repeats in the transformations
+    _persistents.erase(
+        std::remove_if(
+            _persistents.begin(),
+            _persistents.end(),
+            [this](const auto& per) {
+                for (const auto& tsf : _transformations[_transformationIndex]) {
+                    if (std::get<1>(tsf) == per.first) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+        ),
+        _persistents.end()
+    );
+
+    for (auto& [name, t] : _persistents) {
+        VC_LOG_DEBUG("applyPersistent: " << name);
+        t(getCurrentFrame());
     }
 }
 
 void AInput::applyTransformations()
 {
-    for (const auto& t : _transformations[_transformationIndex]) {
-        t(getLastFrame());
+    for (auto& [persistent, name, t] : _transformations[_transformationIndex]) {
+        VC_LOG_DEBUG("applyTransformation: " << name);
+        t(getCurrentFrame());
+        if (persistent) {
+            addPersistent(name, t);
+        }
     }
 }
 
-void AInput::overlayLastFrame(cv::Mat& background, const v2i& camera) // TODO: add offside x, y from camera
+void AInput::overlayLastFrame(cv::Mat& background, const v2i& camera)
 {
     const Frame& frame = generateNextFrame();
 
@@ -173,8 +222,7 @@ json::object_t& AInput::getArgs()
     return _args;
 }
 
-// TODO: should only construct bases on some arguments defined in each input
 void AInput::construct()
 {
-    // Does nothing, the Input doesn't have any arguments that would affect it.
+    ///< Does nothing, the Input doesn't have any arguments that would affect a reconstruct.
 }

@@ -1,20 +1,23 @@
 cmake_minimum_required(VERSION 3.21)
 # --- Force GCC 14 if available ---
 # Fix GCC 15 Crashs
-if (EXISTS "/usr/bin/g++-14")
-    message(STATUS "Using GCC 14 compiler")
-    set(CMAKE_C_COMPILER "/usr/bin/gcc-14" CACHE FILEPATH "C compiler" FORCE)
-    set(CMAKE_CXX_COMPILER "/usr/bin/g++-14" CACHE FILEPATH "C++ compiler" FORCE)
-endif()
+# if (EXISTS "/usr/bin/g++-14")
+#     message(STATUS "Using GCC 14 compiler")
+#     set(CMAKE_C_COMPILER "/usr/bin/gcc-14" CACHE FILEPATH "C compiler" FORCE)
+#     set(CMAKE_CXX_COMPILER "/usr/bin/g++-14" CACHE FILEPATH "C++ compiler" FORCE)
+# endif()
 project(video-code VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-deprecated -pipe -O2 -D_REENTRANT -DVC_DEBUG_ON -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -DQT_NO_KEYWORDS")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-deprecated -pipe -D_REENTRANT -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -DQT_NO_KEYWORDS")
 
 if(DEBUG)
-    message(STATUS "Debug build")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3")
+    message(STATUS ">>> Debug build <<<")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -DVC_DEBUG_ON")
+else()
+    message(STATUS ">>> Release build <<<")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
 
 set_property(GLOBAL PROPERTY CXX_STANDARD 20)
@@ -127,7 +130,6 @@ set(SOURCES
     src/transformation/color/fade.cpp
     src/transformation/color/grayscale.cpp
     # Other
-    src/transformation/size/zoom.cpp
     src/transformation/size/scale.cpp
 
 )

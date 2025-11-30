@@ -39,8 +39,8 @@ namespace VC
         void pause();
         void goToFirstFrame();
         void goToLastFrame();
-        void forward3frames();
-        void backward3frames();
+        void forward1frame();
+        void backward1frame();
 
     private:
 

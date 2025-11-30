@@ -6,7 +6,6 @@ import re
 from videocode.Constant import MIDDLE, SH, SW
 from videocode.input.media.WebImage import webImage
 from videocode.transformation.size.Scale import scale
-from videocode.transformation.size.Zoom import zoom
 
 
 type Color = bool
@@ -95,8 +94,8 @@ class ChessBoard:
         self.addInputs()
 
     def addInputs(self):
-        self.inputs[BOARD] = webImage(BOARD_URL).setPosition(*MIDDLE).apply(scale(factor=0.5)).add()
-        self.inputs[(KING, BLACK)] = webImage(self.getUrl(KING, BLACK)).setPosition(0.5 * SW + 50, 0.5 * SH + 50).apply(zoom(factor=1.7)).add()
+        self.inputs[BOARD] = webImage(BOARD_URL).setPosition(*MIDDLE).apply(scale(0.5)).moveTo(x=0.75 * SW).add()
+        # self.inputs[(KING, BLACK)] = webImage(self.getUrl(KING, BLACK)).setPosition(0.5 * SW + 50, 0.5 * SH + 50).apply(zoom(factor=1.7)).add()
         # TODO: you need to remove Scale and Make Zoom a scale and a setter
         # You should have 2 bases, the original that you should modify and set as the second skin whenever a setter is used.
         # Some setters can have the ability to add a transformation for each frame (scale)

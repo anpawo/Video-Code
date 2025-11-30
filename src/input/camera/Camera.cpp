@@ -7,11 +7,12 @@
 
 #include "input/camera/Camera.hpp"
 
-#include <algorithm>
-#include <functional>
 #include <opencv2/core/mat.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <utility>
+
+#include "utils/Debug.hpp"
+#include "utils/Vector.hpp"
 
 Camera::Camera(cv::Mat&& mat, json::object_t&& args)
     : AInput(std::move(args))
@@ -19,36 +20,41 @@ Camera::Camera(cv::Mat&& mat, json::object_t&& args)
     setBase(std::move(mat));
 }
 
-void Camera::reset()
+void Camera::applySetters()
 {
-    ///< Keep the metadata if existing
-    if (_lastFrame) {
-        _lastFrame = std::make_unique<Frame>(_base.clone(), _lastFrame->meta);
-    } else {
-        _lastFrame = std::make_unique<Frame>(_base.clone());
+    if (_transformationIndex == _transformations.size()) {
+        return;
+    }
+    for (const auto& [names, t] : _setters[_transformationIndex]) {
+        VC_LOG_DEBUG("applySetter: " << names);
+
+        t(getArgs(), getCurrentFrame().meta);
+
+        for (const auto& n : names) {
+            if (_triggers.contains(n)) {
+                _constructNeeded = true;
+                break;
+            }
+        }
+    }
+    if (_constructNeeded) {
+        _constructNeeded = false;
+        ///< Update shape or remove a transformation.
+        construct();
     }
 }
 
-const v2i& Camera::getPosition()
+Frame& Camera::generateNextFrame() // TODO: find a better way than overriding to just remove a line
 {
     if (_transformationIndex == _transformations.size()) {
-        return _lastFrame->meta.position;
+        _frameHasChanged = false;
+        return getCurrentFrame();
     }
+    _frameHasChanged = true;
 
-    auto& v = _setters[_transformationIndex];
-    auto it = v.begin();
+    applyPersistents();
+    applyTransformations();
 
-    ///< Remove all setPosition
-    while (it != v.end()) {
-        it = std::find_if(v.begin(), v.end(), [](auto& p) {
-            return p.first == "setPosition";
-        });
-
-        if (it != v.end()) {
-            it->second(getArgs(), getLastFrame().meta);
-            v.erase(it);
-        }
-    }
-
-    return _lastFrame->meta.position;
+    _transformationIndex += 1;
+    return getCurrentFrame();
 }

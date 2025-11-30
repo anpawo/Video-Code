@@ -17,29 +17,27 @@ Below is an example of the last feature added (code) and the result (video).
 
 
 from videocode.VideoCode import *
-from videocode.template.league.runes import *
+from videocode.template.chess.chessboard import *
 
-r = RuneSet(
-    main=(
-        Path.Precision,
-        Rune.LethalTempo,
-        Rune.Triumph,
-        Rune.LegendAlacrity,
-        Rune.LastStand,
-    ),
-    sub=(
-        Path.Resolve,
-        Rune.BonePlating,
-        Rune.ShieldBash,
-    ),
-    shard=(
-        Shard.AdaptativeForce,
-        Shard.AttackSpeed,
-        Shard.HealthScaling,
-    ),
-).animate()
+# TODO: chess template
+# chess = ChessBoard()
 
-wait(1)
+# TODO: Camera Transformation
+g = (
+    group(
+        c := circle(),
+        square(),
+    )
+    .setPosition(0, SH * 0.5)
+    .add()
+)
+
+cam = camera().setPosition(0, 0).moveTo(-0.5 * SW, duration=1).apply(scale(2)).add()
+
+wait()
+
+c.color = GREEN
+c.add()  # Needs a fix
 ```
 
 <img src="docs/readme/example.gif" style="width: 50%;">
@@ -47,10 +45,10 @@ wait(1)
 ## Getting Started
 To create a video with Video-Code, you need to write some simple code in Python.
 
-The flow of the Video comes from the __Inputs__ that you, first import or create, then modify with __Transformations__ and finally add to the __timeline__.
+The flow of the Video comes from the __Inputs__ that you, first create, then modify with __Transformations__ and finally add to the __timeline__.
 
-To import or create an __Input__, you need to create a __video__, __image__ or a __text__, etc...<br>
-To modify it, you need to use __Transformations__ like __translate__ or __fade__.<br>
+To create an __Input__, use one the methods created according to what you need, it can be a __video__, an __image__ or a __text__, etc...<br>
+To modify it, you need to use __Transformations__ like __moveTo__ or __scale__.<br>
 To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ function.
 
 ### Installation
@@ -97,6 +95,7 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 <br>
 
 - `moveTo`
+- `slideTo`
 
 <br>
 
@@ -117,7 +116,7 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 <br>
 
 - `feature`: start and duration of transformation (08/04/25)
-- `rework`: keeping (08/04/25)
+- `rework`: inputs are kept on the video by default (08/04/25)
 - `feature`: wait -> freeze the screen for the duration (08/04/25)
 - `transformation`: setPosition (08/04/25)
 - `rework`: move -> moveTo (08/04/25)
@@ -139,6 +138,10 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 - `feature`: incrementals: groups that alterate the modifications you receive according to you're index
 - `feature`: image from url
 - `feature`: first template example (runeset)
+- `rework`: slideTo becomes moveTo and the old moveTo is removed
+- `feature`: can apply transformations to the whole scene
+- `rework`: scale removed and zoom renamed scale
+- `feature`: persistent transformations: you trigger once grayscale and it stays with the input forever
 
 </details>
 

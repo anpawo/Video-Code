@@ -15,6 +15,22 @@
 #include "opencv2/core/types.hpp"
 #include "opencv2/imgproc.hpp"
 
+Rectangle::Rectangle(json::object_t &&args)
+    : AInput(
+          std::move(args),
+          {
+              "width",
+              "height",
+              "thickness",
+              "color",
+              "cornerRadius",
+              "filled",
+          }
+      )
+{
+    construct();
+}
+
 static void line(cv::Mat &bg, const size_t x, const size_t y, const size_t w, const size_t h, const cv::Vec4b &color)
 {
     for (size_t iy = y; iy < h; iy++) {
@@ -22,12 +38,6 @@ static void line(cv::Mat &bg, const size_t x, const size_t y, const size_t w, co
             bg.at<cv::Vec4b>(iy, ix) = color;
         }
     }
-}
-
-Rectangle::Rectangle(json::object_t &&args)
-    : AInput(std::move(args))
-{
-    construct();
 }
 
 void Rectangle::construct()

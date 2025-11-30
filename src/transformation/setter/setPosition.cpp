@@ -13,7 +13,7 @@ void transformation::setPosition(std::shared_ptr<IInput>& input, const json::obj
     json y = args.at("y");
     size_t start = args.at("start");
 
-    input->addSetter(start, "setPosition", [x, y](json::object_t& _, Metadata& meta) {
+    input->addSetter(start, {}, [x, y]([[maybe_unused]] json::object_t& _, Metadata& meta) {
         if (!x.is_null()) {
             meta.position.x = x;
         }

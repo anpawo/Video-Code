@@ -25,7 +25,6 @@ namespace transformation
     transformation(grayscale);
 
     ///< Other
-    transformation(zoom);
     transformation(scale);
 
     ///< Setter
@@ -42,7 +41,6 @@ namespace transformation
         bind(grayscale),
 
         ///< Other
-        bind(zoom),
         bind(scale),
 
         ///< Setter

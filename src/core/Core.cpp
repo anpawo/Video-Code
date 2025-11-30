@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <memory>
+#include <opencv2/core/mat.hpp>
 
 #include "core/Factory.hpp"
 #include "python/API.hpp"
@@ -62,7 +63,7 @@ void VC::Core::executeStack()
 {
     for (auto& s : _stack) {
         if (_showstack) {
-            VC_LOG_DEBUG(s);
+            std::cout << s << std::endl;
         }
 
         if (s["action"] == "Create") {
@@ -91,6 +92,7 @@ void VC::Core::executeStack()
             }
         } else if (s["action"] == "Wait") {
             addNewFrames();
+
             for (size_t n = s["n"].get<size_t>() * _framerate; n; n--) {
                 if (_frames.empty()) {
                     _frames.push_back(_bgFrame.clone());
@@ -104,27 +106,24 @@ void VC::Core::executeStack()
 
 void VC::Core::addNewFrames()
 {
-    std::cout << _frames.size() << std::endl;
     bool anythingChanged = _addedInputs.size();
 
     while (anythingChanged) {
         anythingChanged = false;
 
-        _camera->reset();
-        cv::Mat& mat = _camera->getLastFrame().mat;
+        _camera->resetCurrentFrameToBase();
+        _camera->applySetters();
+        Frame& frame = _camera->getCurrentFrame();
 
-        const v2i& pos = _camera->getPosition();
         for (auto i : _addedInputs) {
-            _inputs[i]->overlayLastFrame(mat, pos);
-
+            _inputs[i]->overlayLastFrame(frame.mat, frame.meta.position);
             anythingChanged |= _inputs[i]->frameHasChanged();
         }
 
-        ///< TODO: Camera needs a fix because if we change an arg, it will reset the cam
-        auto _ = _camera->generateNextFrame();
+        _camera->generateNextFrame();
         anythingChanged |= _camera->frameHasChanged();
         if (anythingChanged) {
-            _frames.push_back(std::move(mat));
+            _frames.push_back(std::move(frame.mat));
         }
     }
 }
@@ -157,6 +156,11 @@ void VC::Core::updateFrame(QLabel& imageLabel)
 
 int VC::Core::generateVideo()
 {
+    std::cout << "size: " << _frames.size() << std::endl;
+    std::cout << "_width: " << _width << std::endl;
+    std::cout << "_height: " << _height << std::endl;
+    std::cout << "_framerate: " << _framerate << std::endl;
+    std::cout << "_outputFile: " << _outputFile << std::endl;
     FILE* ffmpegPipe = popen(
         std::format(
             "ffmpeg"
@@ -164,16 +168,18 @@ int VC::Core::generateVideo()
             " -f rawvideo"        // rawvideo codec (the pipe receives pixels in stdin)
             " -pixel_format rgba" // the format of the pixel sent
             " -video_size {}x{}"  // width and height
-            " -framerate {}"      // fps
+            " -framerate {}"      // input framerate
             " -an"                // tells ffmpeg to expect no audio
             " -i -"               // the inputs comes from a pipe (stdin)
             " -codec:v libx264"   // the codec defines how are the frames compressed in the output file
+            " -r {}"              // output framerate
             " -pix_fmt yuv420p"   // the pixel format defines how the colors are represented in the file
             " -crf 23"            // video quality (recommended for libx264)
             " -loglevel warning"  // display only warnings
             " {}",                // output filename
             _width,
             _height,
+            _framerate,
             _framerate,
             _outputFile
         )
@@ -185,7 +191,9 @@ int VC::Core::generateVideo()
         throw Error("Could not start the ffmpeg pipe.");
     }
 
+    size_t index = 0;
     for (const auto& f : _frames) {
+        std::cout << "index: " << index++ << std::endl;
         const int nbRows = f.rows;
         const int nbCols = f.cols;
 
@@ -239,19 +247,19 @@ void VC::Core::goToLastFrame()
     std::cout << std::format("Jumped forward to the last frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
 }
 
-void VC::Core::backward3frames()
+void VC::Core::backward1frame()
 {
-    if (_index < 1 * _framerate) {
+    if (_index < 1) {
         _index = 0;
     } else {
-        _index -= 1 * _framerate;
+        _index -= 1;
     }
     std::cout << std::format("Jumped backward to the frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
 }
 
-void VC::Core::forward3frames()
+void VC::Core::forward1frame()
 {
-    _index += 1 * _framerate;
+    _index += 1;
     if (_index > _frames.size()) {
         _index = _frames.size() - 1;
     }
