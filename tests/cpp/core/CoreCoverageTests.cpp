@@ -37,8 +37,105 @@ protected:
             .help("time execution");
     }
 
-    argparse::ArgumentParser _parser;
+    argparse::ArgumentParser _parser{"test"};
 };
+
+// New comprehensive tests to improve coverage
+TEST_F(CoreCoverageTests, CoreInternalMethods) {
+    std::vector<std::string> argv = {"videocode", "--width", "800", "--height", "600", 
+                                     "--framerate", "30", "--file", "nonexistent.py", 
+                                     "--generate", "test.mp4", "--showstack", "true"};
+    _parser.parse_args(argv);
+    
+    VC::Core core(_parser);
+    
+    // Test internal methods that aren't covered by direct calls
+    // These are called indirectly through constructor and reloadSourceFile
+    // But we need to exercise edge cases
+    
+    // Test with different frame counts
+    core.forward3frames();
+    core.backward3frames();
+    core.goToFirstFrame();
+    core.goToLastFrame();
+    
+    // Multiple calls to test state transitions
+    core.pause();
+    core.pause(); // Toggle back
+    
+    // Test reloading multiple times
+    core.reloadSourceFile();
+    core.reloadSourceFile();
+}
+
+TEST_F(CoreCoverageTests, UpdateFrameWithFrames) {
+    std::vector<std::string> argv = {"videocode", "--width", "400", "--height", "300", 
+                                     "--framerate", "60", "--file", "test.py", 
+                                     "--generate", "test.mp4"};
+    _parser.parse_args(argv);
+    
+    VC::Core core(_parser);
+    
+    int argc = 0;
+    char* argv2[1] = {nullptr};
+    QApplication app(argc, argv2);
+    QLabel label;
+    
+    // Test updateFrame - this should exercise both empty and non-empty frame paths
+    core.updateFrame(label);
+}
+
+TEST_F(CoreCoverageTests, GenerateVideoWithDifferentSettings) {
+    std::vector<std::string> argv = {"videocode", "--width", "1280", "--height", "720", 
+                                     "--framerate", "24", "--file", "test.py", 
+                                     "--generate", "/tmp/coverage_test.mp4", "--showstack", "false"};
+    _parser.parse_args(argv);
+    
+    VC::Core core(_parser);
+    
+    // Test video generation
+    int result = core.generateVideo();
+    EXPECT_EQ(result, 0);
+}
+
+TEST_F(CoreCoverageTests, NavigationEdgeCases) {
+    std::vector<std::string> argv = {"videocode", "--width", "640", "--height", "480", 
+                                     "--framerate", "30", "--file", "test.py", 
+                                     "--generate", "test.mp4"};
+    _parser.parse_args(argv);
+    
+    VC::Core core(_parser);
+    
+    // Test navigation with different boundary conditions
+    for (int i = 0; i < 5; ++i) {
+        core.forward3frames();
+    }
+    
+    for (int i = 0; i < 10; ++i) {
+        core.backward3frames();  // Should hit boundary
+    }
+    
+    core.goToLastFrame();
+    core.forward3frames();   // Should handle being at end
+    
+    core.goToFirstFrame(); 
+    core.backward3frames();  // Should handle being at start
+}
+
+TEST_F(CoreCoverageTests, PythonAPIErrorHandling) {
+    // Test various error conditions in Python API
+    try {
+        python::API::call<std::string>("ValidModule", "invalidFunction", "arg");
+    } catch (const Error&) {
+        // Expected to fail
+    }
+    
+    try {
+        python::API::call<std::string>("", "", "");
+    } catch (const Error&) {
+        // Expected to fail  
+    }
+}
 
 TEST_F(CoreCoverageTests, CoreMethodsCoverage) {
     std::vector<std::string> argv = {"videocode", "--width", "800", "--height", "600", 

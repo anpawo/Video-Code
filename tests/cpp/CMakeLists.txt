@@ -55,6 +55,12 @@ add_executable(video-code-tests
     core/CoreCoverageTests.cpp
     window/WindowCoverageTests.cpp
     input/media/MediaCoverageTests.cpp
+    input/media/WebImageTests.cpp
+    input/media/VideoComprehensiveTests.cpp
+    window/WindowComprehensiveTests.cpp
+    compiler/CompilerComprehensiveTests.cpp
+    input/shape/RectangleComprehensiveTests.cpp
+    input/shape/CircleComprehensiveTests.cpp
 )
 
 target_include_directories(video-code-tests PRIVATE

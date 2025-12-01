@@ -27,12 +27,14 @@ protected:
         parser.add_argument("--framerate")
             .default_value(30)
             .scan<'i', int>();
-        parser.add_argument("--sourceFile")
-            .required()
-            .default_value("tests/resources/test_video.mp4");
-        // Core expects an output/generate argument, add default so tests don't fail
+        parser.add_argument("--file")
+            .default_value("/home/hippo/code/Video-Code/tests/python/test_videocode_core.py");
         parser.add_argument("--generate")
             .default_value("out.mp4");
+        parser.add_argument("--showstack")
+            .default_value(false);
+        parser.add_argument("--time")
+            .default_value(false);
             
         std::vector<std::string> args = {"test-parser"};
         parser.parse_args(args);
@@ -73,10 +75,14 @@ TEST_F(WindowTests, CustomDimensions) {
         .default_value(30)
         .scan<'i', int>();
     // Add missing args expected by Core
-    customParser.add_argument("--sourceFile")
-        .default_value("tests/resources/test_video.mp4");
+    customParser.add_argument("--file")
+        .default_value("/home/hippo/code/Video-Code/tests/python/test_videocode_core.py");
     customParser.add_argument("--generate")
         .default_value("out.mp4");
+    customParser.add_argument("--showstack")
+        .default_value(false);
+    customParser.add_argument("--time")
+        .default_value(false);
 
     std::vector<std::string> args = {"test-parser"};
     customParser.parse_args(args);
@@ -100,10 +106,14 @@ TEST_F(WindowTests, Framerate) {
         .default_value(60)  // Test with 60fps
         .scan<'i', int>();
     // Add missing args expected by Core
-    customParser.add_argument("--sourceFile")
-        .default_value("tests/resources/test_video.mp4");
+    customParser.add_argument("--file")
+        .default_value("/home/hippo/code/Video-Code/tests/python/test_videocode_core.py");
     customParser.add_argument("--generate")
         .default_value("out.mp4");
+    customParser.add_argument("--showstack")
+        .default_value(false);
+    customParser.add_argument("--time")
+        .default_value(false);
 
     std::vector<std::string> args = {"test-parser"};
     customParser.parse_args(args);

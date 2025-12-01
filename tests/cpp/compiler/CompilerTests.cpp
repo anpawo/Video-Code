@@ -16,10 +16,14 @@ protected:
         parser.add_argument("--framerate")
             .default_value(60)
             .scan<'i', int>();
-        parser.add_argument("--sourceFile")
-            .default_value("test.json");
+        parser.add_argument("--file")
+            .default_value("/home/hippo/code/Video-Code/tests/python/test_videocode_core.py");
         parser.add_argument("--generate")
             .default_value("out.mp4");
+        parser.add_argument("--showstack")
+            .default_value(false);
+        parser.add_argument("--time")
+            .default_value(false);
             
         std::vector<std::string> args = {"test-parser"};
         parser.parse_args(args);
@@ -60,10 +64,14 @@ TEST_F(CompilerTests, InvalidConfiguration) {
     customParser.add_argument("--framerate")
         .default_value(60)
         .scan<'i', int>();
-    customParser.add_argument("--sourceFile")
-        .default_value("test.json");
+    customParser.add_argument("--file")
+        .default_value("/home/hippo/code/Video-Code/tests/python/test_videocode_core.py");
     customParser.add_argument("--generate")
-        .default_value("/nonexistent/path/out.mp4");    std::vector<std::string> args = {"test-parser"};
+        .default_value("/nonexistent/path/out.mp4");
+    customParser.add_argument("--showstack")
+        .default_value(false);
+    customParser.add_argument("--time")
+        .default_value(false);    std::vector<std::string> args = {"test-parser"};
     customParser.parse_args(args);
 
     Compiler compiler(customParser);
@@ -84,10 +92,14 @@ TEST_F(CompilerTests, MissingSourceFile) {
     customParser.add_argument("--framerate")
         .default_value(60)
         .scan<'i', int>();
-    customParser.add_argument("--sourceFile")
-        .default_value("nonexistent.json");
+    customParser.add_argument("--file")
+        .default_value("nonexistent.py");
     customParser.add_argument("--generate")
-        .default_value("out.mp4");    std::vector<std::string> args = {"test-parser"};
+        .default_value("out.mp4");
+    customParser.add_argument("--showstack")
+        .default_value(false);
+    customParser.add_argument("--time")
+        .default_value(false);    std::vector<std::string> args = {"test-parser"};
     customParser.parse_args(args);
 
     Compiler compiler(customParser);

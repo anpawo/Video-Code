@@ -10,39 +10,8 @@ using namespace VC;
 class CoreAdvancedTests : public ::testing::Test {
 protected:
     void SetUp() override {
-        // Create a valid test scene JSON file
-        testSceneFile = "/tmp/test_scene.json";
-        std::ofstream outFile(testSceneFile);
-        outFile << R"([
-            {
-                "action": "Create",
-                "type": "Circle",
-                "radius": 50,
-                "color": [255, 0, 0, 255],
-                "width": 200,
-                "height": 200
-            },
-            {
-                "action": "Add",
-                "input": 0
-            },
-            {
-                "action": "Apply",
-                "input": 0,
-                "transformation": "setPosition",
-                "args": {
-                    "x": 100,
-                    "y": 100,
-                    "duration": 0,
-                    "start": 0
-                }
-            },
-            {
-                "action": "Wait",
-                "n": 1
-            }
-        ])";
-        outFile.close();
+        // Use an existing test Python file
+        testSceneFile = "/home/hippo/code/Video-Code/tests/python/test_videocode_core.py";
 
         parser.add_argument("--width")
             .default_value(640)
@@ -53,17 +22,20 @@ protected:
         parser.add_argument("--framerate")
             .default_value(30)
             .scan<'i', int>();
-        parser.add_argument("--sourceFile")
+        parser.add_argument("--file")
             .default_value(testSceneFile);
         parser.add_argument("--generate")
             .default_value("/tmp/test_output.mp4");
+        parser.add_argument("--showstack")
+            .default_value(false);
+        parser.add_argument("--time")
+            .default_value(false);
             
         std::vector<std::string> args = {"test-parser"};
         parser.parse_args(args);
     }
 
     void TearDown() override {
-        std::remove(testSceneFile.c_str());
         std::remove("/tmp/test_output.mp4");
     }
 

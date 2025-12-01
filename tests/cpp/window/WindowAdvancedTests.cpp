@@ -16,28 +16,6 @@ protected:
             new QApplication(argc, argv);
         }
 
-        // Create a valid test scene
-        testSceneFile = "/tmp/test_window_scene.json";
-        std::ofstream outFile(testSceneFile);
-        outFile << R"([
-            {
-                "action": "Create",
-                "type": "Rectangle",
-                "width": 100,
-                "height": 100,
-                "color": [128, 128, 128, 255]
-            },
-            {
-                "action": "Add",
-                "input": 0
-            },
-            {
-                "action": "Wait",
-                "n": 2
-            }
-        ])";
-        outFile.close();
-
         parser.add_argument("--width")
             .default_value(640)
             .scan<'i', int>();
@@ -47,22 +25,24 @@ protected:
         parser.add_argument("--framerate")
             .default_value(30)
             .scan<'i', int>();
-        parser.add_argument("--sourceFile")
-            .default_value(testSceneFile);
+        parser.add_argument("--file")
+            .default_value("/home/hippo/code/Video-Code/tests/python/test_videocode_core.py");
         parser.add_argument("--generate")
             .default_value("/tmp/window_test_output.mp4");
+        parser.add_argument("--showstack")
+            .default_value(false);
+        parser.add_argument("--time")
+            .default_value(false);
             
         std::vector<std::string> args = {"test-parser"};
         parser.parse_args(args);
     }
 
     void TearDown() override {
-        std::remove(testSceneFile.c_str());
         std::remove("/tmp/window_test_output.mp4");
     }
 
     argparse::ArgumentParser parser{"test-parser"};
-    std::string testSceneFile;
 };
 
 TEST_F(WindowAdvancedTests, MainRoutineUpdatesFrame) {
