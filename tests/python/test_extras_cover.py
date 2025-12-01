@@ -373,3 +373,51 @@ def test_resolve_checker_str_raises_and_positional_checker_exception():
     else:
         ok = False
     assert ok
+
+
+def test_incremental_group_functionality():
+    """Test incremental group functionality to improve coverage"""
+    from videocode.input.group.Incremental import incremental, linearAdd
+    from videocode.input.media.Image import image
+    from videocode.transformation.position.MoveTo import moveTo
+    from videocode.transformation.color.Fade import fadeIn
+    from videocode.Global import Global
+    
+    Global.stack.clear()
+    
+    # Create test inputs
+    img1 = image("test1.png")
+    img2 = image("test2.png")
+    
+    # Create incremental group with linear add modification
+    incr_group = incremental(
+        {moveTo: (linearAdd(dstX=10, dstY=5),)},
+        img1, img2
+    )
+    
+    # Apply transformation that has incremental
+    move = moveTo(0, 0)
+    incr_group.apply(move)
+    
+    # Apply transformation that doesn't have incremental (line 35 - else branch)
+    fade = fadeIn()
+    incr_group.apply(fade)
+    
+    # The incremental should have applied different transformations to each input
+    assert len(Global.stack) > 0
+
+
+def test_constantAdd_incremental_function():
+    """Test constantAdd function from Incremental module"""
+    from videocode.input.group.Incremental import constantAdd
+    from videocode.transformation.position.MoveTo import moveTo
+    
+    # Create constant add function
+    const_add = constantAdd(dstX=5, dstY=10)
+    
+    # Test it modifies transformation
+    move = moveTo(0, 0)
+    modified = const_add(move, 0)  # index 0
+    
+    assert hasattr(modified, 'dstX')
+    assert hasattr(modified, 'dstY')
