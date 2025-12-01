@@ -63,6 +63,8 @@ def test_group_apply_autoadd_and_deepcopy_behavior():
         def __init__(self):
             # plain object, not subclassing Input to avoid Input.__setattr__ recursion
             self.calls = 0
+            from videocode.Global import Global
+            self.meta = Global.getDefaultMetadata()
 
         def apply(self, t, start=None, duration=None):
             # record that apply was called
@@ -84,6 +86,10 @@ def test_group_apply_autoadd_and_deepcopy_behavior():
     class T:
         def __init__(self):
             self.x = 1
+        
+        def modificator(self, meta):
+            # Dummy modificator to make it behave like a Transformation
+            pass
 
     t = T()
     g.apply(t)

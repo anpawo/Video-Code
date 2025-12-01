@@ -55,6 +55,9 @@ class group(Input):
 
                     i.apply(copy.deepcopy(t), start=start, duration=duration)
 
+        if hasattr(self.meta, 'automaticAdder') and self.meta.automaticAdder:
+            self.add()
+
         return self
 
     def __str__(self) -> str:

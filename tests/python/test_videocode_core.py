@@ -104,7 +104,7 @@ def test_input_and_transformations_behavior():
     assert Global.stack[-1]["action"] == "Add"
 
     di2 = DummyInput()
-    di2.automaticAdd()
+    di2.add()  # Test that add() method works
     assert Global.stack[-1]["action"] == "Add"
 
     t = DummyT()
