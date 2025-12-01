@@ -20,16 +20,16 @@ if(ENABLE_COVERAGE)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
 endif()
 
-if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
-    message(FATAL_ERROR "C++20 requires GCC 13 or higher")
-endif()
-
 if(NOT DEFINED ENV{VCPKG_ROOT})
     message(FATAL_ERROR "VCPKG_ROOT environment variable not set")
 endif()
 
 set(VCPKG_ROOT $ENV{VCPKG_ROOT})
 set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
+
+if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+    message(FATAL_ERROR "C++20 requires GCC 13 or higher")
+endif()
 set(VCPKG_FEATURE_FLAGS "manifests")
 set(VCPKG_MANIFEST_MODE ON)
 
