@@ -50,6 +50,11 @@ add_executable(video-code-tests
     input/media/ImageTests.cpp
     input/text/FormulaTests.cpp
     input/text/CharTests.cpp
+    
+    # Coverage improvement tests
+    core/CoreCoverageTests.cpp
+    window/WindowCoverageTests.cpp
+    input/media/MediaCoverageTests.cpp
 )
 
 target_include_directories(video-code-tests PRIVATE
