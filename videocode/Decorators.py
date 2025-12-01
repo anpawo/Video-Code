@@ -108,7 +108,9 @@ def typecheck(f: Callable, *args, **kwargs):
 
 
 def inputCreation(f: Callable):
-    def wrapper(*args, **kwargs):
+
+    def inputCreationWrapper(*args, **kwargs):
+
         typecheck(f, *args, **kwargs)
 
         # Fill the values (work on a copy so we don't mutate the original kwargs passed to f)
@@ -136,7 +138,22 @@ def inputCreation(f: Callable):
 
         return None
 
-    return wrapper
+    return inputCreationWrapper
+
+
+def noAutoAdd(f: Callable):
+
+    def noAutoAddWrapper(*args, **kwargs):
+        previousState = Global.automaticAdder
+        Global.automaticAdder = False
+
+        ret = f(*args, **kwargs)
+
+        Global.automaticAdder = previousState
+
+        return ret
+
+    return noAutoAddWrapper
 
 
 if __name__ == "__main__":

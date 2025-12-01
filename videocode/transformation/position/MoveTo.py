@@ -18,11 +18,11 @@ class moveTo(Transformation):
     For an instantaneous movement, see `setPosition`.
     """
 
-    def __init__(self, x: int | float | None = None, y: int | float | None = None) -> None:
-        self.srcX: int
-        self.srcY: int
-        self.dstX = int(x * SCREEN_WIDTH) if isinstance(x, float) else x
-        self.dstY = int(y * SCREEN_HEIGHT) if isinstance(y, float) else y
+    def __init__(self, x: number | None = None, y: number | None = None) -> None:
+        self.srcX: number
+        self.srcY: number
+        self.dstX = x
+        self.dstY = y
 
     def modificator(self, meta: Metadata):
         # Get the initial position of the Input

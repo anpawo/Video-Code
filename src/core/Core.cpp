@@ -7,6 +7,8 @@
 
 #include "core/Core.hpp"
 
+#include <iostream>
+
 #include "core/Factory.hpp"
 #include "python/API.hpp"
 #include "utils/Debug.hpp"
@@ -15,8 +17,10 @@ VC::Core::Core(const argparse::ArgumentParser& parser)
     : _width(parser.get<int>("--width"))
     , _height(parser.get<int>("--height"))
     , _framerate(parser.get<int>("--framerate"))
-    , _sourceFile(parser.get("--sourceFile"))
+    , _sourceFile(parser.get("--file"))
     , _outputFile(parser.get("--generate"))
+    , _showstack(parser.get<bool>("--showstack"))
+    , _timeit(parser.get<bool>("--time"))
     , _bgFrame(cv::Mat(_height, _width, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0)))
 {
     reloadSourceFile();
@@ -31,7 +35,7 @@ void VC::Core::reloadSourceFile()
     try {
         serializedScene = python::API::call<std::string>("Serialize", "serializeScene", _sourceFile);
     } catch (const Error& e) {
-        std::cout << "Invalid source file, could not parse the instructions." << std::endl;
+        std::cerr << "VideoCode: Invalid source file '" << _sourceFile << "', could not parse the instructions." << std::endl;
         return;
     }
 
@@ -49,7 +53,9 @@ void VC::Core::reloadSourceFile()
 void VC::Core::executeStack()
 {
     for (auto& i : _stack) {
-        VC_LOG_DEBUG(i);
+        if (_showstack) {
+            VC_LOG_DEBUG(i);
+        }
 
         if (i["action"] == "Create") {
             _inputs.push_back(Factory::create(i["type"], i));
@@ -60,8 +66,8 @@ void VC::Core::executeStack()
                 _addedInputs.push_back(index);
             }
         } else if (i["action"] == "Apply") {
-            i["args"]["duration"] = i["args"]["duration"].get<size_t>() * _framerate;
-            i["args"]["start"] = i["args"]["start"].get<size_t>() * _framerate;
+            i["args"]["duration"] = i["args"]["duration"].get<double>() * _framerate;
+            i["args"]["start"] = i["args"]["start"].get<double>() * _framerate;
             _inputs[i["input"]]->apply(i["transformation"], i["args"]);
         } else if (i["action"] == "Wait") {
             addNewFrames();
@@ -91,7 +97,9 @@ void VC::Core::addNewFrames()
             anyInputChanged |= _inputs[i]->frameHasChanged();
         }
 
-        _frames.push_back(std::move(frame));
+        if (anyInputChanged) {
+            _frames.push_back(std::move(frame));
+        }
     }
 }
 
@@ -183,16 +191,18 @@ int VC::Core::generateVideo()
     return 0;
 }
 
+#define currIndex(i, s) (s == 0 ? 0 : (i + 1))
+
 void VC::Core::pause()
 {
     _paused = !_paused;
-    std::cout << std::format("Timeline {} at frame {}/{}.", _paused ? "paused" : "unpaused", _index + 1, _frames.size()) << std::endl;
+    std::cout << std::format("Timeline {} at frame {}/{}.", _paused ? "paused" : "unpaused", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
 }
 
 void VC::Core::goToFirstFrame()
 {
     _index = 0;
-    std::cout << std::format("Jumped backward to the first frame {}/{}.", _index + 1, _frames.size()) << std::endl;
+    std::cout << std::format("Jumped backward to the first frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
 }
 
 void VC::Core::goToLastFrame()
@@ -200,7 +210,7 @@ void VC::Core::goToLastFrame()
     if (_frames.size()) {
         _index = _frames.size() - 1;
     }
-    std::cout << std::format("Jumped forward to the last frame {}/{}.", _index + 1, _frames.size()) << std::endl;
+    std::cout << std::format("Jumped forward to the last frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
 }
 
 void VC::Core::backward3frames()
@@ -210,7 +220,7 @@ void VC::Core::backward3frames()
     } else {
         _index -= 1 * _framerate;
     }
-    std::cout << std::format("Jumped backward to the frame {}/{}.", _index + 1, _frames.size()) << std::endl;
+    std::cout << std::format("Jumped backward to the frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
 }
 
 void VC::Core::forward3frames()
@@ -219,4 +229,5 @@ void VC::Core::forward3frames()
     if (_index > _frames.size()) {
         _index = _frames.size() - 1;
     }
+    std::cout << std::format("Jumped forward to the frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
 }

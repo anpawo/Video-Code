@@ -32,7 +32,7 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
 
     ///< Window settings
     setStyleSheet("background-color: black;");
-    setWindowTitle(("Video-Code  |  " + parser.get("--sourceFile")).c_str());
+    setWindowTitle(("Video-Code  |  " + parser.get("--file")).c_str());
     move(_width / 2, 0);
     resize(_width / 2, _height / 2);
     show();

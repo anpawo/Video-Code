@@ -17,7 +17,7 @@
 void setParserArgument(argparse::ArgumentParser &p)
 {
     p
-        .add_argument("--sourceFile")
+        .add_argument("--file")
         .default_value("video.py")
         .help("File containing the code to generate the video.");
 
@@ -41,6 +41,16 @@ void setParserArgument(argparse::ArgumentParser &p)
         .add_argument("--framerate")
         .default_value(30)
         .scan<'i', int>();
+
+    p
+        .add_argument("--showstack")
+        .flag()
+        .help("Show the steps of the video while being generated.");
+
+    p
+        .add_argument("--time")
+        .flag()
+        .help("Time the generation.");
 }
 
 int main(int argc, char *argv[])

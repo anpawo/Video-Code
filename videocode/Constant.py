@@ -7,8 +7,8 @@
 from typing import Annotated, Any, Literal, TypeVar, Union
 
 # screen dimension
-SCREEN_WIDTH = 1920
-SCREEN_HEIGHT = 1080
+SCREEN_WIDTH = SW = 1920
+SCREEN_HEIGHT = SH = 1080
 
 
 # Integer values
@@ -48,6 +48,7 @@ BLUE: rgba = (0, 0, 255, 255)
 
 # time
 type sec = Union[ufloat, uint]
+type t = Union[ufloat, uint, default]
 
 
 # default parameters to specify that it's the default value
@@ -59,22 +60,35 @@ class default:
     def __init__(self, defaultValue: Any) -> None:
         self.defaultValue = defaultValue
 
+    def __str__(self) -> str:
+        return f"default({self.defaultValue})"
 
-def getValueByPriority(t: Any, duration: Any) -> sec:  # type: ignore
-    if hasattr(t, "duration") and isinstance(t.duration, int | float):  # sec
+
+def getValueByPriority(t: Any, duration: Any) -> sec:
+    if hasattr(t, "duration") and isinstance(t.duration, int | float):
         return t.duration
-    elif isinstance(duration, int | float):  # sec
+    elif isinstance(duration, int | float):
         return duration
     elif hasattr(t, "duration") and isinstance(t.duration, default):
         return t.duration.defaultValue
     elif isinstance(duration, default):
         return duration.defaultValue
+    else:
+        raise ValueError(duration)
 
 
-type position = int | float
+type number = int | float
 """
-Represents a coordinate position in a 2D space.
+`int`  |  `float`
+"""
+type position = tuple[number, number]
 
-- `float`: `relative position` (ratio of window width/height).  
-- `int`: `absolute position` (exact pixel x/y coordinates).  
+type Index = int
+type Url = str
+
+FRAMERATE = FR = 30
+
+SINGLE_FRAME = SR = 1 / FRAMERATE
+"""
+Framerate multiplicator to get one single frame.
 """

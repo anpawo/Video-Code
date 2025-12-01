@@ -15,7 +15,7 @@ class circle(Shape):
     def __init__(
         self,
         radius: int = 100,
-        thickness: int = 10,
-        color: rgba = BLUE,
+        thickness: int = 5,
+        color: rgba = RED,
         filled: bool = False,
     ): ...

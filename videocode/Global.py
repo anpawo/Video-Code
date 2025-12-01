@@ -7,10 +7,10 @@ from videocode.Constant import *
 
 
 class Metadata:
-    def __init__(self, *, x: int, y: int) -> None:
+    def __init__(self, *, x: number, y: number) -> None:
         # --- Position ---
-        self.x: int = x
-        self.y: int = y
+        self.x: number = x
+        self.y: number = y
 
         # --- Align ---
         # Center, Left, Right, Top, Bottom
@@ -21,9 +21,6 @@ class Metadata:
         self.opacity: uint = 255
 
         # --- Rotation --- ?
-
-        # --- Automatic Add ---
-        self.automaticAdder = False
 
     def __str__(self) -> str:
         return f"x={self.x}, y={self.y}"
@@ -41,7 +38,7 @@ class Global:
     inputCounter: int = 0
 
     # Default Metadata
-    defaultMetadata: Metadata = Metadata(x=0, y=0)
+    defaultMetadata: Metadata = Metadata(x=SW * 0.5, y=SH * 0.5)
 
     # --- Automatic Add ---
     automaticAdder = False

@@ -18,7 +18,7 @@ class Transformation(ABC):
 
     """
 
-    duration: sec
+    duration: t
 
     def modificator(self, _: Metadata):
         """
@@ -27,4 +27,10 @@ class Transformation(ABC):
         ...
 
     def __str__(self) -> str:
-        return str(vars(self))
+        s = f"\n{self.__class__.__name__}:\n"
+        for i in self.__dict__:
+            s += f"\t{i}='{self.__getattribute__(i)}'\n"
+        return s
+
+    def __repr__(self) -> str:
+        return self.__str__()
