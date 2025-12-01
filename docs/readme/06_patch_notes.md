@@ -85,5 +85,6 @@
 - `feature`: can apply transformations to the whole scene
 - `rework`: scale removed and zoom renamed scale
 - `feature`: persistent transformations: you trigger once grayscale and it stays with the input forever
+- `feature`: you can remove an input from the screen
 
 </details>

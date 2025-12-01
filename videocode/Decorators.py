@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
 
-from typing import Any, Callable, TypeAlias
+import copy
 
+from typing import Callable
 from videocode.Global import Global
 
 
@@ -11,7 +12,9 @@ class Checks:
 
     def __getitem__(self, x: str) -> Callable:
         # Should define types as classes.
-        return self.__getattribute__(x)  # type: ignore
+        if "'" in x:
+            x = x.split("'")[1]
+        return self.__getattribute__(x)
 
     @staticmethod
     def uint(x: int):
@@ -43,6 +46,11 @@ class Checks:
     def bool(x):
         return isinstance(x, bool)
 
+    # Nothing
+    @staticmethod
+    def str(x):
+        return True
+
 
 def typecheck(f: Callable, *args, **kwargs):
     # **Kwargs
@@ -68,7 +76,7 @@ def inputCreation(f: Callable):
         typecheck(f, *args, **kwargs)
 
         # Fill the values
-        values = kwargs
+        values = copy.deepcopy(kwargs)
 
         for i, v in enumerate(args[1:]):
             values[str(list(f.__annotations__.keys())[i])] = v
@@ -81,7 +89,7 @@ def inputCreation(f: Callable):
                     values[k] = f.__defaults__[i]
 
         # Generate the stack Creation
-        Global.stack.append({"action": "Create", "type": str(args[0].__class__.__name__).title()} | values)
+        Global.stack.append({"action": "Create", "type": str(args[0].__class__.__name__)[:1].upper() + str(args[0].__class__.__name__)[1:]} | values)
 
         # Init the Input
         f(*args, **kwargs)

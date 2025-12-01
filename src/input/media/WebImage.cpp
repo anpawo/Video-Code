@@ -19,7 +19,12 @@
 #include "utils/Exception.hpp"
 
 WebImage::WebImage(json::object_t&& args)
-    : AInput(std::move(args))
+    : AInput(
+          std::move(args),
+          {
+              "url",
+          }
+      )
 {
     construct();
 }

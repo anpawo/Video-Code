@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-from videocode.Constant import FR, SR, number
+from videocode.Constant import FR, SF, number
 from videocode.Decorators import noAutoAdd
 from videocode.transformation.setter.SetPosition import setPosition
 from videocode.utils.bezier import cubicBezier
@@ -24,4 +24,4 @@ def moveTo(input, x: number | None = None, y: number | None = None, *, easing: c
         nx = srcX + (x - srcX) * m
         ny = srcY + (y - srcY) * m
 
-        input.apply(setPosition(nx, ny), start=i * SR)
+        input.apply(setPosition(nx, ny), start=i * SF)

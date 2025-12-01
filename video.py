@@ -5,4 +5,5 @@ from videocode.VideoCode import *
 from videocode.template.chess.chessboard import *
 
 # TODO: chess template
-chess = ChessBoard()
+c = ChessBoard()
+c.play()

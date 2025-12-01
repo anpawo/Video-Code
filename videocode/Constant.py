@@ -89,7 +89,7 @@ type Url = str
 
 FRAMERATE = FR = 30
 
-SINGLE_FRAME = SR = 1 / FRAMERATE
+SINGLE_FRAME = SF = 1 / FRAMERATE
 """
 Framerate multiplicator to get one single frame.
 """

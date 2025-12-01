@@ -51,9 +51,8 @@ namespace VC
         ///< Framerate of the video
         const size_t _framerate;
 
-        ///< Source file
+        ///< Source & Output file
         const std::string _sourceFile;
-        ///< Output file
         const std::string _outputFile;
 
         ///< Information display
@@ -76,7 +75,7 @@ namespace VC
         std::vector<std::shared_ptr<IInput>> _inputs{};
 
         ///< Inputs showed
-        std::vector<size_t> _addedInputs{};
+        std::set<size_t> _addedInputs{};
 
         ///< Stack containing the steps of the video
         json::array_t _stack{};

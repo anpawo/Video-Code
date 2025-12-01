@@ -76,9 +76,7 @@ void VC::Core::executeStack()
                 _camera->flushTransformation();
             } else {
                 _inputs[index]->flushTransformation();
-                if (std::find(_addedInputs.begin(), _addedInputs.end(), index) == _addedInputs.end()) {
-                    _addedInputs.push_back(index);
-                }
+                _addedInputs.insert(index);
             }
         } else if (s["action"] == "Apply") {
             ssize_t index = s["input"];
@@ -101,6 +99,10 @@ void VC::Core::executeStack()
                     _frames.push_back(_frames.back().clone());
                 }
             }
+        } else if (s["action"] == "Remove") {
+            ssize_t index = s["input"];
+
+            _addedInputs.erase(index);
         }
     }
 }
@@ -228,7 +230,7 @@ void VC::Core::goToFirstFrame()
 
 void VC::Core::goToLastFrame()
 {
-    if (_frames.size()) {
+    if (_frames.size() != 0) {
         _index = _frames.size() - 1;
     }
     std::cout << std::format("Jumped forward to the last frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
@@ -236,9 +238,7 @@ void VC::Core::goToLastFrame()
 
 void VC::Core::backward1frame()
 {
-    if (_index < 1) {
-        _index = 0;
-    } else {
+    if (_index > 0) {
         _index -= 1;
     }
     std::cout << std::format("Jumped backward to the frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
@@ -246,9 +246,8 @@ void VC::Core::backward1frame()
 
 void VC::Core::forward1frame()
 {
-    _index += 1;
-    if (_index > _frames.size()) {
-        _index = _frames.size() - 1;
+    if (_index + 1 < _frames.size()) {
+        _index += 1;
     }
     std::cout << std::format("Jumped forward to the frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
 }

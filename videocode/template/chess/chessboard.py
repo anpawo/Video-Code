@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
 
 
-import re
+import math
+import chess.pgn
 
-from videocode.Constant import MIDDLE, SH, SW
+
+from videocode.Constant import MIDDLE, SF, SH, SW
 from videocode.input.media.WebImage import webImage
+from videocode.input.Input import Input
 from videocode.transformation.size.Scale import scale
+from videocode.utils.easings import Easing
+from videocode.Global import wait
 
 
 type Color = bool
-type Piece = int
+type Piece = str
+type Position = tuple[int, int]
 
 
 KING = 0
@@ -18,130 +24,107 @@ ROOK = 2
 BISHOP = 3
 KNIGHT = 4
 PAWN = 5
-BOARD = 6
 
 BLACK = False
 WHITE = True
 
 BOARD_URL = "https://assets-themes.chess.com/image/9rdwe/200.png"
 
-FILE = {
-    "a": 0,
-    "b": 1,
-    "c": 2,
-    "d": 3,
-    "e": 4,
-    "f": 5,
-    "g": 6,
-    "h": 7,
-}
-
-
-RANK = {
-    "1": 0,
-    "2": 1,
-    "3": 2,
-    "4": 3,
-    "5": 4,
-    "6": 5,
-    "7": 6,
-    "8": 7,
-}
-
-
-PIECE = {
-    KING: "K",
-    QUEEN: "Q",
-    ROOK: "R",
-    BISHOP: "B",
-    KNIGHT: "N",
-    PAWN: "",
-}
-
-URL = {
-    KING: "k",
-    QUEEN: "q",
-    ROOK: "r",
-    BISHOP: "b",
-    KNIGHT: "n",
-    PAWN: "p",
-}
-
 
 class ChessBoard:
-    def __init__(self, pgn: str | None = None, *, whitePlays=True, board: str | None = None) -> None:
-        """
-        Portable Game Notation
+    def __init__(self, pgn="pgn") -> None:
+        # GameState
+        with open(pgn) as f:
+            game = chess.pgn.read_game(f)
+        if game is None:
+            raise ValueError("Invalid Portable Game Notation (pgn).")
+        self.game = game
+        self.board = self.game.board()
 
-        1 2
-        0 1
+        # Pieces Video Position
+        self.defaultScaling = 0.7
+        self.ox = 0.3175 * SW
+        self.oy = 0.175 * SH
+        self.tileSize = 100.2
 
-        """
-        self.pgn = self.splitPGN(pgn) if pgn else []
-        self.default: list[list[tuple[Color, Piece] | None]] = [
-            [(BLACK, ROOK), (BLACK, KNIGHT), (BLACK, BISHOP), (BLACK, QUEEN), (BLACK, KING), (BLACK, BISHOP), (BLACK, KNIGHT), (BLACK, ROOK)],
-            [(BLACK, PAWN) for _ in range(8)],
-            [None for _ in range(8)],
-            [None for _ in range(8)],
-            [None for _ in range(8)],
-            [None for _ in range(8)],
-            [(WHITE, PAWN) for _ in range(8)],
-            [(WHITE, ROOK), (WHITE, KNIGHT), (WHITE, BISHOP), (WHITE, QUEEN), (WHITE, KING), (WHITE, BISHOP), (WHITE, KNIGHT), (WHITE, ROOK)],
-        ]
-        self.board = self.default  # or starting position
-        self.inputs = {}
-
+        # Inputs
+        self.boardInput = webImage(BOARD_URL).setPosition(*MIDDLE).apply(scale(0.5)).add()
+        self.pieces: dict[Position, tuple[webImage, tuple[Color, Piece]]] = {}
         self.addInputs()
 
     def addInputs(self):
-        self.inputs[BOARD] = webImage(BOARD_URL).setPosition(*MIDDLE).apply(scale(0.5)).add()
+        # Current Position
+        fen = self.board.fen().split()[0]
+        x = 0
+        y = 0
 
-        defaultScaling = 0.7
-        ox = 0.3175 * SW
-        oy = 0.175 * SH
-        tileSize = 100.2
+        for c in fen:
+            # Next Line
+            if c == "/":
+                x = 0
+                y += 1
+                continue
 
-        for y, row in enumerate(self.board):
-            for x, col in enumerate(row):
-                # Empty
-                if col is None:
-                    continue
+            # Empty Squares
+            elif c in "123456789":
+                x += int(c)
+                continue
 
-                self.inputs[col] = webImage(self.getUrl(*col)).setPosition(ox + x * tileSize, oy + y * tileSize).apply(scale(0.7)).add()
-
-    def splitPGN(self, pgn: str):
-        return [i.split() for i in re.split(r"\d+\.\s", pgn.split("\n\n1.")[1])]
+            # Piece
+            color = WHITE if c.isupper() else BLACK
+            piece = c.lower()
+            self.pieces[(x, y)] = (
+                webImage(self.getUrl(color, piece)).setPosition(self.ox + x * self.tileSize, self.oy + y * self.tileSize).apply(scale(self.defaultScaling)).add(),
+                (color, piece),
+            )
+            x += 1
 
     def getUrl(self, color: Color, piece: Piece):
-        return f"https://assets-themes.chess.com/image/ejgfv/150/{'w' if color else 'b'}{URL[piece]}.png"
+        return f"https://assets-themes.chess.com/image/ejgfv/150/{'w' if color == WHITE else 'b'}{piece}.png"
+
+    def play(self):
+        i = 0
+        for move in self.game.mainline_moves():
+            sx, sy = move.from_square % 8, 7 - move.from_square // 8
+            dx, dy = move.to_square % 8, 7 - move.to_square // 8
+            distance = math.sqrt((sx - dx) ** 2 + (sy - dy) ** 2)
+            duration = min(distance * 0.2, 0.5)
+
+            # Castle
+            if (uci := move.uci()) in ["e1g1", "e1c1", "e8g8", "e8c8"]:
+                color = self.pieces[(sx, sy)][1][0]
+                queenside = "c" in uci
+
+                sxr = 0 if queenside else 7
+                syr = 7 if color == WHITE else 0
+                dxr = 3 if queenside else 5
+                dyr = 7 if color == WHITE else 0
+
+                # Move Rook
+                self.pieces[(sxr, syr)][0].moveTo(self.ox + dxr * self.tileSize, self.oy + dyr * self.tileSize, easing=Easing.Linear, duration=duration).add()
+                self.pieces[(dxr, dyr)] = self.pieces[(sxr, syr)]
+                del self.pieces[(sxr, syr)]
+
+            # En Passant
+            elif 0:
+                raise ValueError("En Passant not yet implemented")
+
+            # Normal Move
+            self.pieces[(sx, sy)][0].moveTo(self.ox + dx * self.tileSize, self.oy + dy * self.tileSize, easing=Easing.Linear, duration=duration).add()
+            wait(duration - SF)
+            if (dx, dy) in self.pieces:
+                self.pieces[(dx, dy)][0].remove()
+            self.pieces[(dx, dy)] = self.pieces[(sx, sy)]
+            del self.pieces[(sx, sy)]
+            if move.promotion:
+                self.pieces[(dx, dy)] = self.pieces[(dx, dy)][0], (self.pieces[(dx, dy)][1][0], chess.PIECE_SYMBOLS[move.promotion])
+                self.pieces[(dx, dy)][0].url = self.getUrl(*self.pieces[(dx, dy)][1])
+
+            wait(0.1)
+            i += 1
+            if i > 10:
+                break
 
 
 if __name__ == "__main__":
-    c = ChessBoard(
-        """[Event "Live Chess"]
-[Site "Chess.com"]
-[Date "2025.11.24"]
-[Round "?"]
-[White "DrBen1834"]
-[Black "MROUSSET"]
-[Result "0-1"]
-[TimeControl "180+2"]
-[WhiteElo "569"]
-[BlackElo "591"]
-[Termination "MROUSSET a gagné par échec et mat"]
-[ECO "C00"]
-[EndTime "11:22:33 GMT+0000"]
-[Link "https://www.chess.com/game/live/145896894352?move=0"]
-
-1. e4 e6 2. Nf3 d5 3. exd5 exd5 4. Bd3 Nf6 5. O-O Nc6 6. Re1+ Be7 7. b3 O-O 8.
-Ng5 h6 9. Nf3 Nb4 10. Qe2 Re8 11. Bb5 c6 12. Bxc6 bxc6 13. Nd4 Bg4 14. f3 Bh5
-15. c3 Qb6 16. cxb4 Qxd4+ 17. Kh1 Qxa1 18. Nc3 d4 19. Bb2 Qxb2 20. Rb1 Qa3 21.
-Na4 Bxb4 22. Qc4 Bxd2 23. Qxd4 Qxa2 24. Rd1 Ba5 25. Nc5 Qxb3 26. Nxb3 Bb6 27.
-Qd6 Rad8 28. Qxd8 Rxd8 29. Rxd8+ Bxd8 30. Nc5 a5 31. Kg1 Bb6 32. Kf1 Bxc5 33.
-Ke1 Nd5 34. Kd2 a4 35. Kc2 a3 36. Kb3 Ne3 37. g4 Bg6 38. h4 h5 39. g5 f6 40.
-gxf6 gxf6 41. Ka2 Bf7+ 42. Ka1 Bd4+ 43. Kb1 a2+ 44. Kc1 a1=Q+ 45. Kd2 Qc3+ 46.
-Ke2 Bc4+ 47. Kf2 Ng4+ 48. Kg3 f5 49. Kf4 Qe3+ 50. Kxf5 Qe5+ 51. Kg6 Bf7# 0-1"""
-    )
-
-    print(c.pgn)
-    print(c.default)
+    c = ChessBoard()

@@ -133,16 +133,6 @@ class Input(ABC):
         )
         return cp
 
-    def setPosition(self, x: number | None = None, y: number | None = None) -> Self:
-        return self.apply(setPosition(x, y))
-
-    def moveTo(self, x: number | None = None, y: number | None = None, *, easing: cubicBezier = Easing.Out, start: sec = 0, duration: sec = 0.4) -> Self:
-        moveTo(self, x, y, easing=easing, start=start, duration=duration)
-        return self
-
-    def setAlign(self, x: align | None = None, y: align | None = None) -> Self:
-        return self.apply(setAlign(x, y))
-
     def __setattr__(self, name: str, value: Any) -> None:
         if hasattr(self, name):
             # print(f"name=[{name}], value=[{value}], index=[{self.index}], self=[{str(self)}]")
@@ -157,3 +147,23 @@ class Input(ABC):
 
     def __repr__(self) -> str:
         return self.__str__()
+
+    def remove(self) -> None:
+        Global.stack.append(
+            {
+                "action": "Remove",
+                "input": self.index,
+            }
+        )
+
+    ### Common Functions ###
+
+    def setPosition(self, x: number | None = None, y: number | None = None) -> Self:
+        return self.apply(setPosition(x, y))
+
+    def moveTo(self, x: number | None = None, y: number | None = None, *, easing: cubicBezier = Easing.Out, start: sec = 0, duration: sec = 0.4) -> Self:
+        moveTo(self, x, y, easing=easing, start=start, duration=duration)
+        return self
+
+    def setAlign(self, x: align | None = None, y: align | None = None) -> Self:
+        return self.apply(setAlign(x, y))
