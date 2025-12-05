@@ -1,11 +1,4 @@
 cmake_minimum_required(VERSION 3.21)
-# --- Force GCC 14 if available ---
-# Fix GCC 15 Crashs
-# if (EXISTS "/usr/bin/g++-14")
-#     message(STATUS "Using GCC 14 compiler")
-#     set(CMAKE_C_COMPILER "/usr/bin/gcc-14" CACHE FILEPATH "C compiler" FORCE)
-#     set(CMAKE_CXX_COMPILER "/usr/bin/g++-14" CACHE FILEPATH "C++ compiler" FORCE)
-# endif()
 project(video-code VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -44,11 +37,19 @@ set(CMAKE_AUTOUIC ON)
 
 if(NOT DEFINED VCPKG_TARGET_TRIPLET)
     if(WIN32)
+        message(STATUS ">>> Windows build <<<")
         set(VCPKG_TARGET_TRIPLET "x64-windows")
     elseif(UNIX AND NOT APPLE)
+        message(STATUS ">>> Linux build <<<")
         set(VCPKG_TARGET_TRIPLET "x64-linux")
     elseif(APPLE)
+        message(STATUS ">>> Apple build <<<")
         set(VCPKG_TARGET_TRIPLET "x64-osx")
+        # if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+        #     set(VCPKG_TARGET_TRIPLET "arm64-osx")
+        # else()
+        #     set(VCPKG_TARGET_TRIPLET "x64-osx")
+        # endif()
     endif()
 endif()
 
@@ -74,7 +75,7 @@ if(CI_BUILD)
     FetchContent_MakeAvailable(nlohmann_json)
 endif()
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV CONFIG REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
 find_package(cpr CONFIG REQUIRED)
@@ -140,6 +141,10 @@ target_link_directories(${PROJECT_NAME} PRIVATE
     ${FFMPEG_LIBRARY_DIRS}
 )
 
+if(NOT APPLE)
+    target_link_libraries(${PROJECT_NAME} stdc++fs)
+endif()
+
 target_link_libraries(${PROJECT_NAME}
     argparse::argparse
     nlohmann_json::nlohmann_json
@@ -148,7 +153,6 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Widgets
     Qt6::Core
     Qt6::Gui
-    stdc++fs
     Python3::Python
     cpr::cpr
 )
