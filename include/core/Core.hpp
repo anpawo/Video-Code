@@ -9,9 +9,11 @@
 
 #include <QLabel>
 #include <argparse/argparse.hpp>
+#include <memory>
 #include <opencv2/opencv.hpp>
 
 #include "input/IInput.hpp"
+#include "input/camera/Camera.hpp"
 
 namespace VC
 {
@@ -24,6 +26,7 @@ namespace VC
 
         ///< Reload the source file, then execute the stack, then add the new frames to the Timeline.
         void reloadSourceFile();
+        std::string serializeScene(std::string file);
         void executeStack();
         void addNewFrames();
 
@@ -37,21 +40,20 @@ namespace VC
         void pause();
         void goToFirstFrame();
         void goToLastFrame();
-        void forward3frames();
-        void backward3frames();
+        void forward1frame();
+        void backward1frame();
 
     private:
 
         ///< Window size
-        const size_t _width;
-        const size_t _height;
+        const int _width;
+        const int _height;
 
         ///< Framerate of the video
         const size_t _framerate;
 
-        ///< Source file
+        ///< Source & Output file
         const std::string _sourceFile;
-        ///< Output file
         const std::string _outputFile;
 
         ///< Information display
@@ -74,9 +76,12 @@ namespace VC
         std::vector<std::shared_ptr<IInput>> _inputs{};
 
         ///< Inputs showed
-        std::vector<size_t> _addedInputs{};
+        std::set<size_t> _addedInputs{};
 
         ///< Stack containing the steps of the video
         json::array_t _stack{};
+
+        ///< Input representing the Camera / The final frame to display
+        std::unique_ptr<Camera> _camera;
     };
 };

@@ -2,17 +2,12 @@
 
 from __future__ import annotations
 from enum import Enum
-from typing import Callable
-from videocode.Constant import SH, SINGLE_FRAME, SW, Index, Url
+from videocode.Constant import SH, SINGLE_FRAME, SW, Url
 from videocode.input.group.Group import group
-from videocode.input.group.Incremental import constantAdd, incremental, linearAdd
 from videocode.input.media.WebImage import webImage
+from videocode.utils.easings import Easing
 
 import requests
-
-from videocode.transformation.Transformation import Transformation
-from videocode.transformation.setter.SetPosition import setPosition
-from videocode.utils.easings import Easing
 
 
 class Path(Enum):
@@ -152,7 +147,7 @@ class RuneSet:
         )
 
     def animate(self):
-        self.all.slideTo(self.x, self.y, easing=Easing.Out, start=SINGLE_FRAME, duration=0.4).add()
+        self.all.moveTo(self.x, self.y, easing=Easing.Out, start=SINGLE_FRAME, duration=0.4).add()
         return self
 
 

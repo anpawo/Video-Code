@@ -9,6 +9,8 @@
 
 BINARY_NAME		=	video-code
 BUILD_DIR		=	build
+VCPKG			=	-DCMAKE_TOOLCHAIN_FILE=$$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+DEBUG_FLAG		=	-DDEBUG=ON
 
 # >>> Rules <<<
 
@@ -18,7 +20,15 @@ all: cmake
 
 .PHONY: cmake
 cmake:
-	cmake -B $(BUILD_DIR)
+	cmake -B $(BUILD_DIR) $(VCPKG)
+	$(MAKE) -C $(BUILD_DIR)
+	cp $(BUILD_DIR)/$(BINARY_NAME) .
+	ln -sf $(BUILD_DIR)/compile_commands.json .
+
+
+.PHONY: debug
+debug:
+	cmake -B $(BUILD_DIR) $(DEBUG_FLAG) $(VCPKG)
 	$(MAKE) -C $(BUILD_DIR)
 	cp $(BUILD_DIR)/$(BINARY_NAME) .
 
@@ -41,14 +51,17 @@ format:
 
 .PHONY: docs
 docs: cmake
-docs: docdoc
 docs: docvid
+docs: docdoc
 
 
 .PHONY: docvid
 docvid:
 	./$(BINARY_NAME) --generate
 
+
+# 1. Generate the Readme
+# 2. Copies the generated video to example.gif
 .PHONY: docdoc
 docdoc:
 	./docs/readme/generate.sh

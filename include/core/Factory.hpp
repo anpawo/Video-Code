@@ -42,8 +42,6 @@ namespace Factory
         ///< Shape
         input(Rectangle),
         input(Circle),
-
-        // /// TODO: Formula (not important)
     };
 
     ///< Create a new `Input`

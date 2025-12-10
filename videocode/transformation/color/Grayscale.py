@@ -5,8 +5,8 @@ from videocode.transformation.Transformation import Transformation
 
 class grayscale(Transformation):
     """
-    `Grayscale` `Transformation`.
+    `Grayscale` `Transformation`. Persistent defines if you want it to be shown on the following frames.
     """
 
-    def __init__(self) -> None:
-        pass
+    def __init__(self, *, persistent=True) -> None:
+        self.persistent = persistent

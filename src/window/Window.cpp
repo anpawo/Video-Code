@@ -51,9 +51,9 @@ void VC::Window::keyPressEvent(QKeyEvent* event)
     } else if (event->key() == Qt::Key_Up) {
         _core.goToLastFrame();
     } else if (event->key() == Qt::Key_Left) {
-        _core.backward3frames();
+        _core.backward1frame();
     } else if (event->key() == Qt::Key_Right) {
-        _core.forward3frames();
+        _core.forward1frame();
     } else {
         QMainWindow::keyPressEvent(event);
     }

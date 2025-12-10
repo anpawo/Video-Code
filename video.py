@@ -2,26 +2,21 @@
 
 
 from videocode.VideoCode import *
-from videocode.template.league.runes import *
+from videocode.template.chess.chessboard import *
 
-r = RuneSet(
-    main=(
-        Path.Precision,
-        Rune.LethalTempo,
-        Rune.Triumph,
-        Rune.LegendAlacrity,
-        Rune.LastStand,
-    ),
-    sub=(
-        Path.Resolve,
-        Rune.BonePlating,
-        Rune.ShieldBash,
-    ),
-    shard=(
-        Shard.AdaptativeForce,
-        Shard.AttackSpeed,
-        Shard.HealthScaling,
-    ),
-).animate()
+# TODO: chess template
+c = ChessBoard()
+c.play()
 
-wait(1)
+# g = (
+#     group(
+#         square(),
+#         circle(),
+#     )
+#     .setPosition(*MIDDLE)
+#     .moveTo(x=0.7 * SW)
+#     .add()
+#     .apply(grayscale())
+#     .moveTo(x=0.5 * SW)
+#     .add()
+# )

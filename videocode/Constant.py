@@ -10,6 +10,7 @@ from typing import Annotated, Any, Literal, TypeVar, Union
 SCREEN_WIDTH = SW = 1920
 SCREEN_HEIGHT = SH = 1080
 
+MIDDLE = (SW * 0.5, SH * 0.5)
 
 # Integer values
 type uint = int
@@ -88,7 +89,7 @@ type Url = str
 
 FRAMERATE = FR = 30
 
-SINGLE_FRAME = SR = 1 / FRAMERATE
+SINGLE_FRAME = SF = 1 / FRAMERATE
 """
 Framerate multiplicator to get one single frame.
 """

@@ -13,12 +13,12 @@ void transformation::setAlign(std::shared_ptr<IInput>& input, const json::object
     json y = args.at("y");
     size_t start = args.at("start");
 
-    input->addTransformation(start, [x, y](Frame& frame) {
+    input->addSetter(start, {}, [x, y](json::object_t&, Metadata& meta) {
         if (!x.is_null()) {
-            frame.meta.align.x = alignRatio.at(x);
+            meta.align.x = alignRatio.at(x);
         }
         if (!y.is_null()) {
-            frame.meta.align.y = alignRatio.at(y);
+            meta.align.y = alignRatio.at(y);
         }
     });
 }

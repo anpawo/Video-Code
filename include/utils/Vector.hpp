@@ -16,10 +16,8 @@ std::ostream &operator<<(std::ostream &os, const std::vector<T> &vec)
 {
     os << "[";
     for (const auto &it : vec) {
-        os << *it;
-        if (it != vec.end() - 1) {
-            os << ", ";
-        }
+        os << it;
+        os << ", ";
     }
     os << "]";
     return os;

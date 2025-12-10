@@ -59,7 +59,8 @@ class Global:
         return str(self)
 
 
-def wait(n: sec = 1) -> None:
+# Kind of act like a waitFor(Input)
+def wait(n: sec = 0) -> None:
     Global.stack.append(
         {
             "action": "Wait",

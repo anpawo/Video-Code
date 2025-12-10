@@ -1,13 +1,19 @@
 cmake_minimum_required(VERSION 3.21)
 project(video-code VERSION 1.0.0 LANGUAGES CXX)
 
+# Generate compile_commands.json automatically
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-deprecated -pipe -O2 -D_REENTRANT -DVC_DEBUG_ON -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -DQT_NO_KEYWORDS")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-deprecated -pipe -D_REENTRANT -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -DQT_NO_KEYWORDS")
 
 if(DEBUG)
-    message(STATUS "Debug build")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3")
+    message(STATUS ">>> Debug build <<<")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -O0 -DVC_DEBUG_ON") # -fsanitize=address
+else()
+    message(STATUS ">>> Release build <<<")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
 
 set_property(GLOBAL PROPERTY CXX_STANDARD 20)
@@ -34,11 +40,19 @@ set(CMAKE_AUTOUIC ON)
 
 if(NOT DEFINED VCPKG_TARGET_TRIPLET)
     if(WIN32)
+        message(STATUS ">>> Windows build <<<")
         set(VCPKG_TARGET_TRIPLET "x64-windows")
     elseif(UNIX AND NOT APPLE)
+        message(STATUS ">>> Linux build <<<")
         set(VCPKG_TARGET_TRIPLET "x64-linux")
     elseif(APPLE)
+        message(STATUS ">>> Apple build <<<")
         set(VCPKG_TARGET_TRIPLET "x64-osx")
+        # if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+        #     set(VCPKG_TARGET_TRIPLET "arm64-osx")
+        # else()
+        #     set(VCPKG_TARGET_TRIPLET "x64-osx")
+        # endif()
     endif()
 endif()
 
@@ -64,7 +78,7 @@ if(CI_BUILD)
     FetchContent_MakeAvailable(nlohmann_json)
 endif()
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV CONFIG REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
 find_package(cpr CONFIG REQUIRED)
@@ -107,6 +121,8 @@ set(SOURCES
     # Shape
     src/input/shape/Circle.cpp
     src/input/shape/Rectangle.cpp
+    # Camera
+    src/input/camera/Camera.cpp
 
     # --- Transformation ---
     # Setter
@@ -114,13 +130,10 @@ set(SOURCES
     src/transformation/setter/setAlign.cpp
     src/transformation/setter/setArgument.cpp
     # src/transformation/setter/setOpacity.cpp
-    # Position
-    src/transformation/position/moveTo.cpp
     # Color
     src/transformation/color/fade.cpp
     src/transformation/color/grayscale.cpp
     # Other
-    src/transformation/size/zoom.cpp
     src/transformation/size/scale.cpp
 
 )
@@ -131,6 +144,10 @@ target_link_directories(${PROJECT_NAME} PRIVATE
     ${FFMPEG_LIBRARY_DIRS}
 )
 
+if(NOT APPLE)
+    target_link_libraries(${PROJECT_NAME} stdc++fs)
+endif()
+
 target_link_libraries(${PROJECT_NAME}
     argparse::argparse
     nlohmann_json::nlohmann_json
@@ -139,7 +156,6 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Widgets
     Qt6::Core
     Qt6::Gui
-    stdc++fs
-    Python3::Python
+    # Python3::Python
     cpr::cpr
 )

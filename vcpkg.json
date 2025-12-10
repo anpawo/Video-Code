@@ -1,10 +1,17 @@
 {
-  "name": "video-code",
-  "version-string": "1.0.0",
-  "dependencies": [
-    "opencv4",
-    "nlohmann-json",
-    "argparse",
-    "ffmpeg"
-  ]
+    "name": "video-code",
+    "version-string": "1.0.0",
+    "dependencies": [
+        "opencv4",
+        {
+            "name": "qtbase",
+            "default-features": false,
+            "features": ["gui", "widgets", "opengl"]
+        },
+        "nlohmann-json",
+        "argparse",
+        "ffmpeg",
+        "protobuf",
+        "cpr"
+    ]
 }

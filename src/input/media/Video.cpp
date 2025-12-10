@@ -61,5 +61,5 @@ Frame& Video::generateNextFrame()
 
     _frameHasChanged |= !videoEnded;
 
-    return getLastFrame();
+    return getCurrentFrame();
 }

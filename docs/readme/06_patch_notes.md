@@ -59,7 +59,7 @@
 <br>
 
 - `feature`: start and duration of transformation (08/04/25)
-- `rework`: keeping (08/04/25)
+- `rework`: inputs are kept on the video by default (08/04/25)
 - `feature`: wait -> freeze the screen for the duration (08/04/25)
 - `transformation`: setPosition (08/04/25)
 - `rework`: move -> moveTo (08/04/25)
@@ -81,5 +81,10 @@
 - `feature`: incrementals: groups that alterate the modifications you receive according to you're index
 - `feature`: image from url
 - `feature`: first template example (runeset)
+- `rework`: slideTo becomes moveTo and the old moveTo is removed
+- `feature`: can apply transformations to the whole scene
+- `rework`: scale removed and zoom renamed scale
+- `feature`: persistent transformations: you trigger once grayscale and it stays with the input forever
+- `feature`: you can remove an input from the screen
 
 </details>

@@ -19,7 +19,12 @@
 #include "utils/Exception.hpp"
 
 WebImage::WebImage(json::object_t&& args)
-    : AInput(std::move(args))
+    : AInput(
+          std::move(args),
+          {
+              "url",
+          }
+      )
 {
     construct();
 }
@@ -32,6 +37,9 @@ void WebImage::construct()
 
     if (response.status_code != 200) {
         throw Error("Could not load Image from the url: " + url);
+    }
+    if (response.error) {
+        throw Error("Network error: " + std::string(response.error.message));
     }
 
     std::vector<uchar> buffer(response.text.begin(), response.text.end());

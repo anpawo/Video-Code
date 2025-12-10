@@ -14,7 +14,15 @@
 #include "opencv2/imgproc.hpp"
 
 Circle::Circle(json::object_t &&args)
-    : AInput(std::move(args))
+    : AInput(
+          std::move(args),
+          {
+              "radius",
+              "thickness",
+              "color",
+              "filled",
+          }
+      )
 {
     construct();
 }

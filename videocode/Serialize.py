@@ -1,9 +1,6 @@
 #!/usr/bin/env python3
 
 
-from typing import Type
-
-
 import json
 import sys
 
@@ -35,7 +32,8 @@ def serializeScene(filepath: str) -> str:
     # Exec the file representing the `Scene`. It will update the globals in `Global`.
     global __name__
     __name__ = "Scene"
-    exec(content, globals())
+    code = compile(content, filepath, "exec")
+    exec(code, globals())
 
     # Access Stack
     g = Global()
