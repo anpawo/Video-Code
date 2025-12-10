@@ -38,6 +38,9 @@ void WebImage::construct()
     if (response.status_code != 200) {
         throw Error("Could not load Image from the url: " + url);
     }
+    if (response.error) {
+        throw Error("Network error: " + std::string(response.error.message));
+    }
 
     std::vector<uchar> buffer(response.text.begin(), response.text.end());
     cv::Mat mat = cv::imdecode(buffer, cv::IMREAD_UNCHANGED);

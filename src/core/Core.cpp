@@ -13,8 +13,8 @@
 #include <string>
 
 #include "core/Factory.hpp"
-#include "python/API.hpp"
 #include "utils/Debug.hpp"
+#include "utils/Exception.hpp"
 
 VC::Core::Core(const argparse::ArgumentParser& parser)
     : _width(parser.get<int>("--width"))
@@ -27,13 +27,11 @@ VC::Core::Core(const argparse::ArgumentParser& parser)
     , _bgFrame(cv::Mat(_height, _width, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0)))
     , _camera(new Camera(_bgFrame.clone(), {}))
 {
-    python::API::initialize();
     reloadSourceFile();
 }
 
 VC::Core::~Core()
 {
-    python::API::finalize();
 }
 
 void VC::Core::reloadSourceFile()
@@ -41,7 +39,7 @@ void VC::Core::reloadSourceFile()
     std::string serializedScene;
 
     try {
-        serializedScene = python::API::call<std::string>("Serialize", "serializeScene", _sourceFile);
+        serializedScene = serializeScene(_sourceFile);
     } catch (const Error& e) {
         std::cerr << "\nVideoCode: Invalid source file '" << _sourceFile << "', could not parse the instructions." << std::endl;
         return;
@@ -56,6 +54,25 @@ void VC::Core::reloadSourceFile()
 
     executeStack();
     addNewFrames();
+}
+
+std::string VC::Core::serializeScene(std::string file)
+{
+
+    std::string command = "python3 -c \"import sys; sys.path.append('./videocode');from Serialize import serializeScene; print(serializeScene('video.py'))\"";
+
+    FILE* pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        throw Error("Failed to load '" + file + "'.");
+    }
+
+    char buffer[4096];
+    std::string result;
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        result += buffer;
+    }
+
+    return result;
 }
 
 #define CAMERA (-1)

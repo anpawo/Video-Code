@@ -1,13 +1,16 @@
 cmake_minimum_required(VERSION 3.21)
 project(video-code VERSION 1.0.0 LANGUAGES CXX)
 
+# Generate compile_commands.json automatically
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-deprecated -pipe -D_REENTRANT -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -DQT_NO_KEYWORDS")
 
 if(DEBUG)
     message(STATUS ">>> Debug build <<<")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -DVC_DEBUG_ON")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -O0 -DVC_DEBUG_ON") # -fsanitize=address
 else()
     message(STATUS ">>> Release build <<<")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
@@ -153,6 +156,6 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Widgets
     Qt6::Core
     Qt6::Gui
-    Python3::Python
+    # Python3::Python
     cpr::cpr
 )

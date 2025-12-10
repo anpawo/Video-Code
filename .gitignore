@@ -21,6 +21,10 @@ video/
 # Python
 __pycache__/
 
+# Python .venv
+.venv
+.direnv
+
 # CMake
 build/
 vcpkg*

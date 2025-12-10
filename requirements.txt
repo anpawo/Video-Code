@@ -1,4 +1,1 @@
-# Base
-
-# Template
-python-chess
+python-chess==1.999

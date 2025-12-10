@@ -26,6 +26,7 @@ namespace VC
 
         ///< Reload the source file, then execute the stack, then add the new frames to the Timeline.
         void reloadSourceFile();
+        std::string serializeScene(std::string file);
         void executeStack();
         void addNewFrames();
 

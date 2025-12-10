@@ -23,6 +23,7 @@ cmake:
 	cmake -B $(BUILD_DIR) $(VCPKG)
 	$(MAKE) -C $(BUILD_DIR)
 	cp $(BUILD_DIR)/$(BINARY_NAME) .
+	ln -sf $(BUILD_DIR)/compile_commands.json .
 
 
 .PHONY: debug
