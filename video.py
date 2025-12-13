@@ -6,7 +6,7 @@ from videocode.template.chess.chessboard import *
 
 # TODO: chess template
 c = ChessBoard()
-c.play()
+c.play(1)
 
 # g = (
 #     group(

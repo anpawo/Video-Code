@@ -7,6 +7,10 @@
 
 #include "core/Core.hpp"
 
+#include <qapplication.h>
+#include <qpainter.h>
+#include <qscreen.h>
+
 #include <iostream>
 #include <memory>
 #include <opencv2/core/mat.hpp>
@@ -156,7 +160,10 @@ void VC::Core::updateFrame(QLabel& imageLabel)
         // show black background if no frames are loaded
         cv::resize(_bgFrame, frame, cv::Size(_width / 2, _height / 2), _width / 2.0, 2.0, cv::INTER_LINEAR);
     } else {
-        cv::resize(_frames[_index], frame, cv::Size(_width / 2, _height / 2), _width / 2.0, _height / 2.0, cv::INTER_LINEAR);
+        // Screen pixel density ratio (needed for mac's retina)
+        qreal scaleFactor = qApp->devicePixelRatio();
+
+        cv::resize(_frames[_index], frame, cv::Size(_width / (2.0 / scaleFactor), _height / (2.0 / scaleFactor)), _width / (2.0 / scaleFactor), _height / (2.0 / scaleFactor), cv::INTER_LINEAR);
 
         // load next frame if not in pause and not at the end
         if (_paused == false && _index < _frames.size() - 1) {
@@ -167,10 +174,14 @@ void VC::Core::updateFrame(QLabel& imageLabel)
     // convert to rgba because opencv stores it as bgra
     cv::cvtColor(frame, frame, cv::COLOR_BGRA2RGBA);
 
-    // convert to pixmap for better display (cpu)
-    QPixmap pixmap = QPixmap::fromImage(QImage(frame.data, frame.cols, frame.rows, frame.step, QImage::Format_RGBA8888));
+    // Create QImage from frame data
+    QImage img(frame.data, frame.cols, frame.rows, frame.step, QImage::Format_RGBA8888);
 
-    // update the currently shown image
+    img.setDevicePixelRatio(qApp->devicePixelRatio());
+
+    // Create a pixmap for better display (cpu)
+    QPixmap pixmap = QPixmap::fromImage(img);
+
     imageLabel.setPixmap(pixmap);
 }
 

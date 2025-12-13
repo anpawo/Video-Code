@@ -82,8 +82,7 @@ class ChessBoard:
     def getUrl(self, color: Color, piece: Piece):
         return f"https://assets-themes.chess.com/image/ejgfv/150/{'w' if color == WHITE else 'b'}{piece}.png"
 
-    def play(self):
-        i = 0
+    def play(self, nMove: int):
         for move in self.game.mainline_moves():
             sx, sy = move.from_square % 8, 7 - move.from_square // 8
             dx, dy = move.to_square % 8, 7 - move.to_square // 8
@@ -121,9 +120,9 @@ class ChessBoard:
                 self.pieces[(dx, dy)][0].url = self.getUrl(*self.pieces[(dx, dy)][1])
 
             wait(0.1)
-            i += 1
-            if i > 10:
-                break
+            nMove -= 1
+            if nMove == 0:
+                return
 
 
 if __name__ == "__main__":
