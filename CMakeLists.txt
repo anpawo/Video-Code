@@ -81,7 +81,7 @@ endif()
 find_package(OpenCV CONFIG REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
-find_package(cpr CONFIG REQUIRED)
+find_package(CURL REQUIRED)
 
 if(NOT CI_BUILD)
     find_package(nlohmann_json CONFIG REQUIRED)
@@ -157,5 +157,5 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Core
     Qt6::Gui
     # Python3::Python
-    cpr::cpr
+    CURL::libcurl
 )
