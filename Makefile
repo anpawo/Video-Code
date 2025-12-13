@@ -20,7 +20,7 @@ all: cmake
 
 .PHONY: cmake
 cmake:
-	cmake -B $(BUILD_DIR) $(VCPKG)
+	cmake -B $(BUILD_DIR) $(VCPKG) > /dev/null
 	$(MAKE) -C $(BUILD_DIR)
 	cp $(BUILD_DIR)/$(BINARY_NAME) .
 	ln -sf $(BUILD_DIR)/compile_commands.json .

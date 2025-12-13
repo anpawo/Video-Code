@@ -9,6 +9,7 @@
 #include <QMainWindow>
 #include <argparse/argparse.hpp>
 #include <nlohmann/json.hpp>
+#include <opencv2/core/utils/logger.hpp>
 #include <opencv2/opencv.hpp>
 
 #include "compiler/Compiler.hpp"
@@ -55,6 +56,10 @@ void setParserArgument(argparse::ArgumentParser &p)
 
 int main(int argc, char *argv[])
 {
+
+    // Hide OpenCV logs
+    cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_SILENT);
+
     argparse::ArgumentParser parser(
         "./videocode",
         "A video editing software made by Marius Rousset and Hippolyte Lefer.",
