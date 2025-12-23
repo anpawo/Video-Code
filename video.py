@@ -4,19 +4,6 @@
 from videocode.VideoCode import *
 from videocode.template.chess.chessboard import *
 
-# TODO: chess template
-c = ChessBoard()
-c.play()
-
-# g = (
-#     group(
-#         square(),
-#         circle(),
-#     )
-#     .setPosition(*MIDDLE)
-#     .moveTo(x=0.7 * SW)
-#     .add()
-#     .apply(grayscale())
-#     .moveTo(x=0.5 * SW)
-#     .add()
-# )
+a = image("hehe.jpg").apply(blur(1)).apply(scale(3)).setPosition((203*3/2), (360*3/2)).add()
+i = image("hehe.jpg").apply(blur(10)).apply(scale(3)).setPosition(*MIDDLE).add()
+b = image("hehe.jpg").apply(blur(1000)).apply(scale(3)).setPosition(1600 , (360*3/2)).add()

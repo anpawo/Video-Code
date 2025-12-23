@@ -90,6 +90,7 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 <br>
 
 - `grayscale`
+- `blur`
 - `fadeIn / fadeOut`
 
 <br>

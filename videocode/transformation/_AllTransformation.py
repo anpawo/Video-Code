@@ -9,6 +9,7 @@ from videocode.transformation.Transformation import *
 
 # Color Transformations
 from videocode.transformation.color.Grayscale import *
+from videocode.transformation.color.Blur import *
 from videocode.transformation.color.Fade import *
 
 # Other Transformations

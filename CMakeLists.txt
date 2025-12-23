@@ -133,6 +133,7 @@ set(SOURCES
     # Color
     src/transformation/color/fade.cpp
     src/transformation/color/grayscale.cpp
+    src/transformation/color/blur.cpp
     # Other
     src/transformation/size/scale.cpp
 
