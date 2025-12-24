@@ -1,30 +1,25 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
-from abc import ABC
+from abc import ABC, abstractmethod
 from videocode.Constant import *
+from videocode.Utils import *
 from videocode.Global import Metadata
 
 
-class Transformation(ABC):
+class Effect(ABC):
     """
-    Represents a `Transformation`.
+    An `Effect` modifies the pixels of an image.
 
     .. code-block:: python
-        def move() -> Transformation: ...
-        def scale() -> Transformation: ...
-        def fade() -> Transformation: ...
-        def grayscale() -> Transformation: ...
+        def fade() -> Effect: ...
+        def grayscale() -> Effect: ...
 
     """
 
-    duration: t
+    _type = "effect"
 
-    def modificator(self, _: Metadata):
-        """
-        Modify the `Input`'s `Metadata` if it should be updated.
-        """
-        ...
+    duration: t
 
     def __str__(self) -> str:
         s = f"\n{self.__class__.__name__}:\n"
@@ -34,3 +29,30 @@ class Transformation(ABC):
 
     def __repr__(self) -> str:
         return self.__str__()
+
+
+class Transformation(Effect):
+    """
+    A `Transformation` modifies the metadata of an image, anything not related to pixel, e.g. position.
+
+    .. code-block:: python
+        def position() -> Transformation: ...
+        def scale() -> Transformation: ...
+
+    """
+
+    _type = "transformation"
+
+    """
+    affects only one frame
+    """
+    duration = SF
+
+    @abstractmethod
+    def modificator(self, _: Metadata):
+        """
+        Modify the `Input`'s `Metadata`.
+
+        We want the python interface to keep trace of the changes made on the inputs but they need
+        to be applied the moment the transformations are applied, not the moment they are created.
+        """

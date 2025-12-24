@@ -2,10 +2,10 @@
 
 from videocode.Constant import *
 from videocode.Global import Metadata
-from videocode.transformation.setter.Setter import Setter
+from videocode.transformation.Transformation import Transformation
 
 
-class setPosition(Setter):
+class position(Transformation):
     """
     set the position `x` and `y` of an `Input`.
 
@@ -16,13 +16,18 @@ class setPosition(Setter):
     For a movement over time, see `moveTo`.
     """
 
-    def __init__(self, x: number | None = None, y: number | None = None, **kwargs) -> None:
+    def __init__(self, x: number | None = None, y: number | None = None) -> None:
         self.x = x
         self.y = y
 
     def modificator(self, meta: Metadata):
         # Update the position of the Input
         if self.x is not None:
-            meta.x = self.x
+            meta.position.x = self.x
+        else:
+            self.x = meta.position.x
+
         if self.y is not None:
-            meta.y = self.y
+            meta.position.y = self.y
+        else:
+            self.y = meta.position.y

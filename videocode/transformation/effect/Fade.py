@@ -1,12 +1,22 @@
 #!/usr/bin/env python3
 
+from enum import Enum
 from typing import Optional
 from videocode.transformation.Transformation import *
 
 from videocode.Constant import *
 
 
-class fade(Transformation):
+class side(Enum):
+    All = 0
+    Left = 1
+    Right = 2
+    Top = 3
+    Bottom = 4
+
+
+# TODO: Should be opacity
+class fade(Effect):
     """
     `Fade` from `sides`.
 
@@ -20,27 +30,28 @@ class fade(Transformation):
         *,
         startOpacity: uint = 0,
         endOpacity: uint = 255,
-        sides: side | list[side] = [],
+        side: side = side.All,
         affectTransparentPixel: bool = False,  # Text `Inputs` have a black transparent background, we don't want it to be shown.
     ):
         self.startOpacity = startOpacity
         self.endOpacity = endOpacity
 
-        if isinstance(sides, list):
-            self.sides = sides
+        if isinstance(side, list):
+            self.sides = side
         else:
-            self.sides = [sides]
+            self.sides = [side]
 
         self.affectTransparentPixel = affectTransparentPixel
 
 
+# TODO: Should be templates
 class fadeIn:
     """
     `Fade in` from all `sides` if any and in `duration` second.
     """
 
-    def __new__(cls, *, sides: side | list[side] = []) -> fade:
-        return fade(startOpacity=0, endOpacity=255, sides=sides)
+    def __new__(cls, *, sides: side = side.All) -> fade:
+        return fade(startOpacity=0, endOpacity=255, side=sides)
 
 
 class fadeOut:
@@ -48,8 +59,8 @@ class fadeOut:
     `Fade out` from `sides`.
     """
 
-    def __new__(cls, *, sides: side | list[side] = []) -> fade:
-        return fade(startOpacity=255, endOpacity=0, sides=sides)
+    def __new__(cls, *, side: side = side.All) -> fade:
+        return fade(startOpacity=255, endOpacity=0, side=side)
 
 
 # fadeFromLeft etc...

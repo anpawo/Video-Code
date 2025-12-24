@@ -5,6 +5,7 @@ import copy
 
 from typing import Callable
 from videocode.Global import Global
+from videocode.Utils import upperFirst
 
 
 # Validators
@@ -89,7 +90,13 @@ def inputCreation(f: Callable):
                     values[k] = f.__defaults__[i]
 
         # Generate the stack Creation
-        Global.stack.append({"action": "Create", "type": str(args[0].__class__.__name__)[:1].upper() + str(args[0].__class__.__name__)[1:]} | values)
+        Global.stack.append(
+            {
+                "action": "Create",
+                "type": upperFirst(args[0].__class__.__name__),
+                "args": values,
+            },
+        )
 
         # Init the Input
         f(*args, **kwargs)
@@ -101,21 +108,6 @@ def inputCreation(f: Callable):
         return None
 
     return inputCreationWrapper
-
-
-def noAutoAdd(f: Callable):
-
-    def noAutoAddWrapper(*args, **kwargs):
-        previousState = Global.automaticAdder
-        Global.automaticAdder = False
-
-        ret = f(*args, **kwargs)
-
-        Global.automaticAdder = previousState
-
-        return ret
-
-    return noAutoAddWrapper
 
 
 if __name__ == "__main__":

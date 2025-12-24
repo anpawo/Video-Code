@@ -17,8 +17,8 @@ class Circle final : public AInput
 {
 public:
 
-    Circle(json::object_t &&args);
+    Circle(json::object_t&& args);
     ~Circle() = default;
 
-    void construct() final;
+    cv::Mat getBaseMatrix(const json::object_t& args);
 };

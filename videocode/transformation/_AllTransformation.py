@@ -8,16 +8,15 @@
 from videocode.transformation.Transformation import *
 
 # Color Transformations
-from videocode.transformation.color.Grayscale import *
-from videocode.transformation.color.Fade import *
+from videocode.transformation.effect.Grayscale import *
+from videocode.transformation.effect.Fade import *
 
 # Other Transformations
-from videocode.transformation.size.Scale import *
+from videocode.transformation.transformation.Scale import *
 
 # Setters
-from videocode.transformation.setter.SetPosition import *
-from videocode.transformation.setter.SetOpacity import *  # TODO
-from videocode.transformation.setter.SetAlign import *
+from videocode.transformation.transformation.Position import *
+from videocode.transformation.transformation.Align import *
 
 # Template
 from videocode.template.movement.moveTo import *

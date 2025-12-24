@@ -4,28 +4,29 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Callable, Self
 
-import copy
-
 from videocode.template.movement.moveTo import moveTo
-from videocode.transformation.Transformation import Transformation
+from videocode.transformation.Transformation import Effect, Transformation
 from videocode.Global import *
 from videocode.Constant import *
-from videocode.transformation.setter.SetAlign import setAlign
-from videocode.transformation.setter.SetPosition import setPosition
-from videocode.transformation.setter.Setter import setArgument
+from videocode.Utils import *
+from videocode.transformation.transformation.Align import align
+from videocode.transformation.transformation.Args import args
+from videocode.transformation.transformation.Hide import hide
+from videocode.transformation.transformation.Rotate import rotate
+from videocode.transformation.transformation.Scale import scale
+from videocode.transformation.transformation.Position import position
+from videocode.transformation.transformation.Show import show
 from videocode.utils.bezier import cubicBezier
 from videocode.utils.easings import Easing
 
 
 class Input(ABC):
     """
-    Represents an `Input` which is a list of frames.
+    An `Input` is a source that you want to add to the timeline of the video.
 
-    A frame is a matrix of pixel. `1 second` == `30 frames`.
+    It can be an `Image`, a `Video`, a `Shape`, some `Text` etc...
 
-    You cannot create an `Input` from the base class.
-
-    Basic `Inputs`:
+    Example:
     .. code-block:: python
         def image(filepath: str) -> Input: ...
         def video(filepath: str) -> Input: ...
@@ -43,127 +44,89 @@ class Input(ABC):
 
     Groups do not have an index (they are just python wrapper)
     """
-    index: int | None
+    inputIndex: int | None
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = super().__new__(cls)
-        instance.index = Global.getIndex()
-        instance.meta = Global.getDefaultMetadata()
+        instance.inputIndex = Global.getIndex()
+        instance.meta = Metadata(instance.__dict__)
         return instance
 
     @abstractmethod
     def __init__(self) -> None: ...
 
-    def add(self) -> Self:
+    def flush(self) -> Self:
         """
-        Appends the `frames` of `self` to the `timeline`.
-
-        The first add also displays the `Input`.
+        Advance the transformation index offset to the latest.
         """
-
-        # Prevent double add error
-        if Global.automaticAdder:
-            return self
-
-        Global.stack.append(
-            {
-                "action": "Add",
-                "input": self.index,
-            }
-        )
+        # TODO: needs a fix, something's off
+        if self.meta.transformationIndexOffset < self.meta.lastAffectedFrameIndex:
+            self.meta.transformationIndexOffset = self.meta.lastAffectedFrameIndex
         return self
 
-    @staticmethod
-    def autoAdd(f: Callable[..., Input]):
+    def apply(self, *ts: Effect, start: t = default(0), duration: t = default(1)) -> Self:
         """
-        Appends the `frames` of `self` to the `timeline` automatically after applying a `Transformation`.
-        """
+        Applies some `Transformations` to the `Input`.
 
-        def autoAddWrapper(*args, **kwargs):
-            input = f(*args, **kwargs)
-
-            if Global.automaticAdder:
-                Global.stack.append(
-                    {
-                        "action": "Add",
-                        "input": input.index,
-                    }
-                )
-
-            return input
-
-        return autoAddWrapper
-
-    @autoAdd
-    def apply(self, *ts: Transformation, start: t = default(0), duration: t = default(1)) -> Self:
-        """
-        Applies the `Transformations` `ts` to the `Input` `self`.
-
-        The duration is in seconds, so it will affect `duration * framerate` frames of the video.
+        The `duration` is in `seconds`, so it will affect `duration * framerate` frames of the video.
         """
         for t in ts:
-            __start = getValueByPriority(t, start)
-            __duration = getValueByPriority(t, duration)
+            __start = getValueByPriority(t, start, "start") * FRAMERATE + self.meta.transformationIndexOffset
+            __duration = getValueByPriority(t, duration, "duration") * FRAMERATE
+            # Without any check it flushs the last added tsf, not the latest
+            self.meta.lastAffectedFrameIndex = __start + __duration
 
-            t.modificator(self.meta)
+            if isinstance(t, Transformation):
+                t.modificator(self.meta)
 
             Global.stack.append(
                 {
                     "action": "Apply",
-                    "input": self.index,
-                    "transformation": t.__class__.__name__,
+                    "input": self.inputIndex,
+                    "transformation": upperFirst(t.__class__.__name__),
+                    "type": t._type,
                     "args": vars(t) | {"start": __start} | {"duration": __duration},
                 }
             )
 
         return self
 
-    def copy(self) -> Input:
-        """
-        Creates a `copy` of `self`.
-        """
-        cp = copy.deepcopy(self)
-        cp.index = Global.getIndex()
-        Global.stack.append(
-            {
-                "action": "Create",
-                "type": "Copy",
-                "input": self.index,
-            }
-        )
-        return cp
-
     def __setattr__(self, name: str, value: Any) -> None:
         if hasattr(self, name):
-            # print(f"name=[{name}], value=[{value}], index=[{self.index}], self=[{str(self)}]")
-            self.apply(setArgument(name, value))
+            self.apply(args(name, value))
         object.__setattr__(self, name, value)
 
     def __str__(self) -> str:
         s = f"\n{self.__class__.__name__}:\n"
-        for i in self.__dict__:
-            s += f"\t{i}='{self.__getattribute__(i)}'\n"
+        for k, v in self.__dict__.items():
+            s += f"\t{k}=;{v};\n"
         return s
 
     def __repr__(self) -> str:
         return self.__str__()
 
-    def remove(self) -> None:
-        Global.stack.append(
-            {
-                "action": "Remove",
-                "input": self.index,
-            }
-        )
+    ### Transformations ###
 
-    ### Common Functions ###
+    def position(self, x: number | None = None, y: number | None = None) -> Self:
+        return self.apply(position(x, y))
 
-    def setPosition(self, x: number | None = None, y: number | None = None) -> Self:
-        return self.apply(setPosition(x, y))
+    def scale(self, x: number) -> Self:
+        return self.apply(scale(x))
+
+    def rotate(self, x: number) -> Self:
+        return self.apply(rotate(x))
+
+    def align(self, x: number | None = None, y: number | None = None) -> Self:
+        return self.apply(align(x, y))
+
+    def hide(self, start: sec = 0):
+        return self.apply(hide(), start=start)
+
+    def show(self, start: sec = 0):
+        return self.apply(show(), start=start)
 
     def moveTo(self, x: number | None = None, y: number | None = None, *, easing: cubicBezier = Easing.Out, start: sec = 0, duration: sec = 0.4) -> Self:
         moveTo(self, x, y, easing=easing, start=start, duration=duration)
         return self
 
-    def setAlign(self, x: align | None = None, y: align | None = None) -> Self:
-        return self.apply(setAlign(x, y))
+    # TODO: Base loop with scaling function like bezier (from -> to, time, fn)

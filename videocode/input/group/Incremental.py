@@ -17,11 +17,11 @@ class incremental(group):
     Usually the modification is an incrementation according to the index of the input (hence the name).
     """
 
-    def __init__(self, incrementals: dict[type, tuple[Callable[[Transformation, Index], Transformation], ...]], *inputs: Input):
+    def __init__(self, incrementals: dict[type, tuple[Callable[[Effect, Index], Effect], ...]], *inputs: Input):
         group.__init__(self, *inputs)
         self.incrementals = incrementals
 
-    def apply(self, *ts: Transformation, start: t = default(0), duration: t = default(1)) -> Self:
+    def apply(self, *ts: Effect, start: t = default(0), duration: t = default(1)) -> Self:
         for i, input in enumerate(self.inputs):
             for t in ts:
                 t.modificator(self.meta)
@@ -40,9 +40,9 @@ class incremental(group):
 # --- Incremental Functions ---
 
 
-def linearAdd(**kwargs) -> Callable[[Transformation, Index], Transformation]:
+def linearAdd(**kwargs) -> Callable[[Effect, Index], Effect]:
 
-    def wrapper(t: Transformation, i: Index) -> Transformation:
+    def wrapper(t: Effect, i: Index) -> Effect:
         for k, v in kwargs.items():
             t.__setattr__(k, t.__getattribute__(k) + v * i)
         return t
@@ -50,9 +50,9 @@ def linearAdd(**kwargs) -> Callable[[Transformation, Index], Transformation]:
     return wrapper
 
 
-def constantAdd(**kwargs) -> Callable[[Transformation, Index | None], Transformation]:
+def constantAdd(**kwargs) -> Callable[[Effect, Index | None], Effect]:
 
-    def wrapper(t: Transformation, _: Index | None = None) -> Transformation:
+    def wrapper(t: Effect, _: Index | None = None) -> Effect:
         for k, v in kwargs.items():
             t.__setattr__(k, t.__getattribute__(k) + v)
         return t

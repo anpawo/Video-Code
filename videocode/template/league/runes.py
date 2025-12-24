@@ -142,12 +142,12 @@ class RuneSet:
                 self.sub,
                 self.shard,
             )
-            .setPosition(self.x, self.y + offscreenStart)
-            .add()
+            .position(self.x, self.y + offscreenStart)
+            .flush()
         )
 
     def animate(self):
-        self.all.moveTo(self.x, self.y, easing=Easing.Out, start=SINGLE_FRAME, duration=0.4).add()
+        self.all.moveTo(self.x, self.y, easing=Easing.Out, start=SINGLE_FRAME, duration=0.4).flush()
         return self
 
 

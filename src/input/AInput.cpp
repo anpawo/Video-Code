@@ -2,227 +2,195 @@
 ** EPITECH PROJECT, 2025
 ** video-code
 ** File description:
-** AInput
+** Input
 */
 
 #include "input/AInput.hpp"
 
-#include <algorithm>
-#include <cassert>
-#include <memory>
+#include <opencv2/core/hal/interface.h>
 
-#include "input/Frame.hpp"
+#include <algorithm>
+#include <cstddef>
+#include <iostream>
+#include <opencv2/core.hpp>
+#include <opencv2/core/mat.hpp>
+
 #include "input/IInput.hpp"
-#include "transformation/transformation.hpp"
-#include "utils/Debug.hpp"
+#include "input/Metadata.hpp"
+#include "transformation/EffectFactory.hpp"
+#include "transformation/ITransform.hpp"
 #include "utils/Vector.hpp"
 
-AInput::AInput(json::object_t&& args, std::set<std::string_view>&& triggers)
-    : _args(std::move(args))
-    , _triggers(std::move(triggers))
+AInput::AInput(json::object_t&& args)
+    : _baseArgs(std::move(args))
 {
 }
 
-void AInput::flushTransformation()
+void AInput::add(json& modification)
 {
-    _flushedTransformationIndex = _transformations.size();
-}
+    std::string name = modification["transformation"];
+    json::object_t args = modification["args"];
+    size_t start = modification["args"]["start"];
+    size_t duration = modification["args"]["duration"];
+    std::string type = modification["type"];
 
-void AInput::apply(const std::string& name, const json::object_t& args)
-{
-    std::shared_ptr<IInput> i(this, [](IInput*) {});
+    if (type == "transformation") {
+        Transform t = getTransformFromString.at(name);
 
-    transformation::map.at(name)(i, args);
-}
+        ///< Find the index
+        auto it = std::lower_bound(
+            _transformations.begin(),
+            _transformations.end(),
+            start,
+            [](const std::pair<int, std::map<Transform, json::object_t>>& p, int index) {
+                return p.first < index;
+            }
+        );
 
-void AInput::setBase(cv::Mat&& mat)
-{
-    _base = std::move(mat);
-    resetCurrentFrameToBase();
-}
+        ///< If found, override the same transformation (except for args)
+        if (it != _transformations.end()) {
+            if (t == Transform::Args) {
+                for (const auto& i : args) {
+                    it->second[t][i.first] = i.second;
+                }
+            } else {
+                it->second[t] = args;
+            }
+        }
+        ///< Else, insert at index
+        else {
+            if (t == Transform::Args) {
+                json::object_t mergedArgs;
+                auto prev = it;
 
-void AInput::resetCurrentFrameToBase()
-{
-    ///< Keep the metadata if existing
-    if (_currentFrame) {
-        _currentFrame = std::make_unique<Frame>(_base.clone(), _currentFrame->meta);
-    } else {
-        _currentFrame = std::make_unique<Frame>(_base.clone());
+                while (prev != _transformations.begin()) {
+                    --prev;
+                    auto found = prev->second.find(Transform::Args);
+                    if (found != prev->second.end()) {
+                        mergedArgs = found->second;
+                        break;
+                    }
+                }
+
+                for (const auto& [k, v] : args) {
+                    mergedArgs[k] = v;
+                }
+
+                _transformations.insert(it, {start, {{Transform::Args, std::move(mergedArgs)}}});
+            } else {
+                _transformations.insert(it, {start, {{t, args}}});
+            }
+        }
+
+    } else if (type == "effect") {
+        _effects.push_back(transformation.at(name)(args));
+
+        size_t effectIndex = _effects.size() - 1;
+
+        if (_effectTimeline.size() < start + duration) {
+            _effectTimeline.resize(start + duration);
+        }
+
+        for (size_t i = start; i < start + duration; i++) {
+            _effectTimeline[i].push_back(effectIndex);
+        }
     }
 }
 
-void AInput::addTransformation(size_t index, bool persistent, std::string&& name, std::function<void(Frame&)>&& f)
+Metadata AInput::getMetadata(int index)
 {
-    ///< Take into account used stuff
-    while (_transformations.size() <= index + _flushedTransformationIndex) {
-        _transformations.push_back({});
-        _setters.push_back({});
+    Metadata meta{.args = _baseArgs};
+
+    if (_transformations.empty()) {
+        return meta;
     }
-    _transformations[index + _flushedTransformationIndex].push_back({persistent, name, f});
-}
 
-void AInput::addPersistent(std::string& name, std::function<void(Frame&)>& f)
-{
-    _persistents.push_back({name, f});
-}
+    auto it = std::lower_bound(
+        _transformations.begin(),
+        _transformations.end(),
+        index,
+        [](const std::pair<int, std::map<Transform, json::object_t>>& p, int index) {
+            return p.first < index;
+        }
+    );
 
-void AInput::addSetter(size_t index, std::vector<std::string>&& name, std::function<void(json::object_t&, Metadata&)>&& f)
-{
-    ///< Take into account used stuff
-    while (_setters.size() <= index + _flushedTransformationIndex) {
-        _transformations.push_back({});
-        _setters.push_back({});
+    // Index > Last Tsf
+    if (it == _transformations.end()) {
+        it--;
     }
-    _setters[index + _flushedTransformationIndex].push_back({name, f});
-}
 
-Frame& AInput::generateNextFrame()
-{
-    if (_transformationIndex == _transformations.size()) {
-        _frameHasChanged = false;
-        return getCurrentFrame();
-    }
-    _frameHasChanged = true;
+    for (size_t i = 0; i != Transform::__End; i++) {
+        Transform t = static_cast<Transform>(i);
 
-    resetCurrentFrameToBase();
-    applySetters();
-    applyPersistents();
-    applyTransformations();
+        for (auto cp = it;; cp--) {
+            auto v = cp->second.find(t);
 
-    _transformationIndex += 1;
-    return getCurrentFrame();
-}
-
-Frame& AInput::getCurrentFrame()
-{
-    return *_currentFrame;
-}
-
-void AInput::applySetters()
-{
-    for (const auto& [names, t] : _setters[_transformationIndex]) {
-        VC_LOG_DEBUG("applySetter: " << names);
-
-        t(getArgs(), getCurrentFrame().meta);
-
-        for (const auto& n : names) {
-            if (_triggers.contains(n)) {
-                _constructNeeded = true;
+            if (v != cp->second.end()) {
+                getMetadataFromArgs(t, v->second, meta);
+                break;
+            }
+            if (cp == _transformations.begin()) {
                 break;
             }
         }
     }
-    if (_constructNeeded) {
-        _constructNeeded = false;
-        ///< Update shape or remove a transformation.
-        construct();
-    }
+
+    return meta;
 }
 
-void AInput::applyPersistents()
+/// TODO: use isContinuous() if it is (opti de fou)
+void AInput::overlay(cv::Mat& bg, size_t index)
 {
-    ///< Remove any persistents that repeats in the transformations
-    _persistents.erase(
-        std::remove_if(
-            _persistents.begin(),
-            _persistents.end(),
-            [this](const auto& per) {
-                for (const auto& tsf : _transformations[_transformationIndex]) {
-                    if (std::get<1>(tsf) == per.first) {
-                        return true;
-                    }
-                }
-                return false;
-            }
-        ),
-        _persistents.end()
-    );
+    auto meta = getMetadata(index);
 
-    for (auto& [name, t] : _persistents) {
-        VC_LOG_DEBUG("applyPersistent: " << name);
-        t(getCurrentFrame());
+    if (meta.hidden) {
+        return;
     }
-}
 
-void AInput::applyTransformations()
-{
-    for (auto& [persistent, name, t] : _transformations[_transformationIndex]) {
-        VC_LOG_DEBUG("applyTransformation: " << name);
-        t(getCurrentFrame());
-        if (persistent) {
-            addPersistent(name, t);
+    auto imgMat = getBaseMatrix(meta.args);
+
+    ///< TODO: render needs to keep track of the start index
+    if (index < _effectTimeline.size()) {
+        const auto& vec = _effectTimeline[index];
+        auto end = vec.end();
+        std::cout << vec << std::endl;
+        for (auto it = vec.begin(); it != end; it++) {
+            _effects[*it]->render(imgMat, index);
         }
     }
-}
 
-void AInput::overlayLastFrame(cv::Mat& background, const v2i& camera)
-{
-    const Frame& frame = generateNextFrame();
+    auto tsfMat = getTransformationMatrixFromMetadata(imgMat.size(), meta).inv();
 
-    const auto& overlay = frame.mat;
-    auto meta = frame.meta;
-    meta.position.x += meta.align.x * overlay.cols - camera.x;
-    meta.position.y += meta.align.y * overlay.rows - camera.y;
+    // draw
+    for (int y = 0; y < bg.rows; ++y) {
+        auto* dstRow = bg.ptr<cv::Vec4b>(y);
+        for (int x = 0; x < bg.cols; ++x) {
 
-    // Calculate the source rectangle
-    int srcX = std::max(0, -meta.position.x);
-    int srcY = std::max(0, -meta.position.y);
-    int srcW = std::min(overlay.cols - srcX, background.cols);
-    int srcH = std::min(overlay.rows - srcY, background.rows);
+            cv::Vec3f dstPixel(x, y, 1.0f);
+            cv::Vec3f srcPixel = tsfMat * dstPixel;
 
-    // Calculate the destination rectangle
-    int dstX = std::max(0, meta.position.x);
-    int dstY = std::max(0, meta.position.y);
-    int dstW = srcW;
-    int dstH = srcH;
+            float u = srcPixel[0];
+            float v = srcPixel[1];
 
-    // Ensure the destination rectangle is within the frame bounds
-    dstW = std::min(dstW, background.cols - dstX);
-    dstH = std::min(dstH, background.rows - dstY);
+            if (u >= 0 && v >= 0 && u < imgMat.cols && v < imgMat.rows) {
+                cv::Vec4b src = imgMat.at<cv::Vec4b>((int)v, (int)u);
+                cv::Vec4b& dst = dstRow[x];
 
-    // Adjust the source rectangle if the destination rectangle was reduced
-    srcW = dstW;
-    srcH = dstH;
+                // source alpha
+                float alpha = src[3] / 255.0f;
 
-    // Define the source and destination regions
-    cv::Rect src(srcX, srcY, srcW, srcH);
-    cv::Rect dst(dstX, dstY, dstW, dstH);
-
-    // Only copy if we have valid regions
-    if (src.width > 0 && src.height > 0 && dst.width > 0 && dst.height > 0) {
-        for (int y = 0; y < src.height; y++) {
-            for (int x = 0; x < src.width; x++) {
-                const cv::Vec4b& bgPixel = background.at<cv::Vec4b>(y + dst.y, x + dst.x);
-                const cv::Vec4b& ovPixel = overlay.at<cv::Vec4b>(y + src.y, x + src.x);
-
-                const float alphaBg = bgPixel[3] / 255.0f;
-                const float alphaOv = ovPixel[3] / 255.0f;
-
-                cv::Vec4b tmp;
-                for (int i = 0; i < 3; i++) {
-                    tmp[i] = static_cast<uchar>(
-                        (ovPixel[i] * alphaOv + bgPixel[i] * (1.0f - alphaOv))
+                // B, G, R
+                for (int c = 0; c < 3; ++c) {
+                    dst[c] = static_cast<uchar>(
+                        src[c] * alpha + dst[c] * (1.0f - alpha)
                     );
                 }
-                tmp[3] = (alphaBg + alphaOv * (1.0f - alphaBg)) * 255.0f;
 
-                background.at<cv::Vec4b>(y + dst.y, x + dst.x) = tmp;
+                // Optional: update destination alpha
+                dst[3] = static_cast<uchar>(
+                    src[3] + dst[3] * (1.0f - alpha)
+                );
             }
         }
     }
-}
-
-bool AInput::frameHasChanged()
-{
-    return _frameHasChanged;
-}
-
-json::object_t& AInput::getArgs()
-{
-    return _args;
-}
-
-void AInput::construct()
-{
-    ///< Does nothing, the Input doesn't have any arguments that would affect a reconstruct.
 }

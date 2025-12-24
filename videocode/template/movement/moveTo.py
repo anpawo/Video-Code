@@ -2,17 +2,15 @@
 
 
 from videocode.Constant import FR, SF, number
-from videocode.Decorators import noAutoAdd
-from videocode.transformation.setter.SetPosition import setPosition
+from videocode.transformation.transformation.Position import position
 from videocode.utils.bezier import cubicBezier
 from videocode.utils.easings import Easing
 
 
-@noAutoAdd
 def moveTo(input, x: number | None = None, y: number | None = None, *, easing: cubicBezier = Easing.Linear, start: number = 0, duration: number = 0.4) -> None:
     n = int((duration - start) * FR)
-    srcX = input.meta.x
-    srcY = input.meta.y
+    srcX = input.meta.position.x
+    srcY = input.meta.position.y
 
     x = x if x else srcX
     y = y if y else srcY
@@ -24,4 +22,4 @@ def moveTo(input, x: number | None = None, y: number | None = None, *, easing: c
         nx = srcX + (x - srcX) * m
         ny = srcY + (y - srcY) * m
 
-        input.apply(setPosition(nx, ny), start=i * SF)
+        input.apply(position(nx, ny), start=i * SF)

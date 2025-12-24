@@ -5,10 +5,10 @@ import math
 import chess.pgn
 
 
-from videocode.Constant import MIDDLE, SF, SH, SW
+from videocode.Constant import CENTER, SF, SH, SW
 from videocode.input.media.WebImage import webImage
 from videocode.input.Input import Input
-from videocode.transformation.size.Scale import scale
+from videocode.transformation.transformation.Scale import scale
 from videocode.utils.easings import Easing
 from videocode.Global import wait
 
@@ -48,7 +48,7 @@ class ChessBoard:
         self.tileSize = 100.2
 
         # Inputs
-        self.boardInput = webImage(BOARD_URL).setPosition(*MIDDLE).apply(scale(0.5)).add()
+        self.boardInput = webImage(BOARD_URL).position(*CENTER).apply(scale(0.5)).flush()
         self.pieces: dict[Position, tuple[webImage, tuple[Color, Piece]]] = {}
         self.addInputs()
 
@@ -74,7 +74,7 @@ class ChessBoard:
             color = WHITE if c.isupper() else BLACK
             piece = c.lower()
             self.pieces[(x, y)] = (
-                webImage(self.getUrl(color, piece)).setPosition(self.ox + x * self.tileSize, self.oy + y * self.tileSize).apply(scale(self.defaultScaling)).add(),
+                webImage(self.getUrl(color, piece)).position(self.ox + x * self.tileSize, self.oy + y * self.tileSize).apply(scale(self.defaultScaling)).flush(),
                 (color, piece),
             )
             x += 1
@@ -100,7 +100,7 @@ class ChessBoard:
                 dyr = 7 if color == WHITE else 0
 
                 # Move Rook
-                self.pieces[(sxr, syr)][0].moveTo(self.ox + dxr * self.tileSize, self.oy + dyr * self.tileSize, easing=Easing.Linear, duration=duration).add()
+                self.pieces[(sxr, syr)][0].moveTo(self.ox + dxr * self.tileSize, self.oy + dyr * self.tileSize, easing=Easing.Linear, duration=duration).flush()
                 self.pieces[(dxr, dyr)] = self.pieces[(sxr, syr)]
                 del self.pieces[(sxr, syr)]
 
@@ -109,10 +109,11 @@ class ChessBoard:
                 raise ValueError("En Passant not yet implemented")
 
             # Normal Move
-            self.pieces[(sx, sy)][0].moveTo(self.ox + dx * self.tileSize, self.oy + dy * self.tileSize, easing=Easing.Linear, duration=duration).add()
+            self.pieces[(sx, sy)][0].moveTo(self.ox + dx * self.tileSize, self.oy + dy * self.tileSize, easing=Easing.Linear, duration=duration).flush()
             wait(duration - SF)
-            if (dx, dy) in self.pieces:
-                self.pieces[(dx, dy)][0].remove()
+            # TODO: bring back hide
+            # if (dx, dy) in self.pieces:
+            #     self.pieces[(dx, dy)][0].hide()
             self.pieces[(dx, dy)] = self.pieces[(sx, sy)]
             del self.pieces[(sx, sy)]
             if move.promotion:
@@ -126,4 +127,4 @@ class ChessBoard:
 
 
 if __name__ == "__main__":
-    c = ChessBoard()
+    r = ChessBoard()

@@ -18,7 +18,7 @@ class rectangle(Shape):
         self,
         width: uint = 400,
         height: uint = 200,
-        thickness: uint = 20,
+        thickness: uint = 5,
         color: rgba = GREEN,
         cornerRadius: uint = 0,  # 0 <= cornerRadius <= 90
         filled: bool = False,
@@ -37,3 +37,6 @@ class square(Shape):
         return rectangle(width=side, height=side, thickness=thickness, color=color, cornerRadius=cornerRadius, filled=filled)
 
     def __init__(self): ...
+
+
+# set property side

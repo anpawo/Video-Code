@@ -11,12 +11,14 @@
 #include <qpainter.h>
 #include <qscreen.h>
 
+#include <cstddef>
 #include <iostream>
 #include <memory>
 #include <opencv2/core/mat.hpp>
 #include <string>
 
-#include "core/Factory.hpp"
+#include "input/IInput.hpp"
+#include "input/InputFactory.hpp"
 #include "utils/Debug.hpp"
 #include "utils/Exception.hpp"
 
@@ -29,13 +31,9 @@ VC::Core::Core(const argparse::ArgumentParser& parser)
     , _showstack(parser.get<bool>("--showstack"))
     , _timeit(parser.get<bool>("--time"))
     , _bgFrame(cv::Mat(_height, _width, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0)))
-    , _camera(new Camera(_bgFrame.clone(), {}))
+// , _camera(new Camera(_bgFrame.clone(), {}))
 {
     reloadSourceFile();
-}
-
-VC::Core::~Core()
-{
 }
 
 void VC::Core::reloadSourceFile()
@@ -43,31 +41,33 @@ void VC::Core::reloadSourceFile()
     std::string serializedScene;
 
     try {
-        serializedScene = serializeScene(_sourceFile);
+        serializedScene = serializeScene();
     } catch (const Error& e) {
         std::cerr << "\nVideoCode: Invalid source file '" << _sourceFile << "', could not parse the instructions." << std::endl;
         return;
     }
 
-    _frames.clear();
     _inputs.clear();
-    _addedInputs.clear();
     _stack.clear();
 
-    _stack = json::parse(serializedScene);
+    try {
+        _stack = json::parse(serializedScene);
+    } catch (const std::exception& e) {
+        std::cerr << "\nVideoCode: Couldn't parse source file: " << e.what() << std::endl;
+        return;
+    }
 
     executeStack();
-    addNewFrames();
 }
 
-std::string VC::Core::serializeScene(std::string file)
+std::string VC::Core::serializeScene()
 {
 
     std::string command = "python3 -c \"import sys; sys.path.append('./videocode');from Serialize import serializeScene; print(serializeScene('video.py'))\"";
 
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {
-        throw Error("Failed to load '" + file + "'.");
+        throw Error("Failed to load '" + _sourceFile + "'.");
     }
 
     char buffer[4096];
@@ -79,109 +79,86 @@ std::string VC::Core::serializeScene(std::string file)
     return result;
 }
 
-#define CAMERA (-1)
-
 void VC::Core::executeStack()
 {
     for (auto& s : _stack) {
-        if (_showstack) {
-            std::cout << s << std::endl;
-        }
-
         if (s["action"] == "Create") {
-            _inputs.push_back(Factory::create(s["type"], s));
-        } else if (s["action"] == "Add") {
-            ssize_t index = s["input"];
-
-            if (index == CAMERA) {
-                _camera->flushTransformation();
-            } else {
-                _inputs[index]->flushTransformation();
-                _addedInputs.insert(index);
-            }
+            _inputs.push_back(Factory::inputs.at(s["type"])(s["args"]));
         } else if (s["action"] == "Apply") {
             ssize_t index = s["input"];
 
-            s["args"]["duration"] = s["args"]["duration"].get<double>() * _framerate;
-            s["args"]["start"] = s["args"]["start"].get<double>() * _framerate;
+            size_t start = s["args"]["start"];
+            size_t duration = s["args"]["duration"];
+            size_t lastFrame = start + duration;
 
-            if (index == CAMERA) {
-                _camera->apply(s["transformation"], s["args"]);
-            } else {
-                _inputs[index]->apply(s["transformation"], s["args"]);
+            if (lastFrame > _nbFrame) {
+                _nbFrame = lastFrame;
             }
-        } else if (s["action"] == "Wait") {
-            addNewFrames();
 
-            for (size_t n = s["n"].get<size_t>() * _framerate; n; n--) {
-                if (_frames.empty()) {
-                    _frames.push_back(_bgFrame.clone());
-                } else {
-                    _frames.push_back(_frames.back().clone());
-                }
-            }
-        } else if (s["action"] == "Remove") {
-            ssize_t index = s["input"];
-
-            _addedInputs.erase(index);
+            _inputs[index]->add(s);
         }
+        // else if (s["action"] == "Wait") {
+        //     addNewFrames();
+
+        // for (size_t n = s["n"].get<size_t>() * _framerate; n; n--) {
+        //     if (_frames.empty()) {
+        //         _frames.push_back(_bgFrame.clone());
+        //     } else {
+        //         _frames.push_back(_frames.back().clone());
+        //     }
+        // }
+        // }
     }
 }
 
-void VC::Core::addNewFrames()
+cv::Mat VC::Core::generateFrame(int index)
 {
-    bool anythingChanged = _addedInputs.size();
+    cv::Mat bg = _bgFrame.clone();
 
-    while (anythingChanged) {
-        anythingChanged = false;
-
-        _camera->resetCurrentFrameToBase();
-        _camera->applySetters();
-        Frame& frame = _camera->getCurrentFrame();
-
-        for (auto i : _addedInputs) {
-            _inputs[i]->overlayLastFrame(frame.mat, frame.meta.position);
-            anythingChanged |= _inputs[i]->frameHasChanged();
-        }
-
-        _camera->generateNextFrame();
-        anythingChanged |= _camera->frameHasChanged();
-        if (anythingChanged) {
-            _frames.push_back(std::move(frame.mat));
-        }
+    for (auto& i : _inputs) {
+        i->overlay(bg, index);
     }
+
+    return bg;
 }
 
 void VC::Core::updateFrame(QLabel& imageLabel)
 {
-    cv::Mat frame;
-
-    if (_frames.size() == 0) {
-        // show black background if no frames are loaded
-        cv::resize(_bgFrame, frame, cv::Size(_width / 2, _height / 2), _width / 2.0, 2.0, cv::INTER_LINEAR);
-    } else {
-        // Screen pixel density ratio (needed for mac's retina)
-        qreal scaleFactor = qApp->devicePixelRatio();
-
-        cv::resize(_frames[_index], frame, cv::Size(_width / (2.0 / scaleFactor), _height / (2.0 / scaleFactor)), _width / (2.0 / scaleFactor), _height / (2.0 / scaleFactor), cv::INTER_LINEAR);
-
-        // load next frame if not in pause and not at the end
-        if (_paused == false && _index < _frames.size() - 1) {
-            _index += 1;
-        }
+    if (!_indexChanged) {
+        return;
     }
 
-    // convert to rgba because opencv stores it as bgra
-    cv::cvtColor(frame, frame, cv::COLOR_BGRA2RGBA);
+    cv::Mat frame = generateFrame(_index);
+
+    // Screen pixel density ratio (needed for mac's retina)
+    qreal scaleFactor = qApp->devicePixelRatio();
+
+    cv::resize(
+        frame,
+        frame,
+        cv::Size(
+            _width / (2.0 / scaleFactor),
+            _height / (2.0 / scaleFactor)
+        ),
+        _width / (2.0 / scaleFactor),
+        _height / (2.0 / scaleFactor),
+        cv::INTER_LINEAR
+    );
+
+    // load next frame if not in pause and not at the end
+    if (_paused == false && _nbFrame && _index < _nbFrame - 1) {
+        _index += 1;
+        _indexChanged = true;
+    } else {
+        _indexChanged = false;
+    }
 
     // Create QImage from frame data
-    QImage img(frame.data, frame.cols, frame.rows, frame.step, QImage::Format_RGBA8888);
-
+    QImage img(frame.data, frame.cols, frame.rows, frame.step, QImage::Format_ARGB32);
     img.setDevicePixelRatio(qApp->devicePixelRatio());
 
     // Create a pixmap for better display (cpu)
     QPixmap pixmap = QPixmap::fromImage(img);
-
     imageLabel.setPixmap(pixmap);
 }
 
@@ -217,25 +194,25 @@ int VC::Core::generateVideo()
         throw Error("Could not start the ffmpeg pipe.");
     }
 
-    for (const auto& f : _frames) {
-        if (f.rows != _height && f.cols != _width) {
-            throw Error("Frame size mismatch. width: " + std::to_string(f.cols) + "!=" + std::to_string(_width) + ", height: " + std::to_string(f.rows) + "!=" + std::to_string(_height));
-        }
+    // for (const auto& f : _frames) {
+    //     if (f.rows != _height && f.cols != _width) {
+    //         throw Error("Frame size mismatch. width: " + std::to_string(f.cols) + "!=" + std::to_string(_width) + ", height: " + std::to_string(f.rows) + "!=" + std::to_string(_height));
+    //     }
 
-        cv::Mat frame;
-        cv::cvtColor(f, frame, cv::COLOR_BGRA2RGBA); ///< BGRA -> RGBA
+    // cv::Mat frame;
+    // cv::cvtColor(f, frame, cv::COLOR_BGRA2RGBA); ///< BGRA -> RGBA
 
-        if (!frame.isContinuous()) {
-            frame = frame.clone();
-        }
+    // if (!frame.isContinuous()) {
+    //     frame = frame.clone();
+    // }
 
-        size_t bytes = frame.total() * frame.elemSize();
-        size_t written = fwrite(frame.data, 1, bytes, ffmpegPipe);
+    // size_t bytes = frame.total() * frame.elemSize();
+    // size_t written = fwrite(frame.data, 1, bytes, ffmpegPipe);
 
-        if (written != bytes) {
-            throw Error("Wrote only " + std::to_string(written) + " out of " + std::to_string(bytes) + " bytes.");
-        }
-    }
+    // if (written != bytes) {
+    //     throw Error("Wrote only " + std::to_string(written) + " out of " + std::to_string(bytes) + " bytes.");
+    // }
+    // }
 
     pclose(ffmpegPipe);
     VC_LOG_DEBUG("video generated as: " + _outputFile)
@@ -247,35 +224,42 @@ int VC::Core::generateVideo()
 void VC::Core::pause()
 {
     _paused = !_paused;
-    std::cout << std::format("Timeline {} at frame {}/{}.", _paused ? "paused" : "unpaused", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
+    _indexChanged = true;
+    std::cout << std::format("Timeline {} at frame {}/{}.", _paused ? "paused" : "unpaused", currIndex(_index, _nbFrame), _nbFrame) << std::endl;
 }
 
 void VC::Core::goToFirstFrame()
 {
-    _index = 0;
-    std::cout << std::format("Jumped backward to the first frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
+    if (_index != 0) {
+        _index = 0;
+        _indexChanged = true;
+    }
+    std::cout << std::format("Jumped backward to the first frame {}/{}.", currIndex(_index, _nbFrame), _nbFrame) << std::endl;
 }
 
 void VC::Core::goToLastFrame()
 {
-    if (_frames.size() != 0) {
-        _index = _frames.size() - 1;
+    if (_nbFrame != 0) {
+        _index = _nbFrame - 1;
+        _indexChanged = true;
     }
-    std::cout << std::format("Jumped forward to the last frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
+    std::cout << std::format("Jumped forward to the last frame {}/{}.", currIndex(_index, _nbFrame), _nbFrame) << std::endl;
 }
 
 void VC::Core::backward1frame()
 {
     if (_index > 0) {
         _index -= 1;
+        _indexChanged = true;
     }
-    std::cout << std::format("Jumped backward to the frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
+    std::cout << std::format("Jumped backward to the frame {}/{}.", currIndex(_index, _nbFrame), _nbFrame) << std::endl;
 }
 
 void VC::Core::forward1frame()
 {
-    if (_index + 1 < _frames.size()) {
+    if (_index + 1 < _nbFrame) {
         _index += 1;
+        _indexChanged = true;
     }
-    std::cout << std::format("Jumped forward to the frame {}/{}.", currIndex(_index, _frames.size()), _frames.size()) << std::endl;
+    std::cout << std::format("Jumped forward to the frame {}/{}.", currIndex(_index, _nbFrame), _nbFrame) << std::endl;
 }

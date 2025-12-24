@@ -17,7 +17,11 @@
 Image::Image(json::object_t&& args)
     : AInput(std::move(args))
 {
-    std::string filepath = _args.at("filepath");
+}
+
+cv::Mat Image::getBaseMatrix(const json::object_t& args)
+{
+    std::string filepath = args.at("filepath");
 
     cv::Mat mat = cv::imread(filepath);
 
@@ -29,5 +33,5 @@ Image::Image(json::object_t&& args)
         cv::cvtColor(mat, mat, cv::COLOR_BGR2BGRA);
     }
 
-    setBase(std::move(mat));
+    return mat;
 }

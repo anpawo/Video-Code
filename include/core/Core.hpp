@@ -13,7 +13,6 @@
 #include <opencv2/opencv.hpp>
 
 #include "input/IInput.hpp"
-#include "input/camera/Camera.hpp"
 
 namespace VC
 {
@@ -22,13 +21,13 @@ namespace VC
     public:
 
         Core(const argparse::ArgumentParser& parser);
-        ~Core();
+        ~Core() = default;
 
         ///< Reload the source file, then execute the stack, then add the new frames to the Timeline.
         void reloadSourceFile();
-        std::string serializeScene(std::string file);
+        std::string serializeScene();
         void executeStack();
-        void addNewFrames();
+        cv::Mat generateFrame(int index);
 
         ///< Update the current frame being displayed in the window
         void updateFrame(QLabel& imageLabel);
@@ -65,23 +64,16 @@ namespace VC
 
         ///< Index of the frame currently being displayed
         size_t _index{0};
+        size_t _nbFrame{1}; // Starting at 1 forces the first frame to be generated even without any transformations.
 
         ///< The video editor is paused
         bool _paused{false};
-
-        ///< All frames composing the video, they are called the Timeline.
-        std::vector<cv::Mat> _frames{};
+        bool _indexChanged{true};
 
         ///< Inputs created
-        std::vector<std::shared_ptr<IInput>> _inputs{};
-
-        ///< Inputs showed
-        std::set<size_t> _addedInputs{};
+        std::vector<std::unique_ptr<IInput>> _inputs{};
 
         ///< Stack containing the steps of the video
         json::array_t _stack{};
-
-        ///< Input representing the Camera / The final frame to display
-        std::unique_ptr<Camera> _camera;
     };
 };

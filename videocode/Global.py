@@ -7,23 +7,42 @@ from videocode.Constant import *
 
 
 class Metadata:
-    def __init__(self, *, x: number, y: number) -> None:
+    def __init__(self, d: dict) -> None:
         # --- Position ---
-        self.x: number = x
-        self.y: number = y
+        self.position: v2[number] = v2(*CENTER)
 
         # --- Align ---
-        # Center, Left, Right, Top, Bottom
-        self.alignX: align = CENTER
-        self.alignY: align = CENTER
+        self.align: v2[number] = v2(-0.5, -0.5)
 
-        # --- Opacity ---
-        self.opacity: uint = 255
+        # --- Scale ---
+        self.scale: v2[number] = v2(1, 1)
 
-        # --- Rotation --- ?
+        # --- Rotation ---
+        self.rotation: number = 0
+
+        # --- Hidden ---
+        self.hidden: bool = False
+
+        # --- Args ---
+        self.args: dict = d
+
+        # --- Offset ---
+        """
+        Index in `sec` of the last frame affected by a `Transformation`
+
+        # TODO: Increased on `wait()` to the highest index of all `Inputs`
+        """
+        self.lastAffectedFrameIndex: sec = 0
+
+        """
+        In `sec`, Increased when flushed.
+
+        # TODO: Flushed on `wait()`
+        """
+        self.transformationIndexOffset: sec = 0
 
     def __str__(self) -> str:
-        return f"x={self.x}, y={self.y}"
+        return str(self.__dict__)
 
 
 class Global:
@@ -37,8 +56,7 @@ class Global:
     # Index of the next `Input`
     inputCounter: int = 0
 
-    # Default Metadata
-    defaultMetadata: Metadata = Metadata(x=SW * 0.5, y=SH * 0.5)
+    # TODO: last index with an effect
 
     # --- Automatic Add ---
     automaticAdder = False
@@ -47,10 +65,6 @@ class Global:
     def getIndex() -> int:
         Global.inputCounter += 1
         return Global.inputCounter - 1
-
-    @staticmethod
-    def getDefaultMetadata() -> Metadata:
-        return copy.deepcopy(Global.defaultMetadata)
 
     def __str__(self) -> str:
         return f"Stack={self.stack}"
