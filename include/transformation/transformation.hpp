@@ -23,6 +23,7 @@ namespace transformation
     ///< Color
     transformation(fade);
     transformation(grayscale);
+    transformation(blur);
 
     ///< Other
     transformation(scale);
@@ -39,6 +40,7 @@ namespace transformation
         ///< Color
         bind(fade),
         bind(grayscale),
+        bind(blur),
 
         ///< Other
         bind(scale),

@@ -33,6 +33,7 @@
 <br>
 
 - `grayscale`
+- `blur`
 - `fadeIn / fadeOut`
 
 <br>
