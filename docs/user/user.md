@@ -114,6 +114,21 @@ For more detailed usage instructions, refer to the following user documentation:
   - [Repeat](transformation/repeat.md)
   - [Scale](transformation/scale.md)
 
+## Contributing
+
+Want to contribute to Video-Code? We welcome contributions of all kinds!
+
+See our [Contributing Guide](../../CONTRIBUTING.md) for:
+- How to set up your development environment
+- Coding standards and best practices
+- How to submit pull requests
+- How to add new features
+
+Also see:
+- [Developer Guide](../dev/dev.md) - Architecture and internals
+- [Adding Inputs](../dev/addInput.md) - How to add new input types
+- [Adding Transformations](../dev/addEffect.md) - How to add new effects
+
 ## Conclusion
 
 Video-Code provides a powerful way to create videos programmatically. By understanding the principles of inputs, transformations, and the timeline, you can create complex and precise video content. For more detailed information, refer to the linked user documentation sections.

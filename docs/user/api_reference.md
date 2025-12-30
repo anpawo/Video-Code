@@ -539,5 +539,6 @@ for img_path in images:
 
 - [User Documentation](user.md)
 - [Developer Documentation](../dev/dev.md)
+- [Contributing Guide](../../CONTRIBUTING.md)
 - [Adding Inputs Guide](../dev/addInput.md)
 - [Adding Transformations Guide](../dev/addEffect.md)

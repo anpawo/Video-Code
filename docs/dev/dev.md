@@ -477,7 +477,23 @@ src/category/
 
 ## Contributing
 
-### Pull Request Process
+We welcome contributions from the community! Whether you're fixing bugs, adding features, or improving documentation, your help is appreciated.
+
+### Getting Started
+
+For complete contribution guidelines, including:
+- Code of conduct
+- Development environment setup
+- Coding standards
+- Testing requirements
+- Commit message format
+- Pull request process
+
+Please read our **[Contributing Guide](../../CONTRIBUTING.md)**.
+
+### Quick Reference
+
+**Pull Request Process:**
 
 1. Fork the repository
 2. Create feature branch: `git checkout -b feature/my-feature`

@@ -126,4 +126,12 @@ make cmake
 ./video-code --file test.py --generate output.mp4
 ```
 
-For more details, see the [Main Developer Documentation](dev.md).
+## Additional Resources
+
+For more details, see:
+- [Main Developer Documentation](dev.md) - Architecture and internals
+- [Contributing Guide](../../CONTRIBUTING.md) - Full contribution guidelines
+- [Adding Inputs](addInput.md) - How to add new input types
+- [Testing Guide](testing.md) - Testing procedures
+- [Transformation Base Class](../../videocode/transformation/Transformation.py)
+- [Existing Transformations](../../videocode/transformation/)

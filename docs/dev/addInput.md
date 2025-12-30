@@ -736,6 +736,7 @@ int y = metadata.position.y;
 ## Additional Resources
 
 - [Main Developer Documentation](dev.md)
+- [Contributing Guide](../../CONTRIBUTING.md)
 - [Adding Transformations](addEffect.md)
 - [Input Base Class](../../videocode/input/Input.py)
 - [IInput Interface](../../include/input/IInput.hpp)

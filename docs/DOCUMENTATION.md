@@ -93,6 +93,20 @@ This document provides an overview of the complete documentation system for the 
    - Contributing guide
    - Roadmap and patch notes
 
+2. **[CONTRIBUTING.md](../CONTRIBUTING.md)** - Contribution Guidelines
+   - Code of conduct
+   - Getting started for contributors
+   - Development environment setup
+   - Project structure explanation
+   - Development workflow and branching
+   - Coding standards (Python and C++)
+   - Testing requirements
+   - Pull request guidelines
+   - Adding new features guide
+   - Documentation requirements
+   - Review process
+   - Community and communication
+
 ### Additional Documentation
 
 1. **[ffmpeg.md](ffmpeg.md)** - FFmpeg Integration

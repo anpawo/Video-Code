@@ -283,7 +283,9 @@ make debug    # Build with debug symbols
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](docs/dev/dev.md#contributing) and follow these steps:
+Contributions are welcome! We value all contributions, from bug reports to new features.
+
+**Quick Start:**
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/my-feature`
@@ -292,6 +294,21 @@ Contributions are welcome! Please read our [Contributing Guide](docs/dev/dev.md#
 5. Ensure all tests pass
 6. Update documentation
 7. Submit a pull request
+
+**Detailed Guidelines:**
+
+Please read our [Contributing Guide](CONTRIBUTING.md) for:
+- Code of conduct
+- Development environment setup
+- Coding standards and best practices
+- Testing requirements
+- Pull request process
+- Adding new features
+
+Also see:
+- [Developer Guide](docs/dev/dev.md) - Project architecture and internals
+- [Adding Inputs](docs/dev/addInput.md) - How to add new input types
+- [Adding Transformations](docs/dev/addEffect.md) - How to add new effects
 
 ## Use Cases
 
