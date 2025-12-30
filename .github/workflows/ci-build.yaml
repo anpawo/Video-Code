@@ -44,7 +44,7 @@ jobs:
           arch: 'gcc_64'
 
       - name: Configure CMake
-        run: cmake -S . -B build -DCMAKE_CXX_COMPILER=$(which g++-13) -DCI_BUILD=ON
+        run: cmake -S . -B build -DCMAKE_CXX_COMPILER=$(which g++-13) -DCI_BUILD=ON -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake
 
       - name: Build the project
         run: make -C build
@@ -79,7 +79,7 @@ jobs:
           echo "Python coverage report generated"
 
       - name: Configure CMake with coverage
-        run: cmake -S . -B build_test -DCMAKE_CXX_COMPILER=$(which g++-13) -DENABLE_COVERAGE=ON -DBUILD_TESTS=ON
+        run: cmake -S . -B build_test -DCMAKE_CXX_COMPILER=$(which g++-13) -DENABLE_COVERAGE=ON -DBUILD_TESTS=ON -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake
 
       - name: Build C++ tests
         run: make -C build_test
