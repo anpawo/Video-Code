@@ -1,10 +1,13 @@
 #include <gtest/gtest.h>
+
 #include <nlohmann/json.hpp>
+
 #include "input/text/Text.hpp"
 
 using json = nlohmann::json;
 
-TEST(TextTests, ConstructWithArgsProducesFrame) {
+TEST(TextTests, ConstructWithArgsProducesFrame)
+{
     json j;
     j["text"] = "Hello";
     j["fontSize"] = 1.0;

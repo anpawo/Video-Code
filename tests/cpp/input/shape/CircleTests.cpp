@@ -1,10 +1,13 @@
 #include <gtest/gtest.h>
+
 #include <nlohmann/json.hpp>
+
 #include "input/shape/Circle.hpp"
 
 using json = nlohmann::json;
 
-TEST(CircleTests, ConstructWithArgsProducesFrame) {
+TEST(CircleTests, ConstructWithArgsProducesFrame)
+{
     json j;
     j["radius"] = 50;
     j["thickness"] = 1;

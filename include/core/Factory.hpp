@@ -22,7 +22,10 @@
 
 using json = nlohmann::json;
 
-#define input(i) {#i, [](json::object_t &&args) { return std::make_shared<i>(std::move(args)); }}
+#define input(i)                                                                       \
+    {                                                                                  \
+        #i, [](json::object_t &&args) { return std::make_shared<i>(std::move(args)); } \
+    }
 
 namespace Factory
 {

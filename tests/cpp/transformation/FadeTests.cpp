@@ -1,12 +1,17 @@
 #include <gtest/gtest.h>
-#include "transformation/transformation.hpp"
-#include "input/shape/Circle.hpp"
-#include "input/Frame.hpp"
+
 #include <memory>
 
-class FadeTests : public ::testing::Test {
+#include "input/Frame.hpp"
+#include "input/shape/Circle.hpp"
+#include "transformation/transformation.hpp"
+
+class FadeTests : public ::testing::Test
+{
 protected:
-    void SetUp() override {
+
+    void SetUp() override
+    {
         // Create a simple circle input
         json::object_t circleArgs = {
             {"radius", 50},
@@ -20,7 +25,8 @@ protected:
     std::shared_ptr<IInput> input;
 };
 
-TEST_F(FadeTests, FadeFromLeft) {
+TEST_F(FadeTests, FadeFromLeft)
+{
     json::object_t args = {
         {"sides", json::array_t{"left"}},
         {"affectTransparentPixel", false},
@@ -29,9 +35,9 @@ TEST_F(FadeTests, FadeFromLeft) {
         {"duration", 5},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::fade(input, args));
-    
+
     // Generate frames to execute the transformation
     for (int i = 0; i < 5; i++) {
         auto& frame = input->generateNextFrame();
@@ -39,7 +45,8 @@ TEST_F(FadeTests, FadeFromLeft) {
     }
 }
 
-TEST_F(FadeTests, FadeFromRight) {
+TEST_F(FadeTests, FadeFromRight)
+{
     json::object_t args = {
         {"sides", json::array_t{"right"}},
         {"affectTransparentPixel", true},
@@ -48,16 +55,17 @@ TEST_F(FadeTests, FadeFromRight) {
         {"duration", 3},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::fade(input, args));
-    
+
     for (int i = 0; i < 3; i++) {
         auto& frame = input->generateNextFrame();
         EXPECT_FALSE(frame.mat.empty());
     }
 }
 
-TEST_F(FadeTests, FadeFromTop) {
+TEST_F(FadeTests, FadeFromTop)
+{
     json::object_t args = {
         {"sides", json::array_t{"top"}},
         {"affectTransparentPixel", false},
@@ -66,16 +74,17 @@ TEST_F(FadeTests, FadeFromTop) {
         {"duration", 4},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::fade(input, args));
-    
+
     for (int i = 0; i < 4; i++) {
         auto& frame = input->generateNextFrame();
         EXPECT_FALSE(frame.mat.empty());
     }
 }
 
-TEST_F(FadeTests, FadeFromBottom) {
+TEST_F(FadeTests, FadeFromBottom)
+{
     json::object_t args = {
         {"sides", json::array_t{"bottom"}},
         {"affectTransparentPixel", false},
@@ -84,16 +93,17 @@ TEST_F(FadeTests, FadeFromBottom) {
         {"duration", 2},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::fade(input, args));
-    
+
     for (int i = 0; i < 2; i++) {
         auto& frame = input->generateNextFrame();
         EXPECT_FALSE(frame.mat.empty());
     }
 }
 
-TEST_F(FadeTests, FadeMultipleSides) {
+TEST_F(FadeTests, FadeMultipleSides)
+{
     json::object_t args = {
         {"sides", json::array_t{"left", "top"}},
         {"affectTransparentPixel", false},
@@ -102,9 +112,9 @@ TEST_F(FadeTests, FadeMultipleSides) {
         {"duration", 3},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::fade(input, args));
-    
+
     for (int i = 0; i < 3; i++) {
         auto& frame = input->generateNextFrame();
         EXPECT_FALSE(frame.mat.empty());

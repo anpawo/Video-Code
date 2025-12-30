@@ -1,20 +1,26 @@
 #include <gtest/gtest.h>
-#include "window/Window.hpp"
-#include "input/Frame.hpp"
+
 #include <QApplication>
 #include <QImage>
 
+#include "input/Frame.hpp"
+#include "window/Window.hpp"
+
 using namespace VC;
 
-class WindowTests : public ::testing::Test {
+class WindowTests : public ::testing::Test
+{
 protected:
-    WindowTests() : testFrame(cv::Mat(480, 640, CV_8UC3, cv::Scalar(255, 0, 0))) {}
 
-    void SetUp() override {
+    WindowTests()
+        : testFrame(cv::Mat(480, 640, CV_8UC3, cv::Scalar(255, 0, 0))) {}
+
+    void SetUp() override
+    {
         // Ensure we have a QApplication instance for the tests
         if (!qApp) {
             static int argc = 1;
-            static char* argv[] = { (char*)"dummy" };
+            static char* argv[] = {(char*)"dummy"};
             new QApplication(argc, argv);
         }
 
@@ -35,7 +41,7 @@ protected:
             .default_value(false);
         parser.add_argument("--time")
             .default_value(false);
-            
+
         std::vector<std::string> args = {"test-parser"};
         parser.parse_args(args);
     }
@@ -44,10 +50,11 @@ protected:
     Frame testFrame;
 };
 
-TEST_F(WindowTests, ConstructorInitialization) {
+TEST_F(WindowTests, ConstructorInitialization)
+{
     // Check Qt environment
     EXPECT_NE(qApp, nullptr);
-    
+
     // Create window with test parser
     Window window(parser);
     // Window resizes itself to half the provided dimensions in constructor
@@ -55,14 +62,16 @@ TEST_F(WindowTests, ConstructorInitialization) {
     EXPECT_EQ(window.height(), 480 / 2);
 }
 
-TEST_F(WindowTests, CoreInteraction) {
+TEST_F(WindowTests, CoreInteraction)
+{
     Window window(parser);
-    
+
     // Test window routine can run
     EXPECT_NO_THROW(window.mainRoutine());
 }
 
-TEST_F(WindowTests, CustomDimensions) {
+TEST_F(WindowTests, CustomDimensions)
+{
     // Create new parser with custom dimensions
     argparse::ArgumentParser customParser{"test-parser"};
     customParser.add_argument("--width")
@@ -71,7 +80,7 @@ TEST_F(WindowTests, CustomDimensions) {
     customParser.add_argument("--height")
         .default_value(600)
         .scan<'i', int>();
-    customParser.add_argument("--framerate")  // Add required framerate arg
+    customParser.add_argument("--framerate") // Add required framerate arg
         .default_value(30)
         .scan<'i', int>();
     // Add missing args expected by Core
@@ -93,7 +102,8 @@ TEST_F(WindowTests, CustomDimensions) {
     EXPECT_EQ(window.height(), 600 / 2);
 }
 
-TEST_F(WindowTests, Framerate) {
+TEST_F(WindowTests, Framerate)
+{
     // Create new parser with custom framerate
     argparse::ArgumentParser customParser{"test-parser"};
     customParser.add_argument("--width")
@@ -103,7 +113,7 @@ TEST_F(WindowTests, Framerate) {
         .default_value(480)
         .scan<'i', int>();
     customParser.add_argument("--framerate")
-        .default_value(60)  // Test with 60fps
+        .default_value(60) // Test with 60fps
         .scan<'i', int>();
     // Add missing args expected by Core
     customParser.add_argument("--file")

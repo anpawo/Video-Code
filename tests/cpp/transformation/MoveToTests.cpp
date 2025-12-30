@@ -1,12 +1,17 @@
 #include <gtest/gtest.h>
-#include "transformation/transformation.hpp"
-#include "input/shape/Circle.hpp"
-#include "input/Frame.hpp"
+
 #include <memory>
 
-class MoveToTests : public ::testing::Test {
+#include "input/Frame.hpp"
+#include "input/shape/Circle.hpp"
+#include "transformation/transformation.hpp"
+
+class MoveToTests : public ::testing::Test
+{
 protected:
-    void SetUp() override {
+
+    void SetUp() override
+    {
         json::object_t circleArgs = {
             {"radius", 25},
             {"thickness", 1},
@@ -19,7 +24,8 @@ protected:
     std::shared_ptr<IInput> input;
 };
 
-TEST_F(MoveToTests, MoveFromOriginToDest) {
+TEST_F(MoveToTests, MoveFromOriginToDest)
+{
     json::object_t args = {
         {"srcX", 0},
         {"srcY", 0},
@@ -28,16 +34,17 @@ TEST_F(MoveToTests, MoveFromOriginToDest) {
         {"duration", 10},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::moveTo(input, args));
-    
+
     for (int i = 0; i < 10; i++) {
         auto& frame = input->generateNextFrame();
         EXPECT_FALSE(frame.mat.empty());
     }
 }
 
-TEST_F(MoveToTests, MoveWithNullDstX) {
+TEST_F(MoveToTests, MoveWithNullDstX)
+{
     json::object_t args = {
         {"srcX", 50},
         {"srcY", 50},
@@ -46,16 +53,17 @@ TEST_F(MoveToTests, MoveWithNullDstX) {
         {"duration", 5},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::moveTo(input, args));
-    
+
     for (int i = 0; i < 5; i++) {
         auto& frame = input->generateNextFrame();
         EXPECT_FALSE(frame.mat.empty());
     }
 }
 
-TEST_F(MoveToTests, MoveWithNullDstY) {
+TEST_F(MoveToTests, MoveWithNullDstY)
+{
     json::object_t args = {
         {"srcX", 20},
         {"srcY", 30},
@@ -64,16 +72,17 @@ TEST_F(MoveToTests, MoveWithNullDstY) {
         {"duration", 8},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::moveTo(input, args));
-    
+
     for (int i = 0; i < 8; i++) {
         auto& frame = input->generateNextFrame();
         EXPECT_FALSE(frame.mat.empty());
     }
 }
 
-TEST_F(MoveToTests, MoveWithZeroDuration) {
+TEST_F(MoveToTests, MoveWithZeroDuration)
+{
     json::object_t args = {
         {"srcX", 0},
         {"srcY", 0},
@@ -82,12 +91,13 @@ TEST_F(MoveToTests, MoveWithZeroDuration) {
         {"duration", 0},
         {"start", 0}
     };
-    
+
     // Should return early for zero duration
     EXPECT_NO_THROW(transformation::moveTo(input, args));
 }
 
-TEST_F(MoveToTests, MoveWithBothDstNull) {
+TEST_F(MoveToTests, MoveWithBothDstNull)
+{
     json::object_t args = {
         {"srcX", 10},
         {"srcY", 10},
@@ -96,9 +106,9 @@ TEST_F(MoveToTests, MoveWithBothDstNull) {
         {"duration", 3},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::moveTo(input, args));
-    
+
     for (int i = 0; i < 3; i++) {
         auto& frame = input->generateNextFrame();
         EXPECT_FALSE(frame.mat.empty());

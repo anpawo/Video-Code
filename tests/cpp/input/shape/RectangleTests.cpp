@@ -1,10 +1,13 @@
 #include <gtest/gtest.h>
+
 #include <nlohmann/json.hpp>
+
 #include "input/shape/Rectangle.hpp"
 
 using json = nlohmann::json;
 
-TEST(RectangleTests, ConstructWithArgsProducesFrame) {
+TEST(RectangleTests, ConstructWithArgsProducesFrame)
+{
     json j;
     j["width"] = 100;
     j["height"] = 50;

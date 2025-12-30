@@ -1,15 +1,20 @@
 #include <gtest/gtest.h>
-#include "core/Core.hpp"
-#include "input/shape/Circle.hpp"
-#include "input/shape/Rectangle.hpp"
+
 #include <argparse/argparse.hpp>
 #include <fstream>
 
+#include "core/Core.hpp"
+#include "input/shape/Circle.hpp"
+#include "input/shape/Rectangle.hpp"
+
 using namespace VC;
 
-class CoreAdvancedTests : public ::testing::Test {
+class CoreAdvancedTests : public ::testing::Test
+{
 protected:
-    void SetUp() override {
+
+    void SetUp() override
+    {
         // Use an existing test Python file
         testSceneFile = "/home/hippo/code/Video-Code/tests/python/test_videocode_core.py";
 
@@ -30,12 +35,13 @@ protected:
             .default_value(false);
         parser.add_argument("--time")
             .default_value(false);
-            
+
         std::vector<std::string> args = {"test-parser"};
         parser.parse_args(args);
     }
 
-    void TearDown() override {
+    void TearDown() override
+    {
         std::remove("/tmp/test_output.mp4");
     }
 
@@ -43,28 +49,31 @@ protected:
     std::string testSceneFile;
 };
 
-TEST_F(CoreAdvancedTests, PauseAndUnpause) {
+TEST_F(CoreAdvancedTests, PauseAndUnpause)
+{
     Core core(parser);
-    
+
     // Pause the core
     EXPECT_NO_THROW(core.pause());
-    
+
     // Unpause
     EXPECT_NO_THROW(core.pause());
 }
 
-TEST_F(CoreAdvancedTests, NavigateFrames) {
+TEST_F(CoreAdvancedTests, NavigateFrames)
+{
     Core core(parser);
-    
+
     EXPECT_NO_THROW(core.goToFirstFrame());
     EXPECT_NO_THROW(core.goToLastFrame());
     EXPECT_NO_THROW(core.backward3frames());
     EXPECT_NO_THROW(core.forward3frames());
 }
 
-TEST_F(CoreAdvancedTests, GenerateVideoOutput) {
+TEST_F(CoreAdvancedTests, GenerateVideoOutput)
+{
     Core core(parser);
-    
+
     // Generate video to exercise generateVideo path
     EXPECT_NO_THROW(core.generateVideo());
 }

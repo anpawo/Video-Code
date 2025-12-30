@@ -1,16 +1,22 @@
 #include <gtest/gtest.h>
-#include "utils/Exception.hpp"
+
 #include <string>
 
-class ExceptionTests : public ::testing::Test {};
+#include "utils/Exception.hpp"
 
-TEST_F(ExceptionTests, ErrorConstructsWithMessage) {
+class ExceptionTests : public ::testing::Test
+{
+};
+
+TEST_F(ExceptionTests, ErrorConstructsWithMessage)
+{
     const std::string message = "Test error message";
     Error error(message);
     EXPECT_STREQ(error.what(), (std::string("Error: ") + message).c_str());
 }
 
-TEST_F(ExceptionTests, ErrorMessagePersists) {
+TEST_F(ExceptionTests, ErrorMessagePersists)
+{
     const std::string message = "Persistent error message";
     Error error(message);
 

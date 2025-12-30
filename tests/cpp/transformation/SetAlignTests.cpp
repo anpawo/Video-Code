@@ -1,12 +1,17 @@
 #include <gtest/gtest.h>
-#include "transformation/transformation.hpp"
-#include "input/shape/Rectangle.hpp"
-#include "input/Frame.hpp"
+
 #include <memory>
 
-class SetAlignTests : public ::testing::Test {
+#include "input/Frame.hpp"
+#include "input/shape/Rectangle.hpp"
+#include "transformation/transformation.hpp"
+
+class SetAlignTests : public ::testing::Test
+{
 protected:
-    void SetUp() override {
+
+    void SetUp() override
+    {
         json::object_t rectArgs = {
             {"width", 80},
             {"height", 80},
@@ -21,86 +26,92 @@ protected:
     std::shared_ptr<IInput> input;
 };
 
-TEST_F(SetAlignTests, SetAlignCenter) {
+TEST_F(SetAlignTests, SetAlignCenter)
+{
     json::object_t args = {
         {"x", "center"},
         {"y", "center"},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::setAlign(input, args));
-    
+
     auto& frame = input->generateNextFrame();
     EXPECT_FALSE(frame.mat.empty());
     EXPECT_FLOAT_EQ(frame.meta.align.x, -0.5f);
     EXPECT_FLOAT_EQ(frame.meta.align.y, -0.5f);
 }
 
-TEST_F(SetAlignTests, SetAlignLeft) {
+TEST_F(SetAlignTests, SetAlignLeft)
+{
     json::object_t args = {
         {"x", "left"},
         {"y", nullptr},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::setAlign(input, args));
-    
+
     auto& frame = input->generateNextFrame();
     EXPECT_FALSE(frame.mat.empty());
-    EXPECT_FLOAT_EQ(frame.meta.align.x, -1.0f);  // left is -1 in alignRatio
+    EXPECT_FLOAT_EQ(frame.meta.align.x, -1.0f); // left is -1 in alignRatio
 }
 
-TEST_F(SetAlignTests, SetAlignRight) {
+TEST_F(SetAlignTests, SetAlignRight)
+{
     json::object_t args = {
         {"x", "right"},
         {"y", nullptr},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::setAlign(input, args));
-    
+
     auto& frame = input->generateNextFrame();
     EXPECT_FALSE(frame.mat.empty());
-    EXPECT_FLOAT_EQ(frame.meta.align.x, 0.0f);  // right is 0 in alignRatio
+    EXPECT_FLOAT_EQ(frame.meta.align.x, 0.0f); // right is 0 in alignRatio
 }
 
-TEST_F(SetAlignTests, SetAlignTop) {
+TEST_F(SetAlignTests, SetAlignTop)
+{
     json::object_t args = {
         {"x", nullptr},
         {"y", "top"},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::setAlign(input, args));
-    
+
     auto& frame = input->generateNextFrame();
     EXPECT_FALSE(frame.mat.empty());
-    EXPECT_FLOAT_EQ(frame.meta.align.y, -1.0f);  // top is -1 in alignRatio
+    EXPECT_FLOAT_EQ(frame.meta.align.y, -1.0f); // top is -1 in alignRatio
 }
 
-TEST_F(SetAlignTests, SetAlignBottom) {
+TEST_F(SetAlignTests, SetAlignBottom)
+{
     json::object_t args = {
         {"x", nullptr},
         {"y", "bottom"},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::setAlign(input, args));
-    
+
     auto& frame = input->generateNextFrame();
     EXPECT_FALSE(frame.mat.empty());
-    EXPECT_FLOAT_EQ(frame.meta.align.y, 0.0f);  // bottom is 0 in alignRatio
+    EXPECT_FLOAT_EQ(frame.meta.align.y, 0.0f); // bottom is 0 in alignRatio
 }
 
-TEST_F(SetAlignTests, SetAlignBothNull) {
+TEST_F(SetAlignTests, SetAlignBothNull)
+{
     json::object_t args = {
         {"x", nullptr},
         {"y", nullptr},
         {"start", 0}
     };
-    
+
     EXPECT_NO_THROW(transformation::setAlign(input, args));
-    
+
     auto& frame = input->generateNextFrame();
     EXPECT_FALSE(frame.mat.empty());
 }

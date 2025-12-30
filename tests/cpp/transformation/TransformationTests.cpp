@@ -1,9 +1,11 @@
 #include <gtest/gtest.h>
+
 #include "transformation/transformation.hpp"
 
 using namespace transformation;
 
-TEST(TransformationMap, ContainsKnownTransformations) {
+TEST(TransformationMap, ContainsKnownTransformations)
+{
     // Ensure the transformation map contains the expected keys declared in the header
     EXPECT_NE(map.find("fade"), map.end());
     EXPECT_NE(map.find("grayscale"), map.end());

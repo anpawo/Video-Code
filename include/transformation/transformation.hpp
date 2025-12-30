@@ -15,7 +15,10 @@
 using json = nlohmann::json;
 
 #define transformation(t) void t(std::shared_ptr<IInput> &input, const json::object_t &args)
-#define bind(n) {#n, n}
+#define bind(n) \
+    {           \
+        #n, n   \
+    }
 
 namespace transformation
 {

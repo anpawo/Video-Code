@@ -1,11 +1,16 @@
 #include <gtest/gtest.h>
-#include "input/media/Video.hpp"
-#include "input/Frame.hpp"
+
 #include <opencv2/videoio.hpp>
 
-class VideoTests : public ::testing::Test {
+#include "input/Frame.hpp"
+#include "input/media/Video.hpp"
+
+class VideoTests : public ::testing::Test
+{
 protected:
-    void SetUp() override {
+
+    void SetUp() override
+    {
         // Resolve resource path relative to this test file so tests work from any CWD
         std::string base = __FILE__;
         auto pos = base.find("/tests/cpp/");
@@ -25,7 +30,8 @@ protected:
     json::object_t validArgs;
 };
 
-TEST_F(VideoTests, ConstructorBasicValidation) {
+TEST_F(VideoTests, ConstructorBasicValidation)
+{
     // Skip if OpenCV cannot open the video file (e.g. ffmpeg backend missing)
     std::string path = validArgs.at("filepath").get<std::string>();
     cv::VideoCapture cap(path);
@@ -39,24 +45,22 @@ TEST_F(VideoTests, ConstructorBasicValidation) {
     });
 }
 
-TEST_F(VideoTests, ConstructorErrorHandling) {
+TEST_F(VideoTests, ConstructorErrorHandling)
+{
     json::object_t args = validArgs;
-    
+
     // Test missing filepath
     args.erase("filepath");
-    EXPECT_THROW({
-        Video video(std::move(args));
-    }, std::exception);
-    
+    EXPECT_THROW({ Video video(std::move(args)); }, std::exception);
+
     // Test negative duration
     args = validArgs;
     args["duration"] = -1.0;
-    EXPECT_THROW({
-        Video video(std::move(args));
-    }, std::exception);
+    EXPECT_THROW({ Video video(std::move(args)); }, std::exception);
 }
 
-TEST_F(VideoTests, ArgsAccess) {
+TEST_F(VideoTests, ArgsAccess)
+{
     // Skip if OpenCV cannot open the video file (e.g. ffmpeg backend missing)
     std::string path = validArgs.at("filepath").get<std::string>();
     cv::VideoCapture cap(path);
