@@ -1,61 +1,129 @@
 # Adding a New Effect/Transformation
 
-This document explains how to add a new effect/transformation to the Video-Code project. Follow these steps to integrate a new effect into the system.
+This document explains how to add a new effect/transformation to the Video-Code project. Transformations modify inputs over time, creating effects like movement, color changes, scaling, and more.
 
-## Step 1: Define the Effect in Python
+## Table of Contents
 
-1. Create a new Python file for your effect in the appropriate directory under [videocode/transformation](../../videocode/transformation/NewEffect.py).
-2. Define a class for your effect that inherits from `Transformation`.
+1. [Overview](#overview)
+2. [Step 1: Define the Transformation in Python](#step-1-define-the-transformation-in-python)
+3. [Step 2: Register the Python Transformation](#step-2-register-the-python-transformation)
+4. [Step 3: Implement the Transformation in C++](#step-3-implement-the-transformation-in-c)
+5. [Step 4: Register the C++ Transformation](#step-4-register-the-c-transformation)
+6. [Step 5: Update Build Configuration](#step-5-update-build-configuration)
+7. [Step 6: Testing](#step-6-testing)
 
-Example:
+## Overview
+
+Transformations in Video-Code are effects that modify inputs over time. Follow these steps to add a new transformation.
+
+## Step 1: Define the Transformation in Python
+
+Create a new Python file in `videocode/transformation/your_category/`:
+
 ```python
+# videocode/transformation/your_category/YourEffect.py
+
 from videocode.transformation.Transformation import Transformation
+from videocode.Constant import ufloat
+from videocode.Checks import *
 
-class newEffect(Transformation):
-    def __init__(self, param1: int, param2: float) -> None:
-        self.param1 = param1
-        self.param2 = param2
+class yourEffect(Transformation):
+    """
+    Brief description of your transformation effect.
+    
+    Args:
+        intensity: Effect intensity (0.0 to 1.0)
+        param: Additional parameter
+    """
+    
+    Checks = {
+        "intensity": [isPositive, isFloat, isInRange(0, 1)],
+        "param": [isPositive, isInt],
+    }
+    
+    def __init__(self, intensity: ufloat = 1.0, param: int = 100) -> None:
+        super().__init__()
+        self.intensity = intensity
+        self.param = param
 ```
 
-3. Add the new effect to [_AllTransformation.py](../../videocode/transformation/_AllTransformation.py):
+## Step 2: Register the Python Transformation
+
+Add to `videocode/transformation/_AllTransformation.py`:
+
 ```python
-# ...existing code...
-from videocode.transformation.other.NewEffect import *
-# ...existing code...
+from videocode.transformation.your_category.YourEffect import *
 ```
 
-## Step 2: Implement the Effect in C++
+## Step 3: Implement the Transformation in C++
 
-1. Create a new C++ file for your effect in the appropriate directory under [src/transformation](../../src/transformation/other/newEffect.cpp).
-2. Implement the effect function.
+Create `src/transformation/your_category/yourEffect.cpp`:
 
-Example:
 ```cpp
-#include <memory>
-#include "input/IInput.hpp"
 #include "transformation/transformation.hpp"
+#include <opencv2/opencv.hpp>
 
-void transformation::newEffect(std::shared_ptr<IInput> input, Register &reg, const json::object_t &args)
+void transformation::yourEffect(std::shared_ptr<IInput> input, 
+                               Register &reg, 
+                               const json::object_t &args)
 {
-    int param1 = args.at("param1");
-    float param2 = args.at("param2");
-    // Implement the effect logic here
+    float intensity = args.at("intensity").get<float>();
+    int param = args.at("param").get<int>();
+    
+    cv::Mat frame = input->getFrame(reg.time);
+    
+    // Apply your effect to the frame
+    // ... transformation logic ...
+    
+    input->setFrame(frame);
 }
 ```
 
+## Step 4: Register the C++ Transformation
 
-3. Register the new effect in the transformation map [transformation.cpp](../../include/transformation/transformation.hpp)
+Add to `include/transformation/transformation.hpp`:
+
 ```cpp
-// ...existing code...
 namespace transformation
 {
-    // ...existing code...
-    transformation(newEffect);
-    // ...existing code...
-    static const std::map<std::string, std::function<void(std::shared_ptr<IInput>, Register &, const json::object_t &)>> map{
-        // ...existing code...
-        {"newEffect", newEffect},
-        // ...existing code...
+    void yourEffect(std::shared_ptr<IInput> input, Register &reg, const json::object_t &args);
+    
+    static const std::map<std::string, 
+        std::function<void(std::shared_ptr<IInput>, Register &, const json::object_t &)>> map{
+        // ... existing transformations ...
+        {"yourEffect", yourEffect},
     };
 }
 ```
+
+## Step 5: Update Build Configuration
+
+Add to `CMakeLists.txt`:
+
+```cmake
+set(TRANSFORMATION_SOURCES
+    # ... existing sources ...
+    src/transformation/your_category/yourEffect.cpp
+)
+```
+
+## Step 6: Testing
+
+Test your transformation:
+
+```python
+from videocode.VideoCode import *
+
+c = circle()
+c.apply(yourEffect(intensity=0.8, param=150))
+c.add()
+```
+
+Build and generate:
+
+```bash
+make cmake
+./video-code --file test.py --generate output.mp4
+```
+
+For more details, see the [Main Developer Documentation](dev.md).
