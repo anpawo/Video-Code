@@ -11,15 +11,13 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <iostream>
 #include <opencv2/core.hpp>
 #include <opencv2/core/mat.hpp>
 
+#include "effect/ITransform.hpp"
+#include "effect/ShaderFactory.hpp"
 #include "input/IInput.hpp"
 #include "input/Metadata.hpp"
-#include "transformation/EffectFactory.hpp"
-#include "transformation/ITransform.hpp"
-#include "utils/Vector.hpp"
 
 AInput::AInput(json::object_t&& args)
     : _baseArgs(std::move(args))
@@ -28,7 +26,7 @@ AInput::AInput(json::object_t&& args)
 
 void AInput::add(json& modification)
 {
-    std::string name = modification["transformation"];
+    std::string name = modification["name"];
     json::object_t args = modification["args"];
     size_t start = modification["args"]["start"];
     size_t duration = modification["args"]["duration"];
@@ -82,7 +80,7 @@ void AInput::add(json& modification)
             }
         }
 
-    } else if (type == "effect") {
+    } else if (type == "shader") {
         _effects.push_back(transformation.at(name)(args));
 
         size_t effectIndex = _effects.size() - 1;
@@ -100,6 +98,7 @@ void AInput::add(json& modification)
 Metadata AInput::getMetadata(int index)
 {
     Metadata meta{.args = _baseArgs};
+    meta.args["index"] = index;
 
     if (_transformations.empty()) {
         return meta;
@@ -153,9 +152,9 @@ void AInput::overlay(cv::Mat& bg, size_t index)
     if (index < _effectTimeline.size()) {
         const auto& vec = _effectTimeline[index];
         auto end = vec.end();
-        std::cout << vec << std::endl;
         for (auto it = vec.begin(); it != end; it++) {
-            _effects[*it]->render(imgMat, index);
+            const auto& e = _effects[*it];
+            e->render(imgMat, index - e->offset());
         }
     }
 

@@ -11,7 +11,8 @@ BINARY_NAME		=	video-code
 BUILD_DIR		=	build
 VCPKG_FLAGS = \
 	-DCMAKE_TOOLCHAIN_FILE=$$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
-	-DVCPKG_INSTALLED_DIR=$(PWD)/vcpkg_installed
+	-DVCPKG_INSTALLED_DIR=$(PWD)/vcpkg_installed \
+	-DWITH_FFMPEG=ON
 
 DEBUG_FLAG		=	-DDEBUG=ON
 

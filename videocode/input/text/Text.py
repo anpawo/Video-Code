@@ -1,33 +1,21 @@
 #!/usr/bin/env python3
 
 
-from typing import Optional
-
-
-from videocode.Constant import *
-from videocode.Decorators import inputCreation
-from videocode.input.Input import *
+from videocode.constants import *
+from videocode.utils.decorators import inputCreation
+from videocode.input.input import *
 
 
 class text(Input):
-
-    # @inputCreation
+    @inputCreation
     def __init__(
         self,
-        s: str,
-        fontSize: float = 1,
+        text: str,
+        fontSize: ufloat = 3,
         color: rgba = WHITE,
-        fontThickness: Optional[int] = None,
-        duration: sec = 1,
+        fontThickness: maybe[ufloat] = None,
     ):
-        Global.stack.append(
-            {
-                "action": "Create",
-                "type": "Text",
-                "text": s,
-                "fontSize": fontSize,
-                "color": color,
-                "fontThickness": fontThickness or fontSize * 2,
-                "duration": duration,
-            }
-        )
+        self.text = text
+        self.fontSize = fontSize
+        self.color = color
+        self.fontThickness = fontThickness or fontSize * 2

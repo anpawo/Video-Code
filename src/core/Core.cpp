@@ -19,6 +19,7 @@
 
 #include "input/IInput.hpp"
 #include "input/InputFactory.hpp"
+#include "input/media/Video.hpp"
 #include "utils/Debug.hpp"
 #include "utils/Exception.hpp"
 
@@ -63,7 +64,7 @@ void VC::Core::reloadSourceFile()
 std::string VC::Core::serializeScene()
 {
 
-    std::string command = "python3 -c \"import sys; sys.path.append('./videocode');from Serialize import serializeScene; print(serializeScene('video.py'))\"";
+    std::string command = "python3 -c \"import sys; sys.path.append('./videocode');from serialize import serializeScene; print(serializeScene('video.py'))\"";
 
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {
@@ -82,8 +83,20 @@ std::string VC::Core::serializeScene()
 void VC::Core::executeStack()
 {
     for (auto& s : _stack) {
+        if (_showstack) {
+            std::cout << s << std::endl;
+        }
+
         if (s["action"] == "Create") {
             _inputs.push_back(Factory::inputs.at(s["type"])(s["args"]));
+
+            if (s["type"] == "Video") {
+                auto* video = dynamic_cast<Video*>(_inputs.back().get());
+
+                if (video->_nbFrame > _nbFrame) {
+                    _nbFrame = video->_nbFrame;
+                }
+            }
         } else if (s["action"] == "Apply") {
             ssize_t index = s["input"];
 
@@ -97,17 +110,6 @@ void VC::Core::executeStack()
 
             _inputs[index]->add(s);
         }
-        // else if (s["action"] == "Wait") {
-        //     addNewFrames();
-
-        // for (size_t n = s["n"].get<size_t>() * _framerate; n; n--) {
-        //     if (_frames.empty()) {
-        //         _frames.push_back(_bgFrame.clone());
-        //     } else {
-        //         _frames.push_back(_frames.back().clone());
-        //     }
-        // }
-        // }
     }
 }
 
@@ -169,7 +171,7 @@ int VC::Core::generateVideo()
             "ffmpeg"
             " -y"                   // override existing file
             " -f rawvideo"          // rawvideo codec (the pipe receives pixels in stdin)
-            " -pixel_format rgba"   // the format of the pixel sent
+            " -pixel_format bgra"   // the format of the pixel sent
             " -video_size {}x{}"    // width and height
             " -framerate {}"        // input framerate
             " -an"                  // tells ffmpeg to expect no audio
@@ -194,25 +196,24 @@ int VC::Core::generateVideo()
         throw Error("Could not start the ffmpeg pipe.");
     }
 
-    // for (const auto& f : _frames) {
-    //     if (f.rows != _height && f.cols != _width) {
-    //         throw Error("Frame size mismatch. width: " + std::to_string(f.cols) + "!=" + std::to_string(_width) + ", height: " + std::to_string(f.rows) + "!=" + std::to_string(_height));
-    //     }
+    for (size_t i = 0; i < _nbFrame; i++) {
+        cv::Mat f = generateFrame(i);
 
-    // cv::Mat frame;
-    // cv::cvtColor(f, frame, cv::COLOR_BGRA2RGBA); ///< BGRA -> RGBA
+        if (f.rows != _height && f.cols != _width) {
+            throw Error("index: " + std::to_string(i) + ". Frame size mismatch. width: " + std::to_string(f.cols) + "!=" + std::to_string(_width) + ", height: " + std::to_string(f.rows) + "!=" + std::to_string(_height));
+        }
 
-    // if (!frame.isContinuous()) {
-    //     frame = frame.clone();
-    // }
+        if (!f.isContinuous()) {
+            f = f.clone();
+        }
 
-    // size_t bytes = frame.total() * frame.elemSize();
-    // size_t written = fwrite(frame.data, 1, bytes, ffmpegPipe);
+        size_t bytes = f.total() * f.elemSize();
+        size_t written = fwrite(f.data, 1, bytes, ffmpegPipe);
 
-    // if (written != bytes) {
-    //     throw Error("Wrote only " + std::to_string(written) + " out of " + std::to_string(bytes) + " bytes.");
-    // }
-    // }
+        if (written != bytes) {
+            throw Error("index: " + std::to_string(i) + ". Wrote only " + std::to_string(written) + " out of " + std::to_string(bytes) + " bytes.");
+        }
+    }
 
     pclose(ffmpegPipe);
     VC_LOG_DEBUG("video generated as: " + _outputFile)

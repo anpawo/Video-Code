@@ -13,26 +13,37 @@
 using json = nlohmann::json;
 
 template <typename T>
-struct _v2
+struct v2
 {
-    _v2(T x, T y)
+    v2(T x, T y)
         : x(x)
         , y(y)
+        , w(this->x)
+        , h(this->y)
     {
     }
 
     T x;
     T y;
+
+    T& w;
+    T& h;
 };
 
-using _v2i = _v2<int>;
-using _v2f = _v2<float>;
+using _v2i = v2<int>;
+using v2f = v2<float>;
+
+namespace config
+{
+    inline v2f screen{1920.0f, 1080.0f};
+    inline v2f screenOffset{screen.w / 2.0f, screen.h / 2.0f};
+};
 
 struct Metadata
 {
-    _v2f position{0.0, 0.0};
-    _v2f scale{1.0, 1.0};
-    _v2f align{0.5, 0.5}; // -1 to 1
+    v2f position{config::screenOffset.x, config::screenOffset.y};
+    v2f scale{1.0, 1.0};
+    v2f align{0.5, 0.5}; // 0 to 1
 
     float rotation{0.0};
 
@@ -42,10 +53,26 @@ struct Metadata
 
     friend std::ostream& operator<<(std::ostream& os, const Metadata& m)
     {
-        return os << "position: x " << m.position.x << ", y " << m.position.y
-                  << "\nscale: x " << m.scale.x << ", y " << m.scale.y
-                  << "\nalign: x " << m.align.x << ", y " << m.align.y
-                  << "\nrotation: " << m.rotation
-                  << "\nhidden: " << m.hidden << std::endl;
+        os << std::left;
+
+        os << std::setw(11) << "position:"
+           << std::setw(3) << m.position.x
+           << " x " << m.position.y << '\n';
+
+        os << std::setw(11) << "scale:"
+           << std::setw(3) << m.scale.x
+           << " x " << m.scale.y << '\n';
+
+        os << std::setw(11) << "align:"
+           << std::setw(3) << m.align.x
+           << " x " << m.align.y << '\n';
+
+        os << std::setw(11) << "rotation:"
+           << m.rotation << "°\n";
+
+        os << std::setw(11) << "hidden:"
+           << std::boolalpha << m.hidden;
+
+        return os;
     }
 };

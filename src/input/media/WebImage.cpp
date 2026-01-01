@@ -12,22 +12,10 @@
 
 #include <opencv2/core/mat.hpp>
 #include <opencv2/imgcodecs.hpp>
-#include <utility>
 #include <vector>
 
 #include "opencv2/imgproc.hpp"
 #include "utils/Exception.hpp"
-
-WebImage::WebImage(json::object_t&& args)
-    : AInput(
-          std::move(args),
-          {
-              "url",
-          }
-      )
-{
-    construct();
-}
 
 static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp)
 {
@@ -39,9 +27,10 @@ static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* use
     return total;
 }
 
-void WebImage::construct()
+WebImage::WebImage(json::object_t&& args)
+    : AInput(std::move(args))
 {
-    std::string url = _args.at("url");
+    std::string url = _baseArgs.at("url");
 
     CURL* curl = curl_easy_init();
     if (!curl) {
@@ -63,15 +52,18 @@ void WebImage::construct()
         throw std::runtime_error(std::string("Curl Error: ") + curl_easy_strerror(res));
     }
 
-    cv::Mat mat = cv::imdecode(data, cv::IMREAD_UNCHANGED);
+    _base = cv::imdecode(data, cv::IMREAD_UNCHANGED);
 
-    if (mat.empty()) {
+    if (_base.empty()) {
         throw Error("WebImage Error: Could not load: " + url);
     }
 
-    if (mat.channels() != 4) {
-        cv::cvtColor(mat, mat, cv::COLOR_BGR2BGRA);
+    if (_base.channels() != 4) {
+        cv::cvtColor(_base, _base, cv::COLOR_BGR2BGRA);
     }
+}
 
-    setBase(std::move(mat));
+cv::Mat WebImage::getBaseMatrix(const json::object_t& _)
+{
+    return _base;
 }

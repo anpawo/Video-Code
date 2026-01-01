@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
 
 
-from videocode.Decorators import inputCreation
-from videocode.input.shape._Shape import *
+from videocode.utils.decorators import inputCreation
+from videocode.constants import *
+from videocode.input.shape.shape import *
 
 
 class circle(Shape):
-    radius: int
-    thickness: int
-    color: rgba
-    filled: bool
-
     @inputCreation
     def __init__(
         self,
@@ -18,4 +14,8 @@ class circle(Shape):
         thickness: int = 5,
         color: rgba = RED,
         filled: bool = False,
-    ): ...
+    ):
+        self.radius = radius
+        self.thickness = thickness
+        self.color = color
+        self.filled = filled

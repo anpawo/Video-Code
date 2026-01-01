@@ -1,42 +1,24 @@
 #!/usr/bin/env python3
 
 
-from videocode.input.shape._Shape import *
-from videocode.Decorators import inputCreation
+from videocode.input.shape.shape import *
+from videocode.utils.decorators import inputCreation
 
 
 class rectangle(Shape):
-    width: uint
-    height: uint
-    thickness: uint
-    color: rgba
-    cornerRadius: uint
-    filled: bool
-
     @inputCreation
     def __init__(
         self,
-        width: uint = 400,
-        height: uint = 200,
-        thickness: uint = 5,
+        width: wufloat = 3,
+        height: wufloat = 2,
+        thickness: wufloat = 0.05,
         color: rgba = GREEN,
-        cornerRadius: uint = 0,  # 0 <= cornerRadius <= 90
+        cornerRadius: degree = 0,  # 0 <= cornerRadius <= 90
         filled: bool = False,
-    ): ...
-
-
-class square(Shape):
-    def __new__(
-        cls,
-        side: uint = 200,
-        thickness: uint = 5,
-        color: rgba = BLUE,
-        cornerRadius: uint = 0,  # 0 <= cornerRadius <= 90
-        filled: bool = False,
-    ) -> rectangle:
-        return rectangle(width=side, height=side, thickness=thickness, color=color, cornerRadius=cornerRadius, filled=filled)
-
-    def __init__(self): ...
-
-
-# set property side
+    ):
+        self.width = width
+        self.height = height
+        self.thickness = thickness
+        self.color = color
+        self.cornerRadius = cornerRadius
+        self.filled = filled

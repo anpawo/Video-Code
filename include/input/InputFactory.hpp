@@ -14,11 +14,12 @@
 
 #include "input/IInput.hpp"
 #include "input/media/Image.hpp"
-// #include "input/media/Video.hpp"
-// #include "input/media/WebImage.hpp"
+#include "input/media/Video.hpp"
+#include "input/media/WebImage.hpp"
 #include "input/shape/Circle.hpp"
+#include "input/shape/Line.hpp"
 #include "input/shape/Rectangle.hpp"
-// #include "input/text/Text.hpp"
+#include "input/text/Text.hpp"
 
 using json = nlohmann::json;
 
@@ -31,16 +32,15 @@ namespace Factory
     const std::map<std::string, std::function<std::unique_ptr<IInput>(json::object_t &&)>> inputs{
         ///< Media
         input(Image),
-        // input(Video),
-
-        ///< Web Media
-        // input(WebImage),
+        input(WebImage),
+        input(Video),
 
         ///< Text
-        // input(Text),
+        input(Text),
 
         ///< Shape
         input(Rectangle),
         input(Circle),
+        input(Line),
     };
 };

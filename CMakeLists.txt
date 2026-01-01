@@ -114,20 +114,19 @@ set(SOURCES
     src/input/AInput.cpp
     # Media
     src/input/media/Image.cpp
-    # src/input/media/Video.cpp
-    # src/input/media/WebImage.cpp
+    src/input/media/WebImage.cpp
+    src/input/media/Video.cpp
     # Text
-    # src/input/text/Text.cpp
+    src/input/text/Text.cpp
     # Shape
     src/input/shape/Circle.cpp
     src/input/shape/Rectangle.cpp
-    # src/input/shape/Line.cpp
+    src/input/shape/Line.cpp
 
     # --- Transformation ---
     # Color
-    src/transformation/Fade.cpp
-    src/transformation/Grayscale.cpp
-    # src/transformation/opacity.cpp
+    src/shader/Opacity.cpp
+    src/shader/Grayscale.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

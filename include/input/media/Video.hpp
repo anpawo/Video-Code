@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <opencv2/videoio.hpp>
+
 #include "input/AInput.hpp"
 
 class Video final : public AInput
@@ -16,11 +18,11 @@ public:
     Video(json::object_t&& args);
     ~Video() = default;
 
-    Frame& generateNextFrame() final;
+    cv::Mat getBaseMatrix(const json::object_t& args);
+
+    size_t _nbFrame{0};
 
 private:
 
-    std::vector<cv::Mat> _frames;
-
-    size_t _frameIndex{0};
+    cv::VideoCapture _video;
 };

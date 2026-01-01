@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 
-from videocode.input.Input import *
-from videocode.transformation.transformation.Position import position
+from videocode.input.input import *
+from videocode.effect.transformation.position import position
 
 
 class camera(Input):
@@ -23,13 +23,13 @@ class camera(Input):
     """
     The index of the `Camera` is always `-1`
     """
-    _inputIndex = -1
+    _index = -1
 
     def __new__(cls, *args, **kwargs) -> Self:
         if cls._instance is None:
             cls._instance = object.__new__(cls)
-            cls._instance.inputIndex = cls._inputIndex
-            cls._instance.meta = Metadata(x=0, y=0)
+            cls._instance.meta = Metadata(cls._instance.__dict__, interface=True)
+            cls._instance.meta.index = cls._index
         return cls._instance
 
     def __init__(self):

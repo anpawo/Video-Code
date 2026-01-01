@@ -9,7 +9,7 @@ This document explains how to add a new effect/transformation to the Video-Code 
 
 Example:
 ```python
-from videocode.transformation.Transformation import Transformation
+from videocode.transformation.shader import Transformation
 
 class newEffect(Transformation):
     def __init__(self, param1: int, param2: float) -> None:

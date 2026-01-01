@@ -4,20 +4,16 @@
 import json
 import sys
 
+
 sys.path.append(".")
 
-from VideoCode import *
+
+from globals import *
+from videocode import *
 
 
-def commentsToLabel(s: str) -> str:
-    if s == "":
-        return ""
-    if s[0:3] != "\n# ":
-        return s[0] + commentsToLabel(s[1:])
-    i = 3
-    while s[i] != "\n":
-        i += 1
-    return f'label("{s[3:i]}")' + commentsToLabel(s[i:])
+def makeSerializable(o):
+    return o.makeSerializable()
 
 
 def serializeScene(filepath: str) -> str:
@@ -39,7 +35,7 @@ def serializeScene(filepath: str) -> str:
     g = Global()
 
     # Serialize the instructions to JSON
-    return json.dumps(g.stack)
+    return json.dumps(g.stack, default=makeSerializable)
 
 
 if __name__ == "__main__":

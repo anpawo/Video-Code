@@ -12,10 +12,10 @@
 #include <opencv2/core/mat.hpp>
 #include <vector>
 
+#include "effect/IShader.hpp"
+#include "effect/ITransform.hpp"
 #include "input/IInput.hpp"
 #include "input/Metadata.hpp"
-#include "transformation/IEffect.hpp"
-#include "transformation/ITransform.hpp"
 
 using json = nlohmann::json;
 
@@ -46,7 +46,7 @@ protected:
     const json::object_t _baseArgs;
 
     ///< Effects (Affect the pixels of the Input)
-    std::vector<std::unique_ptr<IEffect>> _effects{};
+    std::vector<std::unique_ptr<IShader>> _effects{};
     std::vector<std::vector<size_t>> _effectTimeline{};
 
     ///< Transformations (Affect the Metadata of the Input)

@@ -56,7 +56,6 @@ void setParserArgument(argparse::ArgumentParser &p)
 
 int main(int argc, char *argv[])
 {
-
     // Hide OpenCV logs
     cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_SILENT);
 
