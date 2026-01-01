@@ -5,9 +5,16 @@
     <summary><code>Inputs</code></summary>
 <br>
 
-- `local image`
-- `local video`
-- `web image`
+- `image`
+- `video`
+- `webImage`
+
+<br>
+
+- `circle`
+- `rectangle`
+- `square`
+- `line`
 
 <br>
 
@@ -15,14 +22,7 @@
 
 <br>
 
-- `circle`
-- `rectangle`
-- `square`
-
-<br>
-
 - `group`
-- `incremental`
 
 </details>
 
@@ -32,23 +32,46 @@
     <summary><code>Transformations</code></summary>
 <br>
 
-- `grayscale`
-- `fadeIn / fadeOut`
 
+- `position`
+- `align`
+- `rotate`
+- `scale`
+- `args`
+- `hide`
+- `show`
+
+</details>
+
+<br>
+
+<details open>
+    <summary><code>Shaders</code></summary>
+<br>
+
+- `grayscale`
+- `opacity`
+
+</details>
+
+<br>
+
+<details open>
+    <summary><code>Effect Templates</code></summary>
 <br>
 
 - `moveTo`
-- `slideTo`
+- `moveBy`
 
 <br>
 
-- `scale`
-- `zoom`
+- `scaleTo`
+- `scaleBy`
 
 <br>
 
-- `setPosition`
-- `setArgument`
+- `fadeIn`
+- `fadeOut`
 
 </details>
 
@@ -78,13 +101,14 @@
 - `transformation`: move (02/03/25)
 - `feature`: setters (update in real time the proportions of a shape) (20/09/25)
 - `fix`: different framerate between the window and the generated video
-- `feature`: incrementals: groups that alterate the modifications you receive according to you're index
 - `feature`: image from url
-- `feature`: first template example (runeset)
-- `rework`: slideTo becomes moveTo and the old moveTo is removed
-- `feature`: can apply transformations to the whole scene
-- `rework`: scale removed and zoom renamed scale
-- `feature`: persistent transformations: you trigger once grayscale and it stays with the input forever
-- `feature`: you can remove an input from the screen
+- `rework`: moveTo
+- `rework`: scale
+- `feature`: persistent transformations
+- `input`: line (01/01/2026)
+- `transformation`: align, args, hide, position, rotate, scale, show => basic transformation (01/01/2026)
+- `template`: moveTo, moveBy, scaleTo, scaleBy, fadeIn, fadeOut => effect overtime that are smooth (01/01/2026)
+- `feature`: flush => prevents effects to be applied at the same time (01/01/2026)
+- `feature`: frames are not kept in memory anymore, they are generated on the fly. (01/01/2026)
 
 </details>

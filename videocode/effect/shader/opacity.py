@@ -13,6 +13,6 @@ class opacity(Shader):
 
     def __init__(
         self,
-        opacity: uint,
+        opacity: unumber,
     ):
         self.opacity = opacity
