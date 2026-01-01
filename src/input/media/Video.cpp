@@ -8,58 +8,61 @@
 #include "input/media/Video.hpp"
 
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/opencv.hpp>
 #include <utility>
 
 #include "input/AInput.hpp"
-#include "opencv2/core/mat.hpp"
-#include "opencv2/imgproc.hpp"
 #include "opencv2/videoio.hpp"
 #include "utils/Exception.hpp"
 
 Video::Video(json::object_t&& args)
     : AInput(std::move(args))
 {
-    std::string filepath = _args.at("filepath");
+    std::string filepath = _baseArgs.at("filepath");
 
-    cv::VideoCapture video(filepath, cv::CAP_FFMPEG);
+    _video.open(filepath);
 
-    if (!video.isOpened()) {
+    if (!_video.isOpened()) {
         throw Error("Could not load Video: " + filepath);
     }
 
-    while (true) {
-        cv::Mat currentFrame;
+    _nbFrame = static_cast<size_t>(_video.get(cv::CAP_PROP_FRAME_COUNT));
 
-        video >> currentFrame;
-
-        if (currentFrame.empty()) {
-            break;
-        }
-
-        if (currentFrame.channels() != 4) {
-            cv::cvtColor(currentFrame, currentFrame, cv::COLOR_BGR2BGRA);
-        }
-
-        _frames.push_back(std::move(currentFrame));
+    if (_nbFrame == 0) {
+        throw Error("Video has no frames: " + filepath);
     }
-
-    setBase(_frames[0].clone());
 }
 
-Frame& Video::generateNextFrame()
+cv::Mat Video::getBaseMatrix(const json::object_t& args)
 {
-    bool videoEnded = false;
+    size_t index = args.at("index");
 
-    if (_frameIndex < _frames.size()) {
-        _base = std::move(_frames[_frameIndex]);
-        _frameIndex += 1;
-    } else {
-        videoEnded = true;
+    if (index >= _nbFrame) {
+        index = _nbFrame - 1;
     }
 
-    AInput::generateNextFrame();
+    cv::Mat frame;
 
-    _frameHasChanged |= !videoEnded;
+    while (true) {
+        _video.set(cv::CAP_PROP_POS_FRAMES, static_cast<double>(index));
+        _video.read(frame);
 
-    return getCurrentFrame();
+        if (frame.empty()) {
+            if (index == _nbFrame - 1) {
+                _nbFrame--;
+                if (_nbFrame == 0) {
+                    throw Error("Video has no frames: " + _baseArgs.at("filepath").get<std::string>());
+                }
+            }
+            index--;
+        } else {
+            break;
+        }
+    }
+
+    if (frame.channels() != 4) {
+        cv::cvtColor(frame, frame, cv::COLOR_BGR2BGRA);
+    }
+
+    return frame;
 }

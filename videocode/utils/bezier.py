@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
 
 
-from videocode.Constant import number
+from typing import TYPE_CHECKING, Callable
+from videocode.constants import FRAMERATE, number
+from videocode.ty import sec
+
+
+if TYPE_CHECKING:
+    from videocode.input.input import Input
 
 
 class cubicBezier:
@@ -44,3 +50,22 @@ class cubicBezier:
 
     def __call__(self, x: float) -> float:
         return self.getValueAtX(x)
+
+
+class Easing:
+    Linear = cubicBezier(0.0, 0.0, 1.0, 1.0)
+    In = cubicBezier(0.42, 0.0, 1.0, 1.0)
+    Out = cubicBezier(0.0, 0.0, 0.58, 1.0)
+    InOut = cubicBezier(0.42, 0.0, 0.58, 1.0)
+
+
+type easing = cubicBezier
+
+
+def animate(start: sec, duration: sec, easing: easing, apply: Callable[[number, int], None]):
+    n = int((duration - start) * FRAMERATE)
+
+    for i in range(n):
+        t = i / (n - 1)
+        m = easing(t)
+        apply(m, i)

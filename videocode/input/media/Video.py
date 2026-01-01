@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 
 
-from videocode.input.Input import *
+from videocode.utils.decorators import inputCreation
+from videocode.input.input import *
 
 
 class video(Input):
-    def __init__(self, filepath: str) -> None:
-        Global.stack.append(
-            {
-                "action": "Create",
-                "type": "Video",
-                "filepath": filepath,
-            }
-        )
+    @inputCreation
+    def __init__(
+        self,
+        filepath: str,
+    ) -> None:
+        self.filepath = filepath

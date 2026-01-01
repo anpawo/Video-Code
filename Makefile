@@ -9,7 +9,11 @@
 
 BINARY_NAME		=	video-code
 BUILD_DIR		=	build
-VCPKG			=	-DCMAKE_TOOLCHAIN_FILE=$$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake
+VCPKG_FLAGS = \
+	-DCMAKE_TOOLCHAIN_FILE=$$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+	-DVCPKG_INSTALLED_DIR=$(PWD)/vcpkg_installed \
+	-DWITH_FFMPEG=ON
+
 DEBUG_FLAG		=	-DDEBUG=ON
 
 # >>> Rules <<<
@@ -20,15 +24,15 @@ all: cmake
 
 .PHONY: cmake
 cmake:
-	cmake -B $(BUILD_DIR) $(VCPKG)
+	cmake -B $(BUILD_DIR) $(VCPKG_FLAGS) > /dev/null
 	$(MAKE) -C $(BUILD_DIR)
-	cp $(BUILD_DIR)/$(BINARY_NAME) .
-	ln -sf $(BUILD_DIR)/compile_commands.json .
+	@ cp -f $(BUILD_DIR)/$(BINARY_NAME) .
+	@ cp -f $(BUILD_DIR)/compile_commands.json .
 
 
 .PHONY: debug
 debug:
-	cmake -B $(BUILD_DIR) $(DEBUG_FLAG) $(VCPKG)
+	cmake -B $(BUILD_DIR) $(DEBUG_FLAG) $(VCPKG_FLAGS) > /dev/null
 	$(MAKE) -C $(BUILD_DIR)
 	cp $(BUILD_DIR)/$(BINARY_NAME) .
 

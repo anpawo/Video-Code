@@ -10,25 +10,13 @@
 #include <cstddef>
 #include <vector>
 
-#include "input/Frame.hpp"
 #include "opencv2/core/matx.hpp"
 #include "opencv2/core/types.hpp"
 #include "opencv2/imgproc.hpp"
 
 Rectangle::Rectangle(json::object_t &&args)
-    : AInput(
-          std::move(args),
-          {
-              "width",
-              "height",
-              "thickness",
-              "color",
-              "cornerRadius",
-              "filled",
-          }
-      )
+    : AInput(std::move(args))
 {
-    construct();
 }
 
 static void line(cv::Mat &bg, const size_t x, const size_t y, const size_t w, const size_t h, const cv::Vec4b &color)
@@ -40,14 +28,14 @@ static void line(cv::Mat &bg, const size_t x, const size_t y, const size_t w, co
     }
 }
 
-void Rectangle::construct()
+cv::Mat Rectangle::getBaseMatrix(const json::object_t &args)
 {
-    size_t w = _args.at("width");
-    size_t h = _args.at("height");
-    size_t t = _args.at("thickness");
-    const std::vector<int> &color = _args.at("color");
-    size_t r = _args.at("cornerRadius");
-    bool filled = _args.at("filled");
+    size_t w = args.at("width");
+    size_t h = args.at("height");
+    size_t t = args.at("thickness");
+    const std::vector<int> &color = args.at("color");
+    size_t r = args.at("cornerRadius");
+    bool filled = args.at("filled");
     const cv::Vec4b bgra = cv::Scalar(color[2], color[1], color[0], color[3]);
     cv::LineTypes lineType = cv::LINE_AA;
 
@@ -86,5 +74,5 @@ void Rectangle::construct()
         }
     }
 
-    setBase(std::move(mat));
+    return mat;
 }

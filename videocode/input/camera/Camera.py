@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 
-from videocode.input.Input import *
-from videocode.transformation.setter.SetPosition import setPosition
+from videocode.input.input import *
+from videocode.effect.transformation.position import position
 
 
 class camera(Input):
@@ -28,8 +28,8 @@ class camera(Input):
     def __new__(cls, *args, **kwargs) -> Self:
         if cls._instance is None:
             cls._instance = object.__new__(cls)
-            cls._instance.index = cls._index
-            cls._instance.meta = Metadata(x=0, y=0)
+            cls._instance.meta = Metadata(cls._instance.__dict__, interface=True)
+            cls._instance.meta.index = cls._index
         return cls._instance
 
     def __init__(self):

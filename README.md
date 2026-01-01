@@ -16,28 +16,16 @@ Below is an example of the last feature added (code) and the result (video).
 #!/usr/bin/env python3
 
 
-from videocode.VideoCode import *
-from videocode.template.chess.chessboard import *
+# from videocode.template.input.numberLine import numberLine
+from videocode.videocode import *
 
-# TODO: chess template
-# chess = ChessBoard()
+# TODO: grid test
+# g = numberLine()
 
-# TODO: Camera Transformation
-g = (
-    group(
-        c := circle(),
-        square(),
-    )
-    .setPosition(0, SH * 0.5)
-    .add()
-)
-
-cam = camera().setPosition(0, 0).moveTo(-0.5 * SW, duration=1).apply(scale(2)).add()
-
-wait()
-
-c.color = GREEN
-c.add()  # Needs a fix
+# TODO: animate test
+s = square().position(x=-2).scale(0).scaleTo(1).fadeIn().flush()
+s.moveBy(x=2).flush()
+s.fadeOut().scaleTo(2)
 ```
 
 <img src="docs/readme/example.gif" style="width: 50%;">
@@ -62,9 +50,16 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
     <summary><code>Inputs</code></summary>
 <br>
 
-- `local image`
-- `local video`
-- `web image`
+- `image`
+- `video`
+- `webImage`
+
+<br>
+
+- `circle`
+- `rectangle`
+- `square`
+- `line`
 
 <br>
 
@@ -72,14 +67,7 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 
 <br>
 
-- `circle`
-- `rectangle`
-- `square`
-
-<br>
-
 - `group`
-- `incremental`
 
 </details>
 
@@ -89,24 +77,46 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
     <summary><code>Transformations</code></summary>
 <br>
 
-- `grayscale`
-- `blur`
-- `fadeIn / fadeOut`
+- `position`
+- `align`
+- `rotate`
+- `scale`
+- `args`
+- `hide`
+- `show`
 
+</details>
+
+<br>
+
+<details open>
+    <summary><code>Shaders</code></summary>
+<br>
+
+- `grayscale`
+- `opacity`
+- `blur`
+
+</details>
+
+<br>
+
+<details open>
+    <summary><code>Effect Templates</code></summary>
 <br>
 
 - `moveTo`
-- `slideTo`
+- `moveBy`
 
 <br>
 
-- `scale`
-- `zoom`
+- `scaleTo`
+- `scaleBy`
 
 <br>
 
-- `setPosition`
-- `setArgument`
+- `fadeIn`
+- `fadeOut`
 
 </details>
 
@@ -136,13 +146,15 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 - `transformation`: move (02/03/25)
 - `feature`: setters (update in real time the proportions of a shape) (20/09/25)
 - `fix`: different framerate between the window and the generated video
-- `feature`: incrementals: groups that alterate the modifications you receive according to you're index
 - `feature`: image from url
-- `feature`: first template example (runeset)
-- `rework`: slideTo becomes moveTo and the old moveTo is removed
-- `feature`: can apply transformations to the whole scene
-- `rework`: scale removed and zoom renamed scale
-- `feature`: persistent transformations: you trigger once grayscale and it stays with the input forever
+- `rework`: moveTo
+- `rework`: scale
+- `feature`: persistent transformations
+- `input`: line (01/01/2026)
+- `transformation`: align, args, hide, position, rotate, scale, show => basic transformation (01/01/2026)
+- `template`: moveTo, moveBy, scaleTo, scaleBy, fadeIn, fadeOut => effect overtime that are smooth (01/01/2026)
+- `feature`: flush => prevents effects to be applied at the same time (01/01/2026)
+- `feature`: frames are not kept in memory anymore, they are generated on the fly. (01/01/2026)
 
 </details>
 

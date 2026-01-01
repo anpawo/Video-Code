@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 
 
-from videocode.Decorators import inputCreation
-from videocode.input.Input import *
+from videocode.utils.decorators import inputCreation
+from videocode.input.input import *
 
 
 class webImage(Input):
-    url: str
-
     @inputCreation
     def __init__(
         self,
-        url: str,
-    ): ...
+        url: url,
+    ):
+        self.url = url

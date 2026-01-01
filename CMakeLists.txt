@@ -81,7 +81,7 @@ endif()
 find_package(OpenCV CONFIG REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
-find_package(cpr CONFIG REQUIRED)
+find_package(CURL REQUIRED)
 
 if(NOT CI_BUILD)
     find_package(nlohmann_json CONFIG REQUIRED)
@@ -114,29 +114,20 @@ set(SOURCES
     src/input/AInput.cpp
     # Media
     src/input/media/Image.cpp
-    src/input/media/Video.cpp
     src/input/media/WebImage.cpp
+    src/input/media/Video.cpp
     # Text
     src/input/text/Text.cpp
     # Shape
     src/input/shape/Circle.cpp
     src/input/shape/Rectangle.cpp
-    # Camera
-    src/input/camera/Camera.cpp
+    src/input/shape/Line.cpp
 
     # --- Transformation ---
-    # Setter
-    src/transformation/setter/setPosition.cpp
-    src/transformation/setter/setAlign.cpp
-    src/transformation/setter/setArgument.cpp
-    # src/transformation/setter/setOpacity.cpp
     # Color
-    src/transformation/color/fade.cpp
-    src/transformation/color/grayscale.cpp
-    src/transformation/color/blur.cpp
-    # Other
-    src/transformation/size/scale.cpp
-
+    src/shader/Grayscale.cpp
+    src/shader/Opacity.cpp
+    src/shader/Blur.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -158,5 +149,5 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Core
     Qt6::Gui
     # Python3::Python
-    cpr::cpr
+    CURL::libcurl
 )

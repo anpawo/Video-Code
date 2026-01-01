@@ -4,17 +4,17 @@
 # VideoCode
 #
 
-# Inputs
-from videocode.input._AllInput import *
-
-# Transformations
-from videocode.transformation._AllTransformation import *
-
-# Global
-from videocode.Global import *
+# Types
+from videocode.ty import *
 
 # Constant
-from videocode.Constant import *
+from videocode.constants import *
 
-# Utils
-from videocode.utils.easings import *
+# Global
+from videocode.globals import *
+
+# Inputs
+from videocode.input._inputs import *
+
+# Transformations
+from videocode.effect._effects import *

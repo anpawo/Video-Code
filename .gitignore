@@ -36,6 +36,9 @@ include/argparse/
 # executables
 video-code
 
+# mac
+.DS_Store
+
 # misc
 wherewasi
 todo

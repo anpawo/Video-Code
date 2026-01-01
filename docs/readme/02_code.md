@@ -3,26 +3,14 @@
 #!/usr/bin/env python3
 
 
-from videocode.VideoCode import *
-from videocode.template.chess.chessboard import *
+# from videocode.template.input.numberLine import numberLine
+from videocode.videocode import *
 
-# TODO: chess template
-# chess = ChessBoard()
+# TODO: grid test
+# g = numberLine()
 
-# TODO: Camera Transformation
-g = (
-    group(
-        c := circle(),
-        square(),
-    )
-    .setPosition(0, SH * 0.5)
-    .add()
-)
-
-cam = camera().setPosition(0, 0).moveTo(-0.5 * SW, duration=1).apply(scale(2)).add()
-
-wait()
-
-c.color = GREEN
-c.add()  # Needs a fix
+# TODO: animate test
+s = square().position(x=-2).scale(0).scaleTo(1).fadeIn().flush()
+s.moveBy(x=2).flush()
+s.fadeOut().scaleTo(2)
 ```

@@ -32,7 +32,18 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
 
     ///< Window settings
     setStyleSheet("background-color: black;");
-    setWindowTitle(("Video-Code  |  " + parser.get("--file")).c_str());
+
+    ///< Window name centered
+    std::string l = "video-code";
+    std::string sep = "  |  ";
+    std::string r = parser.get("--file");
+    if (l.size() < r.size()) {
+        l = std::string(r.size() - l.size(), ' ') + l;
+    } else if (l.size() > r.size()) {
+        r = r + std::string(l.size() - r.size(), ' ');
+    }
+    setWindowTitle((l + sep + r).c_str());
+
     move(_width / 2, 0);
     resize(_width / 2, _height / 2);
     show();
@@ -57,6 +68,7 @@ void VC::Window::keyPressEvent(QKeyEvent* event)
     } else {
         QMainWindow::keyPressEvent(event);
     }
+    _core.updateFrame(*_imageLabel);
 }
 
 void VC::Window::mainRoutine()

@@ -13,8 +13,8 @@ class Text final : public AInput
 {
 public:
 
-    Text(json::object_t &&args);
+    Text(json::object_t&& args);
     ~Text() = default;
 
-    void construct() final;
+    cv::Mat getBaseMatrix(const json::object_t& args);
 };
