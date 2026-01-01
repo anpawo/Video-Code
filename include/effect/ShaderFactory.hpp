@@ -21,7 +21,8 @@ using json = nlohmann::json;
 
 #define SHADERS(X) \
     X(Grayscale)   \
-    X(Opacity)
+    X(Opacity)     \
+    X(Blur)
 
 // -------------------------------------------------------------------------
 // Function declaration

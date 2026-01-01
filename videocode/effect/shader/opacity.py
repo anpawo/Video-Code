@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 
-from videocode.effect.effect import *
+from videocode.effect.effect import SingleFrameShader
 from videocode.ty import *
 
 
-class opacity(Shader):
+class opacity(SingleFrameShader):
     """
-    `Fade` affects the opacity of an element.
+    Change the `Opacity` of an `Input`.
     """
-
-    duration = SINGLE_FRAME
 
     def __init__(
         self,

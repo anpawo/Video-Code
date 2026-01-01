@@ -77,7 +77,6 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
     <summary><code>Transformations</code></summary>
 <br>
 
-
 - `position`
 - `align`
 - `rotate`
@@ -96,6 +95,7 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 
 - `grayscale`
 - `opacity`
+- `blur`
 
 </details>
 

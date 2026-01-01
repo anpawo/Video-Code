@@ -45,6 +45,10 @@ class Shader(Effect):
     _type = "shader"
 
 
+class SingleFrameShader(Shader):
+    duration = SINGLE_FRAME
+
+
 class Transformation(Effect):
     """
     A `Transformation` modifies the metadata of an image, anything not related to pixel, e.g. position.

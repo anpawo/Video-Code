@@ -6,10 +6,9 @@ from videocode.input.input import *
 
 
 class webImage(Input):
-    url: str
-
     @inputCreation
     def __init__(
         self,
-        url: str,
-    ): ...
+        url: url,
+    ):
+        self.url = url

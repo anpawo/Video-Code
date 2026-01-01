@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-from videocode.effect.effect import Shader
+from videocode.effect.effect import SingleFrameShader
 
 
-class grayscale(Shader):
+class grayscale(SingleFrameShader):
     """
-    `Grayscale` `Transformation`.
+    `Grayscale` an `Input`.
     """
 
     def __init__(self) -> None: ...

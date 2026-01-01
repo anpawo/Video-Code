@@ -6,10 +6,10 @@ from videocode.input.input import *
 
 
 class image(Input):
-    filepath: str
 
     @inputCreation
     def __init__(
         self,
         filepath: str,
-    ) -> None: ...
+    ) -> None:
+        self.filepath = filepath

@@ -125,8 +125,9 @@ set(SOURCES
 
     # --- Transformation ---
     # Color
-    src/shader/Opacity.cpp
     src/shader/Grayscale.cpp
+    src/shader/Opacity.cpp
+    src/shader/Blur.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

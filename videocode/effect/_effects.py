@@ -10,6 +10,7 @@ from videocode.effect.effect import *
 # Shaders
 from videocode.effect.shader.grayscale import *
 from videocode.effect.shader.opacity import *
+from videocode.effect.shader.blur import *
 
 # Transformations
 from videocode.effect.transformation.align import *
