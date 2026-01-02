@@ -34,11 +34,13 @@ class Metadata:
         self.args: dict = d
 
         # --- Offset ---
-        self.lastAffectedFrame: int = 0
+        self.lastAffectedFrame: int = Global.waitOffset
         """
         Last frame affected by a `Transformation` from the last applied `Transformation`
+
+        Starts at waitOffset because any waits should consume all previous effects.
         """
-        self.transformationOffset: int = 0
+        self.transformationOffset: int = self.lastAffectedFrame
         """
         Increased by `lastAffectedFrame` when flushed.
         """
@@ -61,6 +63,9 @@ class Global:
     # Index of the next `Input`
     inputCounter: int = 0
 
+    # Last ever affected frame
+    lastEverAffectedFrame: int = 0
+
     # Wait creates an offset affecting the start of any transformation
     waitOffset: int = 0
 
@@ -78,4 +83,15 @@ class Global:
 
 # Kind of act like a waitFor(Input)
 def wait(n: sec = 0) -> None:
-    Global.waitOffset += int(n * FRAMERATE)
+    n = int(n * FRAMERATE)
+
+    # Python
+    Global.waitOffset = Global.lastEverAffectedFrame + n
+
+    # Cpp
+    Global.stack.append(
+        {
+            "action": "Wait",
+            "n": n,
+        },
+    )

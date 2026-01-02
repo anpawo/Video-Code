@@ -27,26 +27,26 @@ using json = nlohmann::json;
 // -------------------------------------------------------------------------
 // Function declaration
 // -------------------------------------------------------------------------
-#define DECLARE_SHADERS(name)                             \
-    class name final : public IShader                     \
-    {                                                     \
-    public:                                               \
-                                                          \
-        name(const json::object_t& args)                  \
-            : start(args.at("start").get<size_t>())       \
-            , duration(args.at("duration").get<size_t>()) \
-            , args(args) {};                              \
-                                                          \
-        void render(cv::Mat&, size_t) const;              \
-                                                          \
-        size_t offset() const { return start; }           \
-                                                          \
-    private:                                              \
-                                                          \
-        const size_t start;                               \
-        const size_t duration;                            \
-                                                          \
-        const json::object_t args;                        \
+#define DECLARE_SHADERS(name)                              \
+    class name final : public IShader                      \
+    {                                                      \
+    public:                                                \
+                                                           \
+        name(const json::object_t& args)                   \
+            : _start(args.at("start").get<size_t>())       \
+            , _duration(args.at("duration").get<size_t>()) \
+            , _args(args) {};                              \
+                                                           \
+        void render(cv::Mat&, size_t) const;               \
+                                                           \
+        size_t start() const { return _start; }            \
+                                                           \
+    private:                                               \
+                                                           \
+        const size_t _start;                               \
+        const size_t _duration;                            \
+                                                           \
+        const json::object_t _args;                        \
     };
 
 SHADERS(DECLARE_SHADERS)

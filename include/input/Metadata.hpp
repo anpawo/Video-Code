@@ -28,6 +28,13 @@ struct v2
 
     T& w;
     T& h;
+
+    friend std::ostream& operator<<(std::ostream& os, const v2& v)
+    {
+        os << "x:" << v.x << ", y:" << v.y;
+
+        return os;
+    }
 };
 
 using _v2i = v2<int>;

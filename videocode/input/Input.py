@@ -54,7 +54,7 @@ class Input(ABC):
 
     def flush(self) -> Self:
         """
-        Advance the transformation index offset to the latest.
+        Advance the transformation index offset to the latest frame ever modified.
         """
         self.meta.transformationOffset = self.meta.lastAffectedFrame
         return self
@@ -65,16 +65,29 @@ class Input(ABC):
 
         The `duration` is in `seconds`, so it will affect `duration * framerate` frames of the video.
         """
+
+        # If a `wait()` happens, any input should be flushed before applying any new effect.
+        if Global.waitOffset >= self.meta.transformationOffset:
+            self.meta.lastAffectedFrame = Global.waitOffset
+            self.flush()
+
         for e in es:
-            __start: int = int(getValueByPriority(e, start, "start") * FRAMERATE) + self.meta.transformationOffset + Global.waitOffset
+            __start: int = int(getValueByPriority(e, start, "start") * FRAMERATE) + self.meta.transformationOffset
             __duration: int = int(getValueByPriority(e, duration, "duration") * FRAMERATE)
 
-            # Without any check it flushs the last added tsf, not the furthest in the timeline
-            self.meta.lastAffectedFrame = __start + __duration
+            # Update lastEverAffectedFrame
+            if Global.lastEverAffectedFrame < __start + __duration:
+                Global.lastEverAffectedFrame = __start + __duration
 
+            # Update our lastAffectedFrame
+            if __start + __duration > self.meta.lastAffectedFrame:
+                self.meta.lastAffectedFrame = __start + __duration
+
+            # Transformations affect the Input's Metadata
             if isinstance(e, Transformation):
                 e.modificator(self)
 
+            # Add step to the stack
             Global.stack.append(
                 {
                     "action": "Apply",

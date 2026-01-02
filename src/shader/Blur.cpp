@@ -12,7 +12,7 @@
 
 void Blur::render(cv::Mat& mat, size_t) const
 {
-    size_t strength = args.at("strength");
+    size_t strength = _args.at("strength");
 
     if (strength < 1) {
         strength = 1;

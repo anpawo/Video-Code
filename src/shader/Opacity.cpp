@@ -11,7 +11,7 @@
 
 void Opacity::render(cv::Mat& mat, size_t) const
 {
-    size_t opacity = args.at("opacity");
+    size_t opacity = _args.at("opacity");
 
     mat.forEach<cv::Vec4b>([opacity](cv::Vec4b& p, const int*) {
         if (p[3] != 0) {

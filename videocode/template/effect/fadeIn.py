@@ -18,6 +18,6 @@ def fadeIn(input: Input, *, easing: easing = Easing.Linear, start: sec = 0, dura
 
     def apply(m: number, i: int):
         o = src + (dst - src) * m
-        input.apply(opacity(opacity=o), start=i * SINGLE_FRAME)
+        input.apply(opacity(opacity=o), start=i * SINGLE_FRAME, duration=SINGLE_FRAME)
 
     animate(start, duration, easing, apply)
