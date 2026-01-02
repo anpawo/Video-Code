@@ -16,6 +16,7 @@
 #include <argparse/argparse.hpp>
 #include <opencv2/opencv.hpp>
 
+#include "TimelineWidget.hpp"
 #include "core/Core.hpp"
 
 namespace VC
@@ -49,11 +50,15 @@ namespace VC
 
         ///< Timer handling the Routine
         QTimer* _timer;
+
         ///< Image Label
         QLabel* _imageLabel;
         ///< Image Layout
         QVBoxLayout* _imageLayout;
         ///< Widget containing the layout
         QWidget* _centralWidget;
+
+        ///< Timeline Widget
+        TimelineWidget* _timeline;
     };
 };

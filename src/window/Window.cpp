@@ -30,6 +30,10 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     _centralWidget->setLayout(_imageLayout);
     setCentralWidget(_centralWidget);
 
+    ///< Timeline
+    _timeline = new TimelineWidget(_centralWidget, _core._index, _core._nbFrame);
+    _imageLayout->addWidget(_timeline);
+
     ///< Window settings
     setStyleSheet("background-color: black;");
 
@@ -74,4 +78,5 @@ void VC::Window::keyPressEvent(QKeyEvent* event)
 void VC::Window::mainRoutine()
 {
     _core.updateFrame(*_imageLabel);
+    _timeline->update();
 }

@@ -42,6 +42,12 @@ namespace VC
         void forward1frame();
         void backward1frame();
 
+        // ---
+
+        ///< Index of the frame currently being displayed
+        size_t _index{0};
+        size_t _nbFrame{0}; // Starting at 1 forces the first frame to be generated even without any transformations.
+
     private:
 
         ///< Window size
@@ -61,10 +67,6 @@ namespace VC
 
         ///< Background frame, black with alpha 0
         const cv::Mat _bgFrame;
-
-        ///< Index of the frame currently being displayed
-        size_t _index{0};
-        size_t _nbFrame{0}; // Starting at 1 forces the first frame to be generated even without any transformations.
 
         ///< The video editor is paused
         bool _paused{false};
