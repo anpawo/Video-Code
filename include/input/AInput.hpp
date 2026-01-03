@@ -12,9 +12,9 @@
 #include <opencv2/core/mat.hpp>
 #include <vector>
 
-#include "effect/IShader.hpp"
 #include "input/IInput.hpp"
 #include "input/Metadata.hpp"
+#include "shader/IFragmentShader.hpp"
 
 using json = nlohmann::json;
 
@@ -46,7 +46,7 @@ protected:
 
     ///< Effects (Affect the pixels of the Input) | Effects are duplicated over duration
     ///< That't why we have 2 vectors.
-    std::vector<std::unique_ptr<IShader>> _effects{};
+    std::vector<std::unique_ptr<IFragmentShader>> _effects{};
     std::vector<std::vector<size_t>> _effectTimeline{};
 
     ///< Transformations (Affect the Metadata of the Input)

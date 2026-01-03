@@ -59,6 +59,6 @@ namespace VC
         QWidget* _centralWidget;
 
         ///< Timeline Widget
-        TimelineWidget* _timeline;
+        TimelineWidget* _timeline{nullptr};
     };
 };

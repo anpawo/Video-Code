@@ -124,8 +124,7 @@ set(SOURCES
     src/input/shape/Rectangle.cpp
     src/input/shape/Line.cpp
 
-    # --- Transformation ---
-    # Color
+    # --- Fragment Shader ---
     src/shader/Grayscale.cpp
     src/shader/Opacity.cpp
     src/shader/Blur.cpp

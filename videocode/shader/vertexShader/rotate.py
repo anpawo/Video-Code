@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-from videocode.effect.effect import *
 from videocode.constants import number
+from videocode.shader.ishader import *
 
 
-class rotate(Transformation):
+class rotate(VertexShader):
     """
     `Rotate` by degree.
 

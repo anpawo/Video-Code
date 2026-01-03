@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING
 from videocode.constants import *
-from videocode.effect.transformation.position import position
+from videocode.shader.vertexShader.position import position
 from videocode.utils.bezier import cubicBezier, Easing, easing, animate
 
 

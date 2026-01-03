@@ -11,7 +11,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
-#include "effect/IShader.hpp"
+#include "shader/IFragmentShader.hpp"
 
 using json = nlohmann::json;
 
@@ -28,7 +28,7 @@ using json = nlohmann::json;
 // Function declaration
 // -------------------------------------------------------------------------
 #define DECLARE_SHADERS(name)                              \
-    class name final : public IShader                      \
+    class name final : public IFragmentShader              \
     {                                                      \
     public:                                                \
                                                            \
@@ -56,8 +56,8 @@ SHADERS(DECLARE_SHADERS)
 // -------------------------------------------------------------------------
 
 #define BIND_SHADERS(name) \
-    {#name, [](const json::object_t& args) -> std::unique_ptr<IShader> { return std::make_unique<name>(args); }},
+    {#name, [](const json::object_t& args) -> std::unique_ptr<IFragmentShader> { return std::make_unique<name>(args); }},
 
-const std::map<std::string, std::function<std::unique_ptr<IShader>(const json::object_t&)>> transformation{
+const std::map<std::string, std::function<std::unique_ptr<IFragmentShader>(const json::object_t&)>> transformation{
     SHADERS(BIND_SHADERS)
 };

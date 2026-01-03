@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-from videocode.effect.effect import Shader
+from videocode.shader.ishader import FragmentShader
 from videocode.ty import *
 
 
-class opacity(Shader):
+class opacity(FragmentShader):
     """
     Change the `Opacity` of an `Input`.
     """

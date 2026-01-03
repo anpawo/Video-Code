@@ -17,4 +17,4 @@ from videocode.globals import *
 from videocode.input._inputs import *
 
 # Transformations
-from videocode.effect._effects import *
+from videocode.shader._shaders import *

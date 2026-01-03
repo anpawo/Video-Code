@@ -48,6 +48,10 @@ namespace VC
         size_t _index{0};
         size_t _nbFrame{0}; // Starting at 1 forces the first frame to be generated even without any transformations.
 
+        ///< Information display
+        const bool _showstack;
+        const bool _showtimeline;
+
     private:
 
         ///< Window size
@@ -60,10 +64,6 @@ namespace VC
         ///< Source & Output file
         const std::string _sourceFile;
         const std::string _outputFile;
-
-        ///< Information display
-        const bool _showstack;
-        const bool _timeit;
 
         ///< Background frame, black with alpha 0
         const cv::Mat _bgFrame;

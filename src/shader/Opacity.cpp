@@ -6,8 +6,8 @@
 */
 #include <opencv2/opencv.hpp>
 
-#include "effect/ShaderFactory.hpp"
 #include "opencv2/core/matx.hpp"
+#include "shader/ShaderFactory.hpp"
 
 void Opacity::render(cv::Mat& mat, size_t) const
 {

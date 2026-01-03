@@ -8,7 +8,7 @@ from videocode.videocode import *
 # g = numberLine()
 
 # TODO: animate test
-s = square().position(x=-2).scale(0.1).scaleTo(1).fadeIn().flush()
+s = square().position(x=-2, y=-WORLD_OFFSET_Y).scale(0.1).scaleTo(1).fadeIn().flush()
 s.moveBy(x=2).flush()
 s.fadeOut().scaleTo(2)
 

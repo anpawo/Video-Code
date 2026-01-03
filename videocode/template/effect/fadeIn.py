@@ -3,9 +3,8 @@
 
 from typing import TYPE_CHECKING
 from videocode.constants import *
-from videocode.effect.shader.opacity import opacity
+from videocode.shader.fragmentShader.opacity import opacity
 from videocode.utils.bezier import *
-from videocode.effect.transformation.position import position
 
 
 if TYPE_CHECKING:

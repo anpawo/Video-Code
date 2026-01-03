@@ -8,7 +8,7 @@
 #include <opencv2/core.hpp>
 #include <opencv2/opencv.hpp>
 
-#include "effect/ShaderFactory.hpp"
+#include "shader/ShaderFactory.hpp"
 
 void Blur::render(cv::Mat& mat, size_t) const
 {

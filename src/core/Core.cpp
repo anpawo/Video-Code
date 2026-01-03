@@ -24,15 +24,18 @@
 #include "utils/Exception.hpp"
 
 VC::Core::Core(const argparse::ArgumentParser& parser)
-    : _width(parser.get<int>("--width"))
+    : _showstack(parser.get<bool>("--showstack"))
+    , _showtimeline(parser.get<bool>("--showtimeline"))
+    // ---
+    , _width(parser.get<int>("--width"))
     , _height(parser.get<int>("--height"))
+    // ---
     , _framerate(parser.get<int>("--framerate"))
+    // ---
     , _sourceFile(parser.get("--file"))
     , _outputFile(parser.get("--generate"))
-    , _showstack(parser.get<bool>("--showstack"))
-    , _timeit(parser.get<bool>("--time"))
+    // ---
     , _bgFrame(cv::Mat(_height, _width, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0)))
-// , _camera(new Camera(_bgFrame.clone(), {}))
 {
     reloadSourceFile();
 }

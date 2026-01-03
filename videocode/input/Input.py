@@ -11,17 +11,17 @@ from videocode.template.effect.moveTo import moveTo
 from videocode.template.effect.moveBy import moveBy
 from videocode.template.effect.scaleBy import scaleBy
 from videocode.template.effect.scaleTo import scaleTo
-from videocode.effect.effect import Transformation, Effect
+from videocode.shader.ishader import IShader, VertexShader, FragmentShader
 from videocode.globals import *
 from videocode.constants import *
 from videocode.utils.funcutils import *
-from videocode.effect.transformation.align import align
-from videocode.effect.transformation.args import args
-from videocode.effect.transformation.hide import hide
-from videocode.effect.transformation.rotate import rotate
-from videocode.effect.transformation.scale import scale
-from videocode.effect.transformation.position import position
-from videocode.effect.transformation.show import show
+from videocode.shader.vertexShader.align import align
+from videocode.shader.vertexShader.args import args
+from videocode.shader.vertexShader.hide import hide
+from videocode.shader.vertexShader.rotate import rotate
+from videocode.shader.vertexShader.scale import scale
+from videocode.shader.vertexShader.position import position
+from videocode.shader.vertexShader.show import show
 from videocode.utils.bezier import cubicBezier, Easing
 
 
@@ -59,7 +59,7 @@ class Input(ABC):
         self.meta.transformationOffset = self.meta.lastAffectedFrame
         return self
 
-    def apply(self, *es: Effect, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)) -> Self:
+    def apply(self, *es: IShader, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)) -> Self:
         """
         Applies some `Transformations` to the `Input`.
 
@@ -84,7 +84,7 @@ class Input(ABC):
                 self.meta.lastAffectedFrame = __start + __duration
 
             # Transformations affect the Input's Metadata
-            if isinstance(e, Transformation):
+            if isinstance(e, VertexShader):
                 e.modificator(self)
 
             # Add step to the stack

@@ -16,9 +16,9 @@ Shaders affect anything pixel related in an Input
 
 */
 
-struct IShader
+struct IFragmentShader
 {
-    virtual ~IShader() = default;
+    virtual ~IFragmentShader() = default;
 
     ///< Offset of the index
     virtual size_t start() const = 0;

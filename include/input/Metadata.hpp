@@ -50,7 +50,7 @@ struct Metadata
 {
     v2f position{config::screenOffset.x, config::screenOffset.y};
     v2f scale{1.0, 1.0};
-    v2f align{0.5, 0.5}; // 0 to 1
+    v2f align{0.5, 0.5}; // -1 to 1
 
     float rotation{0.0};
 

@@ -49,9 +49,9 @@ void setParserArgument(argparse::ArgumentParser &p)
         .help("Show the steps of the video while being generated.");
 
     p
-        .add_argument("--time")
+        .add_argument("--showtimeline")
         .flag()
-        .help("Time the generation.");
+        .help("Show the timeline of the video.");
 }
 
 int main(int argc, char *argv[])

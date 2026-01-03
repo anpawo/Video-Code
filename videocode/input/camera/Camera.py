@@ -2,7 +2,7 @@
 
 
 from videocode.input.input import *
-from videocode.effect.transformation.position import position
+from videocode.shader.vertexShader.position import position
 
 
 class camera(Input):
