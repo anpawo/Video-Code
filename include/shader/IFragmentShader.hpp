@@ -16,12 +16,12 @@ Shaders affect anything pixel related in an Input
 
 */
 
-struct IShader
+struct IFragmentShader
 {
-    virtual ~IShader() = default;
+    virtual ~IFragmentShader() = default;
 
     ///< Offset of the index
-    virtual size_t offset() const = 0;
+    virtual size_t start() const = 0;
 
     ///< The index only matters for effects over time, e.g. fadeIn.
     virtual void render(cv::Mat&, size_t) const = 0;

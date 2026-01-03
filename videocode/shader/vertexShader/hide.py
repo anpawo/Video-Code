@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
 from videocode.constants import *
-from videocode.effect.effect import *
+from videocode.shader.ishader import *
 
 
-class show(Transformation):
+class hide(VertexShader):
     """
-    Show the `Input`.
+    Hide the `Input`.
     """
 
     def __init__(self) -> None: ...
 
     def modificator(self, i: Input):
-        i.meta.hidden = False
+        i.meta.hidden = True

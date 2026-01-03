@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-from videocode.effect.effect import *
 from videocode.constants import number
 from videocode.ty import maybe
+from videocode.shader.ishader import *
 
 
-class scale(Transformation):
+class scale(VertexShader):
     """
     `Scale` will scale up or down an `Input` according to `factor` while changing it's original width and height.
 

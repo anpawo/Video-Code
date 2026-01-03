@@ -2,10 +2,10 @@
 
 
 from typing import Any
-from videocode.effect.effect import *
+from videocode.shader.ishader import *
 
 
-class args(Transformation):
+class args(VertexShader):
     """
     Modifies the arguments needed to create the base matrix of an `Input`, e.g. the radius of a circle.
     """

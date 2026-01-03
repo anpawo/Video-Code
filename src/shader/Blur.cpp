@@ -8,11 +8,11 @@
 #include <opencv2/core.hpp>
 #include <opencv2/opencv.hpp>
 
-#include "effect/ShaderFactory.hpp"
+#include "shader/ShaderFactory.hpp"
 
 void Blur::render(cv::Mat& mat, size_t) const
 {
-    size_t strength = args.at("strength");
+    size_t strength = _args.at("strength");
 
     if (strength < 1) {
         strength = 1;

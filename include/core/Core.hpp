@@ -27,7 +27,7 @@ namespace VC
         void reloadSourceFile();
         std::string serializeScene();
         void executeStack();
-        cv::Mat generateFrame(int index);
+        cv::Mat generateFrame(size_t index);
 
         ///< Update the current frame being displayed in the window
         void updateFrame(QLabel& imageLabel);
@@ -42,6 +42,16 @@ namespace VC
         void forward1frame();
         void backward1frame();
 
+        // ---
+
+        ///< Index of the frame currently being displayed
+        size_t _index{0};
+        size_t _nbFrame{0}; // Starting at 1 forces the first frame to be generated even without any transformations.
+
+        ///< Information display
+        const bool _showstack;
+        const bool _showtimeline;
+
     private:
 
         ///< Window size
@@ -55,20 +65,15 @@ namespace VC
         const std::string _sourceFile;
         const std::string _outputFile;
 
-        ///< Information display
-        const bool _showstack;
-        const bool _timeit;
-
         ///< Background frame, black with alpha 0
         const cv::Mat _bgFrame;
-
-        ///< Index of the frame currently being displayed
-        size_t _index{0};
-        size_t _nbFrame{1}; // Starting at 1 forces the first frame to be generated even without any transformations.
 
         ///< The video editor is paused
         bool _paused{false};
         bool _indexChanged{true};
+
+        ///< Waits:
+        std::map<size_t, size_t> _waits{};
 
         ///< Inputs created
         std::vector<std::unique_ptr<IInput>> _inputs{};

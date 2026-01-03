@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
 from videocode.constants import *
-from videocode.effect.effect import *
+from videocode.shader.ishader import *
 
 
-class position(Transformation):
+class position(VertexShader):
     """
     set the position `x` and `y` of an `Input`.
 

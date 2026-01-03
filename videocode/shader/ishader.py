@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from videocode.input.input import Input
 
 
-class Effect(ABC):
+class IShader(ABC):
     """
     A `Effect` modifies an input.
     """
@@ -32,9 +32,9 @@ class Effect(ABC):
         return self.__str__()
 
 
-class Shader(Effect):
+class FragmentShader(IShader):
     """
-    An `Shader` modifies the pixels of an image.
+    An `FragmentShader` modifies the pixels of an `Input`.
 
     .. code-block:: python
         def fade() -> Effect: ...
@@ -42,16 +42,12 @@ class Shader(Effect):
 
     """
 
-    _type = "shader"
+    _type = "FragmentShader"
 
 
-class SingleFrameShader(Shader):
-    duration = SINGLE_FRAME
-
-
-class Transformation(Effect):
+class VertexShader(IShader):
     """
-    A `Transformation` modifies the metadata of an image, anything not related to pixel, e.g. position.
+    A `VertexShader` modifies the geometry (metadata) of an `Input`.
 
     .. code-block:: python
         def position() -> Transformation: ...
@@ -59,7 +55,7 @@ class Transformation(Effect):
 
     """
 
-    _type = "transformation"
+    _type = "VertexShader"
 
     """
     affects only one frame

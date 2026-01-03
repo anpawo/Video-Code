@@ -9,15 +9,14 @@
 
 #include <opencv2/core/hal/interface.h>
 
-#include <algorithm>
 #include <cstddef>
 #include <opencv2/core.hpp>
 #include <opencv2/core/mat.hpp>
 
-#include "effect/ITransform.hpp"
-#include "effect/ShaderFactory.hpp"
 #include "input/IInput.hpp"
 #include "input/Metadata.hpp"
+#include "shader/IVertexShader.hpp"
+#include "shader/ShaderFactory.hpp"
 
 AInput::AInput(json::object_t&& args)
     : _baseArgs(std::move(args))
@@ -32,55 +31,20 @@ void AInput::add(json& modification)
     size_t duration = modification["args"]["duration"];
     std::string type = modification["type"];
 
-    if (type == "transformation") {
-        Transform t = getTransformFromString.at(name);
+    if (type == "VertexShader") {
+        VertexShader t = getTransformFromString.at(name);
 
-        ///< Find the index
-        auto it = std::lower_bound(
-            _transformations.begin(),
-            _transformations.end(),
-            start,
-            [](const std::pair<int, std::map<Transform, json::object_t>>& p, int index) {
-                return p.first < index;
-            }
-        );
-
-        ///< If found, override the same transformation (except for args)
-        if (it != _transformations.end()) {
-            if (t == Transform::Args) {
-                for (const auto& i : args) {
-                    it->second[t][i.first] = i.second;
-                }
-            } else {
-                it->second[t] = args;
-            }
-        }
-        ///< Else, insert at index
-        else {
-            if (t == Transform::Args) {
-                json::object_t mergedArgs;
-                auto prev = it;
-
-                while (prev != _transformations.begin()) {
-                    --prev;
-                    auto found = prev->second.find(Transform::Args);
-                    if (found != prev->second.end()) {
-                        mergedArgs = found->second;
-                        break;
-                    }
-                }
-
-                for (const auto& [k, v] : args) {
-                    mergedArgs[k] = v;
-                }
-
-                _transformations.insert(it, {start, {{Transform::Args, std::move(mergedArgs)}}});
-            } else {
-                _transformations.insert(it, {start, {{t, args}}});
-            }
+        if (start >= _metas.size()) {
+            Metadata meta = _metas.back();
+            _metas.resize(start + 1, meta);
         }
 
-    } else if (type == "shader") {
+        getMetadataFromArgs(t, args, _metas[start]);
+
+    } else if (type == "FragmentShader") {
+        ///< If a shader is single frame, it will ignore the index argument when called.
+        ///< otherwise, it will use it. e.g. Opacity, LightSweep
+        ///< that's why we duplicate the index of shader over duration.
         _effects.push_back(transformation.at(name)(args));
 
         size_t effectIndex = _effects.size() - 1;
@@ -95,44 +59,13 @@ void AInput::add(json& modification)
     }
 }
 
-Metadata AInput::getMetadata(int index)
+Metadata AInput::getMetadata(size_t index)
 {
-    Metadata meta{.args = _baseArgs};
+    Metadata meta = index >= _metas.size()
+                        ? _metas.back()
+                        : _metas[index];
+
     meta.args["index"] = index;
-
-    if (_transformations.empty()) {
-        return meta;
-    }
-
-    auto it = std::lower_bound(
-        _transformations.begin(),
-        _transformations.end(),
-        index,
-        [](const std::pair<int, std::map<Transform, json::object_t>>& p, int index) {
-            return p.first < index;
-        }
-    );
-
-    // Index > Last Tsf
-    if (it == _transformations.end()) {
-        it--;
-    }
-
-    for (size_t i = 0; i != Transform::__End; i++) {
-        Transform t = static_cast<Transform>(i);
-
-        for (auto cp = it;; cp--) {
-            auto v = cp->second.find(t);
-
-            if (v != cp->second.end()) {
-                getMetadataFromArgs(t, v->second, meta);
-                break;
-            }
-            if (cp == _transformations.begin()) {
-                break;
-            }
-        }
-    }
 
     return meta;
 }
@@ -151,10 +84,10 @@ void AInput::overlay(cv::Mat& bg, size_t index)
     ///< TODO: render needs to keep track of the start index
     if (index < _effectTimeline.size()) {
         const auto& vec = _effectTimeline[index];
-        auto end = vec.end();
-        for (auto it = vec.begin(); it != end; it++) {
+
+        for (auto it = vec.begin(); it != vec.end(); it++) {
             const auto& e = _effects[*it];
-            e->render(imgMat, index - e->offset());
+            e->render(imgMat, index - e->start());
         }
     }
 
@@ -186,9 +119,7 @@ void AInput::overlay(cv::Mat& bg, size_t index)
                 }
 
                 // Optional: update destination alpha
-                dst[3] = static_cast<uchar>(
-                    src[3] + dst[3] * (1.0f - alpha)
-                );
+                dst[3] = src[3];
             }
         }
     }

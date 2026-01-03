@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 
-from videocode.effect.effect import SingleFrameShader
+from videocode.shader.ishader import FragmentShader
 from videocode.ty import unumber
 
 
-class blur(SingleFrameShader):
+class blur(FragmentShader):
     """
     `Blur` an `Input`.
 

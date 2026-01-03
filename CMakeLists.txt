@@ -102,6 +102,7 @@ set(SOURCES
 
     # --- Window ---
     include/window/Window.hpp # Needed for the MOC (Meta-Object Compiler) Q_OBJECT
+    include/window/TimelineWidget.hpp # Needed for the MOC (Meta-Object Compiler) Q_OBJECT
     src/window/Window.cpp
 
     # --- Compiler ---
@@ -123,8 +124,7 @@ set(SOURCES
     src/input/shape/Rectangle.cpp
     src/input/shape/Line.cpp
 
-    # --- Transformation ---
-    # Color
+    # --- Fragment Shader ---
     src/shader/Grayscale.cpp
     src/shader/Opacity.cpp
     src/shader/Blur.cpp

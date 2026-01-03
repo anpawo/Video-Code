@@ -3,7 +3,7 @@
 
 from typing import TYPE_CHECKING
 from videocode.constants import *
-from videocode.effect.transformation.scale import scale
+from videocode.shader.vertexShader.scale import scale
 from videocode.utils.bezier import *
 
 

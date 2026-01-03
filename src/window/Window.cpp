@@ -23,12 +23,26 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
 
     ///< Setup the layout and image
     _imageLabel = new QLabel(this);
+    _imageLabel->setFixedSize(_width / 2, _height / 2);
     _imageLayout = new QVBoxLayout();
     _imageLayout->setContentsMargins(0, 0, 0, 0);
     _imageLayout->addWidget(_imageLabel);
     _centralWidget = new QWidget(this);
     _centralWidget->setLayout(_imageLayout);
     setCentralWidget(_centralWidget);
+
+    ///< Timeline
+    if (_core._showtimeline) {
+        _timeline = new TimelineWidget(_imageLabel, _core._index, _core._nbFrame, _width / 2);
+        _timeline->setGeometry(
+            0,
+            _imageLabel->height() - _timeline->minimumHeight(),
+            _timeline->minimumWidth(),
+            _timeline->minimumHeight()
+        );
+        std::cout << "imagelabel height:" << _imageLabel->height() << ", timeline height:" << _timeline->minimumHeight() << std::endl;
+        _timeline->raise();
+    }
 
     ///< Window settings
     setStyleSheet("background-color: black;");
@@ -74,4 +88,8 @@ void VC::Window::keyPressEvent(QKeyEvent* event)
 void VC::Window::mainRoutine()
 {
     _core.updateFrame(*_imageLabel);
+
+    if (_timeline) {
+        _timeline->update();
+    }
 }

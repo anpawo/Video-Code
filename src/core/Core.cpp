@@ -24,15 +24,18 @@
 #include "utils/Exception.hpp"
 
 VC::Core::Core(const argparse::ArgumentParser& parser)
-    : _width(parser.get<int>("--width"))
+    : _showstack(parser.get<bool>("--showstack"))
+    , _showtimeline(parser.get<bool>("--showtimeline"))
+    // ---
+    , _width(parser.get<int>("--width"))
     , _height(parser.get<int>("--height"))
+    // ---
     , _framerate(parser.get<int>("--framerate"))
+    // ---
     , _sourceFile(parser.get("--file"))
     , _outputFile(parser.get("--generate"))
-    , _showstack(parser.get<bool>("--showstack"))
-    , _timeit(parser.get<bool>("--time"))
+    // ---
     , _bgFrame(cv::Mat(_height, _width, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0)))
-// , _camera(new Camera(_bgFrame.clone(), {}))
 {
     reloadSourceFile();
 }
@@ -97,6 +100,7 @@ void VC::Core::executeStack()
                     _nbFrame = video->_nbFrame;
                 }
             }
+
         } else if (s["action"] == "Apply") {
             ssize_t index = s["input"];
 
@@ -107,15 +111,31 @@ void VC::Core::executeStack()
             if (lastFrame > _nbFrame) {
                 _nbFrame = lastFrame;
             }
-
             _inputs[index]->add(s);
+
+        } else if (s["action"] == "Wait") {
+            size_t n = s["n"];
+
+            for (size_t i = 0; i < n; i++) {
+                _waits[_nbFrame + i] = _nbFrame == 0 ? 0 : (_nbFrame - 1);
+            }
+            _nbFrame += n;
+
+        } else {
+            throw Error("Invalid action: " + s["action"].get<std::string>());
         }
     }
 }
 
-cv::Mat VC::Core::generateFrame(int index)
+cv::Mat VC::Core::generateFrame(size_t index)
 {
     cv::Mat bg = _bgFrame.clone();
+
+    auto potentialIndex = _waits.find(index);
+
+    if (potentialIndex != _waits.end()) {
+        index = potentialIndex->second;
+    }
 
     for (auto& i : _inputs) {
         i->overlay(bg, index);

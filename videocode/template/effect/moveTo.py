@@ -4,7 +4,7 @@
 from typing import TYPE_CHECKING
 from videocode.constants import *
 from videocode.utils.bezier import *
-from videocode.effect.transformation.position import position
+from videocode.shader.vertexShader.position import position
 
 
 if TYPE_CHECKING:

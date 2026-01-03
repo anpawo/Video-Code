@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-from videocode.effect.effect import SingleFrameShader
+from videocode.shader.ishader import FragmentShader
 
 
-class grayscale(SingleFrameShader):
+class grayscale(FragmentShader):
     """
     `Grayscale` an `Input`.
     """

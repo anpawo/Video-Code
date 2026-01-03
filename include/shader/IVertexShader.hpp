@@ -27,7 +27,7 @@ Transformations affect anything non pixel related in an Input
 
 */
 
-enum Transform {
+enum VertexShader {
     Align,
     Position,
     Scale,
@@ -41,14 +41,14 @@ enum Transform {
     __End
 };
 
-const std::map<std::string, Transform> getTransformFromString = {
-    {"Position", Transform::Position},
-    {"Scale", Transform::Scale},
-    {"Align", Transform::Align},
-    {"Rotate", Transform::Rotate},
-    {"Hide", Transform::Hide},
-    {"Show", Transform::Show},
-    {"Args", Transform::Args},
+const std::map<std::string, VertexShader> getTransformFromString = {
+    {"Position", VertexShader::Position},
+    {"Scale", VertexShader::Scale},
+    {"Align", VertexShader::Align},
+    {"Rotate", VertexShader::Rotate},
+    {"Hide", VertexShader::Hide},
+    {"Show", VertexShader::Show},
+    {"Args", VertexShader::Args},
 };
 
 inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size& size, const Metadata& meta)
@@ -102,7 +102,7 @@ inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size& size, con
     return M;
 }
 
-inline void getMetadataFromArgs(Transform t, const json::object_t& args, Metadata& meta)
+inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Metadata& meta)
 {
     switch (t) {
         case __End: {
