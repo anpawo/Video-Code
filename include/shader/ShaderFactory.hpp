@@ -23,6 +23,7 @@ using json = nlohmann::json;
     X(Grayscale)   \
     X(Opacity)     \
     X(Blur)        \
+    X(Grain)       \
     X(GammaCorrection)
 
 // -------------------------------------------------------------------------
