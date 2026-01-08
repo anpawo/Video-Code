@@ -2,21 +2,13 @@
 
 
 # from videocode.template.input.numberLine import numberLine
-from videocode.videocode import *
+from videocode.VideoCode import *
 
-# TODO: grid test
-# g = numberLine()
+# Display the same image three times: left blurred, center original, right gamma-corrected.
+img_blur = image("hehe.jpg").position(x=-500, y=0).scale(3)
+img_blur.apply(blur(10), duration=2)
 
-# TODO: animate test
-s = square().position(x=-2, y=-WORLD_OFFSET_Y).scale(0.1).scaleTo(1).fadeIn().flush()
-s.moveBy(x=2).flush()
-s.fadeOut().scaleTo(2)
+img_center = image("hehe.jpg").position(x=0, y=0).scale(3)
 
-# # TODO: image blur test
-# i = image("wb.png")
-# wait(0.5)
-# i.scale(3)
-# wait(0.5)
-# i.apply(blur(10), duration=0.5)
-# wait(0.5)
-# i.position()
+img_gamma = image("hehe.jpg").position(x=500, y=0).scale(3)
+img_gamma.apply(gammaCorrection(0.5), duration=2)

@@ -4,7 +4,7 @@
 # All Inputs Types
 #
 
-from videocode.input.input import *
+from videocode.input.Input import *
 
 # Camera
 # from videocode.input.camera.Camera import *

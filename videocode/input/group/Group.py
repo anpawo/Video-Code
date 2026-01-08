@@ -4,7 +4,7 @@
 import copy
 
 
-from videocode.input.input import *
+from videocode.input.Input import *
 from videocode.shader.vertexShader.position import position
 
 

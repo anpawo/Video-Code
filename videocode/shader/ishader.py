@@ -7,7 +7,7 @@ from videocode.constants import *
 from videocode.utils.funcutils import *
 
 if TYPE_CHECKING:
-    from videocode.input.input import Input
+    from videocode.input.Input import Input
 
 
 class IShader(ABC):

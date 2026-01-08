@@ -5,7 +5,7 @@
 #
 
 from sys import stderr
-from ty import *
+from .ty import *
 
 # screen dimension
 SCREEN_WIDTH = SW = 1920

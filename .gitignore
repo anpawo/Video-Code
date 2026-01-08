@@ -25,6 +25,7 @@ __pycache__/
 # Python .venv
 .venv
 .direnv
+venv/
 
 # CMake
 build/

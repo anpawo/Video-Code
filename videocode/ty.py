@@ -4,6 +4,7 @@
 # Types
 #
 
+from __future__ import annotations
 
 # alias
 type uint = int
@@ -57,12 +58,12 @@ class v2[T]:
         self.x = x
         self.y = y
 
-    def __add__(self, other: v2[maybe[number]]) -> v2:
+    def __add__(self, other: "v2[maybe[number]]") -> "v2":
         x = self.x + other.x if isinstance(self.x, int | float) and isinstance(other.x, int | float) else self.x if self.x is not None else other.x
         y = self.y + other.y if isinstance(self.y, int | float) and isinstance(other.y, int | float) else self.y if self.y is not None else other.y
         return v2(x, y)
 
-    def __sub__(self, other: v2[maybe[number]]) -> v2:
+    def __sub__(self, other: "v2[maybe[number]]") -> "v2":
         x = self.x - other.x if isinstance(self.x, int | float) and isinstance(other.x, int | float) else self.x if self.x is not None else other.x
         y = self.y - other.y if isinstance(self.y, int | float) and isinstance(other.y, int | float) else self.y if self.y is not None else other.y
         return v2(x, y)

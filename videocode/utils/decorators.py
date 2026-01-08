@@ -10,7 +10,7 @@ from videocode.ty import *
 
 
 if TYPE_CHECKING:
-    from videocode.input.input import Input
+    from videocode.input.Input import Input
 
 
 # Validators

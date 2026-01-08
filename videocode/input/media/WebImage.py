@@ -2,7 +2,7 @@
 
 
 from videocode.utils.decorators import inputCreation
-from videocode.input.input import *
+from videocode.input.Input import *
 
 
 class webImage(Input):
