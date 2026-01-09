@@ -129,6 +129,8 @@ set(SOURCES
     src/shader/Opacity.cpp
     src/shader/Blur.cpp
     src/shader/Brightness.cpp
+    src/shader/Contrast.cpp
+    src/shader/Sharpen.cpp
     src/shader/Grain.cpp
     src/shader/gammaCorrection.cpp
 )

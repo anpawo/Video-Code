@@ -24,6 +24,8 @@ using json = nlohmann::json;
     X(Opacity)     \
     X(Blur)        \
     X(Brightness)  \
+    X(Contrast)    \
+    X(Sharpen)     \
     X(Grain)       \
     X(GammaCorrection)
 

@@ -12,6 +12,8 @@ from videocode.shader.fragmentShader.grayscale import *
 from videocode.shader.fragmentShader.opacity import *
 from videocode.shader.fragmentShader.blur import *
 from videocode.shader.fragmentShader.brightness import *
+from videocode.shader.fragmentShader.contrast import *
+from videocode.shader.fragmentShader.sharpen import *
 from videocode.shader.fragmentShader.grain import *
 from videocode.shader.fragmentShader.gammaCorrection import *
 
