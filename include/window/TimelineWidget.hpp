@@ -42,37 +42,109 @@ protected:
         // Filled portion of the timeline
         if (_duration > 0) {
 
+            int redBarHeight = _barHeight + 1;
+
             ///< Gray bar
-            double grayBarRadius = _barHeight / 2.0;
-            int gray = 204;
-            int opacity = 96;
+            int grayBarHeight = redBarHeight;
+            double grayBarRadius = grayBarHeight / 2.0;
+            int gray = 170;
+            int opacity = 120;
+            int shadowOpacity = 70;
+            int shadowOffsetY = 3;
+            int textBgGray = 0;
+            int textBgOpacity = shadowOpacity + 30;
 
             QRectF grayBarRect(
                 _offsetX,
-                height() / 3.0 - _barHeight / 2.0,
+                height() / 3.0 - grayBarHeight / 2.0,
                 width() - (_offsetX * 2),
-                _barHeight
+                grayBarHeight
             );
+
+            QRectF grayShadowRect(
+                grayBarRect.x(),
+                grayBarRect.y() + shadowOffsetY + (grayBarHeight * 0.25),
+                grayBarRect.width(),
+                grayBarHeight * 0.5
+            );
+
+            painter.setBrush(QColor(0, 0, 0, shadowOpacity));
+            painter.setPen(Qt::NoPen);
+            painter.drawRoundedRect(grayShadowRect, grayBarRadius, grayBarRadius);
 
             painter.setBrush(QColor(gray, gray, gray, opacity));
             painter.setPen(Qt::NoPen); // no border
             painter.drawRoundedRect(grayBarRect, grayBarRadius, grayBarRadius);
 
             ///< Red bar
-            double redBarRadius = _barHeight / 2.0;
+            double redBarRadius = redBarHeight / 2.0;
             double progress = double(_index + 1) / (_duration);
             double barWidth = (width() - (_offsetX * 2)) * progress;
 
             QRectF redBarRect(
                 _offsetX,
-                height() / 3.0 - _barHeight / 2.0,
+                height() / 3.0 - redBarHeight / 2.0,
                 barWidth,
-                _barHeight
+                redBarHeight
             );
 
-            painter.setBrush(Qt::red);
-            painter.setPen(Qt::NoPen); // no border
+            QRectF redShadowRect(
+                redBarRect.x(),
+                redBarRect.y() + shadowOffsetY + (redBarHeight * 0.25),
+                redBarRect.width(),
+                redBarHeight * 0.5
+            );
+
+            painter.setBrush(QColor(0, 0, 0, shadowOpacity));
+            painter.setPen(Qt::NoPen);
+            painter.drawRoundedRect(redShadowRect, redBarRadius, redBarRadius);
+
+            QRectF redGlowRect(
+                redBarRect.x(),
+                redBarRect.y(),
+                redBarRect.width(),
+                redBarRect.height()
+            );
+
+            painter.setBrush(QColor(255, 0, 0, 40));
+            painter.setPen(Qt::NoPen);
+            painter.drawRoundedRect(redGlowRect, redBarRadius, redBarRadius);
+
+            QLinearGradient redGradient(redBarRect.topLeft(), redBarRect.bottomLeft());
+            redGradient.setColorAt(0.0, QColor(255, 80, 80));
+            redGradient.setColorAt(1.0, QColor(200, 0, 0));
+            painter.setBrush(redGradient);
+            painter.setPen(QPen(QColor(255, 255, 255, 80), 1)); // subtle outline
             painter.drawRoundedRect(redBarRect, redBarRadius, redBarRadius);
+
+            ///< Red handle (playhead)
+            double handleRadius = redBarHeight * 2.5;
+            double handleX = _offsetX + barWidth;
+            double handleY = height() / 3.0;
+            QRectF handleRect(
+                handleX - handleRadius / 2.0,
+                handleY - handleRadius / 2.0,
+                handleRadius,
+                handleRadius
+            );
+
+            QRectF handleShadowRect(
+                handleRect.x(),
+                handleRect.y() + shadowOffsetY,
+                handleRect.width(),
+                handleRect.height()
+            );
+
+            painter.setBrush(QColor(0, 0, 0, shadowOpacity));
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(handleShadowRect);
+
+            QLinearGradient handleGradient(handleRect.topLeft(), handleRect.bottomLeft());
+            handleGradient.setColorAt(0.0, QColor(255, 90, 90));
+            handleGradient.setColorAt(1.0, QColor(200, 0, 0));
+            painter.setBrush(handleGradient);
+            painter.setPen(Qt::NoPen);
+            painter.drawEllipse(handleRect);
 
             ///< Index / NbFrame / Gray Rect Bg
             // Set font first
@@ -93,19 +165,18 @@ protected:
             qreal rectWidth = textSize.width() + 2 * paddingX;
             qreal rectHeight = textSize.height() + 2 * paddingY;
 
-            // Centered rectangle
-            qreal rectX = (width() - rectWidth) / 2.0;
+            // Left aligned rectangle
+            qreal rectX = _offsetX;
             qreal rectY = height() - rectHeight - 10; // 10px above bottom
 
             // Draw rounded gray background
             QRectF grayRect(rectX, rectY, rectWidth, rectHeight);
             double radius = rectHeight / 2.0; // pill shape
-            gray = 96;
-            painter.setBrush(QColor(gray, gray, gray, opacity));
+            painter.setBrush(QColor(textBgGray, textBgGray, textBgGray, textBgOpacity));
             painter.setPen(Qt::NoPen);
             painter.drawRoundedRect(grayRect, radius, radius);
 
-            // Draw text centered inside the rectangle
+            // Draw text centered inside the rectangle (no extra text shadow)
             painter.setPen(Qt::white);
             painter.drawText(grayRect, Qt::AlignCenter, text);
         }
@@ -121,6 +192,6 @@ private:
     const int _height{75};
 
     ///< Bar
-    const int _barHeight{5};
-    const int _offsetX{50};
+    const int _barHeight{3};
+    const int _offsetX{24};
 };
