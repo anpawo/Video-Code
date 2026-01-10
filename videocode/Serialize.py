@@ -39,5 +39,6 @@ def serializeScene(filepath: str) -> str:
 
 
 if __name__ == "__main__":
+
     for i in json.loads(serializeScene("video.py")):
         print(i)

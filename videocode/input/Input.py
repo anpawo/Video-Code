@@ -4,7 +4,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Self
-
 from videocode.template.effect.fadeIn import fadeIn
 from videocode.template.effect.fadeOut import fadeOut
 from videocode.template.effect.moveTo import moveTo

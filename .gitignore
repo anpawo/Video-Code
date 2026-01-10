@@ -24,6 +24,7 @@ __pycache__/
 
 # Python .venv
 .venv
+.envrc
 .direnv
 
 # CMake
@@ -34,7 +35,7 @@ vcpkg*
 include/argparse/
 
 # executables
-video-code
+./video-code
 
 # mac
 .DS_Store
