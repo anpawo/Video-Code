@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-from videocode.input.Input import *
+from videocode.input.input import *
 
 
 class Shape(Input):

@@ -4,7 +4,7 @@
 import copy
 
 
-from videocode.input.Input import *
+from videocode.input.input import *
 from videocode.shader.vertexShader.position import position
 
 
@@ -31,13 +31,13 @@ class group(Input):
 
         return self
 
-    def apply(self, *ts: Effect, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)) -> Self:
+    def apply(self, *ts: IShader, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)) -> Self:
         """
         Applies the `Transformations` `ts` to all the `Inputs` of the `Group`.
         """
         for baseT in ts:
-            if isinstance(t := copy.deepcopy(baseT), Transformation):
-                t.modificator(self.meta)
+            if isinstance(t := copy.deepcopy(baseT), VertexShader):
+                t.modificator(self)
 
             for i, offset in zip(self.inputs, self.offset):
                 # Prevent modificator fron changing the base

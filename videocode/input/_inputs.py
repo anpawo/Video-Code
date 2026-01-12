@@ -4,9 +4,9 @@
 # All Inputs Types
 #
 
-from videocode.input.Input import *
+from videocode.input.input import *
 
-# Camera
+# Camera | Currently Unavailable
 # from videocode.input.camera.Camera import *
 
 # External Inputs

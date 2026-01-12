@@ -12,12 +12,10 @@
 #include <qscreen.h>
 
 #include <cstddef>
-#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <opencv2/core/mat.hpp>
 #include <string>
-#include <unistd.h>
 
 #include "input/IInput.hpp"
 #include "input/InputFactory.hpp"
@@ -68,41 +66,7 @@ void VC::Core::reloadSourceFile()
 
 std::string VC::Core::serializeScene()
 {
-
-    const char* pythonEnv = std::getenv("VIDEO_CODE_PYTHON");
-    std::string python;
-    if (pythonEnv && *pythonEnv) {
-        python = pythonEnv;
-    } else {
-        const char* home = std::getenv("HOME");
-        if (home && *home) {
-            std::string pyenvShim = std::string(home) + "/.pyenv/shims/python";
-            if (::access(pyenvShim.c_str(), X_OK) == 0) {
-                python = pyenvShim;
-            }
-        }
-        if (python.empty()) {
-            python = "python";
-        }
-    }
-
-    auto shellQuote = [](const std::string& value) {
-        std::string quoted = "'";
-        for (char c : value) {
-            if (c == '\'') {
-                quoted += "'\"'\"'";
-            } else {
-                quoted += c;
-            }
-        }
-        quoted += "'";
-        return quoted;
-    };
-
-    std::string command = python +
-        " -c \"import sys; sys.path.append('./videocode');"
-        "from Serialize import serializeScene; print(serializeScene(sys.argv[1]))\" " +
-        shellQuote(_sourceFile);
+    std::string command = "python3 -c \"import sys; sys.path.append('./videocode');from serialize import serializeScene; print(serializeScene('video.py'))\"";
 
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {

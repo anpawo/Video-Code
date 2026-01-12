@@ -7,7 +7,7 @@ from videocode.ty import sec
 
 
 if TYPE_CHECKING:
-    from videocode.input.Input import Input
+    from videocode.input.input import Input
 
 
 class cubicBezier:

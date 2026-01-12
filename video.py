@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 
 
-# from videocode.template.input.numberLine import numberLine
-from videocode.VideoCode import *
+from videocode.videocode import *
 
-# Display the same image three times: left blurred, center original, right gamma-corrected.
-img_blur = image("hehe.jpg").position(x=-500, y=0).scale(3)
-img_blur.apply(blur(10), duration=2)
+# Display the same image three times: left lighter, center original, right darker
+img_blur = image("wb.png").position(x=-4, y=0).scale(3).apply(gamma(1.5), duration=2)
 
-img_center = image("hehe.jpg").position(x=0, y=0).scale(3)
+img_center = image("wb.png").position(x=0, y=0).scale(3)
 
-img_gamma = image("hehe.jpg").position(x=500, y=0).scale(3)
-img_gamma.apply(gammaCorrection(0.5), duration=2)
+img_gamma = image("wb.png").position(x=4, y=0).scale(3).apply(gamma(0.5), duration=2)

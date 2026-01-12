@@ -8,7 +8,7 @@ from videocode.utils.bezier import *
 
 
 if TYPE_CHECKING:
-    from videocode.input.Input import Input
+    from videocode.input.input import Input
 
 
 def scaleTo(input: Input, x: maybe[number] = None, y: maybe[number] = None, *, easing: easing = Easing.Linear, start: sec = 0, duration: sec = 0.4) -> None:

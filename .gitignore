@@ -21,11 +21,15 @@ video/
 
 # Python
 __pycache__/
+*.pyc
 
-# Python .venv
-.venv
+
+# direnv
 .envrc
-.direnv
+.direnv/
+
+# Python virtual environments
+.venv/
 venv/
 
 # CMake

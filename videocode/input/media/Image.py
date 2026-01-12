@@ -2,7 +2,7 @@
 
 
 from videocode.utils.decorators import inputCreation
-from videocode.input.Input import *
+from videocode.input.input import *
 
 
 class image(Input):

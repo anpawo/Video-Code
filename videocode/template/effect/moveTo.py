@@ -8,7 +8,7 @@ from videocode.shader.vertexShader.position import position
 
 
 if TYPE_CHECKING:
-    from videocode.input.Input import Input
+    from videocode.input.input import Input
 
 
 def moveTo(input: Input, x: maybe[number] = None, y: maybe[number] = None, *, easing: easing = Easing.Linear, start: sec = 0, duration: sec = 0.4) -> None:

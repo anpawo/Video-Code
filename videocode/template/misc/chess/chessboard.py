@@ -6,7 +6,7 @@ import chess.pgn
 
 
 from videocode.input.media.WebImage import webImage
-from videocode.input.Input import Input
+from videocode.input.input import Input
 from videocode.effect.effect.Scale import scale
 from videocode.utils.easings import Easing
 from videocode.globals import wait

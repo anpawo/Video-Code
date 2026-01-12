@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from videocode.constants import number
+from videocode.constants import *
 from videocode.shader.ishader import *
 
 

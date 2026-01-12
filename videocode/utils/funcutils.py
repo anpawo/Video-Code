@@ -4,7 +4,7 @@
 # Types
 #
 
-from ..constants import *
+from constants import *
 from typing import Any, get_origin, get_args
 
 
@@ -51,5 +51,3 @@ def fromWorlToScreen(annotations: dict[str, type], values: dict[str, Any]) -> di
             values[k] = v * WORLD_TO_SCREEN_RATIO
 
     return values
-
-
