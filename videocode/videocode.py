@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
+
 #
 # VideoCode
 #
+
 
 # Types
 from videocode.ty import *

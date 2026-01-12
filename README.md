@@ -23,9 +23,16 @@ from videocode.videocode import *
 # g = numberLine()
 
 # TODO: animate test
-s = square().position(x=-2).scale(0).scaleTo(1).fadeIn().flush()
-s.moveBy(x=2).flush()
-s.fadeOut().scaleTo(2)
+s = square().position(x=-2).scale(0.1).scaleTo(1).fadeIn().flush().moveBy(x=2).flush().fadeOut().scaleTo(2)
+
+# # TODO: image blur test
+# i = image("wb.png")
+# wait(0.5)
+# i.scale(3)
+# wait(0.5)
+# i.apply(blur(10), duration=0.5)
+# wait(0.5)
+# i.position()
 ```
 
 <img src="docs/readme/example.gif" style="width: 50%;">
@@ -76,6 +83,7 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 <details open>
     <summary><code>Transformations</code></summary>
 <br>
+
 
 - `position`
 - `align`
