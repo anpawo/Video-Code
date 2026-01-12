@@ -168,3 +168,6 @@ class Input(ABC):
             y = factor
         scaleBy(self, x=x, y=y, easing=easing, start=start, duration=duration)
         return self
+
+import builtins
+builtins.Input = Input

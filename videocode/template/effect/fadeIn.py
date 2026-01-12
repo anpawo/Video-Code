@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from videocode.constants import *
-from videocode.shader.fragmentShader.opacity import opacity
-from videocode.utils.bezier import *
 
+from ...constants import *
+from ...shader.fragmentShader.opacity import opacity
+from ...utils.bezier import *
 
 if TYPE_CHECKING:
-    from videocode.input.input import Input
-
+    from ...input.Input import Input
 
 def fadeIn(input: Input, *, easing: easing = Easing.Linear, start: sec = 0, duration: sec = 0.4) -> None:
     src: unumber = 0

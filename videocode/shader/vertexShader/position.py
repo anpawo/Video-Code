@@ -1,7 +1,13 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from videocode.shader.ishader import VertexShader
 from videocode.constants import *
-from videocode.shader.ishader import *
+
+if TYPE_CHECKING:
+    from ...input.Input import Input
 
 
 class position(VertexShader):

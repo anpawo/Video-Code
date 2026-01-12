@@ -11,6 +11,7 @@ from videocode.shader.ishader import *
 from videocode.shader.fragmentShader.grayscale import *
 from videocode.shader.fragmentShader.opacity import *
 from videocode.shader.fragmentShader.blur import *
+from videocode.shader.fragmentShader.gammaCorrection import *
 
 # Transformations
 from videocode.shader.vertexShader.align import *

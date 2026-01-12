@@ -8,7 +8,7 @@ from videocode.utils.bezier import cubicBezier, Easing, easing, animate
 
 
 if TYPE_CHECKING:
-    from videocode.input.input import Input
+    from videocode.input.Input import Input
 
 
 def moveBy(input: Input, x: maybe[number] = None, y: maybe[number] = None, *, easing: easing = Easing.Linear, start: sec = 0, duration: sec = 0.4) -> None:
