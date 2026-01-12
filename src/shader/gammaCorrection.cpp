@@ -2,7 +2,7 @@
 ** EPITECH PROJECT, 2025
 ** video-code
 ** File description:
-** gammaCorrection
+** GammaCorrection
 */
 
 #include <opencv2/core.hpp>
