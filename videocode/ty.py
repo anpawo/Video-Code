@@ -5,6 +5,8 @@
 #
 
 # alias
+type int8 = int
+
 type uint = int
 type uint8 = int
 type ufloat = float

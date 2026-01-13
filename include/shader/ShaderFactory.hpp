@@ -24,7 +24,8 @@ using json = nlohmann::json;
     X(Opacity)     \
     X(Blur)        \
     X(Gamma)       \
-    X(Grain)
+    X(Grain)       \
+    X(Brightness)
 
 // -------------------------------------------------------------------------
 // Function declaration

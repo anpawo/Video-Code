@@ -54,6 +54,7 @@
 - `blur`
 - `gamma`
 - `grain`
+- `brightness`
 
 </details>
 
