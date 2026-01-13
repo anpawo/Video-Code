@@ -55,6 +55,7 @@
 - `gamma`
 - `grain`
 - `brightness`
+- `contrast`
 
 </details>
 

@@ -131,6 +131,7 @@ set(SOURCES
     src/shader/Gamma.cpp
     src/shader/Grain.cpp
     src/shader/Brightness.cpp
+    src/shader/Contrast.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
