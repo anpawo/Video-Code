@@ -40,7 +40,6 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
             _timeline->minimumWidth(),
             _timeline->minimumHeight()
         );
-        std::cout << "imagelabel height:" << _imageLabel->height() << ", timeline height:" << _timeline->minimumHeight() << std::endl;
         _timeline->raise();
     }
 

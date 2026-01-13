@@ -40,7 +40,7 @@ vcpkg*
 include/argparse/
 
 # executables
-./video-code
+video-code
 
 # mac
 .DS_Store
