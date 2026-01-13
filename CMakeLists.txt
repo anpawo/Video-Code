@@ -129,6 +129,7 @@ set(SOURCES
     src/shader/Opacity.cpp
     src/shader/Blur.cpp
     src/shader/Gamma.cpp
+    src/shader/Grain.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
