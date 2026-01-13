@@ -52,6 +52,8 @@
 - `grayscale`
 - `opacity`
 - `blur`
+- `gamma`
+- `grain`
 
 </details>
 
