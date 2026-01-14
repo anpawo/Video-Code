@@ -9,7 +9,7 @@ import sys
 
 sys.path.append(".")
 
-from VideoCode import *
+from videocode.VideoCode import *
 
 
 def commentsToLabel(s: str) -> str:
