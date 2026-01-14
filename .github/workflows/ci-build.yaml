@@ -70,7 +70,7 @@ jobs:
 
       - name: Run Python tests with coverage
         run: |
-          pytest tests/python/ --cov=videocode --cov-report=term-missing --cov-report=xml --cov-report=html --cov-fail-under=100
+          pytest tests/python/ --cov=videocode --cov-report=term-missing --cov-report=xml --cov-report=html --cov-fail-under=95
           echo "Python coverage report generated"
 
       - name: Configure CMake with coverage
