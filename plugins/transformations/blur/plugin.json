@@ -1,0 +1,24 @@
+{
+  "name": "Blur",
+  "version": "1.0.0",
+  "type": "transformation",
+  "description": "Applies Gaussian blur to frames",
+  "author": "Video-Code",
+  "python_library": "blur_py.so",
+  "cpp_library": "blur_cpp.so",
+  "class_name": "Blur",
+  "parameters": [
+    {
+      "name": "kernel_size",
+      "type": "int",
+      "default": 5,
+      "description": "Size of the blur kernel (must be odd)"
+    },
+    {
+      "name": "sigma",
+      "type": "float",
+      "default": 0.0,
+      "description": "Standard deviation for Gaussian kernel (0 = auto)"
+    }
+  ]
+}

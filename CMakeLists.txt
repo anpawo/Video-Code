@@ -110,6 +110,9 @@ set(SOURCES
     # --- Core ---
     src/core/Core.cpp
 
+    # --- Plugin System ---
+    src/plugin/PluginLoader.cpp
+
     # --- Inputs ---
     src/input/AInput.cpp
     # Media
@@ -159,4 +162,10 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Gui
     # Python3::Python
     cpr::cpr
+    ${CMAKE_DL_LIBS}  # For plugin dynamic loading
 )
+
+# ============================================================================
+# Plugin System
+# ============================================================================
+add_subdirectory(plugins)

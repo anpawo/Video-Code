@@ -65,3 +65,12 @@ docvid:
 .PHONY: docdoc
 docdoc:
 	./docs/readme/generate.sh
+
+
+# >>> Plugin System <<<
+
+.PHONY: plugins
+plugins: cmake
+	@echo "Building plugins..."
+	@$(MAKE) -C $(BUILD_DIR) blur_cpp gradient_cpp
+	@echo "Plugins built successfully!"

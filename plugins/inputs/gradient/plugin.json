@@ -1,0 +1,30 @@
+{
+  "name": "Gradient",
+  "version": "1.0.0",
+  "type": "input",
+  "description": "Generates gradient backgrounds",
+  "author": "Video-Code",
+  "python_library": "gradient_py.so",
+  "cpp_library": "gradient_cpp.so",
+  "class_name": "Gradient",
+  "parameters": [
+    {
+      "name": "color1",
+      "type": "rgba",
+      "default": [255, 0, 0, 255],
+      "description": "Start color (RGBA)"
+    },
+    {
+      "name": "color2",
+      "type": "rgba",
+      "default": [0, 0, 255, 255],
+      "description": "End color (RGBA)"
+    },
+    {
+      "name": "direction",
+      "type": "str",
+      "default": "horizontal",
+      "description": "Gradient direction: horizontal, vertical, diagonal"
+    }
+  ]
+}
