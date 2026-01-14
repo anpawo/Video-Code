@@ -7,7 +7,7 @@ name = "video-code"
 version = "0.1.0"
 description = "A dual-language (Python + C++) video generation framework that creates videos programmatically"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
     {name = "Video-Code Contributors"}
@@ -21,7 +21,6 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Programming Language :: C++",
 ]
 
