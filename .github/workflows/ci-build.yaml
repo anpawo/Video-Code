@@ -66,9 +66,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
-          find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-          pip install --no-build-isolation -e .
+          pip install -e .
 
       - name: Run Python tests with coverage
         run: |
