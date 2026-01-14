@@ -75,6 +75,7 @@ if(CI_BUILD)
     )
     FetchContent_MakeAvailable(nlohmann_json)
 
+    set(CPR_USE_SYSTEM_CURL ON CACHE BOOL "" FORCE)
     FetchContent_Declare(
         cpr
         GIT_REPOSITORY https://github.com/libcpr/cpr.git
