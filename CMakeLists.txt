@@ -20,12 +20,14 @@ if(ENABLE_COVERAGE)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} --coverage")
 endif()
 
-if(NOT DEFINED ENV{VCPKG_ROOT})
+if(NOT DEFINED ENV{VCPKG_ROOT} AND NOT CI_BUILD)
     message(FATAL_ERROR "VCPKG_ROOT environment variable not set")
 endif()
 
-set(VCPKG_ROOT $ENV{VCPKG_ROOT})
-set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
+if(NOT CI_BUILD)
+    set(VCPKG_ROOT $ENV{VCPKG_ROOT})
+    set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
+endif()
 
 if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
     message(FATAL_ERROR "C++20 requires GCC 13 or higher")
@@ -50,7 +52,9 @@ if(NOT DEFINED VCPKG_TARGET_TRIPLET)
     endif()
 endif()
 
-set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CMAKE_SOURCE_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}")
+if(NOT CI_BUILD)
+    set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CMAKE_SOURCE_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}")
+endif()
 
 if(NOT DEFINED ENV{Qt6_DIR})
     set(Qt6_DIR "/usr/include/qt6/6.8.2/gcc_64/lib/cmake/Qt6")
@@ -70,12 +74,22 @@ if(CI_BUILD)
         GIT_REPOSITORY https://github.com/nlohmann/json.git
     )
     FetchContent_MakeAvailable(nlohmann_json)
+
+    FetchContent_Declare(
+        cpr
+        GIT_REPOSITORY https://github.com/libcpr/cpr.git
+        GIT_TAG 1.11.1
+    )
+    FetchContent_MakeAvailable(cpr)
 endif()
 
 find_package(OpenCV REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
-find_package(cpr CONFIG REQUIRED)
+
+if(NOT CI_BUILD)
+    find_package(cpr CONFIG REQUIRED)
+endif()
 
 if(NOT CI_BUILD)
     find_package(nlohmann_json CONFIG REQUIRED)
@@ -164,7 +178,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE ${PROJECT_NAME}-lib)
 
 # Build tests and coverage
 option(BUILD_TESTS "Build C++ unit tests" ON)
-find_package(GTest CONFIG REQUIRED)
+if(CI_BUILD)
+    find_package(GTest REQUIRED)
+else()
+    find_package(GTest CONFIG REQUIRED)
+endif()
 enable_testing()
 
 if(BUILD_TESTS)

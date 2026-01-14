@@ -18,16 +18,11 @@ jobs:
       - name: Checkout the repository
         uses: actions/checkout@v4
 
-      - name: Set up VCPKG_ROOT
-        run: echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
-
-      - name: Install vcpkg
-        run: |
-          git clone https://github.com/microsoft/vcpkg.git $HOME/vcpkg
-          $HOME/vcpkg/bootstrap-vcpkg.sh
-
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-dev ffmpeg libopencv-dev g++-13 gcc-13 lcov bc nasm
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake python3-dev ffmpeg libopencv-dev g++-13 gcc-13 lcov bc
+          sudo apt-get install -y libcurl4-openssl-dev libgtest-dev libgmock-dev
 
       - name: Set CXX environment variable
         run: |
@@ -44,7 +39,7 @@ jobs:
           arch: 'gcc_64'
 
       - name: Configure CMake
-        run: cmake -S . -B build -DCMAKE_CXX_COMPILER=$(which g++-13) -DCI_BUILD=ON -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake
+        run: cmake -S . -B build -DCMAKE_CXX_COMPILER=$(which g++-13) -DCI_BUILD=ON
 
       - name: Build the project
         run: make -C build
@@ -79,7 +74,7 @@ jobs:
           echo "Python coverage report generated"
 
       - name: Configure CMake with coverage
-        run: cmake -S . -B build_test -DCMAKE_CXX_COMPILER=$(which g++-13) -DENABLE_COVERAGE=ON -DBUILD_TESTS=ON -DCMAKE_TOOLCHAIN_FILE=$HOME/vcpkg/scripts/buildsystems/vcpkg.cmake
+        run: cmake -S . -B build_test -DCMAKE_CXX_COMPILER=$(which g++-13) -DCI_BUILD=ON -DENABLE_COVERAGE=ON -DBUILD_TESTS=ON
 
       - name: Build C++ tests
         run: make -C build_test
