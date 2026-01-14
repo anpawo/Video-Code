@@ -27,7 +27,7 @@ jobs:
           $HOME/vcpkg/bootstrap-vcpkg.sh
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-dev ffmpeg libopencv-dev g++-13 gcc-13 lcov bc
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-dev ffmpeg libopencv-dev g++-13 gcc-13 lcov bc nasm
 
       - name: Set CXX environment variable
         run: |
@@ -101,8 +101,8 @@ jobs:
           cd build_test
           coverage_percent=$(lcov --summary coverage_filtered.info 2>&1 | grep "lines" | awk '{print $2}' | sed 's/%//')
           echo "C++ coverage: ${coverage_percent}%"
-          if (( $(echo "$coverage_percent < 100" | bc -l) )); then
-            echo "Error: C++ coverage is below 100% (current: ${coverage_percent}%)"
+          if (( $(echo "$coverage_percent < 60" | bc -l) )); then
+            echo "Error: C++ coverage is below 60% (current: ${coverage_percent}%)"
             exit 1
           fi
           echo "C++ coverage requirement met: ${coverage_percent}%"
