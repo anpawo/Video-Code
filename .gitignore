@@ -24,7 +24,7 @@ __pycache__/
 *.pyc
 
 
-# direnv
+# Direnv
 .envrc
 .direnv/
 
@@ -36,16 +36,16 @@ venv/
 build/
 vcpkg*
 
-# dependencies
+# Dependencies
 include/argparse/
 
-# executables
+# Executables
 video-code
 
-# mac
+# Mac
 .DS_Store
 
-# misc
+# Misc
 wherewasi
 todo
 pgn

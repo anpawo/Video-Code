@@ -18,16 +18,15 @@ struct v2
     v2(T x, T y)
         : x(x)
         , y(y)
-        , w(this->x)
-        , h(this->y)
     {
     }
 
     T x;
     T y;
 
-    T& w;
-    T& h;
+    T w() { return x; };
+
+    T h() { return y; };
 
     friend std::ostream& operator<<(std::ostream& os, const v2& v)
     {
@@ -43,7 +42,7 @@ using v2f = v2<float>;
 namespace config
 {
     inline v2f screen{1920.0f, 1080.0f};
-    inline v2f screenOffset{screen.w / 2.0f, screen.h / 2.0f};
+    inline v2f screenOffset{screen.w() / 2.0f, screen.h() / 2.0f};
 };
 
 struct Metadata

@@ -58,10 +58,6 @@ endif()
 
 set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CMAKE_SOURCE_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}")
 
-if(NOT DEFINED ENV{Qt6_DIR})
-    set(Qt6_DIR "/usr/include/qt6/6.8.2/gcc_64/lib/cmake/Qt6")
-endif()
-
 if(CI_BUILD)
     message(STATUS "CI_BUILD is defined")
     include(FetchContent)

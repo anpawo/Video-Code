@@ -161,4 +161,3 @@ To install the project, checkout the [documentation](docs/user/user.md#installat
 - `feature`: frames are not kept in memory anymore, they are generated on the fly. (01/01/2026)
 
 </details>
-
