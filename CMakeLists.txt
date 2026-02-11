@@ -132,6 +132,7 @@ set(SOURCES
     src/shader/Grain.cpp
     src/shader/Brightness.cpp
     src/shader/Contrast.cpp
+    src/shader/Sharpen.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})

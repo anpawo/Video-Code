@@ -56,6 +56,7 @@
 - `grain`
 - `brightness`
 - `contrast`
+- `sharpen`
 
 </details>
 
