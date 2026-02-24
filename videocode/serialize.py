@@ -10,6 +10,7 @@ sys.path.append(".")
 
 from globals import *
 from videocode import *
+from plugin_loader import load_python_plugins
 
 
 def makeSerializable(o):
@@ -20,6 +21,8 @@ def serializeScene(filepath: str) -> str:
     """
     Serialiaze a file representing a `Scene`.
     """
+
+    load_python_plugins(globals())
 
     # Read the content of the file
     with open(filepath, "r") as file:

@@ -10,6 +10,7 @@
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <opencv2/core/mat.hpp>
+#include <string>
 #include <vector>
 
 #include "input/IInput.hpp"
@@ -29,6 +30,8 @@ public:
 
     void add(nlohmann::basic_json<>& modification) final;
 
+    void setShaderFactory(void* context, ShaderFactoryCallback callback) final;
+
     // -
 
     Metadata getMetadata(size_t index);
@@ -40,6 +43,9 @@ public:
     // -
 
 protected:
+
+    void* _shaderFactoryContext{nullptr};
+    ShaderFactoryCallback _shaderFactory{nullptr};
 
     ///< Arguments needed to generate the Input's matrix
     const json::object_t _baseArgs;

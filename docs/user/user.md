@@ -45,15 +45,20 @@ go to [qt6](https://www.qt.io/download) and download the latest version of qt6.
     cp build/video-code video-code
     ```
 
+5. **Build plugins (decoupled from main build):**
+  ```sh
+  ./scripts/build_plugins.sh plugins/build
+  ```
+
 ### Launch
 
 To launch the project, run:
 ```sh
-./video-code --file path/to/your/script.py
+./video-code --file path/to/your/script.py --plugin-dir plugins/build
 ```
 If you want to generate a video directly, use:
 ```sh
-./video-code --file path/to/your/script.py --generate
+./video-code --file path/to/your/script.py --generate output.mp4 --plugin-dir plugins/build
 
 ```
 

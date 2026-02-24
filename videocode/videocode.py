@@ -15,8 +15,11 @@ from videocode.constants import *
 # Global
 from videocode.globals import *
 
-# Inputs
-from videocode.input._inputs import *
+# Base input/shader interfaces
+from videocode.input.input import *
+from videocode.shader.ishader import *
 
-# Transformations
-from videocode.shader._shaders import *
+# Plugin symbols
+from videocode.plugin_loader import load_python_plugins
+
+load_python_plugins(globals())

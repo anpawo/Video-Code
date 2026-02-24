@@ -16,7 +16,7 @@
 #include "input/IInput.hpp"
 #include "input/Metadata.hpp"
 #include "shader/IVertexShader.hpp"
-#include "shader/ShaderFactory.hpp"
+#include "utils/Exception.hpp"
 
 AInput::AInput(json::object_t&& args)
     : _baseArgs(std::move(args))
@@ -45,7 +45,11 @@ void AInput::add(json& modification)
         ///< If a shader is single frame, it will ignore the index argument when called.
         ///< otherwise, it will use it. e.g. Opacity, LightSweep
         ///< that's why we duplicate the index of shader over duration.
-        _effects.push_back(transformation.at(name)(args));
+        if (_shaderFactory == nullptr) {
+            throw Error("No fragment shader factory configured for input.");
+        }
+
+        _effects.push_back(_shaderFactory(_shaderFactoryContext, name, args));
 
         size_t effectIndex = _effects.size() - 1;
 
@@ -57,6 +61,12 @@ void AInput::add(json& modification)
             _effectTimeline[i].push_back(effectIndex);
         }
     }
+}
+
+void AInput::setShaderFactory(void* context, ShaderFactoryCallback callback)
+{
+    _shaderFactoryContext = context;
+    _shaderFactory = callback;
 }
 
 Metadata AInput::getMetadata(size_t index)
