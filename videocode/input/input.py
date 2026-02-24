@@ -4,12 +4,6 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Self
-from videocode.template.effect.fadeIn import fadeIn
-from videocode.template.effect.fadeOut import fadeOut
-from videocode.template.effect.moveTo import moveTo
-from videocode.template.effect.moveBy import moveBy
-from videocode.template.effect.scaleBy import scaleBy
-from videocode.template.effect.scaleTo import scaleTo
 from videocode.shader.ishader import IShader, VertexShader, FragmentShader
 from videocode.globals import *
 from videocode.constants import *

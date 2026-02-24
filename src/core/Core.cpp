@@ -12,16 +12,25 @@
 #include <qscreen.h>
 
 #include <cstddef>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <opencv2/core/mat.hpp>
 #include <string>
 
 #include "input/IInput.hpp"
-#include "input/InputFactory.hpp"
-#include "input/media/Video.hpp"
 #include "utils/Debug.hpp"
 #include "utils/Exception.hpp"
+
+namespace
+{
+    std::unique_ptr<IFragmentShader> createFragmentShaderForInput(void* context, const std::string& name, const json::object_t& args)
+    {
+        auto* registry = static_cast<VC::PluginRegistry*>(context);
+
+        return registry->createFragmentShader(name, args);
+    }
+}
 
 VC::Core::Core(const argparse::ArgumentParser& parser)
     : _showstack(parser.get<bool>("--showstack"))
@@ -34,9 +43,11 @@ VC::Core::Core(const argparse::ArgumentParser& parser)
     // ---
     , _sourceFile(parser.get("--file"))
     , _outputFile(parser.get("--generate"))
+    , _pluginDir(parser.get("--plugin-dir"))
     // ---
     , _bgFrame(cv::Mat(_height, _width, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0)))
 {
+    _pluginRegistry.loadPluginDirectories({_pluginDir});
     reloadSourceFile();
 }
 
@@ -66,7 +77,12 @@ void VC::Core::reloadSourceFile()
 
 std::string VC::Core::serializeScene()
 {
-    std::string command = "python3 -c \"import sys; sys.path.append('./videocode');from serialize import serializeScene; print(serializeScene('video.py'))\"";
+    setenv("VIDEO_CODE_PLUGIN_DIR", _pluginDir.c_str(), 1);
+
+    std::string command = std::format(
+        "python3 -c \"import sys; sys.path.append('./videocode'); from serialize import serializeScene; print(serializeScene('{}'))\"",
+        _sourceFile
+    );
 
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {
@@ -90,15 +106,14 @@ void VC::Core::executeStack()
         }
 
         if (s["action"] == "Create") {
-            _inputs.push_back(Factory::inputs.at(s["type"])(s["args"]));
+            auto input = _pluginRegistry.createInput(s["type"], s["args"]);
+            input->setShaderFactory(&_pluginRegistry, createFragmentShaderForInput);
 
-            if (s["type"] == "Video") {
-                auto* video = dynamic_cast<Video*>(_inputs.back().get());
-
-                if (video->_nbFrame > _nbFrame) {
-                    _nbFrame = video->_nbFrame;
-                }
+            if (input->maxFrameHint() > _nbFrame) {
+                _nbFrame = input->maxFrameHint();
             }
+
+            _inputs.push_back(std::move(input));
 
         } else if (s["action"] == "Apply") {
             ssize_t index = s["input"];
