@@ -8,6 +8,7 @@
 #include <QApplication>
 #include <QMainWindow>
 #include <argparse/argparse.hpp>
+#include <string>
 #include <nlohmann/json.hpp>
 #include <opencv2/core/utils/logger.hpp>
 #include <opencv2/opencv.hpp>
@@ -52,6 +53,11 @@ void setParserArgument(argparse::ArgumentParser &p)
         .add_argument("--showtimeline")
         .flag()
         .help("Show the timeline of the video.");
+
+    p
+        .add_argument("--plugin-dir")
+        .default_value(std::string("plugins/build"))
+        .help("Directory containing built plugin metadata and artifacts.");
 }
 
 int main(int argc, char *argv[])

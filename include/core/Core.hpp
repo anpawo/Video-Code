@@ -13,6 +13,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "input/IInput.hpp"
+#include "plugin/PluginRegistry.hpp"
 
 namespace VC
 {
@@ -64,6 +65,7 @@ namespace VC
         ///< Source & Output file
         const std::string _sourceFile;
         const std::string _outputFile;
+        const std::string _pluginDir;
 
         ///< Background frame, black with alpha 0
         const cv::Mat _bgFrame;
@@ -80,5 +82,8 @@ namespace VC
 
         ///< Stack containing the steps of the video
         json::array_t _stack{};
+
+        ///< Runtime plugin registry
+        PluginRegistry _pluginRegistry{};
     };
 };

@@ -107,28 +107,11 @@ set(SOURCES
     # --- Core ---
     src/core/Core.cpp
 
-    # --- Inputs ---
+    # --- Input Runtime ---
     src/input/AInput.cpp
-    # Media
-    src/input/media/Image.cpp
-    src/input/media/WebImage.cpp
-    src/input/media/Video.cpp
-    # Text
-    src/input/text/Text.cpp
-    # Shape
-    src/input/shape/Circle.cpp
-    src/input/shape/Rectangle.cpp
-    src/input/shape/Line.cpp
 
-    # --- Fragment Shader ---
-    src/shader/Grayscale.cpp
-    src/shader/Opacity.cpp
-    src/shader/Blur.cpp
-    src/shader/Gamma.cpp
-    src/shader/Grain.cpp
-    src/shader/Brightness.cpp
-    src/shader/Contrast.cpp
-    src/shader/Sharpen.cpp
+    # --- Plugin Runtime ---
+    src/plugin/PluginRegistry.cpp
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
@@ -145,6 +128,7 @@ target_link_libraries(${PROJECT_NAME}
     argparse::argparse
     nlohmann_json::nlohmann_json
     ${OpenCV_LIBS}
+    ${CMAKE_DL_LIBS}
     ${FFMPEG_LIBRARIES}
     Qt6::Widgets
     Qt6::Core
