@@ -12,6 +12,7 @@
 #include <qscreen.h>
 
 #include <cstddef>
+#include <cstdio>
 #include <iostream>
 #include <memory>
 #include <opencv2/core/mat.hpp>
@@ -37,7 +38,12 @@ VC::Core::Core(const argparse::ArgumentParser& parser)
     // ---
     , _bgFrame(cv::Mat(_height, _width, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0)))
 {
-    reloadSourceFile();
+    if (!parser.get<bool>("--ui")) {
+        VC_LOG_DEBUG("[Core] Loading source file (non-UI mode).");
+        reloadSourceFile();
+    } else {
+        VC_LOG_DEBUG("[Core] UI mode: skip source file load.");
+    }
 }
 
 void VC::Core::reloadSourceFile()
@@ -61,6 +67,20 @@ void VC::Core::reloadSourceFile()
         return;
     }
 
+    executeStack();
+}
+
+void VC::Core::loadStack(const json::array_t& stack)
+{
+    VC_LOG_DEBUG("[Core] loadStack: reset state and execute new stack.");
+    _inputs.clear();
+    _stack.clear();
+    _waits.clear();
+    _nbFrame = 0;
+    _index = 0;
+    _indexChanged = true;
+
+    _stack = stack;
     executeStack();
 }
 
@@ -149,7 +169,20 @@ void VC::Core::updateFrame(QLabel& imageLabel)
         return;
     }
 
-    cv::Mat frame = generateFrame(_index);
+    cv::Mat frame;
+    try {
+        frame = generateFrame(_index);
+    } catch (const Error& e) {
+        std::fprintf(stderr, "[Core] generateFrame error: %s\n", e.what());
+        _paused = true;
+        _indexChanged = false;
+        return;
+    } catch (const std::exception& e) {
+        std::fprintf(stderr, "[Core] generateFrame exception: %s\n", e.what());
+        _paused = true;
+        _indexChanged = false;
+        return;
+    }
 
     // Screen pixel density ratio (needed for mac's retina)
     qreal scaleFactor = qApp->devicePixelRatio();
@@ -185,6 +218,11 @@ void VC::Core::updateFrame(QLabel& imageLabel)
 
 int VC::Core::generateVideo()
 {
+    return generateVideo(_outputFile);
+}
+
+int VC::Core::generateVideo(const std::string& outputFile)
+{
     FILE* ffmpegPipe = popen(
         std::format(
             "ffmpeg"
@@ -205,7 +243,7 @@ int VC::Core::generateVideo()
             _width,
             _height,
             _framerate,
-            _outputFile
+            outputFile
         )
             .c_str(),
         "w"
@@ -235,7 +273,7 @@ int VC::Core::generateVideo()
     }
 
     pclose(ffmpegPipe);
-    VC_LOG_DEBUG("video generated as: " + _outputFile)
+    VC_LOG_DEBUG("video generated as: " + outputFile)
     return 0;
 }
 

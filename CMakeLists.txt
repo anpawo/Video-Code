@@ -99,7 +99,9 @@ set(SOURCES
     # --- Window ---
     include/window/Window.hpp # Needed for the MOC (Meta-Object Compiler) Q_OBJECT
     include/window/TimelineWidget.hpp # Needed for the MOC (Meta-Object Compiler) Q_OBJECT
+    include/window/UiPanel.hpp # Needed for the MOC (Meta-Object Compiler) Q_OBJECT
     src/window/Window.cpp
+    src/window/UiPanel.cpp
 
     # --- Compiler ---
     src/compiler/Compiler.cpp

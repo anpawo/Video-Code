@@ -11,6 +11,7 @@
 #include <nlohmann/json.hpp>
 #include <opencv2/core/utils/logger.hpp>
 #include <opencv2/opencv.hpp>
+#include <iostream>
 
 #include "compiler/Compiler.hpp"
 #include "window/Window.hpp"
@@ -52,6 +53,35 @@ void setParserArgument(argparse::ArgumentParser &p)
         .add_argument("--showtimeline")
         .flag()
         .help("Show the timeline of the video.");
+
+    p
+        .add_argument("--ui")
+        .flag()
+        .help("Launch UI mode (dynamic editor).");
+
+    p
+        .add_argument("--ui-schema")
+        .flag()
+        .help("Print UI schema (inputs/effects) for the dynamic editor.");
+}
+
+static int printUiSchema()
+{
+    const std::string command = "python3 videocode/ui_schema.py";
+
+    FILE* pipe = popen(command.c_str(), "r");
+    if (!pipe) {
+        std::cerr << "VideoCode: Failed to run UI schema generator." << std::endl;
+        return 1;
+    }
+
+    char buffer[4096];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        std::cout << buffer;
+    }
+
+    int status = pclose(pipe);
+    return status == 0 ? 0 : 1;
 }
 
 int main(int argc, char *argv[])
@@ -67,6 +97,10 @@ int main(int argc, char *argv[])
 
     setParserArgument(parser);
     parser.parse_args(argc, argv);
+
+    if (parser.get<bool>("--ui-schema")) {
+        return printUiSchema();
+    }
 
     if (parser.is_used("--generate")) {
         // Compile Mode

@@ -13,8 +13,10 @@
 #include <QLabel>
 #include <QMainWindow>
 #include <QTimer>
+#include <QTimer>
 #include <argparse/argparse.hpp>
 #include <opencv2/opencv.hpp>
+#include "UiPanel.hpp"
 
 #include "TimelineWidget.hpp"
 #include "core/Core.hpp"
@@ -60,5 +62,9 @@ namespace VC
 
         ///< Timeline Widget
         TimelineWidget* _timeline{nullptr};
+
+        ///< UI mode
+        bool _uiMode{false};
+        UiPanel* _uiPanel{nullptr};
     };
 };

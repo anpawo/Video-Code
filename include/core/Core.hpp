@@ -25,6 +25,7 @@ namespace VC
 
         ///< Reload the source file, then execute the stack, then add the new frames to the Timeline.
         void reloadSourceFile();
+        void loadStack(const json::array_t& stack);
         std::string serializeScene();
         void executeStack();
         cv::Mat generateFrame(size_t index);
@@ -34,6 +35,7 @@ namespace VC
 
         ///< Generate the video
         int generateVideo();
+        int generateVideo(const std::string& outputFile);
 
         ///< Time control
         void pause();

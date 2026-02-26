@@ -8,6 +8,12 @@
 #include "window/Window.hpp"
 
 #include "qnamespace.h"
+#include "window/UiPanel.hpp"
+#include "utils/Debug.hpp"
+#include <QLabel>
+#include <QGuiApplication>
+#include <QSizePolicy>
+#include <QVBoxLayout>
 
 VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     : QMainWindow(parent)
@@ -15,7 +21,9 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     , _height(parser.get<int>("--height"))
     , _framerate(parser.get<int>("--framerate"))
     , _core(parser)
+    , _uiMode(parser.get<bool>("--ui"))
 {
+    VC_LOG_DEBUG("[UI] Window init. uiMode=" + std::to_string(_uiMode));
     ///< Routine settings
     _timer = new QTimer(this);
     connect(_timer, &QTimer::timeout, this, &Window::mainRoutine);
@@ -23,13 +31,20 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
 
     ///< Setup the layout and image
     _imageLabel = new QLabel(this);
-    _imageLabel->setFixedSize(_width / 2, _height / 2);
-    _imageLayout = new QVBoxLayout();
-    _imageLayout->setContentsMargins(0, 0, 0, 0);
-    _imageLayout->addWidget(_imageLabel);
-    _centralWidget = new QWidget(this);
-    _centralWidget->setLayout(_imageLayout);
-    setCentralWidget(_centralWidget);
+    _imageLabel->setMinimumSize(_width / 2, _height / 2);
+    _imageLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    if (_uiMode) {
+        _uiPanel = new UiPanel(_imageLabel, &_core, this);
+        setCentralWidget(_uiPanel);
+    } else {
+        _imageLayout = new QVBoxLayout();
+        _imageLayout->setContentsMargins(0, 0, 0, 0);
+        _imageLayout->addWidget(_imageLabel);
+        _centralWidget = new QWidget(this);
+        _centralWidget->setLayout(_imageLayout);
+        setCentralWidget(_centralWidget);
+    }
 
     ///< Timeline
     if (_core._showtimeline) {
@@ -57,8 +72,20 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     }
     setWindowTitle((l + sep + r).c_str());
 
-    move(_width / 2, 0);
-    resize(_width / 2, _height / 2);
+    if (_uiMode) {
+        const QScreen* screen = QGuiApplication::primaryScreen();
+        if (screen) {
+            const QRect geo = screen->availableGeometry();
+            setGeometry(geo);
+            setMaximumSize(geo.size());
+            resize(geo.size());
+        } else {
+            resize(_width, _height);
+        }
+    } else {
+        move(_width / 2, 0);
+        resize(_width / 2, _height / 2);
+    }
     show();
 }
 

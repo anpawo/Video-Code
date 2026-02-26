@@ -3,6 +3,7 @@
 
 from sys import stderr
 from typing import TYPE_CHECKING, Any, Callable
+import inspect
 from videocode.globals import Global
 from videocode.utils.funcutils import fromWorlToScreen, upperFirst
 from videocode.utils.timeit import *
@@ -140,6 +141,14 @@ def inputCreation(f: Callable[..., None]):
                 "args": fromWorlToScreen(f.__annotations__, attrs),
             },
         )
+
+    # Preserve signature and annotations for UI introspection
+    inputCreationWrapper.__wrapped__ = f
+    inputCreationWrapper.__annotations__ = getattr(f, "__annotations__", {})
+    try:
+        inputCreationWrapper.__signature__ = inspect.signature(f)
+    except Exception:
+        pass
 
     return inputCreationWrapper
 
