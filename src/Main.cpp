@@ -8,6 +8,7 @@
 #include <QApplication>
 #include <QMainWindow>
 #include <argparse/argparse.hpp>
+#include <cstdlib>
 #include <nlohmann/json.hpp>
 #include <opencv2/core/utils/logger.hpp>
 #include <opencv2/opencv.hpp>
@@ -59,29 +60,31 @@ int main(int argc, char *argv[])
     // Hide OpenCV logs
     cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_SILENT);
 
+    // Parse the arguments
     argparse::ArgumentParser parser(
         "./videocode",
         "A video editing software made by Marius Rousset and Hippolyte Lefer.",
         argparse::default_arguments::help
     );
-
     setParserArgument(parser);
-    parser.parse_args(argc, argv);
+    try {
+        parser.parse_args(argc, argv);
+    } catch (const std::exception &e) {
+        std::cerr << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
 
+    // Generate the video
     if (parser.is_used("--generate")) {
-        // Compile Mode
         VC::Compiler compiler(parser);
 
         return compiler.generateVideo();
-
-    } else {
-        // Edit Mode
-        QApplication app(argc, argv);
-
-        VC::Window window(parser);
-
-        return app.exec();
     }
+
+    // Preview/Edit the video
+    QApplication app(argc, argv);
+    VC::Window window(parser);
+    return app.exec();
 }
 
 // binding python / cpp
