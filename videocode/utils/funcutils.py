@@ -31,9 +31,10 @@ def upperFirst(s: str):
 
 
 def fromWorlToScreen(annotations: dict[str, type], values: dict[str, Any]) -> dict:
-    adapt = [wint, wuint, wfloat, wufloat]
 
     def shouldScale(t) -> bool:
+        adapt = [wint, wuint, wfloat, wufloat]
+
         if t in adapt:
             return True
 

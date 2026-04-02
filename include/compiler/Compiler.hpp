@@ -10,6 +10,7 @@
 #include <argparse/argparse.hpp>
 #include <opencv2/opencv.hpp>
 
+#include "core/Config.hpp"
 #include "core/Core.hpp"
 
 namespace VC
@@ -24,6 +25,8 @@ namespace VC
         int generateVideo();
 
     private:
+
+        Config config;
 
         ///< Core handling the images
         Core _core;

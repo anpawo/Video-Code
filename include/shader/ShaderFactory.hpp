@@ -20,13 +20,13 @@ using json = nlohmann::json;
 // -----------------------------------------------------------------------------
 
 #define SHADERS(X) \
-    X(Grayscale)   \
-    X(Opacity)     \
-    X(Blur)        \
-    X(Gamma)       \
-    X(Grain)       \
-    X(Brightness)  \
-    X(Contrast)
+    X(Blur)
+// X(Grayscale)   \
+    // X(Opacity)     \
+    // X(Gamma)       \
+    // X(Grain)       \
+    // X(Brightness)  \
+    // X(Contrast)
 
 // -------------------------------------------------------------------------
 // Function declaration

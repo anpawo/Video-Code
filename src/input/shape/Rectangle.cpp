@@ -11,68 +11,77 @@
 #include <vector>
 
 #include "opencv2/core/matx.hpp"
-#include "opencv2/core/types.hpp"
-#include "opencv2/imgproc.hpp"
 
 Rectangle::Rectangle(json::object_t &&args)
     : AInput(std::move(args))
 {
 }
 
-static void line(cv::Mat &bg, const size_t x, const size_t y, const size_t w, const size_t h, const cv::Vec4b &color)
+Vertex Rectangle::makeVertex(float x, float y, const cv::Vec4b &c)
 {
-    for (size_t iy = y; iy < h; iy++) {
-        for (size_t ix = x; ix < w; ix++) {
-            bg.at<cv::Vec4b>(iy, ix) = color;
+    return Vertex{
+        {x, y},
+        {0.0f, 0.0f}, // UVs unused, zeroed (texture)
+        {
+            c[0] / 255.f,
+            c[1] / 255.f,
+            c[2] / 255.f,
+            c[3] / 255.f
         }
-    }
+    };
 }
 
-cv::Mat Rectangle::getBaseMatrix(const json::object_t &args)
+Mesh Rectangle::getMesh(const Metadata &meta, const Config &config)
 {
-    size_t w = args.at("width");
-    size_t h = args.at("height");
-    size_t t = args.at("thickness");
-    const std::vector<int> &color = args.at("color");
-    size_t r = args.at("cornerRadius");
-    bool filled = args.at("filled");
-    const cv::Vec4b bgra = cv::Scalar(color[2], color[1], color[0], color[3]);
-    cv::LineTypes lineType = cv::LINE_AA;
+    // Width - Height
+    w = meta.args.at("width").get<float>() * meta.scale.x;
+    h = meta.args.at("height").get<float>() * meta.scale.y;
 
-    cv::Mat mat = cv::Mat(h, w, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0));
+    // X - Y
+    x = meta.position.x - w * meta.align.x;
+    y = meta.position.y - h * meta.align.y;
 
-    size_t a = r ? t / 2 : 0;
+    // Vulkan NDC
+    x = x / config.windowWidth - 1.f;
+    y = y / config.windowHeight - 1.f;
+    w /= config.windowWidth;
+    h /= config.windowHeight;
 
-    if (r) {
-        cv::ellipse(mat, cv::Point2d(r + a, r + a), cv::Size(r, r), 180, 0, 90, bgra, t, lineType);
-        cv::ellipse(mat, cv::Point2d(w - r - a - 1, r + a), cv::Size(r, r), 180, 90, 180, bgra, t, lineType);
-        cv::ellipse(mat, cv::Point2d(w - r - a - 1, h - r - a - 1), cv::Size(r, r), 180, 180, 270, bgra, t, lineType);
-        cv::ellipse(mat, cv::Point2d(r + a, h - r - a - 1), cv::Size(r, r), 180, 270, 360, bgra, t, lineType);
-    }
+    const auto &c = meta.args.at("color");
+    colorRGBA = cv::Vec4b(c[0], c[1], c[2], c[3]);
 
-    line(mat, r + a, 0, w - r - a, t, bgra);     // top
-    line(mat, r + a, h - t, w - r - a, h, bgra); // bottom
-    line(mat, w - t, r + a, w, h - r - a, bgra); // right
-    line(mat, 0, r + a, t, h - r - a, bgra);     // left
+    ///< TODO:
+    thickness = meta.args.at("thickness");
+    cornerRadius = meta.args.at("cornerRadius");
+    filled = meta.args.at("filled");
 
-    if (filled) {
-        for (size_t y = 0; y < h; y++) {
-            for (size_t x = w / 2; x < w; x++) {
-                if (mat.at<cv::Vec4b>(y, x)[3] != bgra[3]) {
-                    mat.at<cv::Vec4b>(y, x) = bgra;
-                    continue;
-                }
-                break;
-            }
-            for (size_t x = w / 2 - 1; x > 0; x--) {
-                if (mat.at<cv::Vec4b>(y, x)[3] != bgra[3]) {
-                    mat.at<cv::Vec4b>(y, x) = bgra;
-                    continue;
-                }
-                break;
-            }
-        }
-    }
+    // 0---1
+    // |  /|
+    // | / |
+    // |/  |
+    // 2---3
 
-    return mat;
+    Mesh mesh;
+    mesh.hasTexture = false;
+    mesh.textureDescriptor = nullptr;
+
+    mesh.vertices = {
+        makeVertex(x, y, colorRGBA),         // 0 top-left
+        makeVertex(x + w, y, colorRGBA),     // 1 top-right
+        makeVertex(x, y + h, colorRGBA),     // 2 bottom-left
+        makeVertex(x + w, y + h, colorRGBA), // 3 bottom-right
+    };
+
+    mesh.indices = {0, 1, 2, 1, 3, 2};
+
+    mesh.pushConstants = RectPushConstants{
+        w,
+        h,
+        thickness,
+        cornerRadius,
+        filled ? 1 : 0,
+        0
+    };
+
+    return mesh;
 }

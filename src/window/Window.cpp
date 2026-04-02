@@ -7,45 +7,43 @@
 
 #include "window/Window.hpp"
 
-#include "qnamespace.h"
-
 VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     : QMainWindow(parent)
-    , _width(parser.get<int>("--width"))
-    , _height(parser.get<int>("--height"))
-    , _framerate(parser.get<int>("--framerate"))
-    , _core(parser)
+    , config({
+          .screenWidth = parser.get<float>("--width"),
+          .screenHeight = parser.get<float>("--height"),
+
+          .framerate = parser.get<int>("--framerate"),
+
+          .sourceFile = parser.get("--file"),
+          .outputFile = parser.get("--generate"),
+      })
+    , _core(parser, config)
 {
-    ///< Routine settings
+    ///< Timer for timeline updates (Vulkan drives its own render loop via update())
     _timer = new QTimer(this);
     connect(_timer, &QTimer::timeout, this, &Window::mainRoutine);
-    _timer->start(1000 / _framerate);
+    _timer->start(1000 / config.framerate);
 
-    ///< Setup the layout and image
-    _imageLabel = new QLabel(this);
-    _imageLabel->setFixedSize(_width / 2, _height / 2);
-    _imageLayout = new QVBoxLayout();
-    _imageLayout->setContentsMargins(0, 0, 0, 0);
-    _imageLayout->addWidget(_imageLabel);
-    _centralWidget = new QWidget(this);
-    _centralWidget->setLayout(_imageLayout);
-    setCentralWidget(_centralWidget);
+    ///< Vulkan central widget
+    _vulkanWidget = new VulkanWidget(this);
+    _vulkanWidget->setFixedSize(config.windowWidth, config.windowHeight);
+    setCentralWidget(_vulkanWidget);
 
-    ///< Timeline
-    if (_core._showtimeline) {
-        _timeline = new TimelineWidget(_imageLabel, _core._index, _core._nbFrame, _width / 2);
-        _timeline->setGeometry(
-            0,
-            _imageLabel->height() - _timeline->minimumHeight(),
-            _timeline->minimumWidth(),
-            _timeline->minimumHeight()
-        );
-        _timeline->raise();
-    }
+    /// TODO: fix the timeline
+    ///< Timeline overlay (child of the Vulkan widget so it sits on top)
+    // if (_core._showtimeline) {
+    //     _timeline = new TimelineWidget(_vulkanWidget, _core._index, _core._nbFrame, _width / 2);
+    //     _timeline->setGeometry(
+    //         0,
+    //         _vulkanWidget->height() - _timeline->minimumHeight(),
+    //         _timeline->minimumWidth(),
+    //         _timeline->minimumHeight()
+    //     );
+    //     _timeline->raise();
+    // }
 
-    ///< Window settings
-    setStyleSheet("background-color: black;");
-
+    /// TODO: function for that
     ///< Window name centered
     std::string l = "video-code";
     std::string sep = "  |  ";
@@ -57,9 +55,14 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     }
     setWindowTitle((l + sep + r).c_str());
 
-    move(_width / 2, 0);
-    resize(_width / 2, _height / 2);
+    // Resize the QT window and move it to the top-right corner
+    move(config.windowWidth, 0);
+    resize(config.windowWidth, config.windowHeight);
     show();
+
+    ///< Defer Vulkan init until the event loop is running and the native
+    ///< window handle is guaranteed to be available.
+    QTimer::singleShot(0, _vulkanWidget, [this] { _vulkanWidget->init(); });
 }
 
 VC::Window::~Window() = default;
@@ -81,13 +84,12 @@ void VC::Window::keyPressEvent(QKeyEvent* event)
     } else {
         QMainWindow::keyPressEvent(event);
     }
-    _core.updateFrame(*_imageLabel);
 }
 
 void VC::Window::mainRoutine()
 {
-    _core.updateFrame(*_imageLabel);
-
+    auto meshes = _core.generateMeshes();
+    _vulkanWidget->setMeshes(meshes);
     if (_timeline) {
         _timeline->update();
     }

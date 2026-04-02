@@ -9,11 +9,9 @@
 
 #include <memory>
 #include <nlohmann/json.hpp>
-#include <opencv2/core/mat.hpp>
 #include <vector>
 
 #include "input/IInput.hpp"
-#include "input/Metadata.hpp"
 #include "shader/IFragmentShader.hpp"
 
 using json = nlohmann::json;
@@ -31,11 +29,7 @@ public:
 
     // -
 
-    Metadata getMetadata(size_t index);
-
-    // -
-
-    void overlay(cv::Mat& bg, size_t index);
+    Metadata getMetadata(size_t index) final;
 
     // -
 
@@ -47,7 +41,7 @@ protected:
     ///< Effects (Affect the pixels of the Input) | Effects are duplicated over duration
     ///< That't why we have 2 vectors.
     std::vector<std::unique_ptr<IFragmentShader>> _effects{};
-    std::vector<std::vector<size_t>> _effectTimeline{};
+    std::vector<std::vector<size_t>>              _effectTimeline{};
 
     ///< Transformations (Affect the Metadata of the Input)
     std::vector<Metadata> _metas{Metadata{.args = _baseArgs}};

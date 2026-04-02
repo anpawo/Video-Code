@@ -31,13 +31,13 @@ void setParserArgument(argparse::ArgumentParser &p)
 
     p
         .add_argument("--width")
-        .default_value(1920)
-        .scan<'i', int>();
+        .default_value(1920.f)
+        .scan<'f', float>();
 
     p
         .add_argument("--height")
-        .default_value(1080)
-        .scan<'i', int>();
+        .default_value(1080.f)
+        .scan<'f', float>();
 
     p
         .add_argument("--framerate")
@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
 
     // Preview/Edit the video
     QApplication app(argc, argv);
-    VC::Window window(parser);
+    VC::Window   window(parser);
     return app.exec();
 }
 

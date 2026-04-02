@@ -7,35 +7,22 @@
 
 #include "core/Core.hpp"
 
-#include <qapplication.h>
-#include <qpainter.h>
-#include <qscreen.h>
-
 #include <cstddef>
 #include <iostream>
 #include <memory>
-#include <opencv2/core/mat.hpp>
 #include <string>
 
+#include "core/Config.hpp"
+#include "input/AInput.hpp"
 #include "input/IInput.hpp"
 #include "input/InputFactory.hpp"
-#include "input/media/Video.hpp"
-#include "utils/Debug.hpp"
+// #include "input/media/Video.hpp"
 #include "utils/Exception.hpp"
 
-VC::Core::Core(const argparse::ArgumentParser& parser)
+VC::Core::Core(const argparse::ArgumentParser& parser, const Config& config)
     : _showstack(parser.get<bool>("--showstack"))
     , _showtimeline(parser.get<bool>("--showtimeline"))
-    // ---
-    , _width(parser.get<int>("--width"))
-    , _height(parser.get<int>("--height"))
-    // ---
-    , _framerate(parser.get<int>("--framerate"))
-    // ---
-    , _sourceFile(parser.get("--file"))
-    , _outputFile(parser.get("--generate"))
-    // ---
-    , _bgFrame(cv::Mat(_height, _width, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0)))
+    , _config(config)
 {
     reloadSourceFile();
 }
@@ -47,7 +34,7 @@ void VC::Core::reloadSourceFile()
     try {
         serializedScene = serializeScene();
     } catch (const Error& e) {
-        std::cerr << "\nVideoCode: Invalid source file '" << _sourceFile << "', could not parse the instructions." << std::endl;
+        std::cerr << "\nVideoCode: Invalid source file '" << _config.sourceFile << "', could not parse the instructions." << std::endl;
         return;
     }
 
@@ -70,10 +57,10 @@ std::string VC::Core::serializeScene()
 
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {
-        throw Error("Failed to load '" + _sourceFile + "'.");
+        throw Error("Failed to load '" + _config.sourceFile + "'.");
     }
 
-    char buffer[4096];
+    char        buffer[4096];
     std::string result;
     while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
         result += buffer;
@@ -92,13 +79,13 @@ void VC::Core::executeStack()
         if (s["action"] == "Create") {
             _inputs.push_back(Factory::inputs.at(s["type"])(s["args"]));
 
-            if (s["type"] == "Video") {
-                auto* video = dynamic_cast<Video*>(_inputs.back().get());
+            // if (s["type"] == "Video") {
+            //     auto* video = dynamic_cast<Video*>(_inputs.back().get());
 
-                if (video->_nbFrame > _nbFrame) {
-                    _nbFrame = video->_nbFrame;
-                }
-            }
+            // if (video->_nbFrame > _nbFrame) {
+            //     _nbFrame = video->_nbFrame;
+            // }
+            // }
 
         } else if (s["action"] == "Apply") {
             ssize_t index = s["input"];
@@ -126,45 +113,20 @@ void VC::Core::executeStack()
     }
 }
 
-cv::Mat VC::Core::generateFrame(size_t index)
+std::vector<Mesh> VC::Core::generateMeshes()
 {
-    cv::Mat bg = _bgFrame.clone();
-
-    auto potentialIndex = _waits.find(index);
-
+    auto potentialIndex = _waits.find(_index);
     if (potentialIndex != _waits.end()) {
-        index = potentialIndex->second;
+        _index = potentialIndex->second;
     }
 
+    std::vector<Mesh> meshes;
     for (auto& i : _inputs) {
-        i->overlay(bg, index);
+        auto meta = i->getMetadata(_index);
+        if (!meta.hidden) {
+            meshes.push_back(i->getMesh(meta, _config));
+        }
     }
-
-    return bg;
-}
-
-void VC::Core::updateFrame(QLabel& imageLabel)
-{
-    if (!_indexChanged) {
-        return;
-    }
-
-    cv::Mat frame = generateFrame(_index);
-
-    // Screen pixel density ratio (needed for mac's retina)
-    qreal scaleFactor = qApp->devicePixelRatio();
-
-    cv::resize(
-        frame,
-        frame,
-        cv::Size(
-            _width / (2.0 / scaleFactor),
-            _height / (2.0 / scaleFactor)
-        ),
-        _width / (2.0 / scaleFactor),
-        _height / (2.0 / scaleFactor),
-        cv::INTER_LINEAR
-    );
 
     // load next frame if not in pause and not at the end
     if (_paused == false && _nbFrame && _index < _nbFrame - 1) {
@@ -174,69 +136,14 @@ void VC::Core::updateFrame(QLabel& imageLabel)
         _indexChanged = false;
     }
 
-    // Create QImage from frame data
-    QImage img(frame.data, frame.cols, frame.rows, frame.step, QImage::Format_ARGB32);
-    img.setDevicePixelRatio(qApp->devicePixelRatio());
-
-    // Create a pixmap for better display (cpu)
-    QPixmap pixmap = QPixmap::fromImage(img);
-    imageLabel.setPixmap(pixmap);
+    return meshes;
 }
 
 int VC::Core::generateVideo()
 {
-    FILE* ffmpegPipe = popen(
-        std::format(
-            "ffmpeg"
-            " -y"                   // override existing file
-            " -f rawvideo"          // rawvideo codec (the pipe receives pixels in stdin)
-            " -pixel_format bgra"   // the format of the pixel sent
-            " -video_size {}x{}"    // width and height
-            " -framerate {}"        // input framerate
-            " -an"                  // tells ffmpeg to expect no audio
-            " -i -"                 // the inputs comes from a pipe (stdin)
-            " -c:v libx264"         // the codec defines how are the frames compressed in the output file
-            " -preset veryfast"     // speed up the process
-            " -pix_fmt yuv420p"     // the pixel format defines how the colors are represented in the file
-            " -crf 23"              // video quality (recommended for libx264)
-            " -movflags +faststart" // metadata is at the start of the video so it can start playing even if not full loaded
-            " -loglevel warning"    // display only warnings
-            " {}",                  // output filename
-            _width,
-            _height,
-            _framerate,
-            _outputFile
-        )
-            .c_str(),
-        "w"
-    );
-
-    if (!ffmpegPipe) {
-        throw Error("Could not start the ffmpeg pipe.");
-    }
-
-    for (size_t i = 0; i < _nbFrame; i++) {
-        cv::Mat f = generateFrame(i);
-
-        if (f.rows != _height && f.cols != _width) {
-            throw Error("index: " + std::to_string(i) + ". Frame size mismatch. width: " + std::to_string(f.cols) + "!=" + std::to_string(_width) + ", height: " + std::to_string(f.rows) + "!=" + std::to_string(_height));
-        }
-
-        if (!f.isContinuous()) {
-            f = f.clone();
-        }
-
-        size_t bytes = f.total() * f.elemSize();
-        size_t written = fwrite(f.data, 1, bytes, ffmpegPipe);
-
-        if (written != bytes) {
-            throw Error("index: " + std::to_string(i) + ". Wrote only " + std::to_string(written) + " out of " + std::to_string(bytes) + " bytes.");
-        }
-    }
-
-    pclose(ffmpegPipe);
-    VC_LOG_DEBUG("video generated as: " + _outputFile)
-    return 0;
+    // TODO: re-implement using Vulkan offscreen rendering once the pipeline is stable.
+    std::cerr << "generateVideo: not yet implemented in the Vulkan pipeline." << std::endl;
+    return 1;
 }
 
 #define currIndex(i, s) (s == 0 ? 0 : (i + 1))

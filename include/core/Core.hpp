@@ -7,11 +7,11 @@
 
 #pragma once
 
-#include <QLabel>
 #include <argparse/argparse.hpp>
 #include <memory>
 #include <opencv2/opencv.hpp>
 
+#include "core/Config.hpp"
 #include "input/IInput.hpp"
 
 namespace VC
@@ -20,17 +20,16 @@ namespace VC
     {
     public:
 
-        Core(const argparse::ArgumentParser& parser);
+        Core(const argparse::ArgumentParser& parser, const Config& config);
         ~Core() = default;
 
         ///< Reload the source file, then execute the stack, then add the new frames to the Timeline.
-        void reloadSourceFile();
+        void        reloadSourceFile();
         std::string serializeScene();
-        void executeStack();
-        cv::Mat generateFrame(size_t index);
+        void        executeStack();
 
-        ///< Update the current frame being displayed in the window
-        void updateFrame(QLabel& imageLabel);
+        ///< Update the current frame by generating the meshes.
+        std::vector<Mesh> generateMeshes();
 
         ///< Generate the video
         int generateVideo();
@@ -54,19 +53,8 @@ namespace VC
 
     private:
 
-        ///< Window size
-        const int _width;
-        const int _height;
-
-        ///< Framerate of the video
-        const size_t _framerate;
-
-        ///< Source & Output file
-        const std::string _sourceFile;
-        const std::string _outputFile;
-
-        ///< Background frame, black with alpha 0
-        const cv::Mat _bgFrame;
+        ///< Config (Window / Framerate / Paths)
+        const Config& _config;
 
         ///< The video editor is paused
         bool _paused{false};

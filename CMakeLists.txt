@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(video-code VERSION 1.0.0 LANGUAGES CXX)
+project(video-code VERSION 1.0.0 LANGUAGES CXX OBJCXX)
 
 # Generate compile_commands.json automatically
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -10,7 +10,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-deprecated -pipe -D_R
 
 if(DEBUG)
     message(STATUS ">>> Debug build <<<")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -O0 -DVC_DEBUG_ON") # -fsanitize=address
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -O0 -DVC_DEBUG_ON")
 else()
     message(STATUS ">>> Release build <<<")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
@@ -48,11 +48,6 @@ if(NOT DEFINED VCPKG_TARGET_TRIPLET)
     elseif(APPLE)
         message(STATUS ">>> Apple build <<<")
         set(VCPKG_TARGET_TRIPLET "x64-osx")
-        # if(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
-        #     set(VCPKG_TARGET_TRIPLET "arm64-osx")
-        # else()
-        #     set(VCPKG_TARGET_TRIPLET "x64-osx")
-        # endif()
     endif()
 endif()
 
@@ -78,6 +73,13 @@ find_package(OpenCV CONFIG REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
 find_package(CURL REQUIRED)
+if(APPLE)
+    execute_process(COMMAND brew --prefix molten-vk OUTPUT_VARIABLE MVK_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
+    set(Vulkan_LIBRARY "${MVK_PREFIX}/lib/libMoltenVK.dylib")
+    set(Vulkan_INCLUDE_DIR "${MVK_PREFIX}/libexec/include")
+endif()
+find_package(Vulkan REQUIRED)
+find_package(glslang CONFIG REQUIRED)
 
 if(NOT CI_BUILD)
     find_package(nlohmann_json CONFIG REQUIRED)
@@ -90,6 +92,7 @@ include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${Python3_INCLUDE_DIRS}
     ${FFMPEG_INCLUDE_DIRS}
+    ${Vulkan_INCLUDE_DIRS}
 )
 
 set(SOURCES
@@ -97,9 +100,14 @@ set(SOURCES
     src/Main.cpp
 
     # --- Window ---
-    include/window/Window.hpp # Needed for the MOC (Meta-Object Compiler) Q_OBJECT
-    include/window/TimelineWidget.hpp # Needed for the MOC (Meta-Object Compiler) Q_OBJECT
+    include/window/Window.hpp         # MOC Q_OBJECT
+    include/window/TimelineWidget.hpp # MOC Q_OBJECT
+    include/window/VulkanWidget.hpp   # MOC Q_OBJECT
     src/window/Window.cpp
+    src/window/VulkanWidget.cpp
+
+    # --- Vulkan ---
+    src/Vulkan/ShaderCompiler.cpp
 
     # --- Compiler ---
     src/compiler/Compiler.cpp
@@ -109,28 +117,38 @@ set(SOURCES
 
     # --- Inputs ---
     src/input/AInput.cpp
-    # Media
-    src/input/media/Image.cpp
-    src/input/media/WebImage.cpp
-    src/input/media/Video.cpp
-    # Text
-    src/input/text/Text.cpp
-    # Shape
-    src/input/shape/Circle.cpp
+    # src/input/media/Image.cpp
+    # src/input/media/WebImage.cpp
+    # src/input/media/Video.cpp
+    # src/input/text/Text.cpp
+    # src/input/shape/Circle.cpp
     src/input/shape/Rectangle.cpp
-    src/input/shape/Line.cpp
+    # src/input/shape/Line.cpp
 
-    # --- Fragment Shader ---
-    src/shader/Grayscale.cpp
-    src/shader/Opacity.cpp
+    # --- Fragment Shaders ---
     src/shader/Blur.cpp
-    src/shader/Gamma.cpp
-    src/shader/Grain.cpp
-    src/shader/Brightness.cpp
-    src/shader/Contrast.cpp
+    # src/shader/Grayscale.cpp
+    # src/shader/Opacity.cpp
+    # src/shader/Gamma.cpp
+    # src/shader/Grain.cpp
+    # src/shader/Brightness.cpp
+    # src/shader/Contrast.cpp
 )
 
+if(APPLE)
+    list(APPEND SOURCES src/Vulkan/MetalSurface.mm)
+endif()
+
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+if(APPLE)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE VK_USE_PLATFORM_METAL_EXT)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        MACOSX_BUNDLE TRUE
+        BUILD_RPATH "${MVK_PREFIX}/lib;${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/lib"
+        INSTALL_RPATH "${MVK_PREFIX}/lib;${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/lib"
+    )
+endif()
 
 target_link_directories(${PROJECT_NAME} PRIVATE
     ${FFMPEG_LIBRARY_DIRS}
@@ -150,4 +168,15 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Gui
     # Python3::Python
     CURL::libcurl
+    Vulkan::Vulkan
+    glslang::glslang
+    glslang::glslang-default-resource-limits
+    glslang::SPIRV
 )
+
+if(APPLE)
+    target_link_libraries(${PROJECT_NAME}
+        "-framework QuartzCore"
+        "-framework AppKit"
+    )
+endif()

@@ -8,7 +8,16 @@
 #include "compiler/Compiler.hpp"
 
 VC::Compiler::Compiler(const argparse::ArgumentParser &parser)
-    : _core(parser)
+    : config({
+          .screenWidth = parser.get<float>("--width"),
+          .screenHeight = parser.get<float>("--height"),
+
+          .framerate = parser.get<int>("--framerate"),
+
+          .sourceFile = parser.get("--file"),
+          .outputFile = parser.get("--generate"),
+      })
+    , _core(parser, config)
 {
 }
 

@@ -11,10 +11,11 @@ type uint = int
 type uint8 = int
 type ufloat = float
 
-type wint = int  # world unit
-type wuint = int  # world unit
-type wfloat = float  # world unit
-type wufloat = float  # world unit
+# world unit
+type wint = int
+type wuint = int
+type wfloat = float
+type wufloat = float
 
 type degree = float
 

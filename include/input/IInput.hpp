@@ -8,7 +8,10 @@
 #pragma once
 
 #include <nlohmann/json.hpp>
-#include <opencv2/core/mat.hpp>
+
+#include "core/Config.hpp"
+#include "input/Metadata.hpp"
+#include "vulkan/Mesh.hpp"
 
 using json = nlohmann::json;
 
@@ -21,7 +24,7 @@ public:
 
     // -
 
-    virtual cv::Mat getBaseMatrix(const json::object_t& args) = 0;
+    virtual Mesh getMesh(const Metadata& meta, const Config& config) = 0;
 
     // -
 
@@ -29,7 +32,7 @@ public:
 
     // -
 
-    virtual void overlay(cv::Mat& bg, size_t t) = 0;
+    virtual Metadata getMetadata(size_t index) = 0;
 
     // -
 };

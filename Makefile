@@ -31,7 +31,7 @@ all: cmake
 cmake:
 	cmake -B $(BUILD_DIR) $(VCPKG_FLAGS) $(CMAKE_FLAGS)
 	cmake --build $(BUILD_DIR)
-	@ cp -f $(BUILD_DIR)/$(BINARY_NAME) .
+	@ cp -f $(BUILD_DIR)/$(BINARY_NAME).app/Contents/MacOS/$(BINARY_NAME) .
 	@ cp -f $(BUILD_DIR)/compile_commands.json .
 
 
@@ -39,7 +39,8 @@ cmake:
 debug:
 	cmake -B $(BUILD_DIR) $(DEBUG_FLAG) $(VCPKG_FLAGS) $(CMAKE_FLAGS)
 	cmake --build $(BUILD_DIR)
-	cp $(BUILD_DIR)/$(BINARY_NAME) .
+	@ cp $(BUILD_DIR)/$(BINARY_NAME).app/Contents/MacOS/$(BINARY_NAME) .
+	@ cp -f $(BUILD_DIR)/compile_commands.json .
 
 
 .PHONY: clean
