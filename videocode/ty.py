@@ -30,7 +30,7 @@ type url = str
 
 
 class rgba:
-    def __init__(self, r: uint8, g: uint8, b: uint8, a: uint8) -> None:
+    def __init__(self, r: uint8, g: uint8, b: uint8, a: uint8 = 255) -> None:
         self.r = r
         self.g = g
         self.b = b
@@ -44,6 +44,43 @@ class rgba:
 
     def __repr__(self) -> str:
         return str(self)
+
+    def __or__(self, other: rgba | unumber) -> rgba:
+        if isinstance(other, rgba):
+            return rgba(
+                (self.r + other.r) // 2,
+                (self.g + other.g) // 2,
+                (self.b + other.b) // 2,
+                (self.a + other.a) // 2,
+            )
+        return rgba(self.r, self.g, self.b, int(self.a * other))
+
+    def __add__(self, other: rgba) -> rgba:
+        return rgba(
+            self.r + other.r,
+            self.g + other.g,
+            self.b + other.b,
+            self.a + other.a,
+        )
+
+    def __sub__(self, other: rgba) -> rgba:
+        return rgba(
+            self.r - other.r,
+            self.g - other.g,
+            self.b - other.b,
+            self.a - other.a,
+        )
+
+    def __mul__(self, other: unumber) -> rgba:
+        return rgba(
+            min(int(self.r * other), 255),
+            min(int(self.g * other), 255),
+            min(int(self.b * other), 255),
+            min(int(self.a * other), 255),
+        )
+
+    def __rmul__(self, other: unumber) -> rgba:
+        return self.__mul__(other)
 
 
 # vector 2D

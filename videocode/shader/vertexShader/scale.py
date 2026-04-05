@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 
-from videocode.ty import *
-from videocode.constants import *
 from videocode.shader.ishader import *
 
 

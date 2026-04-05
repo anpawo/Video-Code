@@ -6,7 +6,7 @@ from videocode.utils.decorators import inputCreation
 from videocode.input.input import *
 
 
-class text(Input):
+class Text(Input):
     @inputCreation
     def __init__(
         self,

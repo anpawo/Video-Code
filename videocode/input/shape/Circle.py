@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
 
 
-from videocode.utils.decorators import inputCreation
-from videocode.constants import *
 from videocode.input.shape.shape import *
+from videocode.utils.decorators import inputCreation
 
 
-class circle(Shape):
+class Circle(Shape):
     @inputCreation
     def __init__(
         self,
-        radius: int = 100,
-        thickness: int = 5,
-        color: rgba = RED,
-        filled: bool = False,
+        radius: wufloat = 1,
+        fillColor: rgba = LIGHT_RED | WHITE,
+        strokeColor: rgba = RED,
+        strokeWidth: wufloat = 0.05,
     ):
         self.radius = radius
-        self.thickness = thickness
-        self.color = color
-        self.filled = filled
+        self.fillColor = fillColor
+        self.strokeColor = strokeColor
+        self.strokeWidth = strokeWidth

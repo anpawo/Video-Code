@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <nlohmann/json.hpp>
 #include <ostream>
 
@@ -51,6 +52,8 @@ struct Metadata
     v2f scale{1.0, 1.0};
     v2f align{0.5, 0.5}; // -1 to 1
 
+    uint8_t opacity{255}; // 0 to 255
+
     float rotation{0.0};
 
     bool hidden{false};
@@ -75,6 +78,9 @@ struct Metadata
 
         os << std::setw(11) << "rotation:"
            << m.rotation << "°\n";
+
+        os << std::setw(11) << "opacity:"
+           << (int)(m.opacity) << "\n";
 
         os << std::setw(11) << "hidden:"
            << std::boolalpha << m.hidden;

@@ -11,6 +11,10 @@
 #include <QMainWindow>
 #include <QTimer>
 #include <argparse/argparse.hpp>
+#include <chrono>
+#include <vector>
+
+#include "vulkan/Mesh.hpp"
 
 #include "core/Core.hpp"
 #include "window/TimelineWidget.hpp"
@@ -49,6 +53,10 @@ namespace VC
 
         ///< Timeline overlay
         TimelineWidget* _timeline{nullptr};
+
+        ///< Frame-rate throttle for the Vulkan frame callback
+        std::chrono::steady_clock::time_point _lastFrameTime{};
+        std::vector<Mesh>                     _lastMeshes;
     };
 
 } // namespace VC

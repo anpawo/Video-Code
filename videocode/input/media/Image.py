@@ -5,7 +5,7 @@ from videocode.utils.decorators import inputCreation
 from videocode.input.input import *
 
 
-class image(Input):
+class Image(Input):
 
     @inputCreation
     def __init__(

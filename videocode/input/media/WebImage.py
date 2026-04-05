@@ -5,7 +5,7 @@ from videocode.utils.decorators import inputCreation
 from videocode.input.input import *
 
 
-class webImage(Input):
+class WebImage(Input):
     @inputCreation
     def __init__(
         self,

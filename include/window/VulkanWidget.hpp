@@ -10,6 +10,7 @@
 #include <vulkan/vulkan.h>
 
 #include <QWidget>
+#include <functional>
 #include <vector>
 
 #include "vulkan/Mesh.hpp"
@@ -70,8 +71,15 @@ namespace VC
         // marks them dirty so recordCommandBuffer() re-uploads before drawing.
         void setMeshes(const std::vector<Mesh>& meshes);
 
+        // setFrameCallback() — called every frame before rendering to advance
+        // the animation. Replaces the separate QTimer-driven loop so that
+        // animation advances are display-synchronized via requestUpdate().
+        void setFrameCallback(std::function<std::vector<Mesh>()> cb);
+
     protected:
 
+        bool event(QEvent* e) override;
+        bool eventFilter(QObject* obj, QEvent* e) override;
         void paintEvent(QPaintEvent*) override;
         void resizeEvent(QResizeEvent*) override;
 
@@ -86,6 +94,7 @@ namespace VC
         bool pickPhysicalDevice();
         bool createDevice();
         bool createSwapchain();
+        bool createMsaaResources();
         bool createRenderPass();
         bool createUniformBuffer();
         bool createDescriptorSet();
@@ -96,6 +105,7 @@ namespace VC
         bool createCommandPool();
         bool createCommandBuffers();
         bool createSyncObjects();
+        void destroyMsaaResources();
 
         // ── Per-frame helpers ─────────────────────────────────────────────
         void updateUniforms();
@@ -121,6 +131,12 @@ namespace VC
         VkDevice         m_device = VK_NULL_HANDLE;
         VkQueue          m_graphicsQueue = VK_NULL_HANDLE;
         uint32_t         m_graphicsFamily = 0;
+
+        // ── MSAA ─────────────────────────────────────────────────────────
+        VkSampleCountFlagBits m_msaaSamples  = VK_SAMPLE_COUNT_4_BIT;
+        VkImage               m_msaaImage    = VK_NULL_HANDLE;
+        VkDeviceMemory        m_msaaMemory   = VK_NULL_HANDLE;
+        VkImageView           m_msaaImageView = VK_NULL_HANDLE;
 
         // ── Swapchain ─────────────────────────────────────────────────────
         VkSwapchainKHR           m_swapchain = VK_NULL_HANDLE;
@@ -156,9 +172,20 @@ namespace VC
         VkDeviceMemory m_uniformMemory = VK_NULL_HANDLE;
 
         // ── CPU-side geometry ─────────────────────────────────────────────
-        std::vector<Vertex>   m_vertices;
-        std::vector<uint16_t> m_indices;
-        bool                  m_geomDirty = false;
+        struct MeshDrawInfo
+        {
+            uint32_t firstIndex;  // offset into the flat index buffer
+            uint32_t indexCount;  // number of indices for this mesh
+        };
+
+        std::vector<Mesh>         m_meshes;
+        std::vector<MeshDrawInfo> m_meshDrawInfos;
+        std::vector<Vertex>       m_vertices;
+        std::vector<uint16_t>     m_indices;
+        bool                      m_geomDirty = false;
+
+        // ── Frame callback ────────────────────────────────────────────────
+        std::function<std::vector<Mesh>()> m_frameCallback;
     };
 
 } // namespace VC

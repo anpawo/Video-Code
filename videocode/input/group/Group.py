@@ -8,14 +8,14 @@ from videocode.input.input import *
 from videocode.shader.vertexShader.position import position
 
 
-class group(Input):
+class Group(Input):
     """
     A `Group` contains many inputs and will apply each transformations it gets to all of its inputs.
     """
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = object.__new__(cls)
-        instance.meta = Metadata(instance.__dict__, interface=True)
+        instance.meta = Metadata(interface=True)
         return instance
 
     def __init__(self, *inputs: Input | tuple[tuple[number, number], Input] | tuple[v2[number], Input]):

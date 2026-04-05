@@ -4,7 +4,7 @@
 from typing import TYPE_CHECKING
 
 from constants import *
-from shader.fragmentShader.opacity import opacity
+from videocode.shader.vertexShader.opacity import opacity
 from utils.bezier import *
 
 if TYPE_CHECKING:

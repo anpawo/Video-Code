@@ -4,7 +4,7 @@
 from sys import stderr
 from typing import TYPE_CHECKING, Any, Callable
 from videocode.globals import Global
-from videocode.utils.funcutils import fromWorlToScreen, upperFirst
+from videocode.utils.funcutils import fromWorldToScreen, upperFirst
 from videocode.utils.timeit import *
 from videocode.ty import *
 
@@ -137,7 +137,7 @@ def inputCreation(f: Callable[..., None]):
             {
                 "action": "Create",
                 "type": upperFirst(input.__class__.__name__),
-                "args": fromWorlToScreen(f.__annotations__, attrs),
+                "args": fromWorldToScreen(f.__annotations__, attrs),
             },
         )
 

@@ -8,12 +8,19 @@ from videocode.shader.ishader import *
 class args(VertexShader):
     """
     Modifies the arguments needed to create the base matrix of an `Input`, e.g. the radius of a circle.
+
+    Should not be instantiated on its own.
     """
 
-    def __init__(self, name: str, value: Any) -> None:
+    def __init__(self, name: str, value: Any, annotation: type | None) -> None:
         self.name = name
         self.value = value
+        # Override annotation
+        self.__init__.__annotations__["value"] = annotation
 
-    def modificator(self, i: Input):
-        i.meta.args[self.name] = self.value
-        object.__setattr__(i, self.name, self.value)
+    def modificator(self, _: Input):
+        """
+        input.__setattr__ creates an `args VertexShader`.
+
+        args does nothing in the python part.
+        """

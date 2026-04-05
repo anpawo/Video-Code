@@ -8,6 +8,7 @@
 #include "input/AInput.hpp"
 
 #include <cstddef>
+#include <iostream>
 
 #include "input/IInput.hpp"
 #include "input/Metadata.hpp"
@@ -65,4 +66,3 @@ Metadata AInput::getMetadata(size_t index)
 
     return meta;
 }
-

@@ -32,6 +32,7 @@ enum VertexShader {
     Position,
     Scale,
     Rotate,
+    Opacity,
     Hide,
     Show,
     Args,
@@ -46,12 +47,13 @@ const std::map<std::string, VertexShader> getTransformFromString = {
     {"Scale", VertexShader::Scale},
     {"Align", VertexShader::Align},
     {"Rotate", VertexShader::Rotate},
+    {"Opacity", VertexShader::Opacity},
     {"Hide", VertexShader::Hide},
     {"Show", VertexShader::Show},
     {"Args", VertexShader::Args},
 };
 
-inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size& size, const Metadata& meta)
+inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size2f& size, const Metadata& meta)
 {
     float x = meta.position.x;
     float y = meta.position.y;
@@ -125,6 +127,10 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
         }
         case Rotate: {
             meta.rotation = args.at("degree");
+            break;
+        }
+        case Opacity: {
+            meta.opacity = args.at("opacity");
             break;
         }
         case Hide: {

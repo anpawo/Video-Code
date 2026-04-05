@@ -7,8 +7,10 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <opencv2/core/matx.hpp>
 #include <vector>
 
 #include "input/IInput.hpp"
@@ -34,6 +36,16 @@ public:
     // -
 
 protected:
+
+    static cv::Vec4b colorFromJson(const json& c, uint8_t opacity)
+    {
+        return cv::Vec4b(
+            c[0].get<uint8_t>(),
+            c[1].get<uint8_t>(),
+            c[2].get<uint8_t>(),
+            static_cast<uint8_t>(c[3].get<uint8_t>() * (opacity / 255.f))
+        );
+    }
 
     ///< Arguments needed to generate the Input's matrix
     const json::object_t _baseArgs;

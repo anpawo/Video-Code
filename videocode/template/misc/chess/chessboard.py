@@ -6,7 +6,7 @@ import chess.pgn
 
 
 from videocode.constants import SF, WORLD_WIDTH, WORLD_HEIGHT
-from videocode.input.media.WebImage import webImage
+from videocode.input.media.WebImage import WebImage
 from videocode.input.input import Input
 from videocode.shader.vertexShader.scale import scale
 from videocode.utils.bezier import Easing
@@ -48,8 +48,8 @@ class ChessBoard:
         self.tileSize = 100.2
 
         # Inputs
-        self.boardInput = webImage(BOARD_URL).scale(0.5).flush()
-        self.pieces: dict[Position, tuple[webImage, tuple[Color, Piece]]] = {}
+        self.boardInput = WebImage(BOARD_URL).scale(0.5).flush()
+        self.pieces: dict[Position, tuple[WebImage, tuple[Color, Piece]]] = {}
         self.addInputs()
 
     def addInputs(self):
@@ -74,7 +74,7 @@ class ChessBoard:
             color = WHITE if c.isupper() else BLACK
             piece = c.lower()
             self.pieces[(x, y)] = (
-                webImage(self.getUrl(color, piece)).position(self.ox + x * self.tileSize, self.oy + y * self.tileSize).scale(self.defaultScaling).flush(),
+                WebImage(self.getUrl(color, piece)).position(self.ox + x * self.tileSize, self.oy + y * self.tileSize).scale(self.defaultScaling).flush(),
                 (color, piece),
             )
             x += 1

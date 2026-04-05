@@ -21,7 +21,8 @@ from videocode.shader.vertexShader.rotate import rotate
 from videocode.shader.vertexShader.scale import scale
 from videocode.shader.vertexShader.position import position
 from videocode.shader.vertexShader.show import show
-from videocode.utils.bezier import cubicBezier, Easing
+from videocode.shader.vertexShader.opacity import opacity
+from videocode.utils.bezier import animate, cubicBezier, Easing
 
 
 class Input(ABC):
@@ -45,7 +46,7 @@ class Input(ABC):
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = super().__new__(cls)
-        instance.meta = Metadata(instance.__dict__)
+        instance.meta = Metadata()
         return instance
 
     @abstractmethod
@@ -93,7 +94,7 @@ class Input(ABC):
                     "input": self.meta.index,
                     "name": upperFirst(e.__class__.__name__),
                     "type": e._type,
-                    "args": fromWorlToScreen(e.__init__.__annotations__, vars(e)) | {"start": __start} | {"duration": __duration},
+                    "args": fromWorldToScreen(e.__init__.__annotations__, vars(e)) | {"start": __start} | {"duration": __duration},
                 }
             )
 
@@ -101,9 +102,9 @@ class Input(ABC):
 
     def __setattr__(self, name: str, value: Any) -> None:
         if hasattr(self, name):
-            self.apply(args(name, fromWorlToScreen(self.__class__.__annotations__, {name: value})[name]))
-        else:
-            object.__setattr__(self, name, value)
+            annotation = self.__class__.__annotations__.get(name)
+            self.apply(args(name, value, annotation))
+        object.__setattr__(self, name, value)
 
     def __str__(self) -> str:
         s = f"\n{self.__class__.__name__}:\n"
@@ -116,7 +117,7 @@ class Input(ABC):
 
     ### Transformations ###
 
-    def position(self, x: maybe[number] = None, y: maybe[number] = None) -> Self:
+    def position(self, x: maybe[wint | wfloat] = None, y: maybe[wint | wfloat] = None) -> Self:
         return self.apply(position(x, y))
 
     def scale(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None) -> Self:
@@ -128,6 +129,9 @@ class Input(ABC):
     def rotate(self, degree: number) -> Self:
         return self.apply(rotate(degree))
 
+    def opacity(self, o: number) -> Self:
+        return self.apply(opacity(o))
+
     def align(self, x: maybe[number] = None, y: maybe[number] = None) -> Self:
         return self.apply(align(x, y))
 
@@ -138,6 +142,34 @@ class Input(ABC):
         return self.apply(show(), start=start)
 
     ### Template ###
+
+    def easeTo(self, to: Any, attributeName: str, *, easing=Easing.InOut, duration: sec = 0.4) -> Self:
+        annotation = self.__class__.__annotations__.get(attributeName)
+        src = self.__getattribute__(attributeName)
+        dst = to
+
+        def _apply(m: number, i: int):
+            val = src + (dst - src) * m
+            self.apply(args(attributeName, val, annotation), start=i * SF)
+
+        animate(0, duration, easing, _apply)
+        # we have to update the value at the end
+        object.__setattr__(self, attributeName, dst)
+        return self
+
+    def easeBy(self, by: Any, name: str, *, easing=Easing.InOut, duration: sec = 0.4) -> Self:
+        annotation = self.__class__.__annotations__.get(name)
+        src = self.__getattribute__(name)
+        dst = src * by
+
+        def _apply(m: number, i: int):
+            val = src + (dst - src) * m
+            self.apply(args(name, val, annotation), start=i * SF)
+
+        animate(0, duration, easing, _apply)
+        # we have to update the value at the end
+        object.__setattr__(self, name, dst)
+        return self
 
     def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: cubicBezier = Easing.Out, start: sec = 0, duration: sec = 0.4) -> Self:
         moveTo(self, x=x, y=y, easing=easing, start=start, duration=duration)

@@ -3,8 +3,8 @@
 from __future__ import annotations
 from enum import Enum
 from videocode.constants import SH, SINGLE_FRAME, SW, url
-from videocode.input.group.Group import group
-from videocode.input.media.WebImage import webImage
+from videocode.input.group.Group import Group
+from videocode.input.media.WebImage import WebImage
 from videocode.utils.easings import Easing
 
 import requests
@@ -40,10 +40,10 @@ class Shard(Enum):
 
 
 class RuneData:
-    def __init__(self, elem: Rune | Shard, url: url, input: webImage) -> None:
+    def __init__(self, elem: Rune | Shard, url: url, input: WebImage) -> None:
         self.name: Rune | Shard = elem
         self.url: url = url
-        self.input: webImage = input
+        self.input: WebImage = input
 
 
 Color: dict[Path, str] = {
@@ -106,38 +106,38 @@ class RuneSet:
 
         offscreenStart = 2000
 
-        self.main = group(
+        self.main = Group(
             *(
                 (
                     (0, idx * runeSpacing + (runeSpacing * 0.25 if idx > 0 else 0)),
-                    webImage(UrlKind.get(UrlKind.Rune, i.value)),
+                    WebImage(UrlKind.get(UrlKind.Rune, i.value)),
                 )
                 for idx, i in enumerate(main[1:])
             ),
         )
 
-        self.sub = group(
+        self.sub = Group(
             *(
                 (
                     (xDiffSub, yDiffSub + idx * runeSpacing),
-                    webImage(UrlKind.get(UrlKind.Rune, i.value)),
+                    WebImage(UrlKind.get(UrlKind.Rune, i.value)),
                 )
                 for idx, i in enumerate(sub[1:])
             ),
         )
 
-        self.shard = group(
+        self.shard = Group(
             *(
                 (
                     (xDiffShard, yDiffShard + idx * shardSpacing),
-                    webImage(UrlKind.get(UrlKind.Shard, i.value)),
+                    WebImage(UrlKind.get(UrlKind.Shard, i.value)),
                 )
                 for idx, i in enumerate(shard)
             ),
         )
 
         self.all = (
-            group(
+            Group(
                 self.main,
                 self.sub,
                 self.shard,

@@ -20,10 +20,9 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
       })
     , _core(parser, config)
 {
-    ///< Timer for timeline updates (Vulkan drives its own render loop via update())
-    _timer = new QTimer(this);
-    connect(_timer, &QTimer::timeout, this, &Window::mainRoutine);
-    _timer->start(1000 / config.framerate);
+    ///< Animation is advanced inside the Vulkan render loop via setFrameCallback(),
+    ///< so no separate QTimer is needed. _timer is kept as nullptr.
+    _timer = nullptr;
 
     ///< Vulkan central widget
     _vulkanWidget = new VulkanWidget(this);
@@ -59,6 +58,20 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     move(config.windowWidth, 0);
     resize(config.windowWidth, config.windowHeight);
     show();
+
+    ///< Wire up the frame callback before init so the first render already
+    ///< has access to the animation state.
+    ///< The callback throttles animation advancement to config.framerate fps so
+    ///< that Vulkan rendering at display refresh rate doesn't consume frames too fast.
+    const auto frameDuration = std::chrono::duration<double>(1.0 / config.framerate);
+    _vulkanWidget->setFrameCallback([this, frameDuration]() -> std::vector<Mesh> {
+        auto now = std::chrono::steady_clock::now();
+        if (_lastMeshes.empty() || (now - _lastFrameTime) >= frameDuration) {
+            _lastFrameTime = now;
+            _lastMeshes = _core.generateMeshes();
+        }
+        return _lastMeshes;
+    });
 
     ///< Defer Vulkan init until the event loop is running and the native
     ///< window handle is guaranteed to be available.

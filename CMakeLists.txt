@@ -117,13 +117,12 @@ set(SOURCES
 
     # --- Inputs ---
     src/input/AInput.cpp
+    src/input/shape/Rectangle.cpp
+    src/input/shape/Circle.cpp
     # src/input/media/Image.cpp
     # src/input/media/WebImage.cpp
     # src/input/media/Video.cpp
     # src/input/text/Text.cpp
-    # src/input/shape/Circle.cpp
-    src/input/shape/Rectangle.cpp
-    # src/input/shape/Line.cpp
 
     # --- Fragment Shaders ---
     src/shader/Blur.cpp

@@ -6,7 +6,7 @@ from videocode.constants import *
 
 
 class Metadata:
-    def __init__(self, d: dict, *, interface: bool = False) -> None:
+    def __init__(self, *, interface: bool = False) -> None:
         # --- Index
         """
         Index of the `Input`.
@@ -27,11 +27,11 @@ class Metadata:
         # --- Rotation ---
         self.rotation: number = 0
 
+        # --- Opacity ---
+        self.opacity: number = 255
+
         # --- Hidden ---
         self.hidden: bool = False
-
-        # --- Args ---
-        self.args: dict = d
 
         # --- Offset ---
         self.lastAffectedFrame: int = Global.waitOffset

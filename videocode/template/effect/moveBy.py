@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from videocode.input.input import Input
 
 
-def moveBy(input: Input, x: maybe[number] = None, y: maybe[number] = None, *, easing: easing = Easing.Linear, start: sec = 0, duration: sec = 0.4) -> None:
+def moveBy(input: Input, x: maybe[wint | wfloat] = None, y: maybe[wint | wfloat] = None, *, easing: easing = Easing.Linear, start: sec = 0, duration: sec = 0.4) -> None:
     src = input.meta.position
     dst = v2(src.x + (0 if x is None else x), src.y + (0 if y is None else y))
 

@@ -30,7 +30,7 @@ def upperFirst(s: str):
     return s[0].upper() + s[1:]
 
 
-def fromWorlToScreen(annotations: dict[str, type], values: dict[str, Any]) -> dict:
+def fromWorldToScreen(annotations: dict[str, type], values: dict[str, Any]) -> dict:
 
     def shouldScale(t) -> bool:
         adapt = [wint, wuint, wfloat, wufloat]

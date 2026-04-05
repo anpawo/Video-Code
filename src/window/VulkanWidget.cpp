@@ -15,9 +15,9 @@
 
 #include <QDebug>
 #include <QResizeEvent>
+#include <QWindow>
 #include <chrono>
 #include <cstring>
-#include <iostream>
 
 #include "vulkan/MetalSurface.hpp"   // CAMetalLayer bridge (macOS only)
 #include "vulkan/ShaderCompiler.hpp" // Runtime GLSL → SPIR-V via glslang
@@ -45,9 +45,6 @@ void main() {
 )";
 
 // ── Fragment shader ───────────────────────────────────────────────────────────
-// Placeholder: outputs a solid dark colour.  The UBO binding is kept so the
-// descriptor set infrastructure stays valid for future shaders (texture
-// sampling, time-based effects, etc.).
 static const std::string FRAG_SRC = R"(
 #version 450
 layout(location = 0) in vec2 fragUV;
@@ -117,15 +114,47 @@ void VC::VulkanWidget::setMeshes(const std::vector<Mesh>& meshes)
 {
     m_vertices.clear();
     m_indices.clear();
+    m_meshes = meshes;
+    m_meshDrawInfos.clear();
 
     for (const auto& mesh : meshes) {
-        uint16_t offset = static_cast<uint16_t>(m_vertices.size());
+        MeshDrawInfo info{};
+        info.firstIndex = static_cast<uint32_t>(m_indices.size());
+        info.indexCount = static_cast<uint32_t>(mesh.indices.size());
+
+        uint16_t vertexOffset = static_cast<uint16_t>(m_vertices.size());
         m_vertices.insert(m_vertices.end(), mesh.vertices.begin(), mesh.vertices.end());
         for (auto idx : mesh.indices) {
-            m_indices.push_back(offset + idx);
+            m_indices.push_back(vertexOffset + idx);
         }
+        m_meshDrawInfos.push_back(info);
     }
     m_geomDirty = true;
+}
+
+void VC::VulkanWidget::setFrameCallback(std::function<std::vector<Mesh>()> cb)
+{
+    m_frameCallback = std::move(cb);
+}
+
+bool VC::VulkanWidget::event(QEvent* e)
+{
+    // UpdateRequest on the widget itself (fallback path when QWindow is absent).
+    if (e->type() == QEvent::UpdateRequest) {
+        render();
+        return true;
+    }
+    return QWidget::event(e);
+}
+
+bool VC::VulkanWidget::eventFilter(QObject* obj, QEvent* e)
+{
+    // Forward UpdateRequest from the underlying QWindow into our render loop.
+    if (obj == windowHandle() && e->type() == QEvent::UpdateRequest) {
+        render();
+        return true;
+    }
+    return QWidget::eventFilter(obj, e);
 }
 
 // ============================================================================
@@ -158,6 +187,10 @@ bool VC::VulkanWidget::init()
     }
     if (!createSwapchain()) {
         qWarning("createSwapchain failed");
+        return false;
+    }
+    if (!createMsaaResources()) {
+        qWarning("createMsaaResources failed");
         return false;
     }
     if (!createRenderPass()) {
@@ -203,7 +236,18 @@ bool VC::VulkanWidget::init()
 
     m_initialized = true;
     qDebug() << "Vulkan initialized successfully";
-    update(); // Kick off the render loop.
+
+    // Install an event filter on the underlying QWindow so that UpdateRequest
+    // events (delivered by windowHandle()->requestUpdate()) are forwarded here.
+    if (windowHandle()) {
+        windowHandle()->installEventFilter(this);
+    }
+    // Kick off the render loop.
+    if (windowHandle()) {
+        windowHandle()->requestUpdate();
+    } else {
+        update();
+    }
     return true;
 }
 
@@ -391,45 +435,127 @@ bool VC::VulkanWidget::createSwapchain()
 }
 
 // ============================================================================
+// Step 6a: createMsaaResources
+//   Allocates a device-local image used as the MSAA render target.
+//   After rendering, it is resolved into the swapchain image.
+// ============================================================================
+
+bool VC::VulkanWidget::createMsaaResources()
+{
+    VkImageCreateInfo ici{};
+    ici.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    ici.imageType     = VK_IMAGE_TYPE_2D;
+    ici.format        = m_swapFormat;
+    ici.extent        = {m_swapExtent.width, m_swapExtent.height, 1};
+    ici.mipLevels     = 1;
+    ici.arrayLayers   = 1;
+    ici.samples       = m_msaaSamples;
+    ici.tiling        = VK_IMAGE_TILING_OPTIMAL;
+    ici.usage         = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+    ici.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+    ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+    if (vkCreateImage(m_device, &ici, nullptr, &m_msaaImage) != VK_SUCCESS) {
+        return false;
+    }
+
+    VkMemoryRequirements memReq;
+    vkGetImageMemoryRequirements(m_device, m_msaaImage, &memReq);
+
+    VkMemoryAllocateInfo ai{};
+    ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    ai.allocationSize  = memReq.size;
+    ai.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    if (vkAllocateMemory(m_device, &ai, nullptr, &m_msaaMemory) != VK_SUCCESS) {
+        return false;
+    }
+
+    vkBindImageMemory(m_device, m_msaaImage, m_msaaMemory, 0);
+
+    VkImageViewCreateInfo ivci{};
+    ivci.sType                           = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    ivci.image                           = m_msaaImage;
+    ivci.viewType                        = VK_IMAGE_VIEW_TYPE_2D;
+    ivci.format                          = m_swapFormat;
+    ivci.subresourceRange.aspectMask     = VK_IMAGE_ASPECT_COLOR_BIT;
+    ivci.subresourceRange.baseMipLevel   = 0;
+    ivci.subresourceRange.levelCount     = 1;
+    ivci.subresourceRange.baseArrayLayer = 0;
+    ivci.subresourceRange.layerCount     = 1;
+
+    return vkCreateImageView(m_device, &ivci, nullptr, &m_msaaImageView) == VK_SUCCESS;
+}
+
+void VC::VulkanWidget::destroyMsaaResources()
+{
+    vkDestroyImageView(m_device, m_msaaImageView, nullptr);
+    vkDestroyImage(m_device, m_msaaImage, nullptr);
+    vkFreeMemory(m_device, m_msaaMemory, nullptr);
+    m_msaaImageView = VK_NULL_HANDLE;
+    m_msaaImage     = VK_NULL_HANDLE;
+    m_msaaMemory    = VK_NULL_HANDLE;
+}
+
+// ============================================================================
 // Step 6: createRenderPass
 //   Single colour attachment: clear to black on load, store for presentation.
 // ============================================================================
 
 bool VC::VulkanWidget::createRenderPass()
 {
-    VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = m_swapFormat;
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    // Attachment 0: MSAA color buffer — rendered into, not stored (transient)
+    VkAttachmentDescription msaaAttachment{};
+    msaaAttachment.format         = m_swapFormat;
+    msaaAttachment.samples        = m_msaaSamples;
+    msaaAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    msaaAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    msaaAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    msaaAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    msaaAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+    msaaAttachment.finalLayout    = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    // Attachment 1: resolve target — the swapchain image presented to screen
+    VkAttachmentDescription resolveAttachment{};
+    resolveAttachment.format         = m_swapFormat;
+    resolveAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+    resolveAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    resolveAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+    resolveAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    resolveAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    resolveAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+    resolveAttachment.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
     VkAttachmentReference colorRef{};
     colorRef.attachment = 0;
-    colorRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorRef.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference resolveRef{};
+    resolveRef.attachment = 1;
+    resolveRef.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorRef;
+    subpass.pColorAttachments    = &colorRef;
+    subpass.pResolveAttachments  = &resolveRef;
 
     VkSubpassDependency dep{};
-    dep.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dep.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dep.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dep.srcSubpass    = VK_SUBPASS_EXTERNAL;
+    dep.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    dep.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
+    VkAttachmentDescription attachments[2] = {msaaAttachment, resolveAttachment};
+
     VkRenderPassCreateInfo ci{};
-    ci.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    ci.attachmentCount = 1;
-    ci.pAttachments = &colorAttachment;
-    ci.subpassCount = 1;
-    ci.pSubpasses = &subpass;
+    ci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    ci.attachmentCount = 2;
+    ci.pAttachments    = attachments;
+    ci.subpassCount    = 1;
+    ci.pSubpasses      = &subpass;
     ci.dependencyCount = 1;
-    ci.pDependencies = &dep;
+    ci.pDependencies   = &dep;
 
     return vkCreateRenderPass(m_device, &ci, nullptr, &m_renderPass) == VK_SUCCESS;
 }
@@ -619,10 +745,17 @@ bool VC::VulkanWidget::createPipeline()
     rs.lineWidth = 1.0f;
 
     VkPipelineMultisampleStateCreateInfo ms{};
-    ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    ms.sType                = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
+    ms.rasterizationSamples = m_msaaSamples;
 
     VkPipelineColorBlendAttachmentState blendAttach{};
+    blendAttach.blendEnable = VK_TRUE;
+    blendAttach.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+    blendAttach.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blendAttach.colorBlendOp = VK_BLEND_OP_ADD;
+    blendAttach.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
+    blendAttach.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+    blendAttach.alphaBlendOp = VK_BLEND_OP_ADD;
     blendAttach.colorWriteMask =
         VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
         VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -633,9 +766,9 @@ bool VC::VulkanWidget::createPipeline()
     blend.pAttachments = &blendAttach;
 
     VkPipelineLayoutCreateInfo layoutCI{};
-    layoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layoutCI.sType          = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layoutCI.setLayoutCount = 1;
-    layoutCI.pSetLayouts = &m_descriptorSetLayout;
+    layoutCI.pSetLayouts    = &m_descriptorSetLayout;
     vkCreatePipelineLayout(m_device, &layoutCI, nullptr, &m_pipelineLayout);
 
     VkGraphicsPipelineCreateInfo ci{};
@@ -752,14 +885,15 @@ bool VC::VulkanWidget::createFramebuffers()
 {
     m_framebuffers.resize(m_swapImageViews.size());
     for (size_t i = 0; i < m_swapImageViews.size(); i++) {
+        VkImageView attachments[2] = {m_msaaImageView, m_swapImageViews[i]};
         VkFramebufferCreateInfo ci{};
-        ci.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        ci.renderPass = m_renderPass;
-        ci.attachmentCount = 1;
-        ci.pAttachments = &m_swapImageViews[i];
-        ci.width = m_swapExtent.width;
-        ci.height = m_swapExtent.height;
-        ci.layers = 1;
+        ci.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        ci.renderPass      = m_renderPass;
+        ci.attachmentCount = 2;
+        ci.pAttachments    = attachments;
+        ci.width           = m_swapExtent.width;
+        ci.height          = m_swapExtent.height;
+        ci.layers          = 1;
         if (vkCreateFramebuffer(m_device, &ci, nullptr, &m_framebuffers[i]) != VK_SUCCESS) {
             return false;
         }
@@ -889,7 +1023,20 @@ void VC::VulkanWidget::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageInd
 
     if (!m_indices.empty()) {
         vkCmdBindIndexBuffer(cb, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-        vkCmdDrawIndexed(cb, (uint32_t)m_indices.size(), 1, 0, 0, 0);
+
+        for (size_t i = 0; i < m_meshes.size(); ++i) {
+            const Mesh&         mesh = m_meshes[i];
+            const MeshDrawInfo& info = m_meshDrawInfos[i];
+
+            if (!mesh.pushConstantData.empty()) {
+                vkCmdPushConstants(
+                    cb, m_pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT,
+                    0, static_cast<uint32_t>(mesh.pushConstantData.size()),
+                    mesh.pushConstantData.data()
+                );
+            }
+            vkCmdDrawIndexed(cb, info.indexCount, 1, info.firstIndex, 0, 0);
+        }
     }
 
     vkCmdEndRenderPass(cb);
@@ -905,6 +1052,11 @@ void VC::VulkanWidget::render()
 {
     if (!m_initialized) {
         return;
+    }
+
+    // Advance the animation and upload new geometry before touching the GPU.
+    if (m_frameCallback) {
+        setMeshes(m_frameCallback());
     }
 
     // Block the CPU until the GPU has finished the previous frame so we don't
@@ -943,8 +1095,14 @@ void VC::VulkanWidget::render()
     presentInfo.pImageIndices = &imageIndex;
     vkQueuePresentKHR(m_graphicsQueue, &presentInfo);
 
-    // Schedule the next repaint immediately, sustaining the continuous render loop.
-    update();
+    // windowHandle()->requestUpdate() ties the next repaint to the platform
+    // display sync (CADisplayLink on macOS) rather than posting through Qt's
+    // event queue, which eliminates the timer-jitter that update() introduces.
+    if (windowHandle()) {
+        windowHandle()->requestUpdate();
+    } else {
+        update();
+    }
 }
 
 // ============================================================================
@@ -960,12 +1118,14 @@ void VC::VulkanWidget::recreateSwapchain()
     for (auto fb : m_framebuffers) {
         vkDestroyFramebuffer(m_device, fb, nullptr);
     }
+    destroyMsaaResources();
     for (auto iv : m_swapImageViews) {
         vkDestroyImageView(m_device, iv, nullptr);
     }
     vkDestroySwapchainKHR(m_device, m_swapchain, nullptr);
 
     createSwapchain();
+    createMsaaResources();
     createFramebuffers();
 }
 
@@ -990,6 +1150,7 @@ void VC::VulkanWidget::cleanup()
     for (auto fb : m_framebuffers) {
         vkDestroyFramebuffer(m_device, fb, nullptr);
     }
+    destroyMsaaResources();
 
     vkDestroyPipeline(m_device, m_pipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);

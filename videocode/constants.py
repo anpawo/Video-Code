@@ -51,11 +51,20 @@ TR: v2[maybe[number]] = TOP_SIDE + RIGHT_SIDE
 
 
 # colors
-TRANSPARENT = rgba(0, 0, 0, 0)
-WHITE       = rgba(255, 255, 255, 255)
-GRAY        = rgba(128, 128, 128, 255)
-BLACK       = rgba(0, 0, 0, 255)
-RED         = rgba(255, 0, 0, 255)
-GREEN       = rgba(0, 255, 0, 255)
-BLUE        = rgba(0, 0, 255, 255)
+TRANSPARENT = rgba(000, 000, 000, 0)
+WHITE       = rgba(255, 255, 255)
+BLACK       = rgba(000, 000, 000)
+GRAY        = WHITE | BLACK
+
+RED         = rgba(255, 0, 0)
+GREEN       = rgba(0, 255, 0)
+BLUE        = rgba(0, 0, 255)
+
+LIGHT_RED   = rgba(255, 104, 104)
+LIGHT_GREEN = rgba(115, 255, 115)
+LIGHT_BLUE  = rgba(132, 204, 255)
+
+DARK_RED    = rgba(255, 37, 37)
+DARK_GREEN  = rgba(42, 255, 23)
+DARK_BLUE   = rgba(32, 50, 255)
 # fmt: on

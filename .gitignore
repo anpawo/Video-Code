@@ -45,6 +45,9 @@ video-code
 # Mac
 .DS_Store
 
+# Claude
+CLAUDE.md
+
 # Misc
 wherewasi
 todo

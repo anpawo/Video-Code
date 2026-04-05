@@ -9,7 +9,6 @@ from videocode.shader.ishader import *
 
 # Shaders
 from videocode.shader.fragmentShader.grayscale import *
-from videocode.shader.fragmentShader.opacity import *
 from videocode.shader.fragmentShader.blur import *
 from videocode.shader.fragmentShader.gamma import *
 from videocode.shader.fragmentShader.grain import *
@@ -22,5 +21,6 @@ from videocode.shader.vertexShader.args import *
 from videocode.shader.vertexShader.hide import *
 from videocode.shader.vertexShader.position import *
 from videocode.shader.vertexShader.rotate import *
+from videocode.shader.vertexShader.opacity import *
 from videocode.shader.vertexShader.scale import *
 from videocode.shader.vertexShader.show import *

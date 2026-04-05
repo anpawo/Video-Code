@@ -10,6 +10,26 @@ if TYPE_CHECKING:
     from videocode.input.input import Input
 
 
+class _BezierRange:
+    def __init__(self, bezier: "cubicBezier", start: number, end: number, n: int):
+        self.bezier = bezier
+        self.start = start
+        self.end = end
+        self.n = n
+        self.i = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> float:
+        if self.i >= self.n:
+            raise StopIteration
+        t = self.i / (self.n - 1) if self.n > 1 else 0.0
+        val = self.start + self.bezier(t) * (self.end - self.start)
+        self.i += 1
+        return val
+
+
 class cubicBezier:
     def __init__(
         self,
@@ -50,6 +70,10 @@ class cubicBezier:
 
     def __call__(self, x: float) -> float:
         return self.getValueAtX(x)
+
+    def range(self, start: number, end: number, duration: sec):
+        n = int(duration * FRAMERATE)
+        return _BezierRange(self, start, end, n)
 
 
 class Easing:
