@@ -1030,7 +1030,7 @@ void VC::VulkanWidget::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageInd
     bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     vkBeginCommandBuffer(cb, &bi);
 
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}}; // white background
+    VkClearValue clearColor = {{{0.2f, 0.2f, 0.2f, 1.0f}}}; // Match Manim default background (#333333)
     // VkClearValue clearColor = {{{0.1f, 0.0f, 0.2f, 1.0f}}}; // dark purple — confirms Vulkan is rendering
 
     VkViewport vp{0, 0, (float)m_ssaaExtent.width, (float)m_ssaaExtent.height, 0, 1};

@@ -29,3 +29,15 @@ def example2():
     wait()
 
     t = Text("Hello")
+
+
+def example3():
+    """
+    Simple carré arrondi.
+
+    Simple rounded square.
+    """
+    s = Square(side=6, cornerRadius=12, strokeWidth=0.1, fillColor=WHITE | BLUE | 0.3, strokeColor=WHITE)
+    # s = Line(length=0, strokeColor=WHITE).easeTo(6, "width").flush()
+    # s.easeTo(2.5, "height").easeTo(15, "cornerRadius", easing=Easing.Out).easeBy(2, "strokeWidth", easing=Easing.Out).flush()
+    # s.easeTo(s.fillColor | 0.5, "fillColor", easing=Easing.Out).flush()
