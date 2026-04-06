@@ -8,6 +8,7 @@
 #include "input/shape/Rectangle.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 #include "geometry/Arc.hpp"
 #include "vulkan/MeshFactory.hpp"
@@ -50,9 +51,9 @@ Mesh Rectangle::getMesh(const Metadata &meta, const Config &config)
 {
     float rawW = meta.args.at("width").get<float>();
     float rawH = meta.args.at("height").get<float>();
-    float strokeWidth      = meta.args.at("strokeWidth").get<float>();
-    float cornerRadiusPct  = meta.args.at("cornerRadius").get<float>();
-    float cornerRadius     = (cornerRadiusPct / 100.f) * std::min(rawW, rawH) / 2.f;
+    float strokeWidth = meta.args.at("strokeWidth").get<float>();
+    float cornerRadiusPct = meta.args.at("cornerRadius").get<float>();
+    float cornerRadius = (cornerRadiusPct / 100.f) * std::min(rawW, rawH) / 2.f;
 
     cv::Vec4b fillColor = colorFromJson(meta.args.at("fillColor"), meta.opacity);
     cv::Vec4b strokeColor = colorFromJson(meta.args.at("strokeColor"), meta.opacity);
@@ -61,16 +62,6 @@ Mesh Rectangle::getMesh(const Metadata &meta, const Config &config)
 
     auto outerPts = roundedRectOutline(rawW, rawH, cornerRadius, ARC_SEGMENTS);
     auto n = static_cast<uint16_t>(outerPts.size());
-
-    // Inner outline — stroke lives between outer and inner, fully inside
-    float innerR = std::max(cornerRadius - strokeWidth, 0.f);
-    float innerW = rawW - 2.f * strokeWidth;
-    float innerH = rawH - 2.f * strokeWidth;
-    auto  innerPts = roundedRectOutline(innerW, innerH, innerR, ARC_SEGMENTS);
-    for (auto &p : innerPts) {
-        p[0] += strokeWidth;
-        p[1] += strokeWidth;
-    }
 
     // --- Fill: triangle fan from center to outer outline ---
     if (fillColor[3] > 0) {
@@ -86,29 +77,90 @@ Mesh Rectangle::getMesh(const Metadata &meta, const Config &config)
             factory.addIndex(base + 1 + i);
             factory.addIndex(base + 1 + (i + 1) % n);
         }
+
+        // Bézier caps for rounded corners — one cap per arc sub-segment.
+        // Straight edges have no cap (control point == chord midpoint → zero area).
+        // Each cap smooths the boundary between the polygon chord and the true arc.
+        if (cornerRadius > 0.f) {
+            struct Corner
+            {
+                float cx, cy, t0, t1;
+            };
+
+            Corner corners[4] = {
+                {rawW - cornerRadius, cornerRadius, -PI / 2.f, 0.f},
+                {rawW - cornerRadius, rawH - cornerRadius, 0.f, PI / 2.f},
+                {cornerRadius, rawH - cornerRadius, PI / 2.f, PI},
+                {cornerRadius, cornerRadius, PI, 3.f * PI / 2.f},
+            };
+            for (const auto &c : corners) {
+                float dAngle = (c.t1 - c.t0) / ARC_SEGMENTS;
+                float dthalf = dAngle * 0.5f;
+                float factor = 1.f / std::cos(dthalf);
+                for (int i = 0; i < ARC_SEGMENTS; i++) {
+                    float t0 = c.t0 + i * dAngle;
+                    float t1 = t0 + dAngle;
+                    float tmid = (t0 + t1) * 0.5f;
+                    float p0x = c.cx + cornerRadius * std::cos(t0);
+                    float p0y = c.cy + cornerRadius * std::sin(t0);
+                    float p2x = c.cx + cornerRadius * std::cos(t1);
+                    float p2y = c.cy + cornerRadius * std::sin(t1);
+                    float p1x = c.cx + cornerRadius * factor * std::cos(tmid);
+                    float p1y = c.cy + cornerRadius * factor * std::sin(tmid);
+                    factory.addBezierCap(p0x, p0y, p1x, p1y, p2x, p2y, fillColor);
+                }
+            }
+        }
     }
 
-    // --- Stroke: ring from outer to inner outline, drawn on top ---
+    // --- Stroke: Bézier arcs for corners + degenerate Bézier for straight edges ---
+    // Corner arcs use the same quadratic Bézier control points as the fill caps.
+    // Straight edges are represented as degenerate quadratics (p1 = midpoint of p0p2).
+    // The geometry shader tessellates everything into smooth anti-aliased strips.
     if (strokeColor[3] > 0 && strokeWidth > 0.f) {
-        uint16_t base = factory.vertexCount();
-        for (const auto &p : outerPts) {
-            factory.addVertex(p[0], p[1], strokeColor);
+        struct Corner { float cx, cy, t0, t1; };
+        Corner corners[4] = {
+            {rawW - cornerRadius, cornerRadius,        -PI / 2.f, 0.f        },
+            {rawW - cornerRadius, rawH - cornerRadius,  0.f,       PI / 2.f  },
+            {cornerRadius,        rawH - cornerRadius,  PI / 2.f,  PI        },
+            {cornerRadius,        cornerRadius,          PI,        3.f*PI/2.f},
+        };
+
+        // Corner arcs (same Bézier arcs as the fill caps)
+        if (cornerRadius > 0.f) {
+            for (const auto &c : corners) {
+                float dAngle = (c.t1 - c.t0) / ARC_SEGMENTS;
+                float dthalf = dAngle * 0.5f;
+                float factor = 1.f / std::cos(dthalf);
+                for (int i = 0; i < ARC_SEGMENTS; i++) {
+                    float t0   = c.t0 + i * dAngle;
+                    float t1   = t0 + dAngle;
+                    float tmid = (t0 + t1) * 0.5f;
+                    float p0x  = c.cx + cornerRadius * std::cos(t0);
+                    float p0y  = c.cy + cornerRadius * std::sin(t0);
+                    float p2x  = c.cx + cornerRadius * std::cos(t1);
+                    float p2y  = c.cy + cornerRadius * std::sin(t1);
+                    float p1x  = c.cx + cornerRadius * factor * std::cos(tmid);
+                    float p1y  = c.cy + cornerRadius * factor * std::sin(tmid);
+                    factory.addBezierStroke(p0x, p0y, p1x, p1y, p2x, p2y, strokeWidth, strokeColor);
+                }
+            }
         }
 
-        for (const auto &p : innerPts) {
-            factory.addVertex(p[0], p[1], strokeColor);
-        }
-
-        for (uint16_t i = 0; i < n; i++) {
-            uint16_t j = (i + 1) % n;
-            uint16_t o0 = base + i, o1 = base + j;
-            uint16_t i0 = base + n + i, i1 = base + n + j;
-            factory.addIndex(o0);
-            factory.addIndex(o1);
-            factory.addIndex(i0);
-            factory.addIndex(o1);
-            factory.addIndex(i1);
-            factory.addIndex(i0);
+        // Straight edges: top, right, bottom, left
+        // Each is a degenerate quadratic (p1 = midpoint → straight line).
+        float r = cornerRadius;
+        struct Edge { float x0, y0, x2, y2; };
+        Edge edges[4] = {
+            {r,        0.f,       rawW - r,  0.f      }, // top
+            {rawW,     r,         rawW,       rawH - r }, // right
+            {rawW - r, rawH,      r,          rawH     }, // bottom
+            {0.f,      rawH - r,  0.f,        r        }, // left
+        };
+        for (const auto &e : edges) {
+            float mx = (e.x0 + e.x2) * 0.5f;
+            float my = (e.y0 + e.y2) * 0.5f;
+            factory.addBezierStroke(e.x0, e.y0, mx, my, e.x2, e.y2, strokeWidth, strokeColor);
         }
     }
 

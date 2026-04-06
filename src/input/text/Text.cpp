@@ -7,32 +7,63 @@
 
 #include "input/text/Text.hpp"
 
-#include <vector>
+#include <string>
 
-#include "opencv2/core/types.hpp"
-#include "opencv2/imgproc.hpp"
+#include "vulkan/MeshFactory.hpp"
+
+#ifndef FONT_DIR
+#define FONT_DIR "assets/fonts"
+#endif
 
 Text::Text(json::object_t &&args)
     : AInput(std::move(args))
 {
 }
 
-cv::Mat Text::getBaseMatrix(const json::object_t &args)
+GlyphCache &Text::glyphCache()
 {
-    const std::string &text = args.at("text");
-    double fontSize = args.at("fontSize");
-    int fontThickness = args.at("fontThickness");
-    const std::vector<int> &color = args.at("color");
-    int font = cv::FONT_HERSHEY_SIMPLEX;
+    static GlyphCache cache(std::string(FONT_DIR) + "/Inter-Regular.ttf");
+    return cache;
+}
 
-    int baseLine = 0;
+Mesh Text::getMesh(const Metadata &meta, const Config &config)
+{
+    const std::string &text     = meta.args.at("text").get<std::string>();
+    float              fontSize = meta.args.at("fontSize").get<float>(); // screen pixels
+    cv::Vec4b          color    = colorFromJson(meta.args.at("color"), meta.opacity);
 
-    // get the size of the text and the baseline (line where letters sit)
-    cv::Size size = cv::getTextSize(text, font, fontSize, fontThickness, &baseLine);
+    GlyphCache &cache     = glyphCache();
+    float       ascender  = cache.ascender()  * fontSize;
+    float       descender = cache.descender() * fontSize;
+    float       lineHeight = ascender + descender;
 
-    cv::Mat mat = cv::Mat(size.height + baseLine, size.width, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0));
+    // Measure total width
+    float totalWidth = 0.f;
+    for (unsigned char c : text) {
+        totalWidth += cache.get(c).advance * fontSize;
+    }
 
-    cv::putText(mat, text, cv::Point(0, size.height), font, fontSize, cv::Scalar(color[0], color[1], color[2], color[3]), fontThickness, cv::LINE_AA);
+    MeshFactory factory({totalWidth, lineHeight}, meta, config);
 
-    return mat;
+    float cursorX = 0.f;
+
+    for (unsigned char c : text) {
+        const GlyphMesh &g    = cache.get(c);
+        uint16_t         base = factory.vertexCount();
+
+        for (const auto &v : g.vertices) {
+            // v[1] is negative above baseline, positive below — shift by ascender
+            float x = cursorX + v[0] * fontSize;
+            float y = ascender + v[1] * fontSize;
+            factory.addVertex(x, y, color);
+        }
+
+        for (auto idx : g.indices) {
+            factory.addIndex(base + static_cast<uint16_t>(idx));
+        }
+
+        cursorX += g.advance * fontSize;
+    }
+
+    return factory.generateMesh();
 }

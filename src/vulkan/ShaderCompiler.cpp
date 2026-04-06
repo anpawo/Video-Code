@@ -20,6 +20,8 @@ static EShLanguage stageToEsh(VkShaderStageFlagBits stage)
             return EShLangVertex;
         case VK_SHADER_STAGE_FRAGMENT_BIT:
             return EShLangFragment;
+        case VK_SHADER_STAGE_GEOMETRY_BIT:
+            return EShLangGeometry;
         default:
             return EShLangVertex;
     }

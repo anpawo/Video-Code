@@ -19,6 +19,8 @@
     "protobuf",
     "curl",
     "glslang",
-    "vulkan"
+    "vulkan",
+    "freetype",
+    "earcut-hpp"
   ]
 }

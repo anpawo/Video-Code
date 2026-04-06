@@ -20,6 +20,10 @@ type wufloat = float
 type degree = float
 
 type sec = ufloat | uint
+type frame = int
+"""
+is in frame count not sec
+"""
 
 type maybe[T] = T | None
 type number = int | float

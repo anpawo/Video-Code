@@ -25,3 +25,7 @@ def example2():
     s = Line(length=0, strokeColor=WHITE).easeTo(6, "width").flush()
     s.easeTo(2.5, "height").easeTo(15, "cornerRadius", easing=Easing.Out).easeBy(2, "strokeWidth", easing=Easing.Out).flush()
     s.easeTo(s.fillColor | 0.5, "fillColor", easing=Easing.Out).flush()
+
+    wait()
+
+    t = Text("Hello")

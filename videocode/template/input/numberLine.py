@@ -2,8 +2,7 @@
 
 
 from constants import *
-from videocode.input.shape.Line import Line
-from videocode.input.text.Text import Text
+from videocode.videocode import *
 
 
 class numberLine:

@@ -7,13 +7,14 @@
 
 #include "input/shape/Circle.hpp"
 
-#include <algorithm>
+#include <cmath>
 
-#include "geometry/Arc.hpp"
 #include "vulkan/MeshFactory.hpp"
 
-static constexpr int   CIRCLE_SEGMENTS = 64;
-static constexpr float PI = static_cast<float>(M_PI);
+// 8 arcs (45° each) give a mathematically exact circle boundary.
+// The geometry shader tessellates each arc adaptively.
+static constexpr int   BEZIER_SEGS = 8;
+static constexpr float PI          = static_cast<float>(M_PI);
 
 Circle::Circle(json::object_t &&args)
     : AInput(std::move(args))
@@ -22,59 +23,74 @@ Circle::Circle(json::object_t &&args)
 
 Mesh Circle::getMesh(const Metadata &meta, const Config &config)
 {
-    float radius = meta.args.at("radius").get<float>();
+    float radius      = meta.args.at("radius").get<float>();
     float strokeWidth = meta.args.at("strokeWidth").get<float>();
 
-    cv::Vec4b fillColor = colorFromJson(meta.args.at("fillColor"), meta.opacity);
+    cv::Vec4b fillColor   = colorFromJson(meta.args.at("fillColor"),   meta.opacity);
     cv::Vec4b strokeColor = colorFromJson(meta.args.at("strokeColor"), meta.opacity);
 
     float       diameter = radius * 2.f;
+    float       cx = radius, cy = radius; // center in local space
     MeshFactory factory({diameter, diameter}, meta, config);
 
-    // Full circle outline: CIRCLE_SEGMENTS points (pop the duplicate last point)
-    auto outerPts = arcPoints(radius, radius, radius, 0.f, 2.f * PI, CIRCLE_SEGMENTS);
-    outerPts.pop_back();
-    auto n = static_cast<uint16_t>(outerPts.size());
-
-    auto innerPts = arcPoints(radius, radius, std::max(radius - strokeWidth, 0.f), 0.f, 2.f * PI, CIRCLE_SEGMENTS);
-    innerPts.pop_back();
-
-    // --- Fill: triangle fan from center to outer outline ---
+    // ── Fill: N Bézier arc segments ────────────────────────────────────────
+    // Each segment contributes:
+    //   1. A center-fan triangle (solid fill, UV sentinel) covering the chord.
+    //   2. A Bézier cap triangle (Loop-Blinn UV) covering the arc hump.
+    // Together they tile the full disc with mathematically correct curved edges.
     if (fillColor[3] > 0) {
-        uint16_t base = factory.vertexCount();
-        uint16_t center = base;
-        factory.addVertex(radius, radius, fillColor);
-        for (const auto &p : outerPts) {
-            factory.addVertex(p[0], p[1], fillColor);
-        }
+        for (int i = 0; i < BEZIER_SEGS; i++) {
+            float t0    = 2.f * PI * i       / BEZIER_SEGS;
+            float t1    = 2.f * PI * (i + 1) / BEZIER_SEGS;
+            float tmid  = (t0 + t1) * 0.5f;
+            float dthalf = (t1 - t0) * 0.5f; // half the arc angle
 
-        for (uint16_t i = 0; i < n; i++) {
-            factory.addIndex(center);
-            factory.addIndex(base + 1 + i);
-            factory.addIndex(base + 1 + (i + 1) % n);
+            // Arc endpoints on the circle
+            float p0x = cx + radius * std::cos(t0);
+            float p0y = cy + radius * std::sin(t0);
+            float p2x = cx + radius * std::cos(t1);
+            float p2y = cy + radius * std::sin(t1);
+
+            // Control point: tangent-line intersection, sits outside the circle.
+            // Formula: r / cos(half-arc-angle) in the midpoint direction.
+            float factor = 1.f / std::cos(dthalf);
+            float p1x = cx + radius * factor * std::cos(tmid);
+            float p1y = cy + radius * factor * std::sin(tmid);
+
+            // Center-fan triangle: covers the chord (straight edge).
+            uint16_t base = factory.vertexCount();
+            factory.addVertex(cx,  cy,  fillColor);
+            factory.addVertex(p0x, p0y, fillColor);
+            factory.addVertex(p2x, p2y, fillColor);
+            factory.addIndex(base);
+            factory.addIndex(base + 1);
+            factory.addIndex(base + 2);
+
+            // Bézier cap: smooths the boundary between chord and actual arc.
+            factory.addBezierCap(p0x, p0y, p1x, p1y, p2x, p2y, fillColor);
         }
     }
 
-    // --- Stroke: ring from outer to inner, drawn on top ---
+    // ── Stroke: 8 quadratic Bézier arc primitives ─────────────────────────
+    // Each arc uses the same control points as the fill caps.
+    // The geometry shader tessellates them into smooth anti-aliased strips.
     if (strokeColor[3] > 0 && strokeWidth > 0.f) {
-        uint16_t base = factory.vertexCount();
-        for (const auto &p : outerPts) {
-            factory.addVertex(p[0], p[1], strokeColor);
-        }
-        for (const auto &p : innerPts) {
-            factory.addVertex(p[0], p[1], strokeColor);
-        }
+        for (int i = 0; i < BEZIER_SEGS; i++) {
+            float t0    = 2.f * PI * i       / BEZIER_SEGS;
+            float t1    = 2.f * PI * (i + 1) / BEZIER_SEGS;
+            float tmid  = (t0 + t1) * 0.5f;
+            float dthalf = (t1 - t0) * 0.5f;
 
-        for (uint16_t i = 0; i < n; i++) {
-            uint16_t j = (i + 1) % n;
-            uint16_t o0 = base + i, o1 = base + j;
-            uint16_t i0 = base + n + i, i1 = base + n + j;
-            factory.addIndex(o0);
-            factory.addIndex(o1);
-            factory.addIndex(i0);
-            factory.addIndex(o1);
-            factory.addIndex(i1);
-            factory.addIndex(i0);
+            float p0x = cx + radius * std::cos(t0);
+            float p0y = cy + radius * std::sin(t0);
+            float p2x = cx + radius * std::cos(t1);
+            float p2y = cy + radius * std::sin(t1);
+
+            float factor = 1.f / std::cos(dthalf);
+            float p1x = cx + radius * factor * std::cos(tmid);
+            float p1y = cy + radius * factor * std::sin(tmid);
+
+            factory.addBezierStroke(p0x, p0y, p1x, p1y, p2x, p2y, strokeWidth, strokeColor);
         }
     }
 

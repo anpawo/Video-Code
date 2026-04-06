@@ -7,14 +7,24 @@
 
 #pragma once
 
+#include <nlohmann/json.hpp>
+
 #include "input/AInput.hpp"
+#include "input/text/GlyphCache.hpp"
+#include "vulkan/Mesh.hpp"
+
+using json = nlohmann::json;
 
 class Text final : public AInput
 {
 public:
 
-    Text(json::object_t&& args);
+    Text(json::object_t &&args);
     ~Text() = default;
 
-    cv::Mat getBaseMatrix(const json::object_t& args);
+    Mesh getMesh(const Metadata &meta, const Config &config);
+
+private:
+
+    static GlyphCache &glyphCache();
 };

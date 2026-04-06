@@ -34,7 +34,7 @@ class Metadata:
         self.hidden: bool = False
 
         # --- Offset ---
-        self.lastAffectedFrame: int = Global.waitOffset
+        self.lastAffectedFrame: frame = Global.waitOffset
         """
         Last frame affected by a `Transformation` from the last applied `Transformation`
 
@@ -43,6 +43,8 @@ class Metadata:
         self.transformationOffset: int = self.lastAffectedFrame
         """
         Increased by `lastAffectedFrame` when flushed.
+
+        Also starts at Global.waitOffset
         """
 
     def __str__(self) -> str:
@@ -64,10 +66,10 @@ class Global:
     inputCounter: int = 0
 
     # Last ever affected frame
-    lastEverAffectedFrame: int = 0
+    lastEverAffectedFrame: frame = 0
 
     # Wait creates an offset affecting the start of any transformation
-    waitOffset: int = 0
+    waitOffset: frame = 0
 
     @staticmethod
     def getIndex() -> int:

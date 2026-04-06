@@ -3,6 +3,7 @@
 
 from sys import stderr
 from typing import TYPE_CHECKING, Any, Callable
+from videocode.constants import FRAMERATE
 from videocode.globals import Global
 from videocode.utils.funcutils import fromWorldToScreen, upperFirst
 from videocode.utils.timeit import *
@@ -125,7 +126,7 @@ def inputCreation(f: Callable[..., None]):
         f(*args, **kwargs)
 
         # Input
-        input = args[0]
+        input: Input = args[0]
         attrs = {k: v for k, v in input.__dict__.items() if k != "meta"}
 
         # Incorporate the annotations of the init function into the class
@@ -138,8 +139,13 @@ def inputCreation(f: Callable[..., None]):
                 "action": "Create",
                 "type": upperFirst(input.__class__.__name__),
                 "args": fromWorldToScreen(f.__annotations__, attrs),
+                "hide": Global.waitOffset > 0,
             },
         )
+
+        # If created mid-timeline (after a flush), hide until the current offset
+        if Global.waitOffset > 0:
+            input.show()
 
     return inputCreationWrapper
 

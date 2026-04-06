@@ -94,7 +94,8 @@ namespace VC
         bool pickPhysicalDevice();
         bool createDevice();
         bool createSwapchain();
-        bool createMsaaResources();
+        bool createSsaaResources();
+        void destroySsaaResources();
         bool createRenderPass();
         bool createUniformBuffer();
         bool createDescriptorSet();
@@ -105,7 +106,6 @@ namespace VC
         bool createCommandPool();
         bool createCommandBuffers();
         bool createSyncObjects();
-        void destroyMsaaResources();
 
         // ── Per-frame helpers ─────────────────────────────────────────────
         void updateUniforms();
@@ -132,18 +132,18 @@ namespace VC
         VkQueue          m_graphicsQueue = VK_NULL_HANDLE;
         uint32_t         m_graphicsFamily = 0;
 
-        // ── MSAA ─────────────────────────────────────────────────────────
-        VkSampleCountFlagBits m_msaaSamples  = VK_SAMPLE_COUNT_4_BIT;
-        VkImage               m_msaaImage    = VK_NULL_HANDLE;
-        VkDeviceMemory        m_msaaMemory   = VK_NULL_HANDLE;
-        VkImageView           m_msaaImageView = VK_NULL_HANDLE;
-
         // ── Swapchain ─────────────────────────────────────────────────────
         VkSwapchainKHR           m_swapchain = VK_NULL_HANDLE;
         VkFormat                 m_swapFormat{};
         VkExtent2D               m_swapExtent{};
         std::vector<VkImage>     m_swapImages;
         std::vector<VkImageView> m_swapImageViews;
+
+        // ── SSAA offscreen image (2× swapchain resolution) ────────────────
+        VkExtent2D     m_ssaaExtent{};
+        VkImage        m_ssaaImage     = VK_NULL_HANDLE;
+        VkDeviceMemory m_ssaaMemory    = VK_NULL_HANDLE;
+        VkImageView    m_ssaaImageView = VK_NULL_HANDLE;
 
         // ── Render pass & pipeline ────────────────────────────────────────
         VkRenderPass          m_renderPass = VK_NULL_HANDLE;
@@ -164,12 +164,12 @@ namespace VC
         VkFence     m_inFlightFence = VK_NULL_HANDLE;
 
         // ── Buffers & device memory ───────────────────────────────────────
-        VkBuffer       m_vertexBuffer  = VK_NULL_HANDLE;
-        VkDeviceMemory m_vertexMemory  = VK_NULL_HANDLE;
-        VkBuffer       m_indexBuffer   = VK_NULL_HANDLE;
-        VkDeviceMemory m_indexMemory   = VK_NULL_HANDLE;
-        VkBuffer       m_uniformBuffer = VK_NULL_HANDLE;
-        VkDeviceMemory m_uniformMemory = VK_NULL_HANDLE;
+        VkBuffer       m_vertexBuffer       = VK_NULL_HANDLE;
+        VkDeviceMemory m_vertexMemory       = VK_NULL_HANDLE;
+        VkBuffer       m_indexBuffer        = VK_NULL_HANDLE;
+        VkDeviceMemory m_indexMemory        = VK_NULL_HANDLE;
+        VkBuffer       m_uniformBuffer      = VK_NULL_HANDLE;
+        VkDeviceMemory m_uniformMemory      = VK_NULL_HANDLE;
 
         // ── CPU-side geometry ─────────────────────────────────────────────
         struct MeshDrawInfo
@@ -183,6 +183,7 @@ namespace VC
         std::vector<Vertex>       m_vertices;
         std::vector<uint16_t>     m_indices;
         bool                      m_geomDirty = false;
+
 
         // ── Frame callback ────────────────────────────────────────────────
         std::function<std::vector<Mesh>()> m_frameCallback;

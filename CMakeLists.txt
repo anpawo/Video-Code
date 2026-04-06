@@ -80,6 +80,7 @@ if(APPLE)
 endif()
 find_package(Vulkan REQUIRED)
 find_package(glslang CONFIG REQUIRED)
+find_package(Freetype REQUIRED)
 
 if(NOT CI_BUILD)
     find_package(nlohmann_json CONFIG REQUIRED)
@@ -122,7 +123,7 @@ set(SOURCES
     # src/input/media/Image.cpp
     # src/input/media/WebImage.cpp
     # src/input/media/Video.cpp
-    # src/input/text/Text.cpp
+    src/input/text/Text.cpp
 
     # --- Fragment Shaders ---
     src/shader/Blur.cpp
@@ -157,6 +158,10 @@ if(NOT APPLE)
     target_link_libraries(${PROJECT_NAME} stdc++fs)
 endif()
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    FONT_DIR="${CMAKE_SOURCE_DIR}/assets/fonts"
+)
+
 target_link_libraries(${PROJECT_NAME}
     argparse::argparse
     nlohmann_json::nlohmann_json
@@ -171,6 +176,7 @@ target_link_libraries(${PROJECT_NAME}
     glslang::glslang
     glslang::glslang-default-resource-limits
     glslang::SPIRV
+    Freetype::Freetype
 )
 
 if(APPLE)

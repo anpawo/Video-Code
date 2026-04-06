@@ -40,6 +40,12 @@ void setParserArgument(argparse::ArgumentParser &p)
         .scan<'f', float>();
 
     p
+        .add_argument("--windowRatio")
+        .default_value(0.5f)
+        .scan<'f', float>()
+        .help("Ratio of preview window compared to the video size.");
+
+    p
         .add_argument("--framerate")
         .default_value(30)
         .scan<'i', int>();

@@ -14,9 +14,8 @@
 #include <chrono>
 #include <vector>
 
-#include "vulkan/Mesh.hpp"
-
 #include "core/Core.hpp"
+#include "vulkan/Mesh.hpp"
 #include "window/TimelineWidget.hpp"
 #include "window/VulkanWidget.hpp"
 

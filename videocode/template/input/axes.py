@@ -2,7 +2,7 @@
 
 
 from constants import *
-from videocode.input.shape.Line import Line
+from videocode.videocode import *
 from videocode.input.text.Text import Text
 
 

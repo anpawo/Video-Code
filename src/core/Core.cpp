@@ -79,6 +79,10 @@ void VC::Core::executeStack()
         if (s["action"] == "Create") {
             _inputs.push_back(Factory::inputs.at(s["type"])(s["args"]));
 
+            if (s["hide"]) {
+                _inputs.back()->delayAppearance();
+            }
+
             // if (s["type"] == "Video") {
             //     auto* video = dynamic_cast<Video*>(_inputs.back().get());
 

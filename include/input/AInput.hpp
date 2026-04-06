@@ -35,6 +35,10 @@ public:
 
     // -
 
+    void delayAppearance() final;
+
+    // -
+
 protected:
 
     static cv::Vec4b colorFromJson(const json& c, uint8_t opacity)

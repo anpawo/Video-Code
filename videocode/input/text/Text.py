@@ -11,11 +11,9 @@ class Text(Input):
     def __init__(
         self,
         text: str,
-        fontSize: ufloat = 3,
+        fontSize: wufloat = 0.5,
         color: rgba = WHITE,
-        fontThickness: maybe[ufloat] = None,
     ):
         self.text = text
         self.fontSize = fontSize
         self.color = color
-        self.fontThickness = fontThickness or fontSize * 2

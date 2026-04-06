@@ -7,11 +7,17 @@
 
 #include "window/Window.hpp"
 
+#include <QGuiApplication>
+#include <QScreen>
+#include <QStatusBar>
+#include <algorithm>
+
 VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     : QMainWindow(parent)
     , config({
           .screenWidth = parser.get<float>("--width"),
           .screenHeight = parser.get<float>("--height"),
+          .windowRatio = parser.get<float>("--windowRatio"),
 
           .framerate = parser.get<int>("--framerate"),
 
@@ -26,7 +32,6 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
 
     ///< Vulkan central widget
     _vulkanWidget = new VulkanWidget(this);
-    _vulkanWidget->setFixedSize(config.windowWidth, config.windowHeight);
     setCentralWidget(_vulkanWidget);
 
     /// TODO: fix the timeline
@@ -54,9 +59,15 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     }
     setWindowTitle((l + sep + r).c_str());
 
-    // Resize the QT window and move it to the top-right corner
-    move(config.windowWidth, 0);
-    resize(config.windowWidth, config.windowHeight);
+    statusBar()->hide();
+
+    // Center the window on the primary screen, clamped to what the screen can fit
+    QRect screen = QGuiApplication::primaryScreen()->availableGeometry();
+    int w = std::min((int)config.windowWidth,  screen.width());
+    int h = std::min((int)config.windowHeight, screen.height());
+    resize(w, h);
+    move(screen.center().x() - w / 2,
+         screen.center().y() - h / 2);
     show();
 
     ///< Wire up the frame callback before init so the first render already
