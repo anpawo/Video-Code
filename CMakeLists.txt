@@ -160,6 +160,7 @@ endif()
 
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     FONT_DIR="${CMAKE_SOURCE_DIR}/assets/fonts"
+    SHADER_DIR="${CMAKE_SOURCE_DIR}/assets/shaders"
 )
 
 target_link_libraries(${PROJECT_NAME}

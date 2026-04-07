@@ -33,7 +33,8 @@ namespace VC
         float time;
         float pad[3];
         float resolution[2];
-        float pad2[2];
+        float pixelSize;   // 1.0 / min(screenWidth, screenHeight) — for AA scaling
+        float pad2[1];
     };
 
     // -----------------------------------------------------------------------

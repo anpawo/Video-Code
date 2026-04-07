@@ -22,83 +22,27 @@
 #include "vulkan/MetalSurface.hpp"   // CAMetalLayer bridge (macOS only)
 #include "vulkan/ShaderCompiler.hpp" // Runtime GLSL → SPIR-V via glslang
 
+#include <fstream>
+#include <sstream>
+
 // ============================================================================
-// Shader source strings
-//   Compiled at runtime so tweaks don't require a separate SPIR-V build step.
+// loadShaderSource
+//   Reads a GLSL file from assets/shaders/quadraticBezier/ at runtime.
+//   Compiled to SPIR-V by compileGLSL() so tweaks don't need a separate step.
 // ============================================================================
 
-// ── Vertex shader ─────────────────────────────────────────────────────────────
-static const std::string VERT_SRC = R"(
-#version 450
-layout(location = 0) in vec2 inPos;
-layout(location = 1) in vec2 inUV;
-layout(location = 2) in vec4 inColor;
-layout(location = 0) out vec2 fragUV;
-layout(location = 1) out vec4 fragColor;
-void main() {
-    gl_Position = vec4(inPos, 0.0, 1.0);
-    fragUV    = inUV;
-    fragColor = inColor;
-}
-)";
-
-// ── Fragment shader ───────────────────────────────────────────────────────────
-// UV encoding:
-//   uv.y < 0   → sentinel: regular fill triangle, output solid color
-//   uv.y >= 0  → Bézier cap: apply Loop-Blinn curve test with smooth AA
-//
-// Loop-Blinn implicit form: K = u² - v
-//   K < 0  → inside the curve  (keep, alpha = 1)
-//   K = 0  → on the curve      (half-alpha, smooth transition)
-//   K > 0  → outside the curve (discard, alpha = 0)
-//
-// fwidth(K) gives the rate of change of K across one pixel, so
-// smoothstep over [-w, w] produces exactly one pixel of AA.
-// UV encoding:
-//   uv.y < 0       → solid fill triangle
-//   uv.y ∈ [0, 1]  → Loop-Blinn Bézier fill cap  (K = u²−v, discard outside)
-//   uv.y ≥ 2       → stroke SDF quad  (uv.x = distToAaw, uv.y−2 = halfWidthToAaw)
-//                    alpha = smoothstep(0.5, −0.5, |uv.x| − (uv.y−2))
-static const std::string FRAG_SRC = R"(
-#version 450
-layout(location = 0) in vec2 fragUV;
-layout(location = 1) in vec4 fragColor;
-layout(location = 0) out vec4 outColor;
-
-layout(binding = 0) uniform UBO {
-    float time;
-    float pad0; float pad1; float pad2;
-    float resX;
-    float resY;
-    float pad3; float pad4;
-} ubo;
-
-void main() {
-    if (fragUV.y < 0.0) {
-        // Solid fill — output color directly.
-        outColor = fragColor;
-
-    } else if (fragUV.y < 2.0) {
-        // Loop-Blinn Bézier fill cap.
-        float K = fragUV.x * fragUV.x - fragUV.y;
-        float w = fwidth(K);
-        float alpha = 1.0 - smoothstep(-w, w, K);
-        if (alpha <= 0.0) discard;
-        outColor = vec4(fragColor.rgb, fragColor.a * alpha);
-
-    } else {
-        // Stroke SDF quad (Manim-style).
-        // uv.x interpolates from -halfExtent/AAW to +halfExtent/AAW across the quad.
-        // uv.y - 2 = halfWidth/AAW (constant across the quad).
-        float distToAaw      = fragUV.x;
-        float halfWidthToAaw = fragUV.y - 2.0;
-        float signedDist     = abs(distToAaw) - halfWidthToAaw;
-        float alpha          = smoothstep(0.5, -0.5, signedDist);
-        if (alpha <= 0.0) discard;
-        outColor = vec4(fragColor.rgb, fragColor.a * alpha);
+static std::string loadShaderSource(const std::string &filename)
+{
+    std::string path = std::string(SHADER_DIR) + "/quadraticBezier/" + filename;
+    std::ifstream f(path);
+    if (!f.is_open()) {
+        qWarning("Failed to open shader: %s", path.c_str());
+        return {};
     }
+    std::ostringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
 }
-)";
 
 // ============================================================================
 // Constructor / Destructor
@@ -128,12 +72,12 @@ VC::VulkanWidget::VulkanWidget(QWidget* parent)
     //      │  tri2 ╲   │
     //   (-1, 1) ─── (1, 1)
     m_vertices = {
-        Vertex{{-1.0f, -1.0f}, {0.0f, 0.0f}, {0, 0, 0, 0}}, // bottom-left
-        Vertex{{1.0f, -1.0f}, {1.0f, 0.0f}, {0, 0, 0, 0}},  // bottom-right
-        Vertex{{1.0f, 1.0f}, {1.0f, 1.0f}, {0, 0, 0, 0}},   // top-right
-        Vertex{{-1.0f, -1.0f}, {0.0f, 0.0f}, {0, 0, 0, 0}}, // bottom-left (tri 2)
-        Vertex{{1.0f, 1.0f}, {1.0f, 1.0f}, {0, 0, 0, 0}},   // top-right
-        Vertex{{-1.0f, 1.0f}, {0.0f, 1.0f}, {0, 0, 0, 0}},  // top-left
+        Vertex{{-1.0f, -1.0f}, {0.0f, 0.0f}, {0, 0, 0, 0}, {0, 0, 0, 0}}, // bottom-left
+        Vertex{{1.0f, -1.0f}, {1.0f, 0.0f}, {0, 0, 0, 0}, {0, 0, 0, 0}},  // bottom-right
+        Vertex{{1.0f, 1.0f}, {1.0f, 1.0f}, {0, 0, 0, 0}, {0, 0, 0, 0}},   // top-right
+        Vertex{{-1.0f, -1.0f}, {0.0f, 0.0f}, {0, 0, 0, 0}, {0, 0, 0, 0}}, // bottom-left (tri 2)
+        Vertex{{1.0f, 1.0f}, {1.0f, 1.0f}, {0, 0, 0, 0}, {0, 0, 0, 0}},   // top-right
+        Vertex{{-1.0f, 1.0f}, {0.0f, 1.0f}, {0, 0, 0, 0}, {0, 0, 0, 0}},  // top-left
     };
 }
 
@@ -406,7 +350,6 @@ bool VC::VulkanWidget::createDevice()
     ci.pQueueCreateInfos = &qci;
     ci.enabledExtensionCount = (uint32_t)extensions.size();
     ci.ppEnabledExtensionNames = extensions.data();
-
     if (vkCreateDevice(m_physicalDevice, &ci, nullptr, &m_device) != VK_SUCCESS) {
         return false;
     }
@@ -697,6 +640,7 @@ VkShaderModule VC::VulkanWidget::createShaderModule(const std::vector<uint32_t>&
 
 // ============================================================================
 // Step 9: createPipeline
+//   Vertex layout: pos[2] + uv[2] + color[4] + extra[4] floats → stride = 48 bytes.
 //   Vertex binding uses the project Vertex struct:
 //     pos[2] + uv[2] + color[4] floats → stride = 32 bytes.
 //   Only pos (location 0) and uv (location 1) are declared as shader inputs;
@@ -705,8 +649,8 @@ VkShaderModule VC::VulkanWidget::createShaderModule(const std::vector<uint32_t>&
 
 bool VC::VulkanWidget::createPipeline()
 {
-    auto vertSpv = compileGLSL(VERT_SRC, VK_SHADER_STAGE_VERTEX_BIT);
-    auto fragSpv = compileGLSL(FRAG_SRC, VK_SHADER_STAGE_FRAGMENT_BIT);
+    auto vertSpv = compileGLSL(loadShaderSource("vert.glsl"), VK_SHADER_STAGE_VERTEX_BIT);
+    auto fragSpv = compileGLSL(loadShaderSource("frag.glsl"), VK_SHADER_STAGE_FRAGMENT_BIT);
     if (vertSpv.empty() || fragSpv.empty()) {
         return false;
     }
@@ -724,13 +668,13 @@ bool VC::VulkanWidget::createPipeline()
     stages[1].module = frag;
     stages[1].pName = "main";
 
-    // stride = sizeof(Vertex) = 32 bytes (pos[2] + uv[2] + color[4] × 4 bytes each).
+    // stride = sizeof(Vertex) = 48 bytes (pos[2] + uv[2] + color[4] + extra[4] × 4 bytes each).
     VkVertexInputBindingDescription binding{};
     binding.binding = 0;
     binding.stride = sizeof(Vertex);
     binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-    VkVertexInputAttributeDescription attrs[3]{};
+    VkVertexInputAttributeDescription attrs[4]{};
     attrs[0].binding = 0;
     attrs[0].location = 0; // layout(location=0) in vec2 inPos
     attrs[0].format = VK_FORMAT_R32G32_SFLOAT;
@@ -743,12 +687,15 @@ bool VC::VulkanWidget::createPipeline()
     attrs[2].location = 2; // layout(location=2) in vec4 inColor
     attrs[2].format = VK_FORMAT_R32G32B32A32_SFLOAT;
     attrs[2].offset = offsetof(Vertex, color);
-
+    attrs[3].binding = 0;
+    attrs[3].location = 3; // layout(location=3) in vec4 inExtra  ([0] = draw mode)
+    attrs[3].format = VK_FORMAT_R32G32B32A32_SFLOAT;
+    attrs[3].offset = offsetof(Vertex, extra);
     VkPipelineVertexInputStateCreateInfo vi{};
     vi.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vi.vertexBindingDescriptionCount = 1;
     vi.pVertexBindingDescriptions = &binding;
-    vi.vertexAttributeDescriptionCount = 3;
+    vi.vertexAttributeDescriptionCount = 4;
     vi.pVertexAttributeDescriptions = attrs;
 
     VkPipelineInputAssemblyStateCreateInfo ia{};
@@ -794,10 +741,17 @@ bool VC::VulkanWidget::createPipeline()
     blend.attachmentCount = 1;
     blend.pAttachments = &blendAttach;
 
+    VkPushConstantRange pcRange{};
+    pcRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    pcRange.offset     = 0;
+    pcRange.size       = 16; // 4 floats: hw, hh, r, sw
+
     VkPipelineLayoutCreateInfo layoutCI{};
-    layoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutCI.setLayoutCount = 1;
-    layoutCI.pSetLayouts = &m_descriptorSetLayout;
+    layoutCI.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layoutCI.setLayoutCount         = 1;
+    layoutCI.pSetLayouts            = &m_descriptorSetLayout;
+    layoutCI.pushConstantRangeCount = 1;
+    layoutCI.pPushConstantRanges    = &pcRange;
     vkCreatePipelineLayout(m_device, &layoutCI, nullptr, &m_pipelineLayout);
 
     VkGraphicsPipelineCreateInfo ci{};
@@ -991,6 +945,7 @@ void VC::VulkanWidget::updateUniforms()
     ubo.time = t;
     ubo.resolution[0] = (float)m_swapExtent.width;
     ubo.resolution[1] = (float)m_swapExtent.height;
+    ubo.pixelSize = 1.f / std::min((float)m_swapExtent.width, (float)m_swapExtent.height);
 
     void* data;
     vkMapMemory(m_device, m_uniformMemory, 0, sizeof(UniformData), 0, &data);
