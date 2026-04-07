@@ -10,16 +10,20 @@ sys.path.append(".")
 
 from globals import *
 from videocode import *
+from videocode.constants import setFramerate
 
 
 def makeSerializable(o):
     return o.makeSerializable()
 
 
-def serializeScene(filepath: str) -> str:
+def serializeScene(filepath: str, framerate: int = 30) -> str:
     """
     Serialiaze a file representing a `Scene`.
     """
+
+    # Apply the requested framerate before executing the scene
+    setFramerate(framerate)
 
     # Read the content of the file
     with open(filepath, "r") as file:

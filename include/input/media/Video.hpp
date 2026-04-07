@@ -25,4 +25,6 @@ public:
 private:
 
     cv::VideoCapture _video;
+    double _sourceFps{0};
+    size_t _sourceFrameCount{0};
 };

@@ -13,6 +13,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "input/IInput.hpp"
+#include "input/media/Audio.hpp"
 
 namespace VC
 {
@@ -34,6 +35,9 @@ namespace VC
 
         ///< Generate the video
         int generateVideo();
+
+        ///< Generate image(s) from the scene
+        int generateImage(const std::string& format);
 
         ///< Time control
         void pause();
@@ -77,6 +81,14 @@ namespace VC
 
         ///< Inputs created
         std::vector<std::unique_ptr<IInput>> _inputs{};
+
+        ///< Audio tracks to mux into the output
+        struct AudioTrack {
+            std::string filepath;
+            double volume;
+            double startSec;
+        };
+        std::vector<AudioTrack> _audioTracks{};
 
         ///< Stack containing the steps of the video
         json::array_t _stack{};

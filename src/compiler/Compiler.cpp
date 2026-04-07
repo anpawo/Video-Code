@@ -18,3 +18,8 @@ int VC::Compiler::generateVideo()
 {
     return _core.generateVideo();
 }
+
+int VC::Compiler::generateImage(const std::string& format)
+{
+    return _core.generateImage(format);
+}

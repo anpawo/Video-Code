@@ -113,6 +113,7 @@ set(SOURCES
     src/input/media/Image.cpp
     src/input/media/WebImage.cpp
     src/input/media/Video.cpp
+    src/input/media/Audio.cpp
     # Text
     src/input/text/Text.cpp
     # Shape

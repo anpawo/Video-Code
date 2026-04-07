@@ -24,6 +24,11 @@ WORLD_OFFSET_Y = WORLD_HEIGHT / 2
 FRAMERATE = 30
 SINGLE_FRAME = SF = 1 / FRAMERATE
 
+def setFramerate(fps: int) -> None:
+    global FRAMERATE, SINGLE_FRAME, SF
+    FRAMERATE = fps
+    SINGLE_FRAME = SF = 1 / FRAMERATE
+
 # fmt: off
 # direction
 ORIGIN = v2[maybe[number]](0, 0)

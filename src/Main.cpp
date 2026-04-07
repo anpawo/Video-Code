@@ -29,6 +29,11 @@ void setParserArgument(argparse::ArgumentParser &p)
         .help("Generate the video, otherwise the program runs in edit mode where you can visualize the video as you write it.");
 
     p
+        .add_argument("--format")
+        .default_value(std::string("mp4"))
+        .help("Output format: mp4, png, or jpg. When png/jpg, exports frame(s) as image(s).");
+
+    p
         .add_argument("--width")
         .default_value(1920)
         .scan<'i', int>();
@@ -71,6 +76,12 @@ int main(int argc, char *argv[])
     if (parser.is_used("--generate")) {
         // Compile Mode
         VC::Compiler compiler(parser);
+
+        std::string format = parser.get("--format");
+
+        if (format == "png" || format == "jpg" || format == "jpeg") {
+            return compiler.generateImage(format);
+        }
 
         return compiler.generateVideo();
 

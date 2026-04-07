@@ -13,6 +13,7 @@
 #include <string>
 
 #include "input/IInput.hpp"
+#include "input/media/Audio.hpp"
 #include "input/media/Image.hpp"
 #include "input/media/Video.hpp"
 #include "input/media/WebImage.hpp"
@@ -34,6 +35,7 @@ namespace Factory
         input(Image),
         input(WebImage),
         input(Video),
+        input(Audio),
 
         ///< Text
         input(Text),

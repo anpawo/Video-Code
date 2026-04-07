@@ -22,6 +22,7 @@ namespace VC
         ~Compiler();
 
         int generateVideo();
+        int generateImage(const std::string& format);
 
     private:
 

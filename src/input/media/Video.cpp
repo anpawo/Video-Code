@@ -26,10 +26,24 @@ Video::Video(json::object_t&& args)
         throw Error("Could not load Video: " + filepath);
     }
 
-    _nbFrame = static_cast<size_t>(_video.get(cv::CAP_PROP_FRAME_COUNT));
+    _sourceFrameCount = static_cast<size_t>(_video.get(cv::CAP_PROP_FRAME_COUNT));
+    _sourceFps = _video.get(cv::CAP_PROP_FPS);
+
+    if (_sourceFrameCount == 0) {
+        throw Error("Video has no frames: " + filepath);
+    }
+
+    if (_sourceFps <= 0) {
+        _sourceFps = 30;
+    }
+
+    // Convert source frame count to project frame count based on target FPS
+    double projectFps = _baseArgs.count("projectFps") ? _baseArgs.at("projectFps").get<double>() : _sourceFps;
+    double durationSec = static_cast<double>(_sourceFrameCount) / _sourceFps;
+    _nbFrame = static_cast<size_t>(durationSec * projectFps);
 
     if (_nbFrame == 0) {
-        throw Error("Video has no frames: " + filepath);
+        _nbFrame = 1;
     }
 }
 
@@ -37,24 +51,30 @@ cv::Mat Video::getBaseMatrix(const json::object_t& args)
 {
     size_t index = args.at("index");
 
-    if (index >= _nbFrame) {
-        index = _nbFrame - 1;
+    // Map project frame index to source frame index for FPS conversion
+    double projectFps = _baseArgs.count("projectFps") ? _baseArgs.at("projectFps").get<double>() : _sourceFps;
+    size_t sourceIndex = static_cast<size_t>(
+        static_cast<double>(index) * _sourceFps / projectFps
+    );
+
+    if (sourceIndex >= _sourceFrameCount) {
+        sourceIndex = _sourceFrameCount - 1;
     }
 
     cv::Mat frame;
 
     while (true) {
-        _video.set(cv::CAP_PROP_POS_FRAMES, static_cast<double>(index));
+        _video.set(cv::CAP_PROP_POS_FRAMES, static_cast<double>(sourceIndex));
         _video.read(frame);
 
         if (frame.empty()) {
-            if (index == _nbFrame - 1) {
-                _nbFrame--;
-                if (_nbFrame == 0) {
+            if (sourceIndex == _sourceFrameCount - 1) {
+                _sourceFrameCount--;
+                if (_sourceFrameCount == 0) {
                     throw Error("Video has no frames: " + _baseArgs.at("filepath").get<std::string>());
                 }
             }
-            index--;
+            sourceIndex--;
         } else {
             break;
         }

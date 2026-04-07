@@ -12,13 +12,18 @@
 #include <qscreen.h>
 
 #include <cstddef>
+#include <cstdio>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <opencv2/core/mat.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 #include <string>
 
 #include "input/IInput.hpp"
 #include "input/InputFactory.hpp"
+#include "input/media/Audio.hpp"
 #include "input/media/Video.hpp"
 #include "utils/Debug.hpp"
 #include "utils/Exception.hpp"
@@ -53,6 +58,7 @@ void VC::Core::reloadSourceFile()
 
     _inputs.clear();
     _stack.clear();
+    _audioTracks.clear();
 
     try {
         _stack = json::parse(serializedScene);
@@ -66,8 +72,11 @@ void VC::Core::reloadSourceFile()
 
 std::string VC::Core::serializeScene()
 {
-    std::string command = "python3 -c \"import sys; sys.path.append('./videocode');from serialize import serializeScene; print(serializeScene('video.py'))\"";
-
+    std::string command = std::format(
+        "python3 -c \"import sys; sys.path.append('./videocode');from serialize import serializeScene; print(serializeScene('{}', {}))\"",
+        _sourceFile,
+        _framerate
+    );
     FILE* pipe = popen(command.c_str(), "r");
     if (!pipe) {
         throw Error("Failed to load '" + _sourceFile + "'.");
@@ -90,6 +99,9 @@ void VC::Core::executeStack()
         }
 
         if (s["action"] == "Create") {
+            if (s["type"] == "Video") {
+                s["args"]["projectFps"] = static_cast<double>(_framerate);
+            }
             _inputs.push_back(Factory::inputs.at(s["type"])(s["args"]));
 
             if (s["type"] == "Video") {
@@ -98,6 +110,21 @@ void VC::Core::executeStack()
                 if (video->_nbFrame > _nbFrame) {
                     _nbFrame = video->_nbFrame;
                 }
+            }
+
+            if (s["type"] == "Audio") {
+                auto* audioInput = dynamic_cast<Audio*>(_inputs.back().get());
+
+                double startSec = 0.0;
+                if (s["args"].contains("startSec")) {
+                    startSec = s["args"]["startSec"].get<double>();
+                }
+
+                _audioTracks.push_back({
+                    audioInput->_filepath,
+                    audioInput->_volume,
+                    startSec,
+                });
             }
 
         } else if (s["action"] == "Apply") {
@@ -185,6 +212,10 @@ void VC::Core::updateFrame(QLabel& imageLabel)
 
 int VC::Core::generateVideo()
 {
+    // If we have audio tracks, first generate a temp video, then mux with audio
+    bool hasAudio = !_audioTracks.empty();
+    std::string videoTarget = hasAudio ? _outputFile + ".tmp.mp4" : _outputFile;
+
     FILE* ffmpegPipe = popen(
         std::format(
             "ffmpeg"
@@ -193,7 +224,7 @@ int VC::Core::generateVideo()
             " -pixel_format bgra"   // the format of the pixel sent
             " -video_size {}x{}"    // width and height
             " -framerate {}"        // input framerate
-            " -an"                  // tells ffmpeg to expect no audio
+            " -an"                  // no audio in raw pipe
             " -i -"                 // the inputs comes from a pipe (stdin)
             " -c:v libx264"         // the codec defines how are the frames compressed in the output file
             " -preset veryfast"     // speed up the process
@@ -205,7 +236,7 @@ int VC::Core::generateVideo()
             _width,
             _height,
             _framerate,
-            _outputFile
+            videoTarget
         )
             .c_str(),
         "w"
@@ -235,7 +266,109 @@ int VC::Core::generateVideo()
     }
 
     pclose(ffmpegPipe);
+
+    // Mux audio tracks if any
+    if (hasAudio) {
+        std::string cmd = "ffmpeg -y -i " + videoTarget;
+
+        // Add audio inputs
+        for (const auto& track : _audioTracks) {
+            cmd += " -i \"" + track.filepath + "\"";
+        }
+
+        // Build filter_complex for audio mixing
+        if (_audioTracks.size() == 1) {
+            // Single audio track: apply volume and delay
+            const auto& track = _audioTracks[0];
+            cmd += std::format(
+                " -filter_complex \"[1:a]volume={},adelay={}|{}[aout]\"",
+                track.volume,
+                static_cast<int>(track.startSec * 1000),
+                static_cast<int>(track.startSec * 1000)
+            );
+            cmd += " -map 0:v -map \"[aout]\"";
+        } else {
+            // Multiple audio tracks: mix them together
+            cmd += " -filter_complex \"";
+            for (size_t i = 0; i < _audioTracks.size(); i++) {
+                const auto& track = _audioTracks[i];
+                cmd += std::format(
+                    "[{}:a]volume={},adelay={}|{}[a{}];",
+                    i + 1,
+                    track.volume,
+                    static_cast<int>(track.startSec * 1000),
+                    static_cast<int>(track.startSec * 1000),
+                    i
+                );
+            }
+            // Merge all audio streams
+            for (size_t i = 0; i < _audioTracks.size(); i++) {
+                cmd += std::format("[a{}]", i);
+            }
+            cmd += std::format("amix=inputs={}:duration=longest[aout]\"", _audioTracks.size());
+            cmd += " -map 0:v -map \"[aout]\"";
+        }
+
+        cmd += " -c:v copy -c:a aac -b:a 192k";
+        cmd += " -movflags +faststart -loglevel warning";
+        cmd += " " + _outputFile;
+
+        int ret = system(cmd.c_str());
+
+        // Clean up temp file
+        std::remove(videoTarget.c_str());
+
+        if (ret != 0) {
+            throw Error("Failed to mux audio into video.");
+        }
+    }
+
     VC_LOG_DEBUG("video generated as: " + _outputFile)
+    return 0;
+}
+
+int VC::Core::generateImage(const std::string& format)
+{
+    std::string ext = (format == "jpg" || format == "jpeg") ? ".jpg" : ".png";
+
+    if (_nbFrame == 0) {
+        throw Error("No frames to export.");
+    }
+
+    if (_nbFrame == 1) {
+        // Single frame: export directly with the output filename
+        cv::Mat f = generateFrame(0);
+        std::string filename = _outputFile;
+
+        // Replace extension if output file has a video extension
+        size_t dotPos = filename.rfind('.');
+        if (dotPos != std::string::npos) {
+            filename = filename.substr(0, dotPos) + ext;
+        } else {
+            filename += ext;
+        }
+
+        // Convert BGRA to BGR for imwrite (drop alpha)
+        cv::Mat output;
+        cv::cvtColor(f, output, cv::COLOR_BGRA2BGR);
+        cv::imwrite(filename, output);
+
+        VC_LOG_DEBUG("image generated as: " + filename)
+    } else {
+        // Multiple frames: export as image sequence
+        for (size_t i = 0; i < _nbFrame; i++) {
+            cv::Mat f = generateFrame(i);
+
+            std::string filename = std::format("frame_{:06d}{}", i, ext);
+
+            cv::Mat output;
+            cv::cvtColor(f, output, cv::COLOR_BGRA2BGR);
+            cv::imwrite(filename, output);
+        }
+
+        VC_LOG_DEBUG("image sequence generated: " + std::to_string(_nbFrame) + " frames")
+    }
+
     return 0;
 }
 
