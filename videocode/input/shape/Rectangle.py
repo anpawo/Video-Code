@@ -9,13 +9,15 @@ class Rectangle(Shape):
     @inputCreation
     def __init__(
         self,
-        width: wufloat = 3,
-        height: wufloat = 2,
-        fillColor: rgba = LIGHT_BLUE,
-        strokeColor: rgba = BLUE,
-        strokeWidth: wufloat = 0.05,
+        width: wufloat = 5,
+        height: wufloat = 3,
+        fillColor: rgba = DARK_BLUE,
+        strokeColor: rgba = WHITE,
+        strokeWidth: wufloat = 0.1,
         cornerRadius: float = 0,  # percent 0-100, 100 = circle on a square
     ):
+        self.meta.name = "Rectangle"
+
         self.width = width
         self.height = height
         self.fillColor = fillColor
@@ -24,16 +26,16 @@ class Rectangle(Shape):
         self.cornerRadius = min(max(cornerRadius, 0), 100)
 
 
-class Square(Shape):
-    def __new__(
-        cls,
+class Square(Rectangle):
+    def __init__(
+        self,
         side: wufloat = 2,
         fillColor: rgba = LIGHT_BLUE,
         strokeColor: rgba = BLUE,
         strokeWidth: wufloat = 0.05,
         cornerRadius: float = 0,
-    ) -> Rectangle:
-        return Rectangle(
+    ):
+        super().__init__(
             width=side,
             height=side,
             fillColor=fillColor,
@@ -42,19 +44,17 @@ class Square(Shape):
             cornerRadius=cornerRadius,
         )
 
-    def __init__(self): ...
 
-
-class Line(Shape):
-    def __new__(
-        cls,
+class Line(Rectangle):
+    def __init__(
+        self,
         length: wufloat = 3,
         strokeWidth: wufloat = 0.1,
         fillColor: rgba = WHITE | BLUE,
         strokeColor: rgba = TRANSPARENT,
         rounded: bool = True,
-    ) -> Rectangle:
-        return Rectangle(
+    ):
+        super().__init__(
             width=length,
             height=strokeWidth,
             fillColor=fillColor,
@@ -62,5 +62,3 @@ class Line(Shape):
             strokeWidth=strokeWidth / 3,
             cornerRadius=100 if rounded else 0,
         )
-
-    def __init__(self): ...

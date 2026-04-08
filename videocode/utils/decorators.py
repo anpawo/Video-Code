@@ -130,6 +130,7 @@ def inputCreation(f: Callable[..., None]):
         attrs = {k: v for k, v in input.__dict__.items() if k != "meta"}
 
         # Incorporate the annotations of the init function into the class
+        # If you import futur.__annotations__ all types become strings
         for k in f.__annotations__:
             input.__class__.__annotations__[k] = f.__annotations__[k]
 
@@ -137,7 +138,7 @@ def inputCreation(f: Callable[..., None]):
         Global.stack.append(
             {
                 "action": "Create",
-                "type": upperFirst(input.__class__.__name__),
+                "type": upperFirst(input.meta.name),
                 "args": fromWorldToScreen(f.__annotations__, attrs),
                 "hide": Global.waitOffset > 0,
             },

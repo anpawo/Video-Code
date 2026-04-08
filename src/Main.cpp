@@ -7,6 +7,7 @@
 
 #include <QApplication>
 #include <QMainWindow>
+#include <QMessageLogContext>
 #include <argparse/argparse.hpp>
 #include <cstdlib>
 #include <nlohmann/json.hpp>
@@ -63,6 +64,13 @@ void setParserArgument(argparse::ArgumentParser &p)
 
 int main(int argc, char *argv[])
 {
+    // Suppress the spurious Qt/macOS fullscreen position warning
+    qInstallMessageHandler([](QtMsgType type, const QMessageLogContext&, const QString& msg) {
+        if (type == QtWarningMsg && msg.contains("outside any known screen"))
+            return;
+        fprintf(stderr, "%s\n", msg.toLocal8Bit().constData());
+    });
+
     // Hide OpenCV logs
     cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_SILENT);
 

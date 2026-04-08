@@ -14,6 +14,8 @@ class Text(Input):
         fontSize: wufloat = 0.5,
         color: rgba = WHITE,
     ):
+        self.meta.name = "Text"
+
         self.text = text
         self.fontSize = fontSize
         self.color = color

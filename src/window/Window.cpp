@@ -86,7 +86,10 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
 
     ///< Defer Vulkan init until the event loop is running and the native
     ///< window handle is guaranteed to be available.
-    QTimer::singleShot(0, _vulkanWidget, [this] { _vulkanWidget->init(); });
+    QTimer::singleShot(0, _vulkanWidget, [this] {
+        _vulkanWidget->init();
+        _core.uploadTextures(_vulkanWidget);
+    });
 }
 
 VC::Window::~Window() = default;

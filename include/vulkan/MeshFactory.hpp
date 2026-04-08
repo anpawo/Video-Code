@@ -406,14 +406,14 @@ struct MeshFactory
     {
         cv::Matx31f world = M * cv::Matx31f{localX, localY, 1.f};
 
-        float ndcX = world(0) / windowWidth * 2.f - 1.f;
-        float ndcY = world(1) / windowHeight * 2.f - 1.f;
+        float ndcX = world(0) / windowWidth  - 1.f;  // same formula as solid-fill variant
+        float ndcY = world(1) / windowHeight - 1.f;
 
         mesh.vertices.push_back(Vertex{
             {ndcX, ndcY},
             {u, v},
-            {},
-            {0.f, 0.f, 0.f, 0.f},
+            {0.f, 0.f, 0.f, 1.f},  // alpha=1 → full opacity; Opacity shader can lower this
+            {5.f, 0.f, 0.f, 0.f},  // mode 5 = texture sample
         });
     }
 

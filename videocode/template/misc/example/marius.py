@@ -1,10 +1,21 @@
 #!/usr/bin/env python3
 
 
+from videocode.template.input.CartesianGraph import CartesianGraph
+from videocode.template.misc.chess.chessboard import ChessBoard
 from videocode.videocode import *
 
 
-def example1(i: Input | None = None):
+def example1():
+    """
+    Simple carré arrondi.
+
+    Simple rounded square.
+    """
+    s = Square(side=6, cornerRadius=12, strokeWidth=0.1, fillColor=WHITE | DARK_BLUE | 0.25, strokeColor=WHITE)
+
+
+def example2(i: Input | None = None):
     """
     Carré qui apparait en grandissant puis qui bouge sur la droite et disparait en grandissant.
 
@@ -14,7 +25,7 @@ def example1(i: Input | None = None):
     i.position(x=-2).scale(0.1).scaleTo(1).flush().moveTo(x=2).flush().fadeOut().scaleTo(2)
 
 
-def example2():
+def example3():
     """
     Ligne qui s'étend sur la longueur puis sur la largeur puis qui devient plus foncé.
     Un peu comme une TV ou un paragraphe de texte dans Pokémon.
@@ -28,13 +39,18 @@ def example2():
 
     wait()
 
-    t = Text("Hello")
+    t = Text("Hello World!")
 
 
-def example3():
+def example4():
     """
-    Simple carré arrondi.
-
-    Simple rounded square.
+    Cartesian Graph Animation.
     """
-    s = Square(side=6, cornerRadius=12, strokeWidth=0.1, fillColor=WHITE | DARK_BLUE | 0.25, strokeColor=WHITE)
+    c = CartesianGraph()
+
+
+def example5():
+    """
+    Chess animation.
+    """
+    c = ChessBoard()

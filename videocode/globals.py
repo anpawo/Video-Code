@@ -15,6 +15,9 @@ class Metadata:
         """
         self.index: maybe[int] = None if interface else Global.getIndex()
 
+        # --- Name of the Parent Input (setup by the Input itself) ---
+        self.name: str
+
         # --- Position ---
         self.position: v2[number] = v2(0, 0)
 

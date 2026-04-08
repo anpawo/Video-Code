@@ -205,6 +205,15 @@ bool VC::VulkanWidget::init()
         qWarning("createCommandPool failed");
         return false;
     }
+
+    // Upload the default 1×1 white texture now that the command pool exists.
+    cv::Mat white(1, 1, CV_8UC4, cv::Scalar(255, 255, 255, 255));
+    m_defaultTextureSet = uploadTexture(white);
+    if (m_defaultTextureSet == VK_NULL_HANDLE) {
+        qWarning("default texture upload failed");
+        return false;
+    }
+
     if (!createCommandBuffers()) {
         qWarning("createCommandBuffers failed");
         return false;
@@ -574,49 +583,76 @@ bool VC::VulkanWidget::createUniformBuffer()
 
 bool VC::VulkanWidget::createDescriptorSet()
 {
-    VkDescriptorSetLayoutBinding b{};
-    b.binding = 0;
-    b.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    b.descriptorCount = 1;
-    b.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    // ── set = 0: UBO ──────────────────────────────────────────────────────────
+    VkDescriptorSetLayoutBinding uboBinding{};
+    uboBinding.binding         = 0;
+    uboBinding.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboBinding.descriptorCount = 1;
+    uboBinding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    VkDescriptorSetLayoutCreateInfo lci{};
-    lci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    lci.bindingCount = 1;
-    lci.pBindings = &b;
-    vkCreateDescriptorSetLayout(m_device, &lci, nullptr, &m_descriptorSetLayout);
+    VkDescriptorSetLayoutCreateInfo uboLci{};
+    uboLci.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    uboLci.bindingCount = 1;
+    uboLci.pBindings    = &uboBinding;
+    vkCreateDescriptorSetLayout(m_device, &uboLci, nullptr, &m_descriptorSetLayout);
 
-    VkDescriptorPoolSize ps{};
-    ps.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    ps.descriptorCount = 1;
+    VkDescriptorPoolSize uboPs{};
+    uboPs.type            = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboPs.descriptorCount = 1;
 
-    VkDescriptorPoolCreateInfo pci{};
-    pci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pci.poolSizeCount = 1;
-    pci.pPoolSizes = &ps;
-    pci.maxSets = 1;
-    vkCreateDescriptorPool(m_device, &pci, nullptr, &m_descriptorPool);
+    VkDescriptorPoolCreateInfo uboPci{};
+    uboPci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    uboPci.poolSizeCount = 1;
+    uboPci.pPoolSizes    = &uboPs;
+    uboPci.maxSets       = 1;
+    vkCreateDescriptorPool(m_device, &uboPci, nullptr, &m_descriptorPool);
 
-    VkDescriptorSetAllocateInfo ai{};
-    ai.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    ai.descriptorPool = m_descriptorPool;
-    ai.descriptorSetCount = 1;
-    ai.pSetLayouts = &m_descriptorSetLayout;
-    vkAllocateDescriptorSets(m_device, &ai, &m_descriptorSet);
+    VkDescriptorSetAllocateInfo uboAi{};
+    uboAi.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    uboAi.descriptorPool     = m_descriptorPool;
+    uboAi.descriptorSetCount = 1;
+    uboAi.pSetLayouts        = &m_descriptorSetLayout;
+    vkAllocateDescriptorSets(m_device, &uboAi, &m_descriptorSet);
 
-    VkDescriptorBufferInfo bi{};
-    bi.buffer = m_uniformBuffer;
-    bi.offset = 0;
-    bi.range = sizeof(UniformData);
+    VkDescriptorBufferInfo bufInfo{};
+    bufInfo.buffer = m_uniformBuffer;
+    bufInfo.offset = 0;
+    bufInfo.range  = sizeof(UniformData);
 
-    VkWriteDescriptorSet w{};
-    w.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    w.dstSet = m_descriptorSet;
-    w.dstBinding = 0;
-    w.descriptorCount = 1;
-    w.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    w.pBufferInfo = &bi;
-    vkUpdateDescriptorSets(m_device, 1, &w, 0, nullptr);
+    VkWriteDescriptorSet uboWrite{};
+    uboWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    uboWrite.dstSet          = m_descriptorSet;
+    uboWrite.dstBinding      = 0;
+    uboWrite.descriptorCount = 1;
+    uboWrite.descriptorType  = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboWrite.pBufferInfo     = &bufInfo;
+    vkUpdateDescriptorSets(m_device, 1, &uboWrite, 0, nullptr);
+
+    // ── set = 1: per-mesh combined image sampler ──────────────────────────────
+    VkDescriptorSetLayoutBinding texBinding{};
+    texBinding.binding         = 0;
+    texBinding.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    texBinding.descriptorCount = 1;
+    texBinding.stageFlags      = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkDescriptorSetLayoutCreateInfo texLci{};
+    texLci.sType        = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    texLci.bindingCount = 1;
+    texLci.pBindings    = &texBinding;
+    vkCreateDescriptorSetLayout(m_device, &texLci, nullptr, &m_textureSetLayout);
+
+    // Pool supports up to 64 image inputs; FREE_SET_BIT allows individual cleanup.
+    VkDescriptorPoolSize texPs{};
+    texPs.type            = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    texPs.descriptorCount = 64;
+
+    VkDescriptorPoolCreateInfo texPci{};
+    texPci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    texPci.flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    texPci.poolSizeCount = 1;
+    texPci.pPoolSizes    = &texPs;
+    texPci.maxSets       = 64;
+    vkCreateDescriptorPool(m_device, &texPci, nullptr, &m_texturePool);
 
     return true;
 }
@@ -746,10 +782,12 @@ bool VC::VulkanWidget::createPipeline()
     pcRange.offset     = 0;
     pcRange.size       = 16; // 4 floats: hw, hh, r, sw
 
+    VkDescriptorSetLayout setLayouts[] = {m_descriptorSetLayout, m_textureSetLayout};
+
     VkPipelineLayoutCreateInfo layoutCI{};
     layoutCI.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutCI.setLayoutCount         = 1;
-    layoutCI.pSetLayouts            = &m_descriptorSetLayout;
+    layoutCI.setLayoutCount         = 2;
+    layoutCI.pSetLayouts            = setLayouts;
     layoutCI.pushConstantRangeCount = 1;
     layoutCI.pPushConstantRanges    = &pcRange;
     vkCreatePipelineLayout(m_device, &layoutCI, nullptr, &m_pipelineLayout);
@@ -954,6 +992,183 @@ void VC::VulkanWidget::updateUniforms()
 }
 
 // ============================================================================
+// Texture upload helpers
+// ============================================================================
+
+// Run a single one-shot command buffer synchronously on the graphics queue.
+static void runOneShot(VkDevice device, VkCommandPool pool, VkQueue queue,
+                       const std::function<void(VkCommandBuffer)>& fn)
+{
+    VkCommandBufferAllocateInfo ai{};
+    ai.sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    ai.commandPool        = pool;
+    ai.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    ai.commandBufferCount = 1;
+
+    VkCommandBuffer cb = VK_NULL_HANDLE;
+    vkAllocateCommandBuffers(device, &ai, &cb);
+
+    VkCommandBufferBeginInfo bi{};
+    bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vkBeginCommandBuffer(cb, &bi);
+
+    fn(cb);
+
+    vkEndCommandBuffer(cb);
+
+    VkSubmitInfo si{};
+    si.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    si.commandBufferCount = 1;
+    si.pCommandBuffers    = &cb;
+    vkQueueSubmit(queue, 1, &si, VK_NULL_HANDLE);
+    vkQueueWaitIdle(queue);
+
+    vkFreeCommandBuffers(device, pool, 1, &cb);
+}
+
+void VC::VulkanWidget::transitionImageLayout(VkImage image, VkImageLayout from, VkImageLayout to)
+{
+    runOneShot(m_device, m_commandPool, m_graphicsQueue, [&](VkCommandBuffer cb) {
+        VkImageMemoryBarrier barrier{};
+        barrier.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.oldLayout           = from;
+        barrier.newLayout           = to;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.image               = image;
+        barrier.subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+
+        VkPipelineStageFlags srcStage{}, dstStage{};
+
+        if (from == VK_IMAGE_LAYOUT_UNDEFINED && to == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            srcStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            dstStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        } else {
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            srcStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            dstStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        }
+
+        vkCmdPipelineBarrier(cb, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    });
+}
+
+void VC::VulkanWidget::copyBufferToImage(VkBuffer buf, VkImage image, uint32_t w, uint32_t h)
+{
+    runOneShot(m_device, m_commandPool, m_graphicsQueue, [&](VkCommandBuffer cb) {
+        VkBufferImageCopy region{};
+        region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
+        region.imageExtent      = {w, h, 1};
+        vkCmdCopyBufferToImage(cb, buf, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    });
+}
+
+VkDescriptorSet VC::VulkanWidget::uploadTexture(const cv::Mat& mat)
+{
+    uint32_t     w         = static_cast<uint32_t>(mat.cols);
+    uint32_t     h         = static_cast<uint32_t>(mat.rows);
+    VkDeviceSize imageSize = static_cast<VkDeviceSize>(w * h * 4);
+
+    // ── Staging buffer ────────────────────────────────────────────────────────
+    VkBuffer       stagingBuf = VK_NULL_HANDLE;
+    VkDeviceMemory stagingMem = VK_NULL_HANDLE;
+    createBuffer(m_device, imageSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        stagingBuf, stagingMem,
+        [this](uint32_t f, VkMemoryPropertyFlags p) { return findMemoryType(f, p); });
+
+    void* data;
+    vkMapMemory(m_device, stagingMem, 0, imageSize, 0, &data);
+    std::memcpy(data, mat.data, static_cast<size_t>(imageSize));
+    vkUnmapMemory(m_device, stagingMem);
+
+    // ── VkImage ───────────────────────────────────────────────────────────────
+    TextureResource tex{};
+
+    VkImageCreateInfo ici{};
+    ici.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    ici.imageType     = VK_IMAGE_TYPE_2D;
+    ici.format        = VK_FORMAT_B8G8R8A8_UNORM; // matches OpenCV BGRA layout
+    ici.extent        = {w, h, 1};
+    ici.mipLevels     = 1;
+    ici.arrayLayers   = 1;
+    ici.samples       = VK_SAMPLE_COUNT_1_BIT;
+    ici.tiling        = VK_IMAGE_TILING_OPTIMAL;
+    ici.usage         = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    ici.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+    ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    vkCreateImage(m_device, &ici, nullptr, &tex.image);
+
+    VkMemoryRequirements memReq;
+    vkGetImageMemoryRequirements(m_device, tex.image, &memReq);
+
+    VkMemoryAllocateInfo mai{};
+    mai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    mai.allocationSize  = memReq.size;
+    mai.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    vkAllocateMemory(m_device, &mai, nullptr, &tex.memory);
+    vkBindImageMemory(m_device, tex.image, tex.memory, 0);
+
+    // ── Upload ────────────────────────────────────────────────────────────────
+    transitionImageLayout(tex.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    copyBufferToImage(stagingBuf, tex.image, w, h);
+    transitionImageLayout(tex.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    vkDestroyBuffer(m_device, stagingBuf, nullptr);
+    vkFreeMemory(m_device, stagingMem, nullptr);
+
+    // ── ImageView + Sampler ───────────────────────────────────────────────────
+    VkImageViewCreateInfo ivci{};
+    ivci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    ivci.image            = tex.image;
+    ivci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
+    ivci.format           = VK_FORMAT_B8G8R8A8_UNORM;
+    ivci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    vkCreateImageView(m_device, &ivci, nullptr, &tex.view);
+
+    VkSamplerCreateInfo sci{};
+    sci.sType        = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sci.magFilter    = VK_FILTER_LINEAR;
+    sci.minFilter    = VK_FILTER_LINEAR;
+    sci.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sci.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    sci.maxLod       = 0.f;
+    vkCreateSampler(m_device, &sci, nullptr, &tex.sampler);
+
+    // ── Descriptor set ────────────────────────────────────────────────────────
+    VkDescriptorSetAllocateInfo dsAi{};
+    dsAi.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    dsAi.descriptorPool     = m_texturePool;
+    dsAi.descriptorSetCount = 1;
+    dsAi.pSetLayouts        = &m_textureSetLayout;
+
+    VkDescriptorSet descSet = VK_NULL_HANDLE;
+    vkAllocateDescriptorSets(m_device, &dsAi, &descSet);
+
+    VkDescriptorImageInfo imgInfo{};
+    imgInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imgInfo.imageView   = tex.view;
+    imgInfo.sampler     = tex.sampler;
+
+    VkWriteDescriptorSet dsWrite{};
+    dsWrite.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    dsWrite.dstSet          = descSet;
+    dsWrite.dstBinding      = 0;
+    dsWrite.descriptorCount = 1;
+    dsWrite.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    dsWrite.pImageInfo      = &imgInfo;
+    vkUpdateDescriptorSets(m_device, 1, &dsWrite, 0, nullptr);
+
+    m_textures.push_back(tex);
+    return descSet;
+}
+
+// ============================================================================
 // recordCommandBuffer — called every frame
 //   Resets and re-records: uniform upload → optional vertex re-upload →
 //   beginRenderPass → bindPipeline → bindDescriptors → draw → endRenderPass.
@@ -1012,9 +1227,17 @@ void VC::VulkanWidget::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageInd
     if (!m_indices.empty()) {
         vkCmdBindIndexBuffer(cb, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
+        // Bind the default (1×1 white) texture at set=1 before the draw loop.
+        // Textured meshes will rebind their own descriptor set below.
+        vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTextureSet, 0, nullptr);
+
         for (size_t i = 0; i < m_meshes.size(); ++i) {
             const Mesh&         mesh = m_meshes[i];
             const MeshDrawInfo& info = m_meshDrawInfos[i];
+
+            if (mesh.hasTexture && mesh.textureDescriptor != VK_NULL_HANDLE) {
+                vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &mesh.textureDescriptor, 0, nullptr);
+            }
 
             if (!mesh.pushConstantData.empty()) {
                 vkCmdPushConstants(
@@ -1183,7 +1406,25 @@ void VC::VulkanWidget::cleanup()
     vkDestroyPipeline(m_device, m_pipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
 
-    vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr); // frees sets implicitly
+    // Destroy per-mesh uploaded textures
+    for (auto& tex : m_textures) {
+        vkDestroySampler(m_device, tex.sampler, nullptr);
+        vkDestroyImageView(m_device, tex.view, nullptr);
+        vkDestroyImage(m_device, tex.image, nullptr);
+        vkFreeMemory(m_device, tex.memory, nullptr);
+    }
+    m_textures.clear();
+
+    // Destroy default 1×1 white texture
+    vkDestroySampler(m_device, m_defaultTexture.sampler, nullptr);
+    vkDestroyImageView(m_device, m_defaultTexture.view, nullptr);
+    vkDestroyImage(m_device, m_defaultTexture.image, nullptr);
+    vkFreeMemory(m_device, m_defaultTexture.memory, nullptr);
+
+    vkDestroyDescriptorPool(m_device, m_texturePool, nullptr); // frees texture sets implicitly
+    vkDestroyDescriptorSetLayout(m_device, m_textureSetLayout, nullptr);
+
+    vkDestroyDescriptorPool(m_device, m_descriptorPool, nullptr); // frees UBO set implicitly
     vkDestroyDescriptorSetLayout(m_device, m_descriptorSetLayout, nullptr);
 
     vkDestroyRenderPass(m_device, m_renderPass, nullptr);

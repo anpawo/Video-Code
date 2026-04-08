@@ -16,8 +16,10 @@
 #include "input/AInput.hpp"
 #include "input/IInput.hpp"
 #include "input/InputFactory.hpp"
+#include "input/media/Image.hpp"
 // #include "input/media/Video.hpp"
 #include "utils/Exception.hpp"
+#include "window/VulkanWidget.hpp"
 
 VC::Core::Core(const argparse::ArgumentParser& parser, const Config& config)
     : _showstack(parser.get<bool>("--showstack"))
@@ -119,14 +121,15 @@ void VC::Core::executeStack()
 
 std::vector<Mesh> VC::Core::generateMeshes()
 {
+    size_t renderIndex = _index;
     auto potentialIndex = _waits.find(_index);
     if (potentialIndex != _waits.end()) {
-        _index = potentialIndex->second;
+        renderIndex = potentialIndex->second;
     }
 
     std::vector<Mesh> meshes;
     for (auto& i : _inputs) {
-        auto meta = i->getMetadata(_index);
+        auto meta = i->getMetadata(renderIndex);
         if (!meta.hidden) {
             meshes.push_back(i->getMesh(meta, _config));
         }
@@ -193,4 +196,15 @@ void VC::Core::forward1frame()
         _indexChanged = true;
     }
     std::cout << std::format("Jumped forward to the frame {}/{}.", currIndex(_index, _nbFrame), _nbFrame) << std::endl;
+}
+
+void VC::Core::uploadTextures(VC::VulkanWidget* widget)
+{
+    for (auto& inputPtr : _inputs) {
+        Image* img = dynamic_cast<Image*>(inputPtr.get());
+        if (img) {
+            VkDescriptorSet desc = widget->uploadTexture(img->getBase());
+            img->setTextureDescriptor(desc);
+        }
+    }
 }

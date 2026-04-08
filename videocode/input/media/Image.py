@@ -11,5 +11,7 @@ class Image(Input):
     def __init__(
         self,
         filepath: str,
-    ) -> None:
+    ):
+        self.meta.name = "Image"
+
         self.filepath = filepath

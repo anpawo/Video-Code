@@ -120,7 +120,7 @@ set(SOURCES
     src/input/AInput.cpp
     src/input/shape/Rectangle.cpp
     src/input/shape/Circle.cpp
-    # src/input/media/Image.cpp
+    src/input/media/Image.cpp
     # src/input/media/WebImage.cpp
     # src/input/media/Video.cpp
     src/input/text/Text.cpp

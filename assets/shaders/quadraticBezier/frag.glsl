@@ -4,7 +4,7 @@ layout(location = 0) in vec2 fragUV;
 layout(location = 1) in vec4 fragColor;
 layout(location = 2) in vec4 fragExtra; // [0] = draw mode
 
-layout(binding = 0) uniform UBO {
+layout(set = 0, binding = 0) uniform UBO {
     float time;
     float pad0; float pad1; float pad2;
     float resX;
@@ -12,6 +12,10 @@ layout(binding = 0) uniform UBO {
     float pixelSize;  // 1.0 / min(screenWidth, screenHeight)
     float pad3;
 } ubo;
+
+// Texture sampler for mode 5 (Image input).
+// Always bound — non-textured meshes bind a 1×1 white dummy so this is always valid.
+layout(set = 1, binding = 0) uniform sampler2D texSampler;
 
 // Modes 3 and 4: shape SDF parameters (hw, hh, r, sw)
 layout(push_constant) uniform ShapeParams {
@@ -73,7 +77,7 @@ void main() {
         if (alpha <= 0.0) discard;
         outColor = vec4(fragColor.rgb, fragColor.a * alpha);
 
-    } else {
+    } else if (mode == 4) {
         // ── Analytic SDF stroke (rounded rect / circle) ───────────────────
         if (fragColor.a == 0.0) discard;
         float d     = sdRoundedBox(fragUV, vec2(shape.hw, shape.hh), shape.r);
@@ -82,5 +86,13 @@ void main() {
         float alpha = smoothstep(aaw, -aaw, ring);
         if (alpha <= 0.0) discard;
         outColor = vec4(fragColor.rgb, fragColor.a * alpha);
+
+    } else if (mode == 5) {
+        // ── Textured quad (Image input) ───────────────────────────────────
+        // fragUV = (0,0) top-left … (1,1) bottom-right of the image.
+        // fragColor.a carries per-input opacity (set by the Opacity vertex shader).
+        vec4 texColor = texture(texSampler, fragUV);
+        if (texColor.a == 0.0) discard;
+        outColor = vec4(texColor.rgb, texColor.a * fragColor.a);
     }
 }

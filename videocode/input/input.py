@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Self
+from typing import Any, Self
 from videocode.template.effect.fadeIn import fadeIn
 from videocode.template.effect.fadeOut import fadeOut
 from videocode.template.effect.moveTo import moveTo
@@ -99,6 +99,8 @@ class Input(ABC):
             )
 
         return self
+
+    ### Builtins ###
 
     def __setattr__(self, name: str, value: Any) -> None:
         if hasattr(self, name):

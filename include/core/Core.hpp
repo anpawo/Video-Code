@@ -16,6 +16,8 @@
 
 namespace VC
 {
+    class VulkanWidget; // forward declaration for uploadTextures
+
     class Core
     {
     public:
@@ -33,6 +35,9 @@ namespace VC
 
         ///< Generate the video
         int generateVideo();
+
+        ///< Upload textures for all Image inputs to the Vulkan widget
+        void uploadTextures(VulkanWidget* widget);
 
         ///< Time control
         void pause();

@@ -13,6 +13,7 @@
 #include <functional>
 #include <vector>
 
+#include <opencv2/core/mat.hpp>
 #include "vulkan/Mesh.hpp"
 
 namespace VC
@@ -77,6 +78,12 @@ namespace VC
         // animation advances are display-synchronized via requestUpdate().
         void setFrameCallback(std::function<std::vector<Mesh>()> cb);
 
+        // uploadTexture() — upload a cv::Mat (BGRA) to the GPU as a texture.
+        // Returns a VkDescriptorSet (set=1 layout) to store in the Mesh.
+        // Must be called after init(). The widget owns all GPU resources;
+        // they are freed in cleanup().
+        VkDescriptorSet uploadTexture(const cv::Mat& mat);
+
     protected:
 
         bool event(QEvent* e) override;
@@ -121,6 +128,10 @@ namespace VC
         VkShaderModule createShaderModule(const std::vector<uint32_t>& code);
         uint32_t       findMemoryType(uint32_t filter, VkMemoryPropertyFlags props);
 
+        // Texture upload helpers
+        void transitionImageLayout(VkImage image, VkImageLayout from, VkImageLayout to);
+        void copyBufferToImage(VkBuffer buf, VkImage image, uint32_t w, uint32_t h);
+
         // ── Platform ──────────────────────────────────────────────────────
         void* m_metalLayer = nullptr; // Opaque CAMetalLayer* (macOS drawable surface).
         bool  m_initialized = false;  // Guards render() against calls before init().
@@ -148,11 +159,30 @@ namespace VC
 
         // ── Render pass & pipeline ────────────────────────────────────────
         VkRenderPass          m_renderPass = VK_NULL_HANDLE;
+
+        // set = 0: UBO
         VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
-        VkDescriptorPool      m_descriptorPool = VK_NULL_HANDLE;
-        VkDescriptorSet       m_descriptorSet = VK_NULL_HANDLE;
+        VkDescriptorPool      m_descriptorPool      = VK_NULL_HANDLE;
+        VkDescriptorSet       m_descriptorSet       = VK_NULL_HANDLE;
+
+        // set = 1: per-mesh texture (combined image sampler)
+        VkDescriptorSetLayout m_textureSetLayout  = VK_NULL_HANDLE;
+        VkDescriptorPool      m_texturePool       = VK_NULL_HANDLE;
+        VkDescriptorSet       m_defaultTextureSet = VK_NULL_HANDLE; // 1×1 white, bound for non-textured meshes
+
         VkPipelineLayout      m_pipelineLayout = VK_NULL_HANDLE;
         VkPipeline            m_pipeline = VK_NULL_HANDLE;
+
+        // ── Texture resources ─────────────────────────────────────────────
+        struct TextureResource {
+            VkImage        image   = VK_NULL_HANDLE;
+            VkDeviceMemory memory  = VK_NULL_HANDLE;
+            VkImageView    view    = VK_NULL_HANDLE;
+            VkSampler      sampler = VK_NULL_HANDLE;
+        };
+
+        std::vector<TextureResource> m_textures;      // one per uploadTexture() call
+        TextureResource              m_defaultTexture; // the 1×1 white default
 
         // ── Framebuffers & commands ───────────────────────────────────────
         std::vector<VkFramebuffer> m_framebuffers;
