@@ -11,4 +11,6 @@ class WebImage(Input):
         self,
         url: url,
     ):
+        self.meta.name = "WebImage"
+
         self.url = url

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-from videocode.template.input.CartesianGraph import CartesianGraph
+from videocode.template.input.Graph import *
 from videocode.template.misc.chess.chessboard import ChessBoard
 from videocode.videocode import *
 
@@ -12,17 +12,31 @@ def example1():
 
     Simple rounded square.
     """
-    s = Square(side=6, cornerRadius=12, strokeWidth=0.1, fillColor=WHITE | DARK_BLUE | 0.25, strokeColor=WHITE)
+    x = -1.5
+    y = 0
+
+    r = Rectangle(height=2, width=2 * 16 / 9).align(x=1, y=1).position(x - 1, y + 1).flush()
+    s = Square(side=2, cornerRadius=30).align(x=1, y=0).position(x - 1, y - 1).flush()
+    c = Circle(radius=1).align(x=0, y=1).position(x + 1, y + 1).flush()
+    i = Image("wb.png").align(x=0, y=0).position(x + 1, y - 1).scale(1.75).flush()
+    t = (
+        Group(
+            Text("Hello", fontSize=0.75),
+            ((0, -1), Text("World!", fontSize=0.75)),
+        )
+        .align(x=0, y=1)
+        .position(x + 5, y + 2)
+        .flush()
+    )
 
 
-def example2(i: Input | None = None):
+def example2():
     """
     Carré qui apparait en grandissant puis qui bouge sur la droite et disparait en grandissant.
 
     Square that appears by growing, then moves to the right and disappears by growing.
     """
-    i = i or Square()
-    i.position(x=-2).scale(0.1).scaleTo(1).flush().moveTo(x=2).flush().fadeOut().scaleTo(2)
+    Square(side=2).position(x=-2).scale(0.1).scaleTo(1).flush().moveTo(x=2).flush().fadeOut().scaleTo(2)
 
 
 def example3():
@@ -44,9 +58,9 @@ def example3():
 
 def example4():
     """
-    Cartesian Graph Animation.
+    First Quadrant of a Cartesian Graph.
     """
-    c = CartesianGraph()
+    graph = FirstQuadrantGraph()
 
 
 def example5():
@@ -54,3 +68,4 @@ def example5():
     Chess animation.
     """
     c = ChessBoard()
+    # c.play()

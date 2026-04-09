@@ -8,8 +8,10 @@
 #pragma once
 
 #include <argparse/argparse.hpp>
+#include <functional>
 #include <memory>
 #include <opencv2/opencv.hpp>
+#include <vulkan/vulkan.h>
 
 #include "core/Config.hpp"
 #include "input/IInput.hpp"
@@ -33,11 +35,10 @@ namespace VC
         ///< Update the current frame by generating the meshes.
         std::vector<Mesh> generateMeshes();
 
-        ///< Generate the video
-        int generateVideo();
-
-        ///< Upload textures for all Image inputs to the Vulkan widget
+        ///< Upload textures for all Image inputs to a Vulkan renderer.
+        ///< uploadFn receives each image's cv::Mat and returns the VkDescriptorSet.
         void uploadTextures(VulkanWidget* widget);
+        void uploadTextures(std::function<VkDescriptorSet(const cv::Mat&)> uploadFn);
 
         ///< Time control
         void pause();

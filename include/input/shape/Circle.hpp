@@ -7,19 +7,16 @@
 
 #pragma once
 
-#include <nlohmann/json.hpp>
+#include "input/shape/BezierPath.hpp"
 
-#include "input/AInput.hpp"
-#include "vulkan/Mesh.hpp"
-
-using json = nlohmann::json;
-
-class Circle final : public AInput
+class Circle final : public BezierPath
 {
 public:
 
-    Circle(json::object_t &&args);
-    ~Circle() = default;
+    Circle(json::object_t&& args);
+    ~Circle() override = default;
 
-    Mesh getMesh(const Metadata &meta, const Config &config);
+protected:
+
+    void buildPath(const json::object_t& args) override;
 };

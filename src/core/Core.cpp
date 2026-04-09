@@ -17,6 +17,7 @@
 #include "input/IInput.hpp"
 #include "input/InputFactory.hpp"
 #include "input/media/Image.hpp"
+#include "input/media/WebImage.hpp"
 // #include "input/media/Video.hpp"
 #include "utils/Exception.hpp"
 #include "window/VulkanWidget.hpp"
@@ -146,13 +147,6 @@ std::vector<Mesh> VC::Core::generateMeshes()
     return meshes;
 }
 
-int VC::Core::generateVideo()
-{
-    // TODO: re-implement using Vulkan offscreen rendering once the pipeline is stable.
-    std::cerr << "generateVideo: not yet implemented in the Vulkan pipeline." << std::endl;
-    return 1;
-}
-
 #define currIndex(i, s) (s == 0 ? 0 : (i + 1))
 
 void VC::Core::pause()
@@ -201,10 +195,23 @@ void VC::Core::forward1frame()
 void VC::Core::uploadTextures(VC::VulkanWidget* widget)
 {
     for (auto& inputPtr : _inputs) {
-        Image* img = dynamic_cast<Image*>(inputPtr.get());
-        if (img) {
+        if (Image* img = dynamic_cast<Image*>(inputPtr.get())) {
             VkDescriptorSet desc = widget->uploadTexture(img->getBase());
             img->setTextureDescriptor(desc);
+        } else if (WebImage* img = dynamic_cast<WebImage*>(inputPtr.get())) {
+            VkDescriptorSet desc = widget->uploadTexture(img->getBase());
+            img->setTextureDescriptor(desc);
+        }
+    }
+}
+
+void VC::Core::uploadTextures(std::function<VkDescriptorSet(const cv::Mat&)> uploadFn)
+{
+    for (auto& inputPtr : _inputs) {
+        if (Image* img = dynamic_cast<Image*>(inputPtr.get())) {
+            img->setTextureDescriptor(uploadFn(img->getBase()));
+        } else if (WebImage* img = dynamic_cast<WebImage*>(inputPtr.get())) {
+            img->setTextureDescriptor(uploadFn(img->getBase()));
         }
     }
 }

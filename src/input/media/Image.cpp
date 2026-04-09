@@ -7,7 +7,6 @@
 
 #include "input/media/Image.hpp"
 
-#include <iostream>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 
@@ -53,11 +52,12 @@ Mesh Image::getMesh(const Metadata& meta, const Config& config)
 
     MeshFactory factory({w, h}, meta, config);
 
+    float opacity = meta.opacity / 255.f;
     uint16_t base = factory.vertexCount();
-    factory.addVertex(0.f, 0.f, 0.f, 0.f); // top-left,     UV (0,0)
-    factory.addVertex(w, 0.f, 1.f, 0.f);   // top-right,    UV (1,0)
-    factory.addVertex(w, h, 1.f, 1.f);     // bottom-right, UV (1,1)
-    factory.addVertex(0.f, h, 0.f, 1.f);   // bottom-left,  UV (0,1)
+    factory.addVertex(0.f, 0.f, 0.f, 0.f, opacity); // top-left,     UV (0,0)
+    factory.addVertex(w, 0.f, 1.f, 0.f, opacity);   // top-right,    UV (1,0)
+    factory.addVertex(w, h, 1.f, 1.f, opacity);     // bottom-right, UV (1,1)
+    factory.addVertex(0.f, h, 0.f, 1.f, opacity);   // bottom-left,  UV (0,1)
 
     factory.addIndex(base + 0);
     factory.addIndex(base + 1);

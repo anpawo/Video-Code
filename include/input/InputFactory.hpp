@@ -14,8 +14,8 @@
 
 #include "input/IInput.hpp"
 #include "input/media/Image.hpp"
+#include "input/media/WebImage.hpp"
 // #include "input/media/Video.hpp"
-// #include "input/media/WebImage.hpp"
 #include "input/shape/Circle.hpp"
 #include "input/shape/Rectangle.hpp"
 #include "input/text/Text.hpp"
@@ -31,7 +31,7 @@ namespace Factory
     const std::map<std::string, std::function<std::unique_ptr<IInput>(json::object_t &&)>> inputs{
         ///< Media
         input(Image),
-        // input(WebImage),
+        input(WebImage),
         // input(Video),
 
         ///< Text

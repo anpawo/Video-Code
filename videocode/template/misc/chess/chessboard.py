@@ -5,10 +5,8 @@ import math
 import chess.pgn
 
 
-from videocode.constants import SF, WORLD_WIDTH, WORLD_HEIGHT
+from videocode.constants import SF
 from videocode.input.media.WebImage import WebImage
-from videocode.input.input import Input
-from videocode.shader.vertexShader.scale import scale
 from videocode.utils.bezier import Easing
 from videocode.globals import wait
 
@@ -43,9 +41,9 @@ class ChessBoard:
 
         # Pieces Video Position
         self.defaultScaling = 0.7
-        self.ox = 0.3175 * WORLD_WIDTH
-        self.oy = 0.175 * WORLD_HEIGHT
-        self.tileSize = 100.2
+        self.ox = -2.92
+        self.oy = -2.92
+        self.tileSize = 0.835
 
         # Inputs
         self.boardInput = WebImage(BOARD_URL).scale(0.5).flush()
@@ -74,7 +72,13 @@ class ChessBoard:
             color = WHITE if c.isupper() else BLACK
             piece = c.lower()
             self.pieces[(x, y)] = (
-                WebImage(self.getUrl(color, piece)).position(self.ox + x * self.tileSize, self.oy + y * self.tileSize).scale(self.defaultScaling).flush(),
+                WebImage(self.getUrl(color, piece))
+                .position(
+                    self.ox + x * self.tileSize,
+                    self.oy + y * self.tileSize,
+                )
+                .scale(self.defaultScaling)
+                .flush(),
                 (color, piece),
             )
             x += 1
@@ -85,7 +89,7 @@ class ChessBoard:
         """
         return f"https://assets-themes.chess.com/image/ejgfv/150/{'w' if color == WHITE else 'b'}{piece}.png"
 
-    def play(self, nMove: int):
+    def play(self, nMove: int | None = None):
         for move in self.game.mainline_moves():
             sx, sy = move.from_square % 8, 7 - move.from_square // 8
             dx, dy = move.to_square % 8, 7 - move.to_square // 8
@@ -124,9 +128,10 @@ class ChessBoard:
                 self.pieces[(dx, dy)][0].url = self.getUrl(*self.pieces[(dx, dy)][1])
 
             wait(0.1)
-            nMove -= 1
-            if nMove == 0:
-                return
+            if nMove is not None:
+                nMove -= 1
+                if nMove == 0:
+                    return
 
 
 if __name__ == "__main__":

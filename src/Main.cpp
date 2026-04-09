@@ -88,10 +88,9 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    // Generate the video
+    // Generate the video (headless — no window, no Qt event loop)
     if (parser.is_used("--generate")) {
         VC::Compiler compiler(parser);
-
         return compiler.generateVideo();
     }
 

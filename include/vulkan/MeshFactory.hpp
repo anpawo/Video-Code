@@ -244,12 +244,7 @@ struct MeshFactory
             return;
         }
 
-        float widthPx = std::hypot(M(0, 0), M(1, 0)) * localStrokeWidth;
-        static constexpr float AAW_PX = 1.5f;
-        float halfExtentPx   = 0.5f * (widthPx + AAW_PX);
-        float halfWidthToAaw = 0.5f * widthPx / AAW_PX;
-        float distNeg        = -halfExtentPx / AAW_PX;
-        float distPos        =  halfExtentPx / AAW_PX;
+        float halfW = std::hypot(M(0, 0), M(1, 0)) * localStrokeWidth * 0.5f;
 
         float r = color[0] / 255.f;
         float g = color[1] / 255.f;
@@ -289,13 +284,13 @@ struct MeshFactory
             bool isEndpoint = !closed && (i == 0 || i + 1 == samples.size());
             cv::Vec2f step = stepToCorner(prevDir, nextDir, isEndpoint);
 
-            cv::Vec2f negNdc = toNdcPoint(point - step * halfExtentPx);
-            cv::Vec2f posNdc = toNdcPoint(point + step * halfExtentPx);
+            cv::Vec2f negNdc = toNdcPoint(point - step * halfW);
+            cv::Vec2f posNdc = toNdcPoint(point + step * halfW);
 
             uint16_t base = vertexCount();
             pairBases.push_back(base);
-            mesh.vertices.push_back(Vertex{{negNdc[0], negNdc[1]}, {distNeg, halfWidthToAaw}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
-            mesh.vertices.push_back(Vertex{{posNdc[0], posNdc[1]}, {distPos, halfWidthToAaw}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
+            mesh.vertices.push_back(Vertex{{negNdc[0], negNdc[1]}, {0.f, 0.f}, {r, g, b, a}, {0.f, 0.f, 0.f, 0.f}});
+            mesh.vertices.push_back(Vertex{{posNdc[0], posNdc[1]}, {0.f, 0.f}, {r, g, b, a}, {0.f, 0.f, 0.f, 0.f}});
         }
 
         if (pairBases.size() < 2) {
@@ -402,7 +397,7 @@ struct MeshFactory
         }, localStrokeWidth, color, false);
     }
 
-    void addVertex(float localX, float localY, float u, float v) // textured variant
+    void addVertex(float localX, float localY, float u, float v, float opacity = 1.f) // textured variant
     {
         cv::Matx31f world = M * cv::Matx31f{localX, localY, 1.f};
 
@@ -412,8 +407,8 @@ struct MeshFactory
         mesh.vertices.push_back(Vertex{
             {ndcX, ndcY},
             {u, v},
-            {0.f, 0.f, 0.f, 1.f},  // alpha=1 → full opacity; Opacity shader can lower this
-            {5.f, 0.f, 0.f, 0.f},  // mode 5 = texture sample
+            {0.f, 0.f, 0.f, opacity},  // alpha carries opacity; shader multiplies texture.a by it
+            {5.f, 0.f, 0.f, 0.f},      // mode 5 = texture sample
         });
     }
 

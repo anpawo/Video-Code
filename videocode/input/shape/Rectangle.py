@@ -9,9 +9,9 @@ class Rectangle(Shape):
     @inputCreation
     def __init__(
         self,
-        width: wufloat = 5,
-        height: wufloat = 3,
-        fillColor: rgba = DARK_BLUE,
+        width: wfloat = 5,
+        height: wfloat = 3,
+        fillColor: rgba = DARK_BLUE | 0.33,
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.1,
         cornerRadius: float = 0,  # percent 0-100, 100 = circle on a square
@@ -29,10 +29,10 @@ class Rectangle(Shape):
 class Square(Rectangle):
     def __init__(
         self,
-        side: wufloat = 2,
-        fillColor: rgba = LIGHT_BLUE,
-        strokeColor: rgba = BLUE,
-        strokeWidth: wufloat = 0.05,
+        side: wfloat = 4,
+        fillColor: rgba = DARK_BLUE | 0.33,
+        strokeColor: rgba = WHITE,
+        strokeWidth: wufloat = 0.1,
         cornerRadius: float = 0,
     ):
         super().__init__(
@@ -48,7 +48,7 @@ class Square(Rectangle):
 class Line(Rectangle):
     def __init__(
         self,
-        length: wufloat = 3,
+        length: wfloat = 3,
         strokeWidth: wufloat = 0.1,
         fillColor: rgba = WHITE | BLUE,
         strokeColor: rgba = TRANSPARENT,

@@ -84,6 +84,11 @@ namespace VC
         // they are freed in cleanup().
         VkDescriptorSet uploadTexture(const cv::Mat& mat);
 
+        // readFrame() — render the current scene offscreen and return the pixels
+        // as a BGRA cv::Mat at (screenWidth × screenHeight). Used for video generation.
+        // Must be called after init() and setMeshes(). Blocks until GPU is done.
+        cv::Mat readFrame();
+
     protected:
 
         bool event(QEvent* e) override;
@@ -104,6 +109,8 @@ namespace VC
         bool createSwapchain();
         bool createSsaaResources();
         void destroySsaaResources();
+        bool createReadbackResources();
+        void destroyReadbackResources();
         bool createRenderPass();
         bool createUniformBuffer();
         bool createDescriptorSet();
@@ -151,11 +158,15 @@ namespace VC
         std::vector<VkImage>     m_swapImages;
         std::vector<VkImageView> m_swapImageViews;
 
-        // ── SSAA offscreen image (2× swapchain resolution) ────────────────
+        // ── SSAA offscreen image (4× swapchain resolution) ───────────────
         VkExtent2D     m_ssaaExtent{};
         VkImage        m_ssaaImage     = VK_NULL_HANDLE;
         VkDeviceMemory m_ssaaMemory    = VK_NULL_HANDLE;
         VkImageView    m_ssaaImageView = VK_NULL_HANDLE;
+
+        // ── Readback image (linear, host-visible, swapchain resolution) ───
+        VkImage        m_readbackImage  = VK_NULL_HANDLE;
+        VkDeviceMemory m_readbackMemory = VK_NULL_HANDLE;
 
         // ── Render pass & pipeline ────────────────────────────────────────
         VkRenderPass          m_renderPass = VK_NULL_HANDLE;
