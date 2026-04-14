@@ -5,6 +5,9 @@
 #
 
 # alias
+from typing import overload
+
+
 type int8 = int
 
 type uint = int
@@ -34,11 +37,24 @@ type url = str
 
 
 class rgba:
-    def __init__(self, r: uint8, g: uint8, b: uint8, a: uint8 = 255) -> None:
-        self.r = r
-        self.g = g
-        self.b = b
-        self.a = a
+    @overload
+    def __init__(self, r: uint8 = 0, g: uint8 = 0, b: uint8 = 0, a: uint8 = 255): ...
+
+    @overload
+    def __init__(self, r: str = "#000000"): ...
+
+    def __init__(self, r: uint8 | str = 0, g: uint8 = 0, b: uint8 = 0, a: uint8 = 255):
+        if isinstance(r, str):
+            h = r.lstrip("#")
+            self.r = int(h[0:2], 16)
+            self.g = int(h[2:4], 16)
+            self.b = int(h[4:6], 16)
+            self.a = int(h[6:8], 16) if len(h) == 8 else 255
+        else:
+            self.r = r
+            self.g = g
+            self.b = b
+            self.a = a
 
     def makeSerializable(self):
         return (self.r, self.g, self.b, self.a)

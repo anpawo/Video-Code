@@ -20,4 +20,4 @@ def moveTo(input: Input, x: maybe[wint | wfloat] = None, y: maybe[wint | wfloat]
         py = src.y + (dst.y - src.y) * m
         input.apply(position(x=px, y=py), start=i * SF)
 
-    animate(start, duration, easing, apply)
+    animate(duration, easing, apply)

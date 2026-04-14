@@ -145,32 +145,32 @@ class Input(ABC):
 
     ### Template ###
 
-    def easeTo(self, to: Any, attributeName: str, *, easing=Easing.InOut, duration: sec = 0.4) -> Self:
+    def easeTo(self, to: Any, attributeName: str, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         annotation = self.__class__.__annotations__.get(attributeName)
         src = self.__getattribute__(attributeName)
         dst = to
 
         def _apply(m: number, i: int):
             val = src + (dst - src) * m
-            self.apply(args(attributeName, val, annotation), start=i * SF)
+            self.apply(args(attributeName, val, annotation), start=start + i * SF)
 
-        animate(0, duration, easing, _apply)
+        animate(duration, easing, _apply)
         # we have to update the value at the end
         object.__setattr__(self, attributeName, dst)
         return self
 
-    def easeBy(self, by: Any, name: str, *, easing=Easing.InOut, duration: sec = 0.4) -> Self:
-        annotation = self.__class__.__annotations__.get(name)
-        src = self.__getattribute__(name)
+    def easeBy(self, by: Any, attributeName: str, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+        annotation = self.__class__.__annotations__.get(attributeName)
+        src = self.__getattribute__(attributeName)
         dst = src * by
 
         def _apply(m: number, i: int):
             val = src + (dst - src) * m
-            self.apply(args(name, val, annotation), start=i * SF)
+            self.apply(args(attributeName, val, annotation), start=start + i * SF)
 
-        animate(0, duration, easing, _apply)
+        animate(duration, easing, _apply)
         # we have to update the value at the end
-        object.__setattr__(self, name, dst)
+        object.__setattr__(self, attributeName, dst)
         return self
 
     def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: cubicBezier = Easing.Out, start: sec = 0, duration: sec = 0.4) -> Self:

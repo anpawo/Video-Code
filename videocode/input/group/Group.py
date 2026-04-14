@@ -12,6 +12,7 @@ class Group(Input):
     """
     A `Group` contains many inputs and will apply each transformations it gets to all of its inputs.
     """
+    # TODO: easeTo
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = object.__new__(cls)

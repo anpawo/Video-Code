@@ -86,8 +86,8 @@ class Easing:
 type easing = cubicBezier
 
 
-def animate(start: sec, duration: sec, easing: easing, apply: Callable[[number, int], None]):
-    n = int((duration - start) * FRAMERATE)
+def animate(duration: sec, easing: easing, apply: Callable[[number, int], None]):
+    n = int(duration * FRAMERATE)
 
     for i in range(n):
         t = i / (n - 1)

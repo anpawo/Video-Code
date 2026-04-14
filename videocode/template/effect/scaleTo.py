@@ -20,4 +20,4 @@ def scaleTo(input: Input, x: maybe[number] = None, y: maybe[number] = None, *, e
         sy = src.y + (dst.y - src.y) * m
         input.apply(scale(x=sx, y=sy), start=i * SF)
 
-    animate(start, duration, easing, apply)
+    animate(duration, easing, apply)

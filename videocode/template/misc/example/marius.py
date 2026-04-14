@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-from videocode.template.input.Graph import *
+from videocode.template.input.Axes import *
 from videocode.template.misc.chess.chessboard import ChessBoard
 from videocode.videocode import *
 
@@ -60,7 +60,9 @@ def example4():
     """
     First Quadrant of a Cartesian Graph.
     """
-    graph = FirstQuadrantGraph()
+    # graph = Axes()
+    graph = FirstQuadrant()
+    s = Square(strokeColor=TRANSPARENT).align(0, 1).position(*graph.origin)
 
 
 def example5():
