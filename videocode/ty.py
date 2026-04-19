@@ -19,6 +19,8 @@ type wint = int
 type wuint = int
 type wfloat = float
 type wufloat = float
+type wnumber = float | int
+type wunumber = float | int
 
 type degree = float
 

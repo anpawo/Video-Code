@@ -5,6 +5,7 @@ import copy
 
 
 from videocode.input.input import *
+from videocode.input.offset.Offset import Offset
 from videocode.shader.vertexShader.position import position
 
 
@@ -12,6 +13,7 @@ class Group(Input):
     """
     A `Group` contains many inputs and will apply each transformations it gets to all of its inputs.
     """
+
     # TODO: easeTo
 
     def __new__(cls, *args, **kwargs) -> Self:
@@ -19,9 +21,12 @@ class Group(Input):
         instance.meta = Metadata(interface=True)
         return instance
 
-    def __init__(self, *inputs: Input | tuple[tuple[number, number], Input] | tuple[v2[number], Input]):
-        self.inputs: list[Input] = [i[1] if isinstance(i, tuple) else i for i in inputs]
-        self.offset: list[v2[number]] = [i if isinstance(i, v2) else v2(*i[0]) if isinstance(i, tuple) else v2(0, 0) for i in inputs]
+    def __init__(self, *inputs: Input):
+        self.inputs = [i for i in inputs]
+
+    def addInput(self, *inputs: Input):
+        for i in inputs:
+            self.inputs.append(i)
 
     def flush(self) -> Self:
         """
@@ -32,36 +37,21 @@ class Group(Input):
 
         return self
 
-    def apply(self, *ts: IShader, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)) -> Self:
+    def apply(self, *shaders: IShader, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)) -> Self:
         """
         Applies the `Transformations` `ts` to all the `Inputs` of the `Group`.
         """
-        for baseT in ts:
-            if isinstance(t := copy.deepcopy(baseT), VertexShader):
-                t.modificator(self)
+        for s in shaders:
+            if isinstance(s, VertexShader):
+                s.modificator(self)
 
-            for i, offset in zip(self.inputs, self.offset):
-                # Prevent modificator fron changing the base
-                t = copy.deepcopy(baseT)
-
-                # Offset Position
-                if type(t) == position:
-                    if t.x is None:
-                        t.x = i.meta.position.x
-                    if t.y is None:
-                        t.y = i.meta.position.y
-
-                    t.x += offset.x
-                    t.y += offset.y
-
-                    i.apply(t, start=start, duration=duration)
-                else:
-                    i.apply(t, start=start, duration=duration)
+            for i in self.inputs:
+                i.apply(s, start=start, duration=duration)
 
         return self
 
     def __str__(self) -> str:
-        return "".join(f"idx=[{idx}], i=[{type(i).__name__}, pos=[{self.offset[idx]}]]\n" for idx, i in enumerate(self.inputs))
+        return "".join(f"idx=[{idx}], i=[{type(i).__name__}]]\n" for idx, i in enumerate(self.inputs))
 
     def __repr__(self) -> str:
         return self.__str__()

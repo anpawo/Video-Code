@@ -33,7 +33,7 @@ def upperFirst(s: str):
 def fromWorldToScreen(annotations: dict[str, type], values: dict[str, Any]) -> dict:
 
     def shouldScale(t) -> bool:
-        adapt = [wint, wuint, wfloat, wufloat]
+        adapt = [wint, wuint, wfloat, wufloat, wnumber, wunumber]
 
         if t in adapt:
             return True
@@ -47,8 +47,13 @@ def fromWorldToScreen(annotations: dict[str, type], values: dict[str, Any]) -> d
                 return True
         return False
 
-    for k, v in values.items():
-        if shouldScale(annotations[k]):
-            values[k] = v * WORLD_TO_SCREEN_RATIO
+    d = {}
 
-    return values
+    for k, v in values.items():
+        if k in annotations:
+            if shouldScale(annotations[k]):
+                d[k] = v * WORLD_TO_SCREEN_RATIO
+            else:
+                d[k] = v
+
+    return d

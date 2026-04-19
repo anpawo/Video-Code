@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
 
-import math
-
 from constants import *
 from videocode.constants import WORLD_HEIGHT, WORLD_WIDTH, rgba
+from videocode.input.dummy.Dummy import Dummy, dummy
+from videocode.utils.classutils import Tracker
 from videocode.videocode import *
 from videocode.videocode import WORLD_HEIGHT, WORLD_WIDTH, rgba
 
 
-class Axes:
+class Graph:
     def __init__(
         self,
         # --
@@ -28,6 +28,8 @@ class Axes:
         # --
         lineThickness=0.025,
     ) -> None:
+        self.xRange = xRange
+        self.yRange = yRange
 
         xExclude.append(0)
         yExclude.append(0)
@@ -116,7 +118,7 @@ class Axes:
             )
 
 
-class FirstQuadrant(Axes):
+class FirstQuadrant(Graph):
     def __init__(
         self,
         xRange: tuple[int, int] = (-1, WORLD_WIDTH // 2),
@@ -125,3 +127,80 @@ class FirstQuadrant(Axes):
         yExclude: list[int] = [-1],
     ) -> None:
         super().__init__(xRange, yRange, xExclude, yExclude)
+
+
+class GraphPoint:
+    def __init__(
+        self,
+        curve: FunctionGraph,
+        showTip=True,
+        tipAbove=True,
+    ) -> None:
+        self.tipAppeared = False
+        self.showTip = showTip
+        self._tipAbove = tipAbove
+
+        self.curve = curve
+        self.group = Group(Circle(0.09, fillColor=WHITE, strokeColor=BLACK, strokeWidth=0.015))
+        self.tip: dummy[Offset[VerticalLine]] = Dummy()
+        self.text: dummy[Offset[Text]] = Dummy()
+        if showTip:
+            self.text = Offset(
+                x=0,
+                y=0.60 * (1 if self.tipAbove else -1),
+                i=Text(text=str(round(self.curve.f(self.curve.xs[0]), 2)), color=WHITE, fontSize=0.2),
+            )
+            self.tip = Offset(
+                x=0,
+                y=0.30 * (1 if self.tipAbove else -1),
+                i=VerticalLine(length=0.25, strokeWidth=0.025, fillColor=WHITE, rounded=False),
+            )
+            self.group.addInput(self.text, self.tip)
+
+    @property
+    def tipAbove(self) -> bool:
+        return self._tipAbove
+
+    @tipAbove.setter
+    def tipAbove(self, value: bool):
+        self._tipAbove = value
+        self._updateTipPosition()
+
+    def _updateTipPosition(self):
+        if self.showTip:
+            self.text.y = 0.60 * (1 if self.tipAbove else -1)
+            self.tip.y = 0.30 * (1 if self.tipAbove else -1)
+
+    def x(self, x: float) -> Self:
+        y = self.curve.f(x)
+        o = self.curve.parentGraph.origin
+
+        self.group.position(x=x + o.x, y=y + o.y)
+        self.fadeInIfHidden()
+        self.group.flush()
+
+        return self
+
+    def fadeInIfHidden(self):
+        if not self.tipAppeared:
+            self.tipAppeared = True
+            self.group.fadeIn(duration=0.2)
+
+    def fromTo(self, x1: maybe[float] = None, x2: maybe[float] = None, duration: sec = 2) -> Self:
+        x1 = self.curve.xs[0] if x1 is None else x1
+        x2 = self.curve.xs[-1] if x2 is None else x2
+
+        r = CubicBezier.range(Easing.InOut, x1, x2, duration)
+        o = self.curve.parentGraph.origin
+
+        self.group.position(x=x1 + o.x, y=self.curve.f(x1) + o.y)
+        self.fadeInIfHidden()
+        self.group.flush()
+
+        with self.text.i:
+            for x in r:
+                y = self.curve.f(x)
+                self.text.i.text = str(round(y, 2))
+                self.group.position(x=x + o.x, y=y + o.y).flush()
+
+        return self

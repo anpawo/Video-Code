@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 
-from videocode.template.input.Axes import *
+import math
+
+
+from videocode.template.input.Graph import *
 from videocode.template.misc.chess.chessboard import ChessBoard
 from videocode.videocode import *
 
@@ -22,7 +25,7 @@ def example1():
     t = (
         Group(
             Text("Hello", fontSize=0.75),
-            ((0, -1), Text("World!", fontSize=0.75)),
+            Offset(0, -1, Text("World!", fontSize=0.75)),
         )
         .align(x=0, y=1)
         .position(x + 5, y + 2)
@@ -60,9 +63,33 @@ def example4():
     """
     First Quadrant of a Cartesian Graph.
     """
-    # graph = Axes()
-    graph = FirstQuadrant()
-    s = Square(strokeColor=TRANSPARENT).align(0, 1).position(*graph.origin)
+    # Graph
+    g = FirstQuadrant(xRange=(-1, 7))
+
+    wait(0.3)
+
+    # Curve
+    f = FunctionGraph(
+        f=lambda x: math.cos(x),
+        xRange=(0, g.xRange[1]),
+        parentGraph=g,
+    ).animate()
+
+    # wait(0.3)
+
+    # Point on Curve + Value
+    # p = GraphPoint(f).fromTo(x2=5)
+
+    # wait()
+
+    # p.tipAbove = False
+    # p.fromTo(x1=5, x2=3)
+
+    # wait(0.3)
+
+    # Update Function
+    for i in CubicBezier.range(Easing.Linear, 1, 60, duration=3):
+        f.update(f=lambda x: math.cos(x * (1 + i / 15)), numPoints=int(100 * (1 + i / 10)))
 
 
 def example5():

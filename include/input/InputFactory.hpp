@@ -17,6 +17,7 @@
 #include "input/media/WebImage.hpp"
 // #include "input/media/Video.hpp"
 #include "input/shape/Circle.hpp"
+#include "input/shape/Curve.hpp"
 #include "input/shape/Rectangle.hpp"
 #include "input/text/Text.hpp"
 
@@ -38,7 +39,8 @@ namespace Factory
         input(Text),
 
         ///< Shape
-        input(Circle),
         input(Rectangle),
+        input(Circle),
+        input(Curve),
     };
 };

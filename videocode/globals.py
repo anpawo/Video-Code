@@ -50,6 +50,12 @@ class Metadata:
         Also starts at Global.waitOffset
         """
 
+        # --- SetAttr On ---
+        self.attributeSetterOn = False
+        """
+        Setting an Attribute will trigger an apply(args(attr))
+        """
+
     def __str__(self) -> str:
         s = "\n"
         for k, v in self.__dict__.items():

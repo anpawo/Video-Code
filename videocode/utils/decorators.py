@@ -121,24 +121,23 @@ def inputCreation(f: Callable[..., None]):
     Automate the `Input` creation.
     """
 
-    def inputCreationWrapper(*args, **kwargs):
+    def wrapper(self, *args, **kwargs):
         # Input's init
-        f(*args, **kwargs)
+        f(self, *args, **kwargs)
 
         # Input
-        input: Input = args[0]
-        attrs = {k: v for k, v in input.__dict__.items() if k != "meta"}
+        attrs = {k: v for k, v in self.__dict__.items() if k != "meta"}
 
         # Incorporate the annotations of the init function into the class
         # If you import futur.__annotations__ all types become strings
-        for k in f.__annotations__:
-            input.__class__.__annotations__[k] = f.__annotations__[k]
+        for a in f.__annotations__:
+            self.__class__.__annotations__[a] = f.__annotations__[a]
 
         # Generate the stack creation
         Global.stack.append(
             {
                 "action": "Create",
-                "type": upperFirst(input.meta.name),
+                "type": upperFirst(self.meta.name),
                 "args": fromWorldToScreen(f.__annotations__, attrs),
                 "hide": Global.waitOffset > 0,
             },
@@ -146,9 +145,35 @@ def inputCreation(f: Callable[..., None]):
 
         # If created mid-timeline (after a flush), hide until the current offset
         if Global.waitOffset > 0:
-            input.show()
+            self.show()
 
-    return inputCreationWrapper
+    return wrapper
+
+
+def sandboxFlush(f):
+    def wrapper(self, *args, **kwargs):
+        transformationOffset = self.meta.transformationOffset
+        lastAffectedFrame = self.meta.lastAffectedFrame
+
+        result = f(self, *args, **kwargs)
+
+        self.meta.transformationOffset = transformationOffset
+        self.meta.lastAffectedFrame = lastAffectedFrame
+
+        return result
+
+    return wrapper
+
+
+def setAttrOn(f):
+    def wrapper(self: Input, *args, **kwargs):
+        self.meta.attributeSetterOn = True
+        result = f(self, *args, **kwargs)
+        self.meta.attributeSetterOn = False
+
+        return result
+
+    return wrapper
 
 
 if __name__ == "__main__":

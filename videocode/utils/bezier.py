@@ -10,27 +10,7 @@ if TYPE_CHECKING:
     from videocode.input.input import Input
 
 
-class _BezierRange:
-    def __init__(self, bezier: "cubicBezier", start: number, end: number, n: int):
-        self.bezier = bezier
-        self.start = start
-        self.end = end
-        self.n = n
-        self.i = 0
-
-    def __iter__(self):
-        return self
-
-    def __next__(self) -> float:
-        if self.i >= self.n:
-            raise StopIteration
-        t = self.i / (self.n - 1) if self.n > 1 else 0.0
-        val = self.start + self.bezier(t) * (self.end - self.start)
-        self.i += 1
-        return val
-
-
-class cubicBezier:
+class CubicBezier:
     def __init__(
         self,
         #
@@ -72,18 +52,24 @@ class cubicBezier:
         return self.getValueAtX(x)
 
     def range(self, start: number, end: number, duration: sec):
-        n = int(duration * FRAMERATE)
-        return _BezierRange(self, start, end, n)
+
+        def bezierRangeGenerator(bezier, start, end):
+            n = int(duration * FRAMERATE)
+            for i in range(0, n):
+                t = i / (n - 1) if n > 1 else 0.0
+                yield start + bezier(t) * (end - start)
+
+        return bezierRangeGenerator(self, start, end)
 
 
 class Easing:
-    Linear = cubicBezier(0.0, 0.0, 1.0, 1.0)
-    In = cubicBezier(0.42, 0.0, 1.0, 1.0)
-    Out = cubicBezier(0.0, 0.0, 0.58, 1.0)
-    InOut = cubicBezier(0.42, 0.0, 0.58, 1.0)
+    Linear = CubicBezier(0.0, 0.0, 1.0, 1.0)
+    In = CubicBezier(0.42, 0.0, 1.0, 1.0)
+    Out = CubicBezier(0.0, 0.0, 0.58, 1.0)
+    InOut = CubicBezier(0.42, 0.0, 0.58, 1.0)
 
 
-type easing = cubicBezier
+type easing = CubicBezier
 
 
 def animate(duration: sec, easing: easing, apply: Callable[[number, int], None]):

@@ -46,6 +46,10 @@ class Square(Rectangle):
 
 
 class Line(Rectangle):
+    """
+    Horizontal Line
+    """
+
     def __init__(
         self,
         length: wfloat = 3,
@@ -61,4 +65,26 @@ class Line(Rectangle):
             strokeColor=strokeColor,
             strokeWidth=strokeWidth / 3,
             cornerRadius=100 if rounded else 0,
+        )
+
+
+class VerticalLine(Line):
+    """
+    Vertical Line
+    """
+
+    def __init__(
+        self,
+        length: wfloat = 3,
+        strokeWidth: wufloat = 0.1,
+        fillColor: rgba = WHITE | BLUE,
+        strokeColor: rgba = TRANSPARENT,
+        rounded: bool = True,
+    ):
+        super().__init__(
+            length=strokeWidth,
+            strokeWidth=length,
+            fillColor=fillColor,
+            strokeColor=strokeColor,
+            rounded=rounded,
         )

@@ -9,7 +9,7 @@ class args(VertexShader):
     """
     Modifies the arguments needed to create the base matrix of an `Input`, e.g. the radius of a circle.
 
-    Should not be instantiated on its own.
+    Should not be instantiated on its own but only through __setattr__.
     """
 
     def __init__(self, name: str, value: Any, annotation: type | None) -> None:
@@ -22,5 +22,5 @@ class args(VertexShader):
         """
         input.__setattr__ creates an `args VertexShader`.
 
-        args does nothing in the python part.
+        args does nothing in the python API.
         """

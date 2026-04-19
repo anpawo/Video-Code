@@ -22,7 +22,7 @@ from videocode.shader.vertexShader.scale import scale
 from videocode.shader.vertexShader.position import position
 from videocode.shader.vertexShader.show import show
 from videocode.shader.vertexShader.opacity import opacity
-from videocode.utils.bezier import animate, cubicBezier, Easing
+from videocode.utils.bezier import animate, CubicBezier, Easing
 
 
 class Input(ABC):
@@ -59,7 +59,7 @@ class Input(ABC):
         self.meta.transformationOffset = self.meta.lastAffectedFrame
         return self
 
-    def apply(self, *es: IShader, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)) -> Self:
+    def apply(self, *shaders: IShader, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)) -> Self:
         """
         Applies some `Transformations` to the `Input`.
 
@@ -71,9 +71,9 @@ class Input(ABC):
             self.meta.lastAffectedFrame = Global.waitOffset
             self.flush()
 
-        for e in es:
-            __start: int = int(getValueByPriority(e, start, "start") * FRAMERATE) + self.meta.transformationOffset
-            __duration: int = int(getValueByPriority(e, duration, "duration") * FRAMERATE)
+        for s in shaders:
+            __start: int = int(getValueByPriority(s, start, "start") * FRAMERATE) + self.meta.transformationOffset
+            __duration: int = int(getValueByPriority(s, duration, "duration") * FRAMERATE)
 
             # Update lastEverAffectedFrame
             if Global.lastEverAffectedFrame < __start + __duration:
@@ -84,17 +84,17 @@ class Input(ABC):
                 self.meta.lastAffectedFrame = __start + __duration
 
             # Transformations affect the Input's Metadata
-            if isinstance(e, VertexShader):
-                e.modificator(self)
+            if isinstance(s, VertexShader):
+                s.modificator(self)
 
             # Add step to the stack
             Global.stack.append(
                 {
                     "action": "Apply",
                     "input": self.meta.index,
-                    "name": upperFirst(e.__class__.__name__),
-                    "type": e._type,
-                    "args": fromWorldToScreen(e.__init__.__annotations__, vars(e)) | {"start": __start} | {"duration": __duration},
+                    "name": upperFirst(s.__class__.__name__),
+                    "type": s._type,
+                    "args": fromWorldToScreen(s.__init__.__annotations__, vars(s)) | {"start": __start} | {"duration": __duration},
                 }
             )
 
@@ -102,11 +102,19 @@ class Input(ABC):
 
     ### Builtins ###
 
+    def __enter__(self):
+        self.meta.attributeSetterOn = True
+        return self
+
+    def __exit__(self, excType, excValue, traceback):
+        self.meta.attributeSetterOn = False
+        return False
+
     def __setattr__(self, name: str, value: Any) -> None:
-        if hasattr(self, name):
+        object.__setattr__(self, name, value)
+        if self.meta.attributeSetterOn:
             annotation = self.__class__.__annotations__.get(name)
             self.apply(args(name, value, annotation))
-        object.__setattr__(self, name, value)
 
     def __str__(self) -> str:
         s = f"\n{self.__class__.__name__}:\n"
@@ -173,30 +181,30 @@ class Input(ABC):
         object.__setattr__(self, attributeName, dst)
         return self
 
-    def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: cubicBezier = Easing.Out, start: sec = 0, duration: sec = 0.4) -> Self:
+    def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         moveTo(self, x=x, y=y, easing=easing, start=start, duration=duration)
         return self
 
-    def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: cubicBezier = Easing.Out, start: sec = 0, duration: sec = 0.4) -> Self:
+    def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         moveBy(self, x=x, y=y, easing=easing, start=start, duration=duration)
         return self
 
-    def fadeIn(self, *, easing: cubicBezier = Easing.Out, start: sec = 0, duration: sec = 0.4) -> Self:
+    def fadeIn(self, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         fadeIn(self, easing=easing, start=start, duration=duration)
         return self
 
-    def fadeOut(self, *, easing: cubicBezier = Easing.Out, start: sec = 0, duration: sec = 0.4) -> Self:
+    def fadeOut(self, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         fadeOut(self, easing=easing, start=start, duration=duration)
         return self
 
-    def scaleTo(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: cubicBezier = Easing.Out, start: sec = 0, duration: sec = 0.4) -> Self:
+    def scaleTo(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         if factor is not None:
             x = factor
             y = factor
         scaleTo(self, x=x, y=y, easing=easing, start=start, duration=duration)
         return self
 
-    def scaleBy(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: cubicBezier = Easing.Out, start: sec = 0, duration: sec = 0.4) -> Self:
+    def scaleBy(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         if factor is not None:
             x = factor
             y = factor
