@@ -5,18 +5,19 @@ import math
 
 
 from videocode.template.input.Graph import *
+from videocode.template.input.Plane import Plane
 from videocode.template.misc.chess.chessboard import ChessBoard
 from videocode.videocode import *
 
 
 def example1():
     """
-    Simple carré arrondi.
-
-    Simple rounded square.
+    Basic Inputs
     """
     x = -1.5
     y = 0
+
+    plane = Plane()
 
     r = Rectangle(height=2, width=2 * 16 / 9).align(x=1, y=1).position(x - 1, y + 1).flush()
     s = Square(side=2, cornerRadius=30).align(x=1, y=0).position(x - 1, y - 1).flush()
@@ -50,7 +51,7 @@ def example3():
     Line that extends in length then in height then becomes darker.
     Similar to a TV turning on or a paragraph of text appearing in Pokémon.
     """
-    s = Line(length=0, strokeColor=WHITE).easeTo(6, "width").flush()
+    s = HorizontalLine(length=0, strokeColor=WHITE).easeTo(6, "width").flush()
     s.easeTo(2.5, "height").easeTo(15, "cornerRadius", easing=Easing.Out).easeBy(2, "strokeWidth", easing=Easing.Out).flush()
     s.easeTo(s.fillColor | DARK_BLUE | 0.25, "fillColor", easing=Easing.Out).flush()
 

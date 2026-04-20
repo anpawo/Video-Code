@@ -59,15 +59,24 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     }
     setWindowTitle((l + sep + r).c_str());
 
-    statusBar()->hide();
+    // Never create a status bar — calling statusBar()->hide() still allocates it
+    // and reserves layout space, shrinking the VulkanWidget by ~22 px and making
+    // the swapchain extent a non-multiple of the video resolution.
 
-    // Center the window on the primary screen, clamped to what the screen can fit
+    // Pin the central widget to exactly windowWidth × windowHeight so the Vulkan
+    // surface (and swapchain) is a clean multiple of the video resolution.
     QRect screen = QGuiApplication::primaryScreen()->availableGeometry();
-    int w = std::min((int)config.windowWidth,  screen.width());
-    int h = std::min((int)config.windowHeight, screen.height());
-    resize(w, h);
-    move(screen.center().x() - w / 2,
-         screen.center().y() - h / 2);
+    float scale = std::min(
+        (float)screen.width()  / config.windowWidth,
+        (float)screen.height() / config.windowHeight
+    );
+    scale = std::min(scale, 1.0f);
+    int w = (int)(config.windowWidth  * scale);
+    int h = (int)(config.windowHeight * scale);
+    _vulkanWidget->setFixedSize(w, h);
+    adjustSize();
+    move(screen.center().x() - width()  / 2,
+         screen.center().y() - height() / 2);
     show();
 
     ///< Wire up the frame callback before init so the first render already

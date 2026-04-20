@@ -20,3 +20,6 @@ from videocode.input.text.Text import *
 
 # Group
 from videocode.input.group.Group import *
+
+# Dummy
+from videocode.input.dummy.Dummy import *

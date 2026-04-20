@@ -10,7 +10,7 @@ class Circle(Shape):
     def __init__(
         self,
         radius: wufloat = 1,
-        fillColor: rgba = DARK_RED | 0.75,
+        fillColor: rgba = DARK_RED,
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.1,
     ):

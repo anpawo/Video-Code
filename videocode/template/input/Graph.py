@@ -1,12 +1,7 @@
 #!/usr/bin/env python3
 
 
-from constants import *
-from videocode.constants import WORLD_HEIGHT, WORLD_WIDTH, rgba
-from videocode.input.dummy.Dummy import Dummy, dummy
-from videocode.utils.classutils import Tracker
 from videocode.videocode import *
-from videocode.videocode import WORLD_HEIGHT, WORLD_WIDTH, rgba
 
 
 class Graph:

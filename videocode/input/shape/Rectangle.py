@@ -11,7 +11,7 @@ class Rectangle(Shape):
         self,
         width: wfloat = 5,
         height: wfloat = 3,
-        fillColor: rgba = DARK_BLUE | 0.33,
+        fillColor: rgba = DARK_BLUE,
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.1,
         cornerRadius: float = 0,  # percent 0-100, 100 = circle on a square
@@ -30,7 +30,7 @@ class Square(Rectangle):
     def __init__(
         self,
         side: wfloat = 4,
-        fillColor: rgba = DARK_BLUE | 0.33,
+        fillColor: rgba = DARK_BLUE,
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.1,
         cornerRadius: float = 0,
@@ -45,7 +45,7 @@ class Square(Rectangle):
         )
 
 
-class Line(Rectangle):
+class HorizontalLine(Rectangle):
     """
     Horizontal Line
     """
@@ -53,8 +53,8 @@ class Line(Rectangle):
     def __init__(
         self,
         length: wfloat = 3,
-        strokeWidth: wufloat = 0.1,
-        fillColor: rgba = WHITE | BLUE,
+        strokeWidth: wufloat = 0.025,
+        fillColor: rgba = BLUE_A,
         strokeColor: rgba = TRANSPARENT,
         rounded: bool = True,
     ):
@@ -68,7 +68,7 @@ class Line(Rectangle):
         )
 
 
-class VerticalLine(Line):
+class VerticalLine(Rectangle):
     """
     Vertical Line
     """
@@ -76,15 +76,16 @@ class VerticalLine(Line):
     def __init__(
         self,
         length: wfloat = 3,
-        strokeWidth: wufloat = 0.1,
-        fillColor: rgba = WHITE | BLUE,
+        strokeWidth: wufloat = 0.025,
+        fillColor: rgba = BLUE_A,
         strokeColor: rgba = TRANSPARENT,
         rounded: bool = True,
     ):
         super().__init__(
-            length=strokeWidth,
-            strokeWidth=length,
+            height=length,
+            width=strokeWidth,
             fillColor=fillColor,
             strokeColor=strokeColor,
-            rounded=rounded,
+            strokeWidth=strokeWidth / 3,
+            cornerRadius=100 if rounded else 0,
         )

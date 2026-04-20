@@ -67,4 +67,6 @@ LIGHT_BLUE  = rgba(132, 204, 255)
 DARK_RED    = rgba(255, 37, 37)
 DARK_GREEN  = rgba(42, 255, 23)
 DARK_BLUE   = rgba(32, 50, 255)
+
+BLUE_A      = rgba("#58C4DD")
 # fmt: on

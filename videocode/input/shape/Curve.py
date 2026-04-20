@@ -54,7 +54,7 @@ class FunctionGraph(Curve):
         xRange: tuple[int, int],
         parentGraph: Graph,
         numPoints: int = 100,
-        strokeColor: rgba = rgba("#58C4DD"),
+        strokeColor: rgba = BLUE_A,
         strokeWidth: wufloat = 0.025,
         onGraph=True,
     ):
