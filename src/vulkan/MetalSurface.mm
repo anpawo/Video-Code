@@ -18,7 +18,10 @@ void *createMetalLayer(void *nativeViewHandle) {
   NSView *view = (__bridge NSView *)nativeViewHandle;
   view.wantsLayer = YES; // Activate Core Animation backing layer.
   CAMetalLayer *layer = [CAMetalLayer layer];
-  layer.frame = view.bounds;      // Match the current widget size.
+  layer.frame = view.bounds;      // Match the current widget size (logical points).
+  CGFloat scale = view.window ? view.window.backingScaleFactor
+                               : NSScreen.mainScreen.backingScaleFactor;
+  layer.contentsScale = scale;    // Physical pixels = logical * scale (2× on Retina).
   [view.layer addSublayer:layer]; // Attach below Qt's own layer.
   return (__bridge void *)layer;  // Return as opaque C pointer.
 }

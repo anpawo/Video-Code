@@ -128,12 +128,18 @@ std::vector<Mesh> VC::Core::generateMeshes()
         renderIndex = potentialIndex->second;
     }
 
-    std::vector<Mesh> meshes;
-    for (auto& i : _inputs) {
-        auto meta = i->getMetadata(renderIndex);
-        if (!meta.hidden) {
-            meshes.push_back(i->getMesh(meta, _config));
+    if (renderIndex != _lastRenderedIndex) {
+        _cachedMeshes.clear();
+        for (auto& i : _inputs) {
+            auto meta = i->getMetadata(renderIndex);
+            if (!meta.hidden) {
+                _cachedMeshes.push_back(i->getMesh(meta, _config));
+            }
         }
+        _lastRenderedIndex = renderIndex;
+        _meshesRebuilt = true;
+    } else {
+        _meshesRebuilt = false;
     }
 
     // load next frame if not in pause and not at the end
@@ -144,7 +150,7 @@ std::vector<Mesh> VC::Core::generateMeshes()
         _indexChanged = false;
     }
 
-    return meshes;
+    return _cachedMeshes;
 }
 
 #define currIndex(i, s) (s == 0 ? 0 : (i + 1))

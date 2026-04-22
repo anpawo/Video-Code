@@ -51,7 +51,7 @@ def example3():
     Line that extends in length then in height then becomes darker.
     Similar to a TV turning on or a paragraph of text appearing in Pokémon.
     """
-    s = HorizontalLine(length=0, strokeColor=WHITE).easeTo(6, "width").flush()
+    s = HorizontalLine(length=0, strokeColor=WHITE, fillColor=BLUE | 0.5).easeTo(6, "width").flush()
     s.easeTo(2.5, "height").easeTo(15, "cornerRadius", easing=Easing.Out).easeBy(2, "strokeWidth", easing=Easing.Out).flush()
     s.easeTo(s.fillColor | DARK_BLUE | 0.25, "fillColor", easing=Easing.Out).flush()
 

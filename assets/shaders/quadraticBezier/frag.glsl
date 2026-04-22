@@ -21,6 +21,8 @@ void main() {
     if (fragExtra.x == 5.0) {
         outColor = texture(texSampler, fragUV);
         outColor.a *= fragColor.a;
+    } else if (fragExtra.x == 2.0) {
+        outColor = fragColor;
     } else {
         outColor = fragColor;
     }

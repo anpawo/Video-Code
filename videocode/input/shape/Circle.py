@@ -10,9 +10,9 @@ class Circle(Shape):
     def __init__(
         self,
         radius: wufloat = 1,
-        fillColor: rgba = DARK_RED,
+        fillColor: rgba = RED_C,
         strokeColor: rgba = WHITE,
-        strokeWidth: wufloat = 0.1,
+        strokeWidth: wufloat = 0.05,
     ):
         self.meta.name = "Circle"
 

@@ -11,7 +11,8 @@
 
 Circle::Circle(json::object_t&& args)
     : BezierPath(std::move(args))
-{}
+{
+}
 
 // Approximate a circle with N quadratic bezier segments using Manim's formula:
 // anchors lie on the circle; handles are the mid-arc point scaled outward by
@@ -20,13 +21,13 @@ void Circle::buildPath(const json::object_t& args)
 {
     float radius = args.at("radius").get<float>();
     _strokeWidth = args.at("strokeWidth").get<float>();
-    _fillColor   = colorFromJson(args.at("fillColor"),   255);
+    _fillColor = colorFromJson(args.at("fillColor"), 255);
     _strokeColor = colorFromJson(args.at("strokeColor"), 255);
-    _closed      = true;
+    _closed = true;
 
-    const int   N        = 8;
+    const int   N = 16;
     const float segAngle = 2.f * static_cast<float>(M_PI) / N; // 45°
-    const float cosHalf  = std::cos(segAngle / 2.f);            // cos(22.5°) ≈ 0.9239
+    const float cosHalf = std::cos(segAngle / 2.f);            // cos(22.5°) ≈ 0.9239
 
     _points.clear();
     _points.reserve(N * 2);

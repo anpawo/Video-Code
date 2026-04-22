@@ -66,6 +66,14 @@ namespace VC
         bool _paused{false};
         bool _indexChanged{true};
 
+        ///< Mesh cache — rebuilt only when the render index changes
+        size_t _lastRenderedIndex{SIZE_MAX};
+        std::vector<Mesh> _cachedMeshes{};
+
+    public:
+        ///< True only when generateMeshes() actually rebuilt the meshes this call
+        bool _meshesRebuilt{true};
+
         ///< Waits:
         std::map<size_t, size_t> _waits{};
 

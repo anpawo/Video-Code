@@ -324,10 +324,6 @@ bool VC::VulkanWidget::pickPhysicalDevice()
                 m_physicalDevice = pd;
                 m_graphicsFamily = i;
 
-                VkPhysicalDeviceProperties props;
-                vkGetPhysicalDeviceProperties(pd, &props);
-
-                // Pick the highest MSAA sample count the device supports
                 return true;
             }
         }
@@ -441,50 +437,104 @@ bool VC::VulkanWidget::createSwapchain()
 
 bool VC::VulkanWidget::createSsaaResources()
 {
-    m_ssaaExtent = {m_swapExtent.width * 4, m_swapExtent.height * 4};
+    m_ssaaExtent = m_swapExtent;
 
-    VkImageCreateInfo ici{};
-    ici.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    ici.imageType     = VK_IMAGE_TYPE_2D;
-    ici.format        = m_swapFormat;
-    ici.extent        = {m_ssaaExtent.width, m_ssaaExtent.height, 1};
-    ici.mipLevels     = 1;
-    ici.arrayLayers   = 1;
-    ici.samples       = VK_SAMPLE_COUNT_1_BIT;
-    ici.tiling        = VK_IMAGE_TILING_OPTIMAL;
-    ici.usage         = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-    ici.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
-    ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    // ── MSAA color attachment (4 samples, device-local) ──────────────────
+    {
+        VkImageCreateInfo ici{};
+        ici.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        ici.imageType     = VK_IMAGE_TYPE_2D;
+        ici.format        = m_swapFormat;
+        ici.extent        = {m_swapExtent.width, m_swapExtent.height, 1};
+        ici.mipLevels     = 1;
+        ici.arrayLayers   = 1;
+        ici.samples       = VK_SAMPLE_COUNT_4_BIT;
+        ici.tiling        = VK_IMAGE_TILING_OPTIMAL;
+        ici.usage         = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        ici.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+        ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    if (vkCreateImage(m_device, &ici, nullptr, &m_ssaaImage) != VK_SUCCESS) {
-        return false;
+        if (vkCreateImage(m_device, &ici, nullptr, &m_ssaaImage) != VK_SUCCESS)
+            return false;
+
+        VkMemoryRequirements memReq;
+        vkGetImageMemoryRequirements(m_device, m_ssaaImage, &memReq);
+
+        VkMemoryAllocateInfo ai{};
+        ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        ai.allocationSize  = memReq.size;
+        ai.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        if (vkAllocateMemory(m_device, &ai, nullptr, &m_ssaaMemory) != VK_SUCCESS)
+            return false;
+        vkBindImageMemory(m_device, m_ssaaImage, m_ssaaMemory, 0);
+
+        VkImageViewCreateInfo ivci{};
+        ivci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        ivci.image            = m_ssaaImage;
+        ivci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
+        ivci.format           = m_swapFormat;
+        ivci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+
+        if (vkCreateImageView(m_device, &ivci, nullptr, &m_ssaaImageView) != VK_SUCCESS)
+            return false;
     }
 
-    VkMemoryRequirements memReq;
-    vkGetImageMemoryRequirements(m_device, m_ssaaImage, &memReq);
+    // ── Resolve image (1 sample, TRANSFER_SRC for readFrame) ─────────────
+    {
+        VkImageCreateInfo ici{};
+        ici.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        ici.imageType     = VK_IMAGE_TYPE_2D;
+        ici.format        = m_swapFormat;
+        ici.extent        = {m_swapExtent.width, m_swapExtent.height, 1};
+        ici.mipLevels     = 1;
+        ici.arrayLayers   = 1;
+        ici.samples       = VK_SAMPLE_COUNT_1_BIT;
+        ici.tiling        = VK_IMAGE_TILING_OPTIMAL;
+        ici.usage         = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        ici.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+        ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    VkMemoryAllocateInfo ai{};
-    ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    ai.allocationSize  = memReq.size;
-    ai.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (vkCreateImage(m_device, &ici, nullptr, &m_resolveImage) != VK_SUCCESS)
+            return false;
 
-    if (vkAllocateMemory(m_device, &ai, nullptr, &m_ssaaMemory) != VK_SUCCESS) {
-        return false;
+        VkMemoryRequirements memReq;
+        vkGetImageMemoryRequirements(m_device, m_resolveImage, &memReq);
+
+        VkMemoryAllocateInfo ai{};
+        ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        ai.allocationSize  = memReq.size;
+        ai.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+        if (vkAllocateMemory(m_device, &ai, nullptr, &m_resolveMemory) != VK_SUCCESS)
+            return false;
+        vkBindImageMemory(m_device, m_resolveImage, m_resolveMemory, 0);
+
+        VkImageViewCreateInfo ivci{};
+        ivci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        ivci.image            = m_resolveImage;
+        ivci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
+        ivci.format           = m_swapFormat;
+        ivci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+
+        return vkCreateImageView(m_device, &ivci, nullptr, &m_resolveImageView) == VK_SUCCESS;
     }
-    vkBindImageMemory(m_device, m_ssaaImage, m_ssaaMemory, 0);
-
-    VkImageViewCreateInfo ivci{};
-    ivci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    ivci.image            = m_ssaaImage;
-    ivci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
-    ivci.format           = m_swapFormat;
-    ivci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-
-    return vkCreateImageView(m_device, &ivci, nullptr, &m_ssaaImageView) == VK_SUCCESS;
 }
 
 void VC::VulkanWidget::destroySsaaResources()
 {
+    if (m_resolveImageView != VK_NULL_HANDLE) {
+        vkDestroyImageView(m_device, m_resolveImageView, nullptr);
+        m_resolveImageView = VK_NULL_HANDLE;
+    }
+    if (m_resolveImage != VK_NULL_HANDLE) {
+        vkDestroyImage(m_device, m_resolveImage, nullptr);
+        m_resolveImage = VK_NULL_HANDLE;
+    }
+    if (m_resolveMemory != VK_NULL_HANDLE) {
+        vkFreeMemory(m_device, m_resolveMemory, nullptr);
+        m_resolveMemory = VK_NULL_HANDLE;
+    }
     if (m_ssaaImageView != VK_NULL_HANDLE) {
         vkDestroyImageView(m_device, m_ssaaImageView, nullptr);
         m_ssaaImageView = VK_NULL_HANDLE;
@@ -561,39 +611,69 @@ void VC::VulkanWidget::destroyReadbackResources()
 
 bool VC::VulkanWidget::createRenderPass()
 {
-    VkAttachmentDescription colorAttachment{};
-    colorAttachment.format         = m_swapFormat;
-    colorAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout    = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+    // Attachment 0: MSAA color — cleared each frame, samples discarded after resolve.
+    VkAttachmentDescription msaaAttachment{};
+    msaaAttachment.format         = m_swapFormat;
+    msaaAttachment.samples        = VK_SAMPLE_COUNT_4_BIT;
+    msaaAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    msaaAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    msaaAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    msaaAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    msaaAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+    msaaAttachment.finalLayout    = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    // Attachment 1: Resolve target — render pass writes resolved pixels here.
+    // finalLayout = TRANSFER_SRC_OPTIMAL so readFrame can blit straight from it;
+    // for live rendering we add one barrier after the pass to go to PRESENT_SRC_KHR.
+    VkAttachmentDescription resolveAttachment{};
+    resolveAttachment.format         = m_swapFormat;
+    resolveAttachment.samples        = VK_SAMPLE_COUNT_1_BIT;
+    resolveAttachment.loadOp         = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    resolveAttachment.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+    resolveAttachment.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    resolveAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    resolveAttachment.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+    resolveAttachment.finalLayout    = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
     VkAttachmentReference colorRef{};
     colorRef.attachment = 0;
     colorRef.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
+    VkAttachmentReference resolveRef{};
+    resolveRef.attachment = 1;
+    resolveRef.layout     = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
     VkSubpassDescription subpass{};
     subpass.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments    = &colorRef;
+    subpass.pResolveAttachments  = &resolveRef;
 
-    VkSubpassDependency dep{};
-    dep.srcSubpass    = VK_SUBPASS_EXTERNAL;
-    dep.srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dep.dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dep.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    VkSubpassDependency deps[2]{};
+    deps[0].srcSubpass    = VK_SUBPASS_EXTERNAL;
+    deps[0].dstSubpass    = 0;
+    deps[0].srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    deps[0].dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    deps[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+    // Ensure resolve is visible to TRANSFER ops that follow (readFrame blit).
+    deps[1].srcSubpass    = 0;
+    deps[1].dstSubpass    = VK_SUBPASS_EXTERNAL;
+    deps[1].srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    deps[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    deps[1].dstStageMask  = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    deps[1].dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+    VkAttachmentDescription attachments[2] = {msaaAttachment, resolveAttachment};
 
     VkRenderPassCreateInfo ci{};
     ci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    ci.attachmentCount = 1;
-    ci.pAttachments    = &colorAttachment;
+    ci.attachmentCount = 2;
+    ci.pAttachments    = attachments;
     ci.subpassCount    = 1;
     ci.pSubpasses      = &subpass;
-    ci.dependencyCount = 1;
-    ci.pDependencies   = &dep;
+    ci.dependencyCount = 2;
+    ci.pDependencies   = deps;
 
     return vkCreateRenderPass(m_device, &ci, nullptr, &m_renderPass) == VK_SUCCESS;
 }
@@ -816,7 +896,7 @@ bool VC::VulkanWidget::createPipeline()
 
     VkPipelineMultisampleStateCreateInfo ms{};
     ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+    ms.rasterizationSamples = VK_SAMPLE_COUNT_4_BIT;
 
     VkPipelineColorBlendAttachmentState blendAttach{};
     blendAttach.blendEnable = VK_TRUE;
@@ -958,25 +1038,39 @@ bool VC::VulkanWidget::createIndexBuffer()
 
 // ============================================================================
 // Step 11: createFramebuffers
-//   Single framebuffer at 4× (SSAA) resolution backed by m_ssaaImageView.
-//   The render pass renders here; a blit in recordCommandBuffer() downsamples
-//   to the swapchain image.
+//   One framebuffer per swapchain image (MSAA → swapchain resolve) for live
+//   rendering, plus one extra framebuffer that resolves into m_resolveImage
+//   for offscreen readFrame().
 // ============================================================================
 
 bool VC::VulkanWidget::createFramebuffers()
 {
-    VkImageView             attachments[1] = {m_ssaaImageView};
+    const size_t swapCount = m_swapImages.size();
+    m_framebuffers.resize(swapCount + 1);
+
     VkFramebufferCreateInfo ci{};
     ci.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
     ci.renderPass      = m_renderPass;
-    ci.attachmentCount = 1;
-    ci.pAttachments    = attachments;
-    ci.width           = m_ssaaExtent.width;
-    ci.height          = m_ssaaExtent.height;
+    ci.attachmentCount = 2;
+    ci.width           = m_swapExtent.width;
+    ci.height          = m_swapExtent.height;
     ci.layers          = 1;
 
-    m_framebuffers.resize(1);
-    return vkCreateFramebuffer(m_device, &ci, nullptr, &m_framebuffers[0]) == VK_SUCCESS;
+    // Per-swapchain-image framebuffers: resolve directly into swapchain image.
+    for (size_t i = 0; i < swapCount; ++i) {
+        VkImageView attachments[2] = {m_ssaaImageView, m_swapImageViews[i]};
+        ci.pAttachments = attachments;
+        VkResult r = vkCreateFramebuffer(m_device, &ci, nullptr, &m_framebuffers[i]);
+        if (r != VK_SUCCESS) {
+            qWarning("createFramebuffers[%zu] failed: %d", i, r);
+            return false;
+        }
+    }
+
+    // Extra readFrame framebuffer: resolve into m_resolveImage.
+    VkImageView readAttachments[2] = {m_ssaaImageView, m_resolveImageView};
+    ci.pAttachments = readAttachments;
+    return vkCreateFramebuffer(m_device, &ci, nullptr, &m_framebuffers[swapCount]) == VK_SUCCESS;
 }
 
 // ============================================================================
@@ -1258,19 +1352,20 @@ void VC::VulkanWidget::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageInd
     bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     vkBeginCommandBuffer(cb, &bi);
 
-    VkClearValue clearColor = {{{0.2f, 0.2f, 0.2f, 1.0f}}}; // Match Manim default background (#333333)
-    // VkClearValue clearColor = {{{0.1f, 0.0f, 0.2f, 1.0f}}}; // dark purple — confirms Vulkan is rendering
+    VkClearValue clearValues[2]{};
+    clearValues[0] = {{{0.2f, 0.2f, 0.2f, 1.0f}}}; // MSAA attachment clear
+    // clearValues[1] unused (resolve attachment has loadOp=DONT_CARE)
 
-    VkViewport vp{0, 0, (float)m_ssaaExtent.width, (float)m_ssaaExtent.height, 0, 1};
-    VkRect2D   sc{{0, 0}, m_ssaaExtent};
+    VkViewport vp{0, 0, (float)m_swapExtent.width, (float)m_swapExtent.height, 0, 1};
+    VkRect2D   sc{{0, 0}, m_swapExtent};
 
     VkRenderPassBeginInfo rpi{};
     rpi.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     rpi.renderPass = m_renderPass;
-    rpi.framebuffer = m_framebuffers[0];
-    rpi.renderArea.extent = m_ssaaExtent;
-    rpi.clearValueCount = 1;
-    rpi.pClearValues = &clearColor;
+    rpi.framebuffer = m_framebuffers[imageIndex];
+    rpi.renderArea.extent = m_swapExtent;
+    rpi.clearValueCount = 2;
+    rpi.pClearValues = clearValues;
 
     vkCmdBeginRenderPass(cb, &rpi, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdSetViewport(cb, 0, 1, &vp);
@@ -1311,45 +1406,23 @@ void VC::VulkanWidget::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageInd
     }
 
     vkCmdEndRenderPass(cb);
-    // Render pass left SSAA image in TRANSFER_SRC_OPTIMAL (finalLayout).
-    // Transition swapchain image UNDEFINED → TRANSFER_DST_OPTIMAL, blit down, then → PRESENT_SRC_KHR.
-
-    VkImageMemoryBarrier toDst{};
-    toDst.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    toDst.srcAccessMask       = 0;
-    toDst.dstAccessMask       = VK_ACCESS_TRANSFER_WRITE_BIT;
-    toDst.oldLayout           = VK_IMAGE_LAYOUT_UNDEFINED;
-    toDst.newLayout           = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-    toDst.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    toDst.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    toDst.image               = m_swapImages[imageIndex];
-    toDst.subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         0, 0, nullptr, 0, nullptr, 1, &toDst);
-
-    VkImageBlit region{};
-    region.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-    region.srcOffsets[0]  = {0, 0, 0};
-    region.srcOffsets[1]  = {(int32_t)m_ssaaExtent.width, (int32_t)m_ssaaExtent.height, 1};
-    region.dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-    region.dstOffsets[0]  = {0, 0, 0};
-    region.dstOffsets[1]  = {(int32_t)m_swapExtent.width, (int32_t)m_swapExtent.height, 1};
-    vkCmdBlitImage(cb, m_ssaaImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                   m_swapImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                   1, &region, VK_FILTER_LINEAR);
+    // Render pass resolved MSAA → swapchain image, leaving it in TRANSFER_SRC_OPTIMAL.
+    // Transition it to PRESENT_SRC_KHR so the compositor can display it.
 
     VkImageMemoryBarrier toPresent{};
     toPresent.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    toPresent.srcAccessMask       = VK_ACCESS_TRANSFER_WRITE_BIT;
+    toPresent.srcAccessMask       = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
     toPresent.dstAccessMask       = 0;
-    toPresent.oldLayout           = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+    toPresent.oldLayout           = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
     toPresent.newLayout           = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     toPresent.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     toPresent.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     toPresent.image               = m_swapImages[imageIndex];
     toPresent.subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                         0, 0, nullptr, 0, nullptr, 1, &toPresent);
+    vkCmdPipelineBarrier(cb,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+        0, 0, nullptr, 0, nullptr, 1, &toPresent);
 
     vkEndCommandBuffer(cb);
 }
@@ -1390,18 +1463,19 @@ cv::Mat VC::VulkanWidget::readFrame()
     bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     vkBeginCommandBuffer(m_commandBuffer, &bi);
 
-    // ── Render pass → SSAA image ─────────────────────────────────────────
-    VkClearValue clearColor = {{{0.2f, 0.2f, 0.2f, 1.0f}}};
-    VkViewport   vp{0, 0, (float)m_ssaaExtent.width, (float)m_ssaaExtent.height, 0, 1};
-    VkRect2D     sc{{0, 0}, m_ssaaExtent};
+    // ── Render pass → MSAA resolve image ─────────────────────────────────
+    VkClearValue clearValues[2]{};
+    clearValues[0] = {{{0.2f, 0.2f, 0.2f, 1.0f}}};
+    VkViewport   vp{0, 0, (float)m_swapExtent.width, (float)m_swapExtent.height, 0, 1};
+    VkRect2D     sc{{0, 0}, m_swapExtent};
 
     VkRenderPassBeginInfo rpi{};
     rpi.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     rpi.renderPass        = m_renderPass;
-    rpi.framebuffer       = m_framebuffers[0];
-    rpi.renderArea.extent = m_ssaaExtent;
-    rpi.clearValueCount   = 1;
-    rpi.pClearValues      = &clearColor;
+    rpi.framebuffer       = m_framebuffers.back();
+    rpi.renderArea.extent = m_swapExtent;
+    rpi.clearValueCount   = 2;
+    rpi.pClearValues      = clearValues;
 
     vkCmdBeginRenderPass(m_commandBuffer, &rpi, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdSetViewport(m_commandBuffer, 0, 1, &vp);
@@ -1433,7 +1507,7 @@ cv::Mat VC::VulkanWidget::readFrame()
         }
     }
     vkCmdEndRenderPass(m_commandBuffer);
-    // SSAA image is now in TRANSFER_SRC_OPTIMAL (render pass finalLayout).
+    // m_resolveImage is now in TRANSFER_SRC_OPTIMAL (render pass finalLayout).
 
     // ── Transition readback image UNDEFINED → TRANSFER_DST ───────────────
     VkImageMemoryBarrier toReadDst{};
@@ -1449,15 +1523,15 @@ cv::Mat VC::VulkanWidget::readFrame()
     vkCmdPipelineBarrier(m_commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                          0, 0, nullptr, 0, nullptr, 1, &toReadDst);
 
-    // ── Blit SSAA (4×) → readback (1×) ───────────────────────────────────
+    // ── Blit resolve image → readback (same size, copies resolved pixels) ─
     VkImageBlit blit{};
     blit.srcSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
     blit.srcOffsets[0]  = {0, 0, 0};
-    blit.srcOffsets[1]  = {(int32_t)m_ssaaExtent.width, (int32_t)m_ssaaExtent.height, 1};
+    blit.srcOffsets[1]  = {(int32_t)m_swapExtent.width, (int32_t)m_swapExtent.height, 1};
     blit.dstSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
     blit.dstOffsets[0]  = {0, 0, 0};
     blit.dstOffsets[1]  = {(int32_t)m_swapExtent.width, (int32_t)m_swapExtent.height, 1};
-    vkCmdBlitImage(m_commandBuffer, m_ssaaImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+    vkCmdBlitImage(m_commandBuffer, m_resolveImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                    m_readbackImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                    1, &blit, VK_FILTER_LINEAR);
 

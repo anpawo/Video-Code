@@ -41,7 +41,7 @@ struct MeshFactory
     MeshFactory(const cv::Size2f &localSize, const Metadata &meta, const Config &config)
         : M(getTransformationMatrixFromMetadata(localSize, meta))
         , localSize(localSize)
-        , windowWidth(config.screenWidth / 2.f)   // NDC divisor = half reference resolution, independent of preview ratio
+        , windowWidth(config.screenWidth / 2.f) // NDC divisor = half reference resolution, independent of preview ratio
         , windowHeight(config.screenHeight / 2.f)
     {
     }
@@ -111,7 +111,7 @@ struct MeshFactory
     static cv::Vec2f stepToCorner(
         const cv::Vec2f &prevDir,
         const cv::Vec2f &nextDir,
-        bool isEndpoint
+        bool             isEndpoint
     )
     {
         cv::Vec2f n2 = leftNormal(nextDir);
@@ -122,14 +122,14 @@ struct MeshFactory
 
         // Bisect the two normals.
         cv::Vec2f bisector = leftNormal(prevDir) + n2;
-        float     bisLen   = length2d(bisector);
+        float     bisLen = length2d(bisector);
 
         if (bisLen < 1e-6f) {
-            return n2;  // 180° reversal — strips antiparallel, bevel.
+            return n2; // 180° reversal — strips antiparallel, bevel.
         }
 
-        cv::Vec2f bisDir  = bisector * (1.f / bisLen);
-        float     cosHalf = dot2d(bisDir, n2);  // cos of half the turning angle
+        cv::Vec2f bisDir = bisector * (1.f / bisLen);
+        float     cosHalf = dot2d(bisDir, n2); // cos of half the turning angle
 
         if (std::abs(cosHalf) < 1e-4f) {
             return n2;
@@ -149,8 +149,8 @@ struct MeshFactory
         cv::Vec2f w0 = toWorldPoint(curve.p0[0], curve.p0[1]);
         cv::Vec2f w1 = toWorldPoint(curve.p1[0], curve.p1[1]);
         cv::Vec2f w2 = toWorldPoint(curve.p2[0], curve.p2[1]);
-        float area = 0.5f * std::abs(cross2d(w1 - w0, w2 - w0));
-        return std::clamp(2 + static_cast<int>(std::round(std::sqrt(area))), 2, 32);
+        float     area = 0.5f * std::abs(cross2d(w1 - w0, w2 - w0));
+        return std::clamp(2 + static_cast<int>(std::round(std::sqrt(area))), 2, 64);
     }
 
     // Shape calls this for each local-space corner.
@@ -165,7 +165,7 @@ struct MeshFactory
 
         mesh.vertices.push_back(Vertex{
             {ndcX, ndcY},
-            {0.0f, -1.0f},   // sentinel: solid fill, no Bézier test
+            {0.0f, -1.0f}, // sentinel: solid fill, no Bézier test
             {color[0] / 255.f,
              color[1] / 255.f,
              color[2] / 255.f,
@@ -181,14 +181,11 @@ struct MeshFactory
     //   p0 → (0, 0),  p1 → (0.5, 0),  p2 → (1, 1)
     // In the fragment shader the curve is the zero-set of K = u² - v.
     // Pixels with K > 0 (on the p1 side) are discarded with smooth AA.
-    void addBezierCap(float p0x, float p0y,
-                      float p1x, float p1y,
-                      float p2x, float p2y,
-                      const cv::Vec4b &color)
+    void addBezierCap(float p0x, float p0y, float p1x, float p1y, float p2x, float p2y, const cv::Vec4b &color)
     {
         auto toNDC = [&](float lx, float ly, float &nx, float &ny) {
             cv::Matx31f w = M * cv::Matx31f{lx, ly, 1.f};
-            nx = w(0) / windowWidth  - 1.f;
+            nx = w(0) / windowWidth - 1.f;
             ny = w(1) / windowHeight - 1.f;
         };
 
@@ -211,9 +208,9 @@ struct MeshFactory
 
     void addQuadraticStrokePath(
         const std::vector<QuadraticBezier2D> &localCurves,
-        float localStrokeWidth,
-        const cv::Vec4b &color,
-        bool closed
+        float                                 localStrokeWidth,
+        const cv::Vec4b                      &color,
+        bool                                  closed
     )
     {
         if (localCurves.empty()) {
@@ -223,12 +220,12 @@ struct MeshFactory
         std::vector<cv::Vec2f> samples;
         for (size_t curveIndex = 0; curveIndex < localCurves.size(); ++curveIndex) {
             const auto &curve = localCurves[curveIndex];
-            int steps = quadraticStrokeSteps(curve);
+            int         steps = quadraticStrokeSteps(curve);
             for (int i = 0; i < steps; ++i) {
                 if (curveIndex > 0 && i == 0) {
                     continue;
                 }
-                float t = static_cast<float>(i) / static_cast<float>(steps - 1);
+                float     t = static_cast<float>(i) / static_cast<float>(steps - 1);
                 cv::Vec2f localPoint = evalQuadratic(curve, t);
                 samples.push_back(toWorldPoint(localPoint[0], localPoint[1]));
             }
@@ -245,6 +242,11 @@ struct MeshFactory
         }
 
         float halfW = std::hypot(M(0, 0), M(1, 0)) * localStrokeWidth * 0.5f;
+
+        // Expand geometry slightly so fragment shader pixels exist in the fade zone.
+        // Actual fade width is computed per-pixel via fwidth() in the shader.
+        constexpr float expand = 1.0f;
+        float           halfW_expanded = halfW + expand;
 
         float r = color[0] / 255.f;
         float g = color[1] / 255.f;
@@ -281,16 +283,18 @@ struct MeshFactory
                 continue;
             }
 
-            bool isEndpoint = !closed && (i == 0 || i + 1 == samples.size());
+            bool      isEndpoint = !closed && (i == 0 || i + 1 == samples.size());
             cv::Vec2f step = stepToCorner(prevDir, nextDir, isEndpoint);
 
-            cv::Vec2f negNdc = toNdcPoint(point - step * halfW);
-            cv::Vec2f posNdc = toNdcPoint(point + step * halfW);
+            cv::Vec2f negNdc = toNdcPoint(point - step * halfW_expanded);
+            cv::Vec2f posNdc = toNdcPoint(point + step * halfW_expanded);
 
             uint16_t base = vertexCount();
             pairBases.push_back(base);
-            mesh.vertices.push_back(Vertex{{negNdc[0], negNdc[1]}, {0.f, 0.f}, {r, g, b, a}, {0.f, 0.f, 0.f, 0.f}});
-            mesh.vertices.push_back(Vertex{{posNdc[0], posNdc[1]}, {0.f, 0.f}, {r, g, b, a}, {0.f, 0.f, 0.f, 0.f}});
+            // uv.x = signed distance from centerline in world units
+            // uv.y = halfW (stroke edge position), same for both vertices
+            mesh.vertices.push_back(Vertex{{negNdc[0], negNdc[1]}, {-halfW_expanded, halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
+            mesh.vertices.push_back(Vertex{{posNdc[0], posNdc[1]}, {halfW_expanded, halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
         }
 
         if (pairBases.size() < 2) {
@@ -328,13 +332,17 @@ struct MeshFactory
     void addSdfShape(
         float cx, float cy,
         float hw, float hh,
-        float r,
-        float sw,
+        float            r,
+        float            sw,
         const cv::Vec4b &fillColor,
         const cv::Vec4b &strokeColor
     )
     {
-        struct ShapePC { float hw, hh, r, sw; };
+        struct ShapePC
+        {
+            float hw, hh, r, sw;
+        };
+
         setPushConstants(ShapePC{hw, hh, r, sw});
 
         auto emitQuad = [&](float padX, float padY, const cv::Vec4b &col, float mode) {
@@ -348,14 +356,14 @@ struct MeshFactory
             uint16_t base = vertexCount();
             // UV = local position relative to shape centre
             mesh.vertices.push_back(Vertex{{}, {-(hw + padX), -(hh + padY)}, {fcol[0], fcol[1], fcol[2], fcol[3]}, {mode, 0.f, 0.f, 0.f}});
-            mesh.vertices.push_back(Vertex{{}, { (hw + padX), -(hh + padY)}, {fcol[0], fcol[1], fcol[2], fcol[3]}, {mode, 0.f, 0.f, 0.f}});
-            mesh.vertices.push_back(Vertex{{}, { (hw + padX),  (hh + padY)}, {fcol[0], fcol[1], fcol[2], fcol[3]}, {mode, 0.f, 0.f, 0.f}});
-            mesh.vertices.push_back(Vertex{{}, {-(hw + padX),  (hh + padY)}, {fcol[0], fcol[1], fcol[2], fcol[3]}, {mode, 0.f, 0.f, 0.f}});
+            mesh.vertices.push_back(Vertex{{}, {(hw + padX), -(hh + padY)}, {fcol[0], fcol[1], fcol[2], fcol[3]}, {mode, 0.f, 0.f, 0.f}});
+            mesh.vertices.push_back(Vertex{{}, {(hw + padX), (hh + padY)}, {fcol[0], fcol[1], fcol[2], fcol[3]}, {mode, 0.f, 0.f, 0.f}});
+            mesh.vertices.push_back(Vertex{{}, {-(hw + padX), (hh + padY)}, {fcol[0], fcol[1], fcol[2], fcol[3]}, {mode, 0.f, 0.f, 0.f}});
 
             // Fill in the NDC positions now that we know the local coords
             auto setNdc = [&](int vi, float lx, float ly) {
                 cv::Matx31f world = M * cv::Matx31f{lx, ly, 1.f};
-                mesh.vertices[base + vi].pos[0] = world(0) / windowWidth  - 1.f;
+                mesh.vertices[base + vi].pos[0] = world(0) / windowWidth - 1.f;
                 mesh.vertices[base + vi].pos[1] = world(1) / windowHeight - 1.f;
             };
             setNdc(0, x0, y0);
@@ -373,7 +381,7 @@ struct MeshFactory
 
         // aaw = length(dFd*) * 2 ≈ 1 SSAA pixel in world units ≈ 0.5–1 world unit.
         // A 2 world-unit pad is more than enough for the AA fade to complete.
-        constexpr float AAW = 2.0f;
+        constexpr float AAW = 3.5f;
 
         if (fillColor[3] > 0) {
             emitQuad(AAW, AAW, fillColor, 3.f);
@@ -383,32 +391,28 @@ struct MeshFactory
         }
     }
 
-    void addBezierStroke(float p0x, float p0y,
-                         float p1x, float p1y,
-                         float p2x, float p2y,
-                         float localStrokeWidth, const cv::Vec4b &color)
+    void addBezierStroke(float p0x, float p0y, float p1x, float p1y, float p2x, float p2y, float localStrokeWidth, const cv::Vec4b &color)
     {
-        addQuadraticStrokePath({
-            QuadraticBezier2D{
-                {p0x, p0y},
-                {p1x, p1y},
-                {p2x, p2y},
-            }
-        }, localStrokeWidth, color, false);
+        addQuadraticStrokePath({QuadraticBezier2D{
+                                   {p0x, p0y},
+                                   {p1x, p1y},
+                                   {p2x, p2y},
+                               }},
+                               localStrokeWidth, color, false);
     }
 
     void addVertex(float localX, float localY, float u, float v, float opacity = 1.f) // textured variant
     {
         cv::Matx31f world = M * cv::Matx31f{localX, localY, 1.f};
 
-        float ndcX = world(0) / windowWidth  - 1.f;  // same formula as solid-fill variant
+        float ndcX = world(0) / windowWidth - 1.f; // same formula as solid-fill variant
         float ndcY = world(1) / windowHeight - 1.f;
 
         mesh.vertices.push_back(Vertex{
             {ndcX, ndcY},
             {u, v},
-            {0.f, 0.f, 0.f, opacity},  // alpha carries opacity; shader multiplies texture.a by it
-            {5.f, 0.f, 0.f, 0.f},      // mode 5 = texture sample
+            {0.f, 0.f, 0.f, opacity}, // alpha carries opacity; shader multiplies texture.a by it
+            {5.f, 0.f, 0.f, 0.f},     // mode 5 = texture sample
         });
     }
 

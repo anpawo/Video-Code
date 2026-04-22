@@ -158,11 +158,16 @@ namespace VC
         std::vector<VkImage>     m_swapImages;
         std::vector<VkImageView> m_swapImageViews;
 
-        // ── SSAA offscreen image (4× swapchain resolution) ───────────────
+        // ── MSAA color attachment (4×, swapchain resolution) ─────────────
         VkExtent2D     m_ssaaExtent{};
         VkImage        m_ssaaImage     = VK_NULL_HANDLE;
         VkDeviceMemory m_ssaaMemory    = VK_NULL_HANDLE;
         VkImageView    m_ssaaImageView = VK_NULL_HANDLE;
+
+        // ── Resolve image (1 sample, used by readFrame framebuffer) ───────
+        VkImage        m_resolveImage     = VK_NULL_HANDLE;
+        VkDeviceMemory m_resolveMemory    = VK_NULL_HANDLE;
+        VkImageView    m_resolveImageView = VK_NULL_HANDLE;
 
         // ── Readback image (linear, host-visible, swapchain resolution) ───
         VkImage        m_readbackImage  = VK_NULL_HANDLE;
