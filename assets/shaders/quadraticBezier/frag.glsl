@@ -18,12 +18,32 @@ layout(set = 1, binding = 0) uniform sampler2D texSampler;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    if (fragExtra.x == 5.0) {
-        outColor = texture(texSampler, fragUV);
+    int mode = int(fragExtra.x);
+
+    if (mode == 3) {
+        // Textured quad — uv = texture coordinates, color.a = opacity multiplier
+        outColor    = texture(texSampler, fragUV);
         outColor.a *= fragColor.a;
-    } else if (fragExtra.x == 2.0) {
-        outColor = fragColor;
+
+    } else if (mode == 2) {
+        // Polyline stroke — uv.x = signed dist from centreline, uv.y = half-width
+        float dist = abs(fragUV.x);
+        float edge = fragUV.y;
+        float aaw  = max(fwidth(dist), 0.0001);
+        float a    = 1.0 - smoothstep(edge - aaw, edge + aaw, dist);
+        outColor   = fragColor;
+        outColor.a *= a;
+
+    } else if (mode == 1) {
+        // Bezier cap — Loop-Blinn: k = u² - v; k > 0 is outside the curve
+        float k   = fragUV.x * fragUV.x - fragUV.y;
+        float aaw = max(fwidth(k), 0.0001);
+        float a   = 1.0 - smoothstep(-aaw, aaw, k);
+        outColor  = fragColor;
+        outColor.a *= a;
+
     } else {
+        // mode == 0: solid fill triangle
         outColor = fragColor;
     }
 }

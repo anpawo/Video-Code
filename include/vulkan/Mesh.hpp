@@ -19,7 +19,6 @@ struct Mesh
 {
     std::vector<Vertex>   vertices;
     std::vector<uint16_t> indices;
-    bool                  hasTexture = false;
+    bool                  hasTexture        = false;
     VkDescriptorSet       textureDescriptor = nullptr;
-    std::vector<uint8_t>  pushConstantData; // raw bytes for vkCmdPushConstants
 };

@@ -495,14 +495,11 @@ bool VC::VulkanHeadlessRenderer::createPipeline()
     blend.attachmentCount = 1;
     blend.pAttachments    = &blendA;
 
-    VkPushConstantRange pcRange{VK_SHADER_STAGE_FRAGMENT_BIT, 0, 16};
     VkDescriptorSetLayout setLayouts[] = {m_uboLayout, m_texLayout};
     VkPipelineLayoutCreateInfo layoutCI{};
-    layoutCI.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutCI.setLayoutCount         = 2;
-    layoutCI.pSetLayouts            = setLayouts;
-    layoutCI.pushConstantRangeCount = 1;
-    layoutCI.pPushConstantRanges    = &pcRange;
+    layoutCI.sType          = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layoutCI.setLayoutCount = 2;
+    layoutCI.pSetLayouts    = setLayouts;
     vkCreatePipelineLayout(m_device, &layoutCI, nullptr, &m_pipelineLayout);
 
     VkGraphicsPipelineCreateInfo ci{};
@@ -817,10 +814,6 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
                 vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &mesh.textureDescriptor, 0, nullptr);
             } else {
                 vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTexSet, 0, nullptr);
-            }
-            if (!mesh.pushConstantData.empty()) {
-                vkCmdPushConstants(m_commandBuffer, m_pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT,
-                    0, (uint32_t)mesh.pushConstantData.size(), mesh.pushConstantData.data());
             }
             vkCmdDrawIndexed(m_commandBuffer, info.indexCount, 1, info.firstIndex, 0, 0);
         }

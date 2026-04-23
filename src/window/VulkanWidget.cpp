@@ -915,19 +915,12 @@ bool VC::VulkanWidget::createPipeline()
     blend.attachmentCount = 1;
     blend.pAttachments = &blendAttach;
 
-    VkPushConstantRange pcRange{};
-    pcRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    pcRange.offset     = 0;
-    pcRange.size       = 16; // 4 floats: hw, hh, r, sw
-
     VkDescriptorSetLayout setLayouts[] = {m_descriptorSetLayout, m_textureSetLayout};
 
     VkPipelineLayoutCreateInfo layoutCI{};
-    layoutCI.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutCI.setLayoutCount         = 2;
-    layoutCI.pSetLayouts            = setLayouts;
-    layoutCI.pushConstantRangeCount = 1;
-    layoutCI.pPushConstantRanges    = &pcRange;
+    layoutCI.sType          = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layoutCI.setLayoutCount = 2;
+    layoutCI.pSetLayouts    = setLayouts;
     vkCreatePipelineLayout(m_device, &layoutCI, nullptr, &m_pipelineLayout);
 
     VkGraphicsPipelineCreateInfo ci{};
@@ -1394,13 +1387,6 @@ void VC::VulkanWidget::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageInd
                 vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTextureSet, 0, nullptr);
             }
 
-            if (!mesh.pushConstantData.empty()) {
-                vkCmdPushConstants(
-                    cb, m_pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT,
-                    0, static_cast<uint32_t>(mesh.pushConstantData.size()),
-                    mesh.pushConstantData.data()
-                );
-            }
             vkCmdDrawIndexed(cb, info.indexCount, 1, info.firstIndex, 0, 0);
         }
     }
@@ -1498,10 +1484,6 @@ cv::Mat VC::VulkanWidget::readFrame()
                 vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &mesh.textureDescriptor, 0, nullptr);
             } else {
                 vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTextureSet, 0, nullptr);
-            }
-            if (!mesh.pushConstantData.empty()) {
-                vkCmdPushConstants(m_commandBuffer, m_pipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT,
-                    0, static_cast<uint32_t>(mesh.pushConstantData.size()), mesh.pushConstantData.data());
             }
             vkCmdDrawIndexed(m_commandBuffer, info.indexCount, 1, info.firstIndex, 0, 0);
         }

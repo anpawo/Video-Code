@@ -6,7 +6,11 @@ from videocode.videocode import *
 
 ### Marius' Test (Do not remove, just comment it)
 
-example3()
 
-# p = Plane()
-# c = Circle(radius=2, strokeColor=RED_C, fillColor=TRANSPARENT, strokeWidth=0.2)
+p = Plane()
+example2()
+# c = Circle(radius=2, strokeColor=RED_C, fillColor=WHITE, strokeWidth=0.2)
+
+# wait()
+
+# c.apply(blur(3)).flush()

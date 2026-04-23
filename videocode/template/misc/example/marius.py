@@ -14,12 +14,12 @@ def example1():
     """
     Basic Inputs
     """
-    x = -1.5
+    x = -1
     y = 0
 
     plane = Plane()
 
-    r = Rectangle(height=2, width=2 * 16 / 9).align(x=1, y=1).position(x - 1, y + 1).flush()
+    r = Rectangle(height=2, width=4).align(x=1, y=1).position(x - 1, y + 1).flush()
     s = Square(side=2, cornerRadius=30).align(x=1, y=0).position(x - 1, y - 1).flush()
     c = Circle(radius=1).align(x=0, y=1).position(x + 1, y + 1).flush()
     i = Image("wb.png").align(x=0, y=0).position(x + 1, y - 1).scale(1.75).flush()
@@ -40,7 +40,7 @@ def example2():
 
     Square that appears by growing, then moves to the right and disappears by growing.
     """
-    Square(side=2).position(x=-2).scale(0.1).scaleTo(1).flush().moveTo(x=2).flush().fadeOut().scaleTo(2)
+    Square(side=2, cornerRadius=30).position(x=-2).scale(0.1).scaleTo(1).flush().moveTo(x=2).flush().fadeOut().scaleTo(2)
 
 
 def example3():

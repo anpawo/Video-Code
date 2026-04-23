@@ -33,7 +33,6 @@ void Rectangle::buildPath(const json::object_t& args)
 
     float hw = w / 2.f;
     float hh = h / 2.f;
-
     if (r <= 0.f) {
         // Plain rectangle: 4 straight segments (handle = midpoint).
         cv::Vec2f tl{-hw, -hh}, tr{hw, -hh};
@@ -56,13 +55,11 @@ void Rectangle::buildPath(const json::object_t& args)
     // Each 90° corner uses 2 quadratic bezier segments of 45° — same as Manim's
     // RoundedRectangle with n_components=2.
     //
-    // For a CW arc of angle dTheta = -π/2 starting at angle alpha around center C:
-    //   angles spread over [alpha, alpha+dTheta] in 5 evenly-spaced steps
-    //   anchors at even indices lie on the circle; handles at odd indices are scaled
-    //   outward by 1/cos(dTheta/4) — identical to k=tan(22.5°) tangent formula.
-
-    const float dTheta = -static_cast<float>(M_PI) / 2.f; // 90° CW
-    const float cosHalf = std::cos(dTheta / 4.f);         // cos(22.5°) ≈ 0.9239
+    // The path must use the same winding as the plain rectangle (top -> right ->
+    // bottom -> left in screen coordinates) so the shared "inside stroke" code
+    // keeps the stroke and fill inset toward the rectangle interior.
+    const float dTheta = static_cast<float>(M_PI) / 2.f; // 90° turn per corner
+    const float cosHalf = std::cos(dTheta / 4.f);        // cos(22.5°) ≈ 0.9239
 
     // Push 4 points (2 segments) for a corner arc. The implied endpoint a2
     // must match the first anchor of the next segment (straight or arc).
@@ -81,13 +78,13 @@ void Rectangle::buildPath(const json::object_t& args)
     };
 
     // Arc centers for each rounded corner (offset inward by r).
-    // Path winds CW in screen coords (y-down): TL → left → BL → bottom → BR → right → TR → top.
-    cornerArc(-static_cast<float>(M_PI) / 2.f, {-hw + r, -hh + r}); // top-left
-    straight({-hw, -hh + r}, {-hw, hh - r});                        // left edge
-    cornerArc(static_cast<float>(M_PI), {-hw + r, hh - r});         // bottom-left
-    straight({-hw + r, hh}, {hw - r, hh});                          // bottom edge
-    cornerArc(static_cast<float>(M_PI) / 2.f, {hw - r, hh - r});    // bottom-right
-    straight({hw, hh - r}, {hw, -hh + r});                          // right edge
-    cornerArc(0.f, {hw - r, -hh + r});                              // top-right
-    straight({hw - r, -hh}, {-hw + r, -hh});                        // top edge
+    // Match the plain rectangle winding: TL -> TR -> BR -> BL.
+    straight({-hw + r, -hh}, {hw - r, -hh});                       // top edge
+    cornerArc(-static_cast<float>(M_PI) / 2.f, {hw - r, -hh + r}); // top-right
+    straight({hw, -hh + r}, {hw, hh - r});                         // right edge
+    cornerArc(0.f, {hw - r, hh - r});                              // bottom-right
+    straight({hw - r, hh}, {-hw + r, hh});                         // bottom edge
+    cornerArc(static_cast<float>(M_PI) / 2.f, {-hw + r, hh - r});  // bottom-left
+    straight({-hw, hh - r}, {-hw, -hh + r});                       // left edge
+    cornerArc(static_cast<float>(M_PI), {-hw + r, -hh + r});       // top-left
 }

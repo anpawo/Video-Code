@@ -150,7 +150,10 @@ struct MeshFactory
         cv::Vec2f w1 = toWorldPoint(curve.p1[0], curve.p1[1]);
         cv::Vec2f w2 = toWorldPoint(curve.p2[0], curve.p2[1]);
         float     area = 0.5f * std::abs(cross2d(w1 - w0, w2 - w0));
-        return std::clamp(2 + static_cast<int>(std::round(std::sqrt(area))), 2, 64);
+        float     chordLen = length2d(w2 - w0);
+        float     flatness = chordLen > 1e-6f ? std::abs(cross2d(w1 - w0, w2 - w0)) / chordLen : 0.f;
+        int       steps = 2 + static_cast<int>(std::round(std::sqrt(area) + flatness * 0.5f));
+        return std::clamp(steps, 2, 64);
     }
 
     // Shape calls this for each local-space corner.
@@ -210,7 +213,8 @@ struct MeshFactory
         const std::vector<QuadraticBezier2D> &localCurves,
         float                                 localStrokeWidth,
         const cv::Vec4b                      &color,
-        bool                                  closed
+        bool                                  closed,
+        bool                                  insideOnly = false
     )
     {
         if (localCurves.empty()) {
@@ -286,15 +290,24 @@ struct MeshFactory
             bool      isEndpoint = !closed && (i == 0 || i + 1 == samples.size());
             cv::Vec2f step = stepToCorner(prevDir, nextDir, isEndpoint);
 
-            cv::Vec2f negNdc = toNdcPoint(point - step * halfW_expanded);
-            cv::Vec2f posNdc = toNdcPoint(point + step * halfW_expanded);
-
             uint16_t base = vertexCount();
             pairBases.push_back(base);
-            // uv.x = signed distance from centerline in world units
-            // uv.y = halfW (stroke edge position), same for both vertices
-            mesh.vertices.push_back(Vertex{{negNdc[0], negNdc[1]}, {-halfW_expanded, halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
-            mesh.vertices.push_back(Vertex{{posNdc[0], posNdc[1]}, {halfW_expanded, halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
+
+            if (insideOnly) {
+                // Inside stroke: solid strip from the shape boundary inward by strokeWidth.
+                // No inner expand — the fill polygon starts exactly at the inner edge,
+                // so no fade is needed there (SSAA handles the outer boundary edge).
+                cv::Vec2f outerNdc = toNdcPoint(point);
+                cv::Vec2f innerNdc = toNdcPoint(point + step * 2.f * halfW);
+                mesh.vertices.push_back(Vertex{{outerNdc[0], outerNdc[1]}, {0.f, halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
+                mesh.vertices.push_back(Vertex{{innerNdc[0], innerNdc[1]}, {0.f, halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
+            } else {
+                // Centered stroke: ±halfW_expanded around the path centerline
+                cv::Vec2f negNdc = toNdcPoint(point - step * halfW_expanded);
+                cv::Vec2f posNdc = toNdcPoint(point + step * halfW_expanded);
+                mesh.vertices.push_back(Vertex{{negNdc[0], negNdc[1]}, {-halfW_expanded, halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
+                mesh.vertices.push_back(Vertex{{posNdc[0], posNdc[1]}, {halfW_expanded,  halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
+            }
         }
 
         if (pairBases.size() < 2) {
@@ -314,106 +327,66 @@ struct MeshFactory
         }
     }
 
-    // ── Analytic SDF shape (rounded rect or circle) ──────────────────────────
-    //
-    // Emits a padded bounding-box quad so the fragment shader can evaluate the
-    // exact signed distance to the shape boundary.
-    //
-    // UV = local position relative to shape centre (world units).
-    // Push constants carry hw, hh, r, sw so the frag shader can reconstruct
-    // the SDF without any tessellation.
-    //
-    // cx / cy  – centre of the shape in local (shape) coordinates
-    // hw / hh  – half extents (world units = local units here)
-    // r        – corner radius
-    // sw       – stroke half-width (strokeWidth / 2); 0 = fill only
-    //
-    // Modes: 3 = SDF fill, 4 = SDF stroke.
-    void addSdfShape(
-        float cx, float cy,
-        float hw, float hh,
-        float            r,
-        float            sw,
-        const cv::Vec4b &fillColor,
-        const cv::Vec4b &strokeColor
-    )
-    {
-        struct ShapePC
-        {
-            float hw, hh, r, sw;
-        };
-
-        setPushConstants(ShapePC{hw, hh, r, sw});
-
-        auto emitQuad = [&](float padX, float padY, const cv::Vec4b &col, float mode) {
-            float x0 = cx - hw - padX;
-            float y0 = cy - hh - padY;
-            float x1 = cx + hw + padX;
-            float y1 = cy + hh + padY;
-
-            float fcol[4] = {col[0] / 255.f, col[1] / 255.f, col[2] / 255.f, col[3] / 255.f};
-
-            uint16_t base = vertexCount();
-            // UV = local position relative to shape centre
-            mesh.vertices.push_back(Vertex{{}, {-(hw + padX), -(hh + padY)}, {fcol[0], fcol[1], fcol[2], fcol[3]}, {mode, 0.f, 0.f, 0.f}});
-            mesh.vertices.push_back(Vertex{{}, {(hw + padX), -(hh + padY)}, {fcol[0], fcol[1], fcol[2], fcol[3]}, {mode, 0.f, 0.f, 0.f}});
-            mesh.vertices.push_back(Vertex{{}, {(hw + padX), (hh + padY)}, {fcol[0], fcol[1], fcol[2], fcol[3]}, {mode, 0.f, 0.f, 0.f}});
-            mesh.vertices.push_back(Vertex{{}, {-(hw + padX), (hh + padY)}, {fcol[0], fcol[1], fcol[2], fcol[3]}, {mode, 0.f, 0.f, 0.f}});
-
-            // Fill in the NDC positions now that we know the local coords
-            auto setNdc = [&](int vi, float lx, float ly) {
-                cv::Matx31f world = M * cv::Matx31f{lx, ly, 1.f};
-                mesh.vertices[base + vi].pos[0] = world(0) / windowWidth - 1.f;
-                mesh.vertices[base + vi].pos[1] = world(1) / windowHeight - 1.f;
-            };
-            setNdc(0, x0, y0);
-            setNdc(1, x1, y0);
-            setNdc(2, x1, y1);
-            setNdc(3, x0, y1);
-
-            mesh.indices.push_back(base + 0);
-            mesh.indices.push_back(base + 1);
-            mesh.indices.push_back(base + 2);
-            mesh.indices.push_back(base + 0);
-            mesh.indices.push_back(base + 2);
-            mesh.indices.push_back(base + 3);
-        };
-
-        // aaw = length(dFd*) * 2 ≈ 1 SSAA pixel in world units ≈ 0.5–1 world unit.
-        // A 2 world-unit pad is more than enough for the AA fade to complete.
-        constexpr float AAW = 3.5f;
-
-        if (fillColor[3] > 0) {
-            emitQuad(AAW, AAW, fillColor, 3.f);
-        }
-        if (strokeColor[3] > 0 && sw > 0.f) {
-            emitQuad(sw + AAW, sw + AAW, strokeColor, 4.f);
-        }
-    }
-
-    void addBezierStroke(float p0x, float p0y, float p1x, float p1y, float p2x, float p2y, float localStrokeWidth, const cv::Vec4b &color)
-    {
-        addQuadraticStrokePath({QuadraticBezier2D{
-                                   {p0x, p0y},
-                                   {p1x, p1y},
-                                   {p2x, p2y},
-                               }},
-                               localStrokeWidth, color, false);
-    }
-
     void addVertex(float localX, float localY, float u, float v, float opacity = 1.f) // textured variant
     {
         cv::Matx31f world = M * cv::Matx31f{localX, localY, 1.f};
 
-        float ndcX = world(0) / windowWidth - 1.f; // same formula as solid-fill variant
+        float ndcX = world(0) / windowWidth - 1.f;
         float ndcY = world(1) / windowHeight - 1.f;
 
         mesh.vertices.push_back(Vertex{
             {ndcX, ndcY},
             {u, v},
-            {0.f, 0.f, 0.f, opacity}, // alpha carries opacity; shader multiplies texture.a by it
-            {5.f, 0.f, 0.f, 0.f},     // mode 5 = texture sample
+            {0.f, 0.f, 0.f, opacity},
+            {3.f, 0.f, 0.f, 0.f},     // mode 3 = texture sample
         });
+    }
+
+    void addWorldVertex(float worldX, float worldY, const cv::Vec4b& color)
+    {
+        float ndcX = worldX / windowWidth - 1.f;
+        float ndcY = worldY / windowHeight - 1.f;
+        mesh.vertices.push_back(Vertex{
+            {ndcX, ndcY},
+            {0.0f, -1.0f},
+            {color[0] / 255.f, color[1] / 255.f, color[2] / 255.f, color[3] / 255.f},
+            {0.f, 0.f, 0.f, 0.f},
+        });
+    }
+
+    // Inset a closed world-space polyline inward by `amount`.
+    // For CW paths (screen y-down), the left-normal points inward.
+    static std::vector<cv::Vec2f> insetPolyWorld(
+        const std::vector<cv::Vec2f>& worldPts,
+        float                         amount,
+        bool                          closed
+    )
+    {
+        std::vector<cv::Vec2f> result;
+        size_t n = worldPts.size();
+        result.reserve(n);
+
+        auto sampleAt = [&](int idx) -> const cv::Vec2f& {
+            return worldPts[(idx % (int)n + (int)n) % (int)n];
+        };
+
+        for (size_t i = 0; i < n; ++i) {
+            cv::Vec2f point   = worldPts[i];
+            cv::Vec2f prevDir = normalizeOrZero(point - sampleAt((int)i - 1));
+            cv::Vec2f nextDir = normalizeOrZero(sampleAt((int)i + 1) - point);
+
+            if (length2d(prevDir) < 1e-6f) prevDir = nextDir;
+            if (length2d(nextDir) < 1e-6f) nextDir = prevDir;
+            if (length2d(prevDir) < 1e-6f || length2d(nextDir) < 1e-6f) {
+                result.push_back(point);
+                continue;
+            }
+
+            bool      isEndpoint = !closed && (i == 0 || i + 1 == n);
+            cv::Vec2f step       = stepToCorner(prevDir, nextDir, isEndpoint);
+            result.push_back(point + step * amount);
+        }
+        return result;
     }
 
     uint16_t vertexCount() const
@@ -430,21 +403,6 @@ struct MeshFactory
     MeshFactory &setIndices(std::vector<uint16_t> indices)
     {
         mesh.indices = std::move(indices);
-        return *this;
-    }
-
-    // MeshBuilder &setTexture(TextureDescriptor *descriptor)
-    // {
-    //     mesh.hasTexture = true;
-    //     mesh.textureDescriptor = descriptor;
-    //     return *this;
-    // }
-
-    template <typename T>
-    MeshFactory &setPushConstants(const T &pc)
-    {
-        const uint8_t *bytes = reinterpret_cast<const uint8_t *>(&pc);
-        mesh.pushConstantData.assign(bytes, bytes + sizeof(T));
         return *this;
     }
 
