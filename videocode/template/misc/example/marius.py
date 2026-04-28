@@ -7,7 +7,7 @@ import math
 from videocode.template.input.Graph import *
 from videocode.template.input.Plane import Plane
 from videocode.template.misc.chess.chessboard import ChessBoard
-from videocode.videocode import *
+from videocode import *
 
 
 def example1():
@@ -51,13 +51,13 @@ def example3():
     Line that extends in length then in height then becomes darker.
     Similar to a TV turning on or a paragraph of text appearing in Pokémon.
     """
-    s = HorizontalLine(length=0, strokeColor=WHITE, fillColor=BLUE | 0.5).easeTo(6, "width").flush()
-    s.easeTo(2.5, "height").easeTo(15, "cornerRadius", easing=Easing.Out).easeBy(2, "strokeWidth", easing=Easing.Out).flush()
-    s.easeTo(s.fillColor | DARK_BLUE | 0.25, "fillColor", easing=Easing.Out).flush()
+    s = HorizontalLine(length=0, strokeColor=WHITE, fillColor=DARK_BLUE | 0.5).easeTo(6, "width").flush()
+    s.easeTo(2.5, "height").easeTo(15, "cornerRadius", easing=Easing.Out).easeTo(0.05, "strokeWidth", easing=Easing.Out).flush()
+    s.easeTo(DARK_BLUE | 0.25, "fillColor", easing=Easing.Out).flush()
 
     wait()
 
-    t = Text("Hello World!")
+    t = Text("Hello World!").fadeIn()
 
 
 def example4():

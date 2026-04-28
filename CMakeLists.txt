@@ -121,7 +121,7 @@ set(SOURCES
     src/input/AInput.cpp
     src/input/shape/BezierPath.cpp
     src/input/shape/Curve.cpp
-    src/input/shape/Rectangle.cpp
+    src/input/shape/Polygon.cpp
     src/input/shape/Circle.cpp
     src/input/text/Text.cpp
     src/input/media/Image.cpp

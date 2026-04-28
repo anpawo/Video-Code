@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-from videocode.videocode import *
+from videocode import *
 
 
 class Graph:

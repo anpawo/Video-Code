@@ -3,7 +3,7 @@
 
 import math
 
-from videocode.videocode import *
+from videocode import *
 
 
 class Plane(Group):

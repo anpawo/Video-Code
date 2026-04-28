@@ -8,7 +8,7 @@ import sys
 sys.path.append(".")
 
 
-from globals import *
+from videocode.context import *
 from videocode import *
 
 
@@ -32,7 +32,7 @@ def serializeScene(filepath: str) -> str:
     exec(code, globals())
 
     # Access Stack
-    g = Global()
+    g = Context()
 
     # Serialize the instructions to JSON
     return json.dumps(g.stack, default=makeSerializable)

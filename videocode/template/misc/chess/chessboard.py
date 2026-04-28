@@ -8,7 +8,7 @@ import chess.pgn
 from videocode.constants import SF
 from videocode.input.media.WebImage import WebImage
 from videocode.utils.bezier import Easing
-from videocode.globals import wait
+from videocode.context import wait
 
 
 type Color = bool

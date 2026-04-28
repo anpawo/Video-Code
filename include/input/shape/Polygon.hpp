@@ -2,19 +2,19 @@
 ** EPITECH PROJECT, 2025
 ** video-code
 ** File description:
-** Rectangle
+** Polygon
 */
 
 #pragma once
 
 #include "input/shape/BezierPath.hpp"
 
-class Rectangle final : public BezierPath
+class Polygon final : public BezierPath
 {
 public:
 
-    explicit Rectangle(json::object_t&& args);
-    ~Rectangle() override = default;
+    explicit Polygon(json::object_t&& args);
+    ~Polygon() override = default;
 
 protected:
 

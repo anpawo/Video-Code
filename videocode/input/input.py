@@ -11,8 +11,9 @@ from videocode.template.effect.moveBy import moveBy
 from videocode.template.effect.scaleBy import scaleBy
 from videocode.template.effect.scaleTo import scaleTo
 from videocode.shader.ishader import IShader, VertexShader, FragmentShader
-from videocode.globals import *
+from videocode.context import *
 from videocode.constants import *
+from videocode.utils.decorators import timed
 from videocode.utils.funcutils import *
 from videocode.shader.vertexShader.align import align
 from videocode.shader.vertexShader.args import args
@@ -23,6 +24,7 @@ from videocode.shader.vertexShader.position import position
 from videocode.shader.vertexShader.show import show
 from videocode.shader.vertexShader.opacity import opacity
 from videocode.utils.bezier import animate, CubicBezier, Easing
+from videocode.utils.logger import *
 
 
 class Input(ABC):
@@ -67,8 +69,8 @@ class Input(ABC):
         """
 
         # If a `wait()` happens, any input should be flushed before applying any new effect.
-        if Global.waitOffset >= self.meta.transformationOffset:
-            self.meta.lastAffectedFrame = Global.waitOffset
+        if Context.waitOffset >= self.meta.transformationOffset:
+            self.meta.lastAffectedFrame = Context.waitOffset
             self.flush()
 
         for s in shaders:
@@ -76,8 +78,8 @@ class Input(ABC):
             __duration: int = int(getValueByPriority(s, duration, "duration") * FRAMERATE)
 
             # Update lastEverAffectedFrame
-            if Global.lastEverAffectedFrame < __start + __duration:
-                Global.lastEverAffectedFrame = __start + __duration
+            if Context.lastEverAffectedFrame < __start + __duration:
+                Context.lastEverAffectedFrame = __start + __duration
 
             # Update our lastAffectedFrame
             if __start + __duration > self.meta.lastAffectedFrame:
@@ -88,13 +90,13 @@ class Input(ABC):
                 s.modificator(self)
 
             # Add step to the stack
-            Global.stack.append(
+            Context.stack.append(
                 {
                     "action": "Apply",
                     "input": self.meta.index,
                     "name": upperFirst(s.__class__.__name__),
                     "type": s._type,
-                    "args": fromWorldToScreen(s.__init__.__annotations__, vars(s)) | {"start": __start} | {"duration": __duration},
+                    "args": vars(s) | {"start": __start} | {"duration": __duration},
                 }
             )
 
@@ -103,18 +105,74 @@ class Input(ABC):
     ### Builtins ###
 
     def __enter__(self):
-        self.meta.attributeSetterOn = True
+        self.meta.setattrCallbackOn = True
         return self
 
     def __exit__(self, excType, excValue, traceback):
-        self.meta.attributeSetterOn = False
+        self.meta.setattrCallbackOn = False
         return False
 
     def __setattr__(self, name: str, value: Any) -> None:
-        object.__setattr__(self, name, value)
-        if self.meta.attributeSetterOn:
+        if hasattr(self, "meta") and self.meta.setattrCallbackOn and not name in self.meta.props:
             annotation = self.__class__.__annotations__.get(name)
-            self.apply(args(name, value, annotation))
+            start = self.meta.pendingSetattrStart
+            duration = self.meta.pendingSetattrDuration
+
+            self.apply(args(name, value, annotation), start=start, duration=duration)
+        else:
+            object.__setattr__(self, name, value)
+
+    def timedSetattr(self, name: str, value: Any, *, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)):
+        oldPendingSetattrStart = self.meta.pendingSetattrStart
+        oldPendingSetattrDuration = self.meta.pendingSetattrDuration
+        oldSetattrCallbackOn = self.meta.setattrCallbackOn
+
+        self.meta.pendingSetattrStart = start
+        self.meta.pendingSetattrDuration = duration
+        self.meta.setattrCallbackOn = True
+
+        try:
+            setattr(self, name, value)
+        finally:
+            self.meta.pendingSetattrStart = oldPendingSetattrStart
+            self.meta.pendingSetattrDuration = oldPendingSetattrDuration
+            self.meta.setattrCallbackOn = oldSetattrCallbackOn
+
+    def easeTo(self, to: Any, attributeName: str, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+        annotation = self.__class__.__annotations__.get(attributeName)
+        src = self.__getattribute__(attributeName)
+        dst = to
+
+        def _apply(m: number, i: int):
+            val = src + (dst - src) * m
+            self.timedSetattr(attributeName, val, start=start + i * SF, duration=0)
+
+        animate(duration, easing, _apply)
+        return self
+
+    def easeBy(self, by: Any, attributeName: str, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+        annotation = self.__class__.__annotations__.get(attributeName)
+        src = self.__getattribute__(attributeName)
+        dst = src + by
+
+        def _apply(m: number, i: int):
+            val = src + (dst - src) * m
+            self.timedSetattr(attributeName, val, start=start + i * SF, duration=0)
+
+        animate(duration, easing, _apply)
+        return self
+
+    def easeTimes(self, times: Any, attributeName: str, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+        annotation = self.__class__.__annotations__.get(attributeName)
+        src = self.__getattribute__(attributeName)
+        dst = src * times
+
+        def _apply(m: number, i: int):
+            val = src + (dst - src) * m
+            self.timedSetattr(attributeName, val, start=start + i * SF, duration=0)
+
+        animate(duration, easing, _apply)
+        return self
 
     def __str__(self) -> str:
         s = f"\n{self.__class__.__name__}:\n"
@@ -152,34 +210,6 @@ class Input(ABC):
         return self.apply(show(), start=start)
 
     ### Template ###
-
-    def easeTo(self, to: Any, attributeName: str, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        annotation = self.__class__.__annotations__.get(attributeName)
-        src = self.__getattribute__(attributeName)
-        dst = to
-
-        def _apply(m: number, i: int):
-            val = src + (dst - src) * m
-            self.apply(args(attributeName, val, annotation), start=start + i * SF)
-
-        animate(duration, easing, _apply)
-        # we have to update the value at the end
-        object.__setattr__(self, attributeName, dst)
-        return self
-
-    def easeBy(self, by: Any, attributeName: str, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        annotation = self.__class__.__annotations__.get(attributeName)
-        src = self.__getattribute__(attributeName)
-        dst = src * by
-
-        def _apply(m: number, i: int):
-            val = src + (dst - src) * m
-            self.apply(args(attributeName, val, annotation), start=start + i * SF)
-
-        animate(duration, easing, _apply)
-        # we have to update the value at the end
-        object.__setattr__(self, attributeName, dst)
-        return self
 
     def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         moveTo(self, x=x, y=y, easing=easing, start=start, duration=duration)

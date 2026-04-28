@@ -29,7 +29,7 @@ GlyphCache &Text::glyphCache()
 Mesh Text::getMesh(const Metadata &meta, const Config &config)
 {
     const std::string &text     = meta.args.at("text").get<std::string>();
-    float              fontSize = meta.args.at("fontSize").get<float>(); // screen pixels
+    float              fontSize = meta.args.at("fontSize").get<float>() * config::worldToPixelRatio;
     cv::Vec4b          color    = colorFromJson(meta.args.at("color"), meta.opacity);
 
     GlyphCache &cache     = glyphCache();

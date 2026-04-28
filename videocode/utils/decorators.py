@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
 
 
-from sys import stderr
+import time
+
+
 from typing import TYPE_CHECKING, Any, Callable
 from videocode.constants import FRAMERATE
-from videocode.globals import Global
-from videocode.utils.funcutils import fromWorldToScreen, upperFirst
+from videocode.context import Context
+from videocode.utils.funcutils import upperFirst
 from videocode.utils.timeit import *
 from videocode.ty import *
+from videocode.utils.logger import *
 
 
 if TYPE_CHECKING:
@@ -134,17 +137,17 @@ def inputCreation(f: Callable[..., None]):
             self.__class__.__annotations__[a] = f.__annotations__[a]
 
         # Generate the stack creation
-        Global.stack.append(
+        Context.stack.append(
             {
                 "action": "Create",
                 "type": upperFirst(self.meta.name),
-                "args": fromWorldToScreen(f.__annotations__, attrs),
-                "hide": Global.waitOffset > 0,
+                "args": {k: v for k, v in self.__dict__.items() if k in f.__annotations__},
+                "hide": Context.waitOffset > 0,
             },
         )
 
         # If created mid-timeline (after a flush), hide until the current offset
-        if Global.waitOffset > 0:
+        if Context.waitOffset > 0:
             self.show()
 
     return wrapper
@@ -167,10 +170,73 @@ def sandboxFlush(f):
 
 def setAttrOn(f):
     def wrapper(self: Input, *args, **kwargs):
-        self.meta.attributeSetterOn = True
-        result = f(self, *args, **kwargs)
-        self.meta.attributeSetterOn = False
+        setattrCallbackOn = self.meta.setattrCallbackOn
+        self.meta.setattrCallbackOn = True
 
+        result = f(self, *args, **kwargs)
+
+        self.meta.setattrCallbackOn = setattrCallbackOn
+
+        return result
+
+    return wrapper
+
+
+def trackProps(initFunc, autoInit=True):
+    """
+    Decorator that keeps track of the props of a class on creation.
+    Also inits the props with the default value given in init if any.
+    """
+
+    def wrapper(self, *args, **kwargs):
+        self.meta.props = {name for cls in type(self).__mro__ for name, val in vars(cls).items() if isinstance(val, property)}
+
+        # If False, the class does some shenanigans with the args before settings the attr.
+        if autoInit:
+            # match args to param names via __code__
+            paramNames = initFunc.__code__.co_varnames[1:]  # skip 'self'
+            for paramName, paramValue in zip(paramNames, args):
+                if paramName in self.meta.props:
+                    object.__setattr__(self, f"_{paramName}", paramValue)
+
+            # handle kwargs too
+            for paramName, paramValue in kwargs.items():
+                if paramName in self.meta.props:
+                    object.__setattr__(self, f"_{paramName}", paramValue)
+
+        initFunc(self, *args, **kwargs)
+
+    return wrapper
+
+
+def autoProp(setterCallback=None):
+    """
+    Decorator that generates a property + setter for a given name.
+    """
+
+    def decorator(func):
+        attrName = func.__name__
+        privateName = f"_{attrName}"
+
+        def getter(self):
+            return getattr(self, privateName)
+
+        def setter(self, value):
+            object.__setattr__(self, privateName, value)
+            if setterCallback:
+                setterCallback(self)
+
+        return property(getter, setter)
+
+    return decorator
+
+
+def timed(func):
+    def wrapper(*args, **kwargs):
+        start = time.perf_counter()
+        result = func(*args, **kwargs)
+        elapsed = time.perf_counter() - start
+        DEBUG.log(f"[TIMED] {func.__qualname__}: {elapsed:.6f}s")
         return result
 
     return wrapper

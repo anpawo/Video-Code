@@ -3,6 +3,7 @@
 
 from typing import Any
 from videocode.shader.ishader import *
+from videocode.utils.logger import *
 
 
 class args(VertexShader):
@@ -18,9 +19,8 @@ class args(VertexShader):
         # Override annotation
         self.__init__.__annotations__["value"] = annotation
 
-    def modificator(self, _: Input):
+    def modificator(self, i: Input):
         """
-        input.__setattr__ creates an `args VertexShader`.
-
-        args does nothing in the python API.
+        call input.__setattr__.
         """
+        object.__setattr__(i, self.name, self.value)

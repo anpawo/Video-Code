@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
 
 
-from typing import TYPE_CHECKING, Callable
-
-from videocode.input.shape.shape import *
-from videocode.utils.decorators import inputCreation, sandboxFlush, setAttrOn
-from videocode.constants import WORLD_TO_SCREEN_RATIO as W2R
+from typing import TYPE_CHECKING, Callable, Self
+from videocode.input.input import Input
+from videocode.utils.bezier import Easing
+from videocode.utils.decorators import inputCreation, setAttrOn
+from videocode.ty import *
+from videocode.constants import *
 
 
 if TYPE_CHECKING:
     from videocode.template.input.Graph import Graph
 
 
-class Curve(Shape):
+class Curve(Input):
     @inputCreation
     def __init__(
         self,
@@ -94,4 +95,4 @@ class FunctionGraph(Curve):
     def generatePoints(self) -> list[tuple[number, number]]:
         self.xs = [self.xRange[0] + i * (self.xRange[1] - self.xRange[0]) / (self.numPoints - 1) for i in range(self.numPoints)]
         self.ys = [self.f(x) for x in self.xs]
-        return [(x * W2R, -y * W2R) for x, y in zip(self.xs, self.ys)]
+        return [(x, -y) for x, y in zip(self.xs, self.ys)]

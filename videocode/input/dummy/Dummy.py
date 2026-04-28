@@ -3,7 +3,7 @@
 
 from typing import Any
 
-from videocode.globals import Any
+from videocode.context import Any
 from videocode.input.input import *
 from videocode.utils.funcutils import Any
 

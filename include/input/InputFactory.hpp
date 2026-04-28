@@ -18,7 +18,7 @@
 // #include "input/media/Video.hpp"
 #include "input/shape/Circle.hpp"
 #include "input/shape/Curve.hpp"
-#include "input/shape/Rectangle.hpp"
+#include "input/shape/Polygon.hpp"
 #include "input/text/Text.hpp"
 
 using json = nlohmann::json;
@@ -39,7 +39,7 @@ namespace Factory
         input(Text),
 
         ///< Shape
-        input(Rectangle),
+        input(Polygon),
         input(Circle),
         input(Curve),
     };

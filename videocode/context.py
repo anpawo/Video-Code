@@ -13,7 +13,7 @@ class Metadata:
 
         Groups do not have an index (they are just python wrapper)
         """
-        self.index: maybe[int] = None if interface else Global.getIndex()
+        self.index: maybe[int] = None if interface else Context.getIndex()
 
         # --- Name of the Parent Input (setup by the Input itself) ---
         self.name: str
@@ -37,7 +37,7 @@ class Metadata:
         self.hidden: bool = False
 
         # --- Offset ---
-        self.lastAffectedFrame: frame = Global.waitOffset
+        self.lastAffectedFrame: frame = Context.waitOffset
         """
         Last frame affected by a `Transformation` from the last applied `Transformation`
 
@@ -51,10 +51,21 @@ class Metadata:
         """
 
         # --- SetAttr On ---
-        self.attributeSetterOn = False
+        self.setattrCallbackOn = False
         """
-        Setting an Attribute will trigger an apply(args(attr))
+        Setting an Attribute will trigger an `apply(args(attr))`
         """
+        self.pendingSetattrStart: defaultable[sec] = default(0)
+        """
+        Keep start through setattr.
+        """
+        self.pendingSetattrDuration: defaultable[sec] = default(1)
+        """
+        Keep duration through setattr.
+        """
+
+        # --- Property Attributes ---
+        self.props: set[str] = set()
 
     def __str__(self) -> str:
         s = "\n"
@@ -63,9 +74,9 @@ class Metadata:
         return s
 
 
-class Global:
+class Context:
     """
-    Global variable containing the `Metadata` of the `Scene`.
+    Context containing the `Metadata` of the `Scene`.
     """
 
     # Represents the steps to generate the video.
@@ -82,8 +93,8 @@ class Global:
 
     @staticmethod
     def getIndex() -> int:
-        Global.inputCounter += 1
-        return Global.inputCounter - 1
+        Context.inputCounter += 1
+        return Context.inputCounter - 1
 
     def __str__(self) -> str:
         return f"Stack={self.stack}"
@@ -97,10 +108,10 @@ def wait(n: sec = 0) -> None:
     n = int(n * FRAMERATE)
 
     # Python
-    Global.waitOffset = Global.lastEverAffectedFrame + n
+    Context.waitOffset = Context.lastEverAffectedFrame + n
 
     # Cpp
-    Global.stack.append(
+    Context.stack.append(
         {
             "action": "Wait",
             "n": n,

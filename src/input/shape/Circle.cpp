@@ -19,8 +19,8 @@ Circle::Circle(json::object_t&& args)
 // 1/cos(segAngle/2), which equals the tangent-intersection distance.
 void Circle::buildPath(const json::object_t& args)
 {
-    float radius = args.at("radius").get<float>();
-    _strokeWidth = args.at("strokeWidth").get<float>();
+    float radius = args.at("radius").get<float>() * config::worldToPixelRatio;
+    _strokeWidth = args.at("strokeWidth").get<float>() * config::worldToPixelRatio;
     _fillColor = colorFromJson(args.at("fillColor"), 255);
     _strokeColor = colorFromJson(args.at("strokeColor"), 255);
     _closed = true;

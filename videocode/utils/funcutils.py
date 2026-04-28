@@ -4,8 +4,11 @@
 # Types
 #
 
+import types
+
 from constants import *
-from typing import Any, get_origin, get_args
+from typing import Any, TypeAliasType, Union, get_origin, get_args
+from videocode.utils.logger import *
 
 
 def getValueByPriority(c: Any, var: Any, name: str) -> sec:
@@ -28,32 +31,3 @@ def getValueByPriority(c: Any, var: Any, name: str) -> sec:
 
 def upperFirst(s: str):
     return s[0].upper() + s[1:]
-
-
-def fromWorldToScreen(annotations: dict[str, type], values: dict[str, Any]) -> dict:
-
-    def shouldScale(t) -> bool:
-        adapt = [wint, wuint, wfloat, wufloat, wnumber, wunumber]
-
-        if t in adapt:
-            return True
-
-        origin = get_origin(t)
-        if origin is None:
-            return False
-
-        for arg in get_args(t):
-            if shouldScale(arg):
-                return True
-        return False
-
-    d = {}
-
-    for k, v in values.items():
-        if k in annotations:
-            if shouldScale(annotations[k]):
-                d[k] = v * WORLD_TO_SCREEN_RATIO
-            else:
-                d[k] = v
-
-    return d

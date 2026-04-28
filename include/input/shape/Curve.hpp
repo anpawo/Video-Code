@@ -10,7 +10,7 @@
 #include "input/AInput.hpp"
 
 // Open curve rendered as a stroke-only quadratic bezier path.
-// Points are provided pre-scaled (screen pixels) as [[x,y], ...].
+// Points are in world units [[x,y], ...]; scaled to pixels in getMesh.
 // N-1 straight-line quadratic bezier segments are built from the N sample points.
 
 class Curve : public AInput

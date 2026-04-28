@@ -26,7 +26,7 @@ Mesh Curve::getMesh(const Metadata& meta, const Config& config)
         return {};
     }
 
-    float     strokeWidth = args.at("strokeWidth").get<float>();
+    float     strokeWidth = args.at("strokeWidth").get<float>() * config::worldToPixelRatio;
     cv::Vec4b strokeColor = colorFromJson(args.at("strokeColor"), meta.opacity);
 
     if (strokeColor[3] == 0 || strokeWidth <= 0.f) {
@@ -37,7 +37,7 @@ Mesh Curve::getMesh(const Metadata& meta, const Config& config)
     std::vector<cv::Vec2f> points;
     points.reserve(pts.size());
     for (const auto& p : pts) {
-        points.push_back({p[0].get<float>(), p[1].get<float>()});
+        points.push_back({p[0].get<float>() * config::worldToPixelRatio, p[1].get<float>() * config::worldToPixelRatio});
     }
 
     // Build N-1 quadratic bezier segments.

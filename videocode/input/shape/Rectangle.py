@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 
 
-from videocode.input.shape.shape import *
-from videocode.utils.decorators import inputCreation
+from videocode.input.shape.Polygon import *
+from videocode.utils.decorators import autoProp, trackProps
+from videocode.utils.logger import *
 
 
-class Rectangle(Shape):
-    @inputCreation
+class Rectangle(Polygon):
+    @trackProps
     def __init__(
         self,
         width: wfloat = 5,
@@ -14,16 +15,32 @@ class Rectangle(Shape):
         fillColor: rgba = DARK_BLUE,
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.1,
-        cornerRadius: float = 0,  # percent 0-100, 100 = circle on a square
+        cornerRadius: percent = 0,  # percent 0-100, 100 = circle on a square
     ):
-        self.meta.name = "Rectangle"
+        super().__init__(
+            points=self.generatePoints(setAttr=False),
+            fillColor=fillColor,
+            strokeColor=strokeColor,
+            strokeWidth=strokeWidth,
+            cornerRadius=cornerRadius,
+        )
 
-        self.width = width
-        self.height = height
-        self.fillColor = fillColor
-        self.strokeColor = strokeColor
-        self.strokeWidth = strokeWidth
-        self.cornerRadius = min(max(cornerRadius, 0), 100)
+    def generatePoints(self, setAttr=True):
+        p = [
+            (0, 0),
+            (self.width, 0),
+            (self.width, self.height),
+            (0, self.height),
+        ]
+        if setAttr:
+            self.points = p
+        return p
+
+    @autoProp(generatePoints)
+    def width(self, value: wfloat): ...
+
+    @autoProp(generatePoints)
+    def height(self, value: wfloat): ...
 
 
 class Square(Rectangle):

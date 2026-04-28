@@ -22,7 +22,6 @@ type wufloat = float
 type wnumber = float | int
 type wunumber = float | int
 
-type degree = float
 
 type sec = ufloat | uint
 type frame = int
@@ -34,8 +33,12 @@ type maybe[T] = T | None
 type number = int | float
 type unumber = int | float
 
+type degree = float
 type index = int
 type url = str
+type percent = number
+
+type point = tuple[wnumber, wnumber]
 
 
 class rgba:

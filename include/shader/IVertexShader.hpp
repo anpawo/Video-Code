@@ -116,8 +116,8 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
             break;
         }
         case Position: {
-            meta.position.x = config::screenOffset.x + args.at("x").get<float>();
-            meta.position.y = config::screenOffset.y - args.at("y").get<float>();
+            meta.position.x = config::screenOffset.x + args.at("x").get<float>() * config::worldToPixelRatio;
+            meta.position.y = config::screenOffset.y - args.at("y").get<float>() * config::worldToPixelRatio;
             break;
         }
         case Scale: {
