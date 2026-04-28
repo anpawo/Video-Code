@@ -5,13 +5,7 @@ from videocode.template.misc.example.marius import *
 from videocode import *
 
 # --- Marius' Test (Do not remove, just comment it, you should try it also)
-# example1().fadeOut()
-# wait()
-# example2()  # already fadedOut
-# wait()
-# example3().fadeOut()
-# wait()
-# example4()
+example0()
 
 
 # p = Plane()

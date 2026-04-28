@@ -10,6 +10,16 @@ from videocode.template.misc.chess.chessboard import ChessBoard
 from videocode import *
 
 
+def example0():
+    example1().fadeOut()
+    wait()
+    example2()  # already fadedOut
+    wait()
+    example3().fadeOut()
+    wait()
+    example4()
+
+
 def example1():
     """
     Basic Inputs
