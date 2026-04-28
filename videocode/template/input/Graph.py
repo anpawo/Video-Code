@@ -4,7 +4,7 @@
 from videocode import *
 
 
-class Graph:
+class Graph(Group):
     def __init__(
         self,
         # --
@@ -112,6 +112,13 @@ class Graph:
                 .fadeIn(start=start, duration=0.15)
             )
 
+        super().__init__(
+            self.xAxis,
+            self.yAxis,
+            *self.numbers,
+            *self.ticks,
+        )
+
 
 class FirstQuadrant(Graph):
     def __init__(
@@ -124,7 +131,7 @@ class FirstQuadrant(Graph):
         super().__init__(xRange, yRange, xExclude, yExclude)
 
 
-class GraphPoint:
+class GraphPoint(Group):
     def __init__(
         self,
         curve: FunctionGraph,
@@ -136,9 +143,13 @@ class GraphPoint:
         self._tipAbove = tipAbove
 
         self.curve = curve
-        self.group = Group(Circle(0.09, fillColor=WHITE, strokeColor=BLACK, strokeWidth=0.015))
         self.tip: dummy[Offset[VerticalLine]] = Dummy()
         self.text: dummy[Offset[Text]] = Dummy()
+
+        super().__init__(
+            Group(Circle(0.09, fillColor=WHITE, strokeColor=BLACK, strokeWidth=0.015)),
+        )
+
         if showTip:
             self.text = Offset(
                 x=0,
@@ -148,9 +159,9 @@ class GraphPoint:
             self.tip = Offset(
                 x=0,
                 y=0.30 * (1 if self.tipAbove else -1),
-                i=VerticalLine(length=0.25, strokeWidth=0.025, fillColor=WHITE, rounded=False),
+                i=VerticalLine(length=0.25, strokeWidth=0.025, fillColor=WHITE, rounded=True),
             )
-            self.group.addInput(self.text, self.tip)
+            self.addInput(self.text, self.tip)
 
     @property
     def tipAbove(self) -> bool:
@@ -170,16 +181,16 @@ class GraphPoint:
         y = self.curve.f(x)
         o = self.curve.parentGraph.origin
 
-        self.group.position(x=x + o.x, y=y + o.y)
+        self.position(x=x + o.x, y=y + o.y)
         self.fadeInIfHidden()
-        self.group.flush()
+        self.flush()
 
         return self
 
     def fadeInIfHidden(self):
         if not self.tipAppeared:
             self.tipAppeared = True
-            self.group.fadeIn(duration=0.2)
+            self.fadeIn(duration=0.2)
 
     def fromTo(self, x1: maybe[float] = None, x2: maybe[float] = None, duration: sec = 2) -> Self:
         x1 = self.curve.xs[0] if x1 is None else x1
@@ -188,14 +199,14 @@ class GraphPoint:
         r = CubicBezier.range(Easing.InOut, x1, x2, duration)
         o = self.curve.parentGraph.origin
 
-        self.group.position(x=x1 + o.x, y=self.curve.f(x1) + o.y)
+        self.position(x=x1 + o.x, y=self.curve.f(x1) + o.y)
         self.fadeInIfHidden()
-        self.group.flush()
+        self.flush()
 
         with self.text.i:
             for x in r:
                 y = self.curve.f(x)
                 self.text.i.text = str(round(y, 2))
-                self.group.position(x=x + o.x, y=y + o.y).flush()
+                self.position(x=x + o.x, y=y + o.y).flush()
 
         return self

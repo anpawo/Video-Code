@@ -61,6 +61,17 @@ class Input(ABC):
         self.meta.transformationOffset = self.meta.lastAffectedFrame
         return self
 
+    def waitTo(self, n: frame) -> Self:
+        self.meta.transformationOffset = self.meta.lastAffectedFrame = n
+        return self
+
+    def wait(self, n: sec) -> Self:
+        self.meta.transformationOffset = self.meta.lastAffectedFrame = int(n * FRAMERATE)
+        return self
+
+    def waitFor(self, i: Input) -> Self:
+        return self.waitTo(i.meta.lastAffectedFrame)
+
     def apply(self, *shaders: IShader, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)) -> Self:
         """
         Applies some `Transformations` to the `Input`.
@@ -70,8 +81,7 @@ class Input(ABC):
 
         # If a `wait()` happens, any input should be flushed before applying any new effect.
         if Context.waitOffset >= self.meta.transformationOffset:
-            self.meta.lastAffectedFrame = Context.waitOffset
-            self.flush()
+            self.meta.transformationOffset = self.meta.lastAffectedFrame = Context.waitOffset
 
         for s in shaders:
             __start: int = int(getValueByPriority(s, start, "start") * FRAMERATE) + self.meta.transformationOffset
@@ -223,8 +233,10 @@ class Input(ABC):
         fadeIn(self, easing=easing, start=start, duration=duration)
         return self
 
-    def fadeOut(self, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+    def fadeOut(self, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4, hide=False) -> Self:
         fadeOut(self, easing=easing, start=start, duration=duration)
+        if hide:
+            return self.hide(start + duration)
         return self
 
     def scaleTo(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:

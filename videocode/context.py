@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from videocode.constants import *
+
+
+if TYPE_CHECKING:
+    from videocode.input.input import Input
 
 
 class Metadata:
@@ -103,8 +107,12 @@ class Context:
         return str(self)
 
 
-# Kind of act like a waitFor(Input)
 def wait(n: sec = 0) -> None:
+    """
+    Wait for all animations to end and then pauses for `n` frames.
+
+    Can be used to synchronize everything before moving on.
+    """
     n = int(n * FRAMERATE)
 
     # Python

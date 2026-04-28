@@ -50,6 +50,17 @@ class Group(Input):
 
         return self
 
+    def waitForOthers(self, n: sec = 0, updateContext=False) -> Self:
+        lastAffectedFramePlusN = max(i.meta.lastAffectedFrame for i in self.inputs) + int(n * FRAMERATE)
+
+        for i in self.inputs:
+            i.waitTo(lastAffectedFramePlusN)
+
+        if updateContext and lastAffectedFramePlusN >= Context.lastEverAffectedFrame:
+            Context.waitOffset = Context.lastEverAffectedFrame = lastAffectedFramePlusN
+
+        return self
+
     def __str__(self) -> str:
         return "".join(f"idx=[{idx}], i=[{type(i).__name__}]]\n" for idx, i in enumerate(self.inputs))
 

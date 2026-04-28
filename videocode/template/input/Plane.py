@@ -9,8 +9,6 @@ from videocode import *
 class Plane(Group):
     def __init__(
         self,
-        animate=False,
-        showNumbers=False,
     ) -> None:
         super().__init__(
             *[

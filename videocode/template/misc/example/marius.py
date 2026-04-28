@@ -19,10 +19,10 @@ def example1():
 
     plane = Plane()
 
-    r = Rectangle(height=2, width=4).align(x=1, y=1).position(x - 1, y + 1).flush()
-    s = Square(side=2, cornerRadius=30).align(x=1, y=0).position(x - 1, y - 1).flush()
-    c = Circle(radius=1).align(x=0, y=1).position(x + 1, y + 1).flush()
-    i = Image("wb.png").align(x=0, y=0).position(x + 1, y - 1).scale(1.75).flush()
+    r = Rectangle(height=2, width=4).align(x=1, y=1).position(x - 1, y + 1)
+    s = Square(side=2, cornerRadius=30).align(x=1, y=0).position(x - 1, y - 1)
+    c = Circle(radius=1).align(x=0, y=1).position(x + 1, y + 1)
+    i = Image("wb.png").align(x=0, y=0).position(x + 1, y - 1).scale(1.75)
     t = (
         Group(
             Text("Hello", fontSize=0.75),
@@ -30,8 +30,9 @@ def example1():
         )
         .align(x=0, y=1)
         .position(x + 5, y + 2)
-        .flush()
     )
+
+    return Group(plane, r, s, c, i, t).fadeIn().waitForOthers(0.5, updateContext=True)
 
 
 def example2():
@@ -40,7 +41,21 @@ def example2():
 
     Square that appears by growing, then moves to the right and disappears by growing.
     """
-    Square(side=2, cornerRadius=30).position(x=-2).scale(0.1).scaleTo(1).flush().moveTo(x=2).flush().fadeOut().scaleTo(2)
+    return (
+        Square(
+            side=2,
+            cornerRadius=30,
+        )
+        .position(x=-2)
+        .scale(0.1)
+        .scaleTo(1)
+        .flush()
+        .moveTo(x=2)
+        .flush()
+        .fadeOut(hide=True)
+        .scaleTo(2)
+        .flush()
+    )
 
 
 def example3():
@@ -59,6 +74,8 @@ def example3():
 
     t = Text("Hello World!").fadeIn()
 
+    return Group(s, t).waitForOthers(updateContext=True)
+
 
 def example4():
     """
@@ -67,7 +84,7 @@ def example4():
     # Graph
     g = FirstQuadrant(xRange=(-1, 7))
 
-    wait(0.3)
+    wait(0.1)
 
     # Curve
     f = FunctionGraph(
@@ -76,21 +93,22 @@ def example4():
         parentGraph=g,
     ).animate()
 
-    # wait(0.3)
+    # Update Function
+    for i in CubicBezier.range(Easing.Linear, 1, 30, duration=1):
+        f.update(f=lambda x: math.cos(x * (1 + i / 15)), numPoints=int(100 * (1 + i / 10)))
+
+    wait()
 
     # Point on Curve + Value
-    # p = GraphPoint(f).fromTo(x2=5)
+    p = GraphPoint(f).fromTo(x2=4, duration=4)
 
-    # wait()
+    wait(0.3)
 
-    # p.tipAbove = False
-    # p.fromTo(x1=5, x2=3)
+    p.fromTo(x1=4, x2=2)
 
-    # wait(0.3)
+    wait()
 
-    # Update Function
-    for i in CubicBezier.range(Easing.Linear, 1, 60, duration=3):
-        f.update(f=lambda x: math.cos(x * (1 + i / 15)), numPoints=int(100 * (1 + i / 10)))
+    return Group(g, f, p).waitForOthers(updateContext=True)
 
 
 def example5():
