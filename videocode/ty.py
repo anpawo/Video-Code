@@ -5,7 +5,7 @@
 #
 
 # alias
-from typing import overload
+from typing import Any, overload
 
 
 type int8 = int
@@ -39,6 +39,8 @@ type url = str
 type percent = number
 
 type point = tuple[wnumber, wnumber]
+
+type attrName = str | Any
 
 
 class rgba:

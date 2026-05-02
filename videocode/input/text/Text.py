@@ -7,15 +7,21 @@ from videocode.input.input import *
 
 
 class Text(Input):
+    cppAttrs = {
+        "text",
+        "fontSize",
+        "fillColor",
+    }
+
     @inputCreation
     def __init__(
         self,
         text: str,
         fontSize: wufloat = 0.5,
-        color: rgba = WHITE,
+        fillColor: rgba = WHITE,
     ):
         self.meta.name = "Text"
 
         self.text = text
         self.fontSize = fontSize
-        self.color = color
+        self.fillColor = fillColor

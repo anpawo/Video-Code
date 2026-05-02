@@ -7,11 +7,12 @@
 
 #pragma once
 
+#include <vulkan/vulkan.h>
+
 #include <argparse/argparse.hpp>
 #include <functional>
 #include <memory>
 #include <opencv2/opencv.hpp>
-#include <vulkan/vulkan.h>
 
 #include "core/Config.hpp"
 #include "input/IInput.hpp"
@@ -42,10 +43,15 @@ namespace VC
 
         ///< Time control
         void pause();
+
         void goToFirstFrame();
         void goToLastFrame();
-        void forward1frame();
-        void backward1frame();
+
+        void goToPrevTimestamp();
+        void goToNextTimestamp();
+
+        void forwardFrame(size_t n);
+        void backwardFrame(size_t n);
 
         // ---
 
@@ -67,15 +73,19 @@ namespace VC
         bool _indexChanged{true};
 
         ///< Mesh cache — rebuilt only when the render index changes
-        size_t _lastRenderedIndex{SIZE_MAX};
+        size_t            _lastRenderedIndex{SIZE_MAX};
         std::vector<Mesh> _cachedMeshes{};
 
     public:
+
         ///< True only when generateMeshes() actually rebuilt the meshes this call
         bool _meshesRebuilt{true};
 
         ///< Waits:
         std::map<size_t, size_t> _waits{};
+
+        ///< Timestamps:
+        std::map<size_t, std::string> _timestamps{};
 
         ///< Inputs created
         std::vector<std::unique_ptr<IInput>> _inputs{};

@@ -35,30 +35,43 @@ class Graph(Group):
         x = range(xRange[0], xRange[1] + 1)
         y = range(yRange[0], yRange[1] + 1)
 
-        self.origin = v2((-(len(x) - 1) / 2 - xRange[0]) * unitSizeX, (-(len(y) - 1) / 2 - yRange[0]) * unitSizeY)
+        self.origin = v2(
+            (-(len(x) - 1) / 2 - xRange[0]) * unitSizeX,
+            (-(len(y) - 1) / 2 - yRange[0]) * unitSizeY,
+        )
 
         self.xAxis = (
-            Rectangle(
-                width=0,
-                height=lineThickness,
-                fillColor=color,
-                strokeColor=TRANSPARENT,
+            (
+                r := Rectangle(
+                    width=0,
+                    height=lineThickness,
+                    fillColor=color,
+                    strokeColor=TRANSPARENT,
+                )
             )
             .align(x=0)
-            .position(-(len(x) - 1) / 2 * unitSizeX, (-(len(y) - 1) / 2 - yRange[0]) * unitSizeY)
-            .easeTo((len(x) - 1) * unitSizeX, "width", easing=Easing.InOut)
+            .position(
+                -(len(x) - 1) / 2 * unitSizeX,
+                (-(len(y) - 1) / 2 - yRange[0]) * unitSizeY,
+            )
+            .ease(r.ref.width, (len(x) - 1) * unitSizeX, easing=Easing.InOut)
             .flush()
         )
         self.yAxis = (
-            Rectangle(
-                width=lineThickness,
-                height=0,
-                fillColor=color,
-                strokeColor=TRANSPARENT,
+            (
+                r := Rectangle(
+                    width=lineThickness,
+                    height=0,
+                    fillColor=color,
+                    strokeColor=TRANSPARENT,
+                )
             )
-            .align(y=1)
-            .position((-(len(x) - 1) / 2 - xRange[0]) * unitSizeX, -(len(y) - 1) / 2 * unitSizeY)
-            .easeTo((len(y) - 1) * unitSizeY, "height", easing=Easing.InOut)
+            .align(y=0)
+            .position(
+                (-(len(x) - 1) / 2 - xRange[0]) * unitSizeX,
+                -(len(y) - 1) / 2 * unitSizeY,
+            )
+            .ease(r.ref.height, (len(y) - 1) * unitSizeY, easing=Easing.InOut)
             .flush()
         )
 
@@ -68,47 +81,47 @@ class Graph(Group):
         for n in x:
             start = 0.3 * (n - xRange[0]) / (xRange[1] - xRange[0])
             self.ticks.append(
-                Rectangle(width=lineThickness, height=0, fillColor=color, strokeColor=TRANSPARENT)
+                (r := Rectangle(width=lineThickness, height=0, fillColor=color, strokeColor=TRANSPARENT))
                 .position(
                     -(len(x) - 1) / 2 * unitSizeX + n * unitSizeX - xRange[0],
                     (-(len(y) - 1) / 2 - yRange[0]) * unitSizeY,
                 )
-                .easeTo(lineThickness * 5, "height", start=start, duration=0.15)
+                .ease(r.ref.height, lineThickness * 5, start=start, duration=0.15)
                 .fadeIn(start=start, duration=0.15)
             )
             if n in xExclude:
                 continue
             self.numbers.append(
-                Text(text=str(n), fontSize=0)
+                (t := Text(text=str(n), fontSize=0))
                 .align(x=0.75 if n < 0 else None)
                 .position(
                     -(len(x) - 1) / 2 * unitSizeX + n * unitSizeX - xRange[0],
                     (-(len(y) - 1) / 2 - yRange[0]) * unitSizeY + labelOffset,
                 )
-                .easeTo(fontSize, "fontSize", start=start, duration=0.15)
+                .ease(t.ref.fontSize, fontSize, start=start, duration=0.15)
                 .fadeIn(start=start, duration=0.15)
             )
 
         for n in y:
             start = 0.3 * (n - yRange[0]) / (yRange[1] - yRange[0])
             self.ticks.append(
-                Rectangle(width=0, height=lineThickness, fillColor=color, strokeColor=TRANSPARENT)
+                (r := Rectangle(width=0, height=lineThickness, fillColor=color, strokeColor=TRANSPARENT))
                 .position(
                     (-(len(x) - 1) / 2 - xRange[0]) * unitSizeX,
                     -(len(y) - 1) / 2 * unitSizeY + n * unitSizeY - yRange[0],
                 )
-                .easeTo(lineThickness * 5, "width", start=start, duration=0.15)
+                .ease(r.ref.width, lineThickness * 5, start=start, duration=0.15)
                 .fadeIn(start=start, duration=0.15)
             )
             if n in yExclude:
                 continue
             self.numbers.append(
-                Text(text=str(n), fontSize=0)
+                (t := Text(text=str(n), fontSize=0))
                 .position(
                     (-(len(x) - 1) / 2 - xRange[0]) * unitSizeX + labelOffset,
                     -(len(y) - 1) / 2 * unitSizeY + n * unitSizeY - yRange[0],
                 )
-                .easeTo(fontSize, "fontSize", start=start, duration=0.15)
+                .ease(t.ref.fontSize, fontSize, start=start, duration=0.15)
                 .fadeIn(start=start, duration=0.15)
             )
 
@@ -132,6 +145,7 @@ class FirstQuadrant(Graph):
 
 
 class GraphPoint(Group):
+    @trackProps
     def __init__(
         self,
         curve: FunctionGraph,
@@ -140,7 +154,6 @@ class GraphPoint(Group):
     ) -> None:
         self.tipAppeared = False
         self.showTip = showTip
-        self._tipAbove = tipAbove
 
         self.curve = curve
         self.tip: dummy[Offset[VerticalLine]] = Dummy()
@@ -154,38 +167,22 @@ class GraphPoint(Group):
             self.text = Offset(
                 x=0,
                 y=0.60 * (1 if self.tipAbove else -1),
-                i=Text(text=str(round(self.curve.f(self.curve.xs[0]), 2)), color=WHITE, fontSize=0.2),
+                input=Text(text=str(round(self.curve.f(self.curve.xs[0]), 2)), fillColor=WHITE, fontSize=0.2),
             )
             self.tip = Offset(
                 x=0,
                 y=0.30 * (1 if self.tipAbove else -1),
-                i=VerticalLine(length=0.25, strokeWidth=0.025, fillColor=WHITE, rounded=True),
+                input=VerticalLine(length=0.25, strokeWidth=0.025, fillColor=WHITE, rounded=True),
             )
             self.addInput(self.text, self.tip)
 
-    @property
-    def tipAbove(self) -> bool:
-        return self._tipAbove
-
-    @tipAbove.setter
-    def tipAbove(self, value: bool):
-        self._tipAbove = value
-        self._updateTipPosition()
-
-    def _updateTipPosition(self):
+    def updateTipPosition(self):
         if self.showTip:
             self.text.y = 0.60 * (1 if self.tipAbove else -1)
             self.tip.y = 0.30 * (1 if self.tipAbove else -1)
 
-    def x(self, x: float) -> Self:
-        y = self.curve.f(x)
-        o = self.curve.parentGraph.origin
-
-        self.position(x=x + o.x, y=y + o.y)
-        self.fadeInIfHidden()
-        self.flush()
-
-        return self
+    @autoProp(lambda self: self.updateTipPosition())
+    def tipAbove(self) -> bool: ...
 
     def fadeInIfHidden(self):
         if not self.tipAppeared:
@@ -197,16 +194,16 @@ class GraphPoint(Group):
         x2 = self.curve.xs[-1] if x2 is None else x2
 
         r = CubicBezier.range(Easing.InOut, x1, x2, duration)
-        o = self.curve.parentGraph.origin
+        o = v2(0, 0) if self.curve.parentGraph is None else self.curve.parentGraph.origin
 
-        self.position(x=x1 + o.x, y=self.curve.f(x1) + o.y)
+        self.position(x=o.x + x1, y=o.y + self.curve.f(x1))
         self.fadeInIfHidden()
         self.flush()
 
-        with self.text.i:
+        with self.text.input:
             for x in r:
                 y = self.curve.f(x)
-                self.text.i.text = str(round(y, 2))
-                self.position(x=x + o.x, y=y + o.y).flush()
+                self.text.input.text = str(round(y, 2))
+                self.position(x=o.x + x, y=o.y + y).flush()
 
         return self

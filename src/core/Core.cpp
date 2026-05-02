@@ -114,6 +114,11 @@ void VC::Core::executeStack()
             }
             _nbFrame += n;
 
+        } else if (s["action"] == "Timestamp") {
+            std::string name = s["name"];
+            size_t      time = s["time"];
+
+            _timestamps[time] = name;
         } else {
             throw Error("Invalid action: " + s["action"].get<std::string>());
         }
@@ -123,7 +128,7 @@ void VC::Core::executeStack()
 std::vector<Mesh> VC::Core::generateMeshes()
 {
     size_t renderIndex = _index;
-    auto potentialIndex = _waits.find(_index);
+    auto   potentialIndex = _waits.find(_index);
     if (potentialIndex != _waits.end()) {
         renderIndex = potentialIndex->second;
     }
@@ -180,20 +185,66 @@ void VC::Core::goToLastFrame()
     std::cout << std::format("Jumped forward to the last frame {}/{}.", currIndex(_index, _nbFrame), _nbFrame) << std::endl;
 }
 
-void VC::Core::backward1frame()
+void VC::Core::goToPrevTimestamp()
 {
-    if (_index > 0) {
-        _index -= 1;
+    auto it = _timestamps.lower_bound(_index);
+
+    if (it == _timestamps.begin()) {
+        return;
+    }
+
+    --it;
+
+    auto index = it->first;
+    auto name = it->second;
+
+    if (_index < _nbFrame && _index >= 0) {
+        _index = index;
         _indexChanged = true;
+    }
+
+    std::cout << std::format("Jumped backward to the timestamp {} at frame {}/{}.", name, currIndex(_index, _nbFrame), _nbFrame) << std::endl;
+}
+
+void VC::Core::goToNextTimestamp()
+{
+    auto it = _timestamps.lower_bound(_index);
+
+    if (it == _timestamps.end()) {
+        return;
+    }
+
+    auto index = it->first;
+    auto name = it->second;
+
+    if (_index < _nbFrame && _index >= 0) {
+        _index = index;
+        _indexChanged = true;
+    }
+
+    std::cout << std::format("Jumped forward to the timestamp {} at frame {}/{}.", name, currIndex(_index, _nbFrame), _nbFrame) << std::endl;
+}
+
+void VC::Core::backwardFrame(size_t n)
+{
+    if (_index - n >= 0) {
+        _index -= n;
+        _indexChanged = true;
+    } else {
+        goToFirstFrame();
+        return;
     }
     std::cout << std::format("Jumped backward to the frame {}/{}.", currIndex(_index, _nbFrame), _nbFrame) << std::endl;
 }
 
-void VC::Core::forward1frame()
+void VC::Core::forwardFrame(size_t n)
 {
-    if (_index + 1 < _nbFrame) {
-        _index += 1;
+    if (_index + n < _nbFrame) {
+        _index += n;
         _indexChanged = true;
+    } else {
+        goToLastFrame();
+        return;
     }
     std::cout << std::format("Jumped forward to the frame {}/{}.", currIndex(_index, _nbFrame), _nbFrame) << std::endl;
 }

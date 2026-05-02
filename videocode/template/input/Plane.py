@@ -3,6 +3,7 @@
 
 import math
 
+
 from videocode import *
 
 
@@ -25,4 +26,5 @@ class Plane(Group):
                 ).position(x=0, y=i)
                 for i in range(math.ceil(WORLD_HEIGHT / -2), math.ceil(WORLD_HEIGHT / 2))
             ],
+            Dot().position(0, 0),
         )

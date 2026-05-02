@@ -14,32 +14,29 @@ class Rectangle(Polygon):
         height: wfloat = 3,
         fillColor: rgba = DARK_BLUE,
         strokeColor: rgba = WHITE,
-        strokeWidth: wufloat = 0.1,
+        strokeWidth: wufloat = 0.05,
         cornerRadius: percent = 0,  # percent 0-100, 100 = circle on a square
     ):
         super().__init__(
-            points=self.generatePoints(setAttr=False),
+            vertices=self.generateVertices(),
             fillColor=fillColor,
             strokeColor=strokeColor,
             strokeWidth=strokeWidth,
             cornerRadius=cornerRadius,
         )
 
-    def generatePoints(self, setAttr=True):
-        p = [
+    def generateVertices(self) -> list[point]:
+        return [
             (0, 0),
             (self.width, 0),
             (self.width, self.height),
             (0, self.height),
         ]
-        if setAttr:
-            self.points = p
-        return p
 
-    @autoProp(generatePoints)
+    @autoProp(Polygon.updatePoints)
     def width(self, value: wfloat): ...
 
-    @autoProp(generatePoints)
+    @autoProp(Polygon.updatePoints)
     def height(self, value: wfloat): ...
 
 
@@ -49,7 +46,7 @@ class Square(Rectangle):
         side: wfloat = 4,
         fillColor: rgba = DARK_BLUE,
         strokeColor: rgba = WHITE,
-        strokeWidth: wufloat = 0.1,
+        strokeWidth: wufloat = 0.05,
         cornerRadius: float = 0,
     ):
         super().__init__(

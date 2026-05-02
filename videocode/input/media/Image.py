@@ -6,6 +6,9 @@ from videocode.input.input import *
 
 
 class Image(Input):
+    cppAttrs = {
+        "filepath",
+    }
 
     @inputCreation
     def __init__(

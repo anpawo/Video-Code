@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, Self
+from typing import Any, Self, cast
 from videocode.template.effect.fadeIn import fadeIn
 from videocode.template.effect.fadeOut import fadeOut
 from videocode.template.effect.moveTo import moveTo
@@ -25,6 +25,7 @@ from videocode.shader.vertexShader.show import show
 from videocode.shader.vertexShader.opacity import opacity
 from videocode.utils.bezier import animate, CubicBezier, Easing
 from videocode.utils.logger import *
+from videocode.utils.reference import Reference
 
 
 class Input(ABC):
@@ -45,6 +46,11 @@ class Input(ABC):
     Metadata of the `Input`.
     """
     meta: Metadata
+
+    """
+    Attributes to pass to the cpp.
+    """
+    cppAttrs: set[str]
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = super().__new__(cls)
@@ -123,14 +129,17 @@ class Input(ABC):
         return False
 
     def __setattr__(self, name: str, value: Any) -> None:
-        if hasattr(self, "meta") and self.meta.setattrCallbackOn and not name in self.meta.props:
-            annotation = self.__class__.__annotations__.get(name)
-            start = self.meta.pendingSetattrStart
-            duration = self.meta.pendingSetattrDuration
+        # Modifications should affect the cpp
+        if hasattr(self, "meta") and self.meta.setattrCallbackOn:
 
-            self.apply(args(name, value, annotation), start=start, duration=duration)
-        else:
-            object.__setattr__(self, name, value)
+            # attr isnt a property
+            if not name in self.meta.props:
+
+                # attr is an attr that the cpp care about
+                if name in self.cppAttrs:
+                    self.apply(args(name, value), start=self.meta.pendingSetattrStart, duration=self.meta.pendingSetattrDuration)
+                    return
+        object.__setattr__(self, name, value)
 
     def timedSetattr(self, name: str, value: Any, *, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)):
         oldPendingSetattrStart = self.meta.pendingSetattrStart
@@ -148,41 +157,51 @@ class Input(ABC):
             self.meta.pendingSetattrDuration = oldPendingSetattrDuration
             self.meta.setattrCallbackOn = oldSetattrCallbackOn
 
-    def easeTo(self, to: Any, attributeName: str, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        annotation = self.__class__.__annotations__.get(attributeName)
+    def ease(self, attributeName: attrName, to: Any, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         src = self.__getattribute__(attributeName)
         dst = to
 
-        def _apply(m: number, i: int):
+        def _apply(m: number, indexOffset: int):
             val = src + (dst - src) * m
-            self.timedSetattr(attributeName, val, start=start + i * SF, duration=0)
+            self.timedSetattr(attributeName, val, start=start + indexOffset * SF, duration=0)
 
         animate(duration, easing, _apply)
         return self
 
-    def easeBy(self, by: Any, attributeName: str, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        annotation = self.__class__.__annotations__.get(attributeName)
-        src = self.__getattribute__(attributeName)
-        dst = src + by
+    def easeTogether(
+        self,
+        *anims: tuple[attrName, Any] | tuple[attrName, Any, CubicBezier],
+        easing=Easing.InOut,
+        start: sec = 0,
+        duration: sec = 0.4,
+    ) -> Self:
+        n = int(duration * FRAMERATE)
 
-        def _apply(m: number, i: int):
-            val = src + (dst - src) * m
-            self.timedSetattr(attributeName, val, start=start + i * SF, duration=0)
+        # Snapshot all sources before scheduling anything
+        snapshot = {attr: getattr(self, attr) for (attr, _, *_) in anims}
 
-        animate(duration, easing, _apply)
+        for i in range(n):
+            t = i / (n - 1)
+
+            for anim in anims:
+                attr, to, *rest = anim
+                easingFunc = rest[0] if rest else easing
+
+                src = snapshot[attr]
+                dst = to
+                m = easingFunc(t)
+                val = src + (dst - src) * m
+
+                self.timedSetattr(attr, val, start=start + i * SF, duration=0)
+
         return self
 
-    def easeTimes(self, times: Any, attributeName: str, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        annotation = self.__class__.__annotations__.get(attributeName)
-        src = self.__getattribute__(attributeName)
-        dst = src * times
-
-        def _apply(m: number, i: int):
-            val = src + (dst - src) * m
-            self.timedSetattr(attributeName, val, start=start + i * SF, duration=0)
-
-        animate(duration, easing, _apply)
-        return self
+    @property
+    def ref(self) -> Self:
+        """
+        Reference To Prevent String Missmatch
+        """
+        return cast(Self, Reference(self))
 
     def __str__(self) -> str:
         s = f"\n{self.__class__.__name__}:\n"

@@ -4,6 +4,7 @@
 import math
 
 
+from videocode.template.input.Arrow import Arrow
 from videocode.template.input.Graph import *
 from videocode.template.input.Plane import Plane
 from videocode.template.misc.chess.chessboard import ChessBoard
@@ -24,25 +25,33 @@ def example1():
     """
     Basic Inputs
     """
-    x = -1
-    y = 0
+    timestamp("Example #1: All Basic Inputs / Shapes")
 
     plane = Plane()
 
-    r = Rectangle(height=2, width=4).align(x=1, y=1).position(x - 1, y + 1)
-    s = Square(side=2, cornerRadius=30).align(x=1, y=0).position(x - 1, y - 1)
-    c = Circle(radius=1).align(x=0, y=1).position(x + 1, y + 1)
-    i = Image("wb.png").align(x=0, y=0).position(x + 1, y - 1).scale(1.75)
-    t = (
+    rect = Rectangle(height=2, width=4).position(x=-7)
+    circle = Circle(radius=1).position(x=-2)
+    sqrRounded = Square(side=2, cornerRadius=30).position(x=1)
+    triRandom = Triangle().position(x=4)
+
+    img = Offset(0, 0.5, Image("wb.png").position(x=-6.5))
+    text = Text("Hello World", fontSize=0.75).position(x=-5.075)
+    triEqui = EquilateralTriangle(side=1, strokeColor=TRANSPARENT).position(x=0)
+    triRight = RightTriangle(width=1, height=1).position(x=2)
+    triEquiRounded = EquilateralTriangle(side=1, cornerRadius=30).position(x=4)
+    arrow = Arrow().position(x=6.5, y=0.5)
+
+    all = (
         Group(
-            Text("Hello", fontSize=0.75),
-            Offset(0, -1, Text("World!", fontSize=0.75)),
+            plane,
+            Group(rect, sqrRounded, triRandom, circle).align(x=0, y=0).position(y=2),
+            Group(text, triEqui, triRight, triEquiRounded).align(x=0, y=0).addInput(img).position(y=0).addInput(arrow),
         )
-        .align(x=0, y=1)
-        .position(x + 5, y + 2)
+        .fadeIn()
+        .waitForOthers(0.5, updateContext=True)
     )
 
-    return Group(plane, r, s, c, i, t).fadeIn().waitForOthers(0.5, updateContext=True)
+    return all
 
 
 def example2():
@@ -51,6 +60,8 @@ def example2():
 
     Square that appears by growing, then moves to the right and disappears by growing.
     """
+    timestamp("Example #2: Little Square Animation")
+
     return (
         Square(
             side=2,
@@ -76,9 +87,16 @@ def example3():
     Line that extends in length then in height then becomes darker.
     Similar to a TV turning on or a paragraph of text appearing in Pokémon.
     """
-    s = HorizontalLine(length=0, strokeColor=WHITE, fillColor=DARK_BLUE | 0.5).easeTo(6, "width").flush()
-    s.easeTo(2.5, "height").easeTo(15, "cornerRadius", easing=Easing.Out).easeTo(0.05, "strokeWidth", easing=Easing.Out).flush()
-    s.easeTo(DARK_BLUE | 0.25, "fillColor", easing=Easing.Out).flush()
+    timestamp("Example #3: Game Dialogue")
+
+    s = HorizontalLine(length=0, strokeColor=WHITE, fillColor=DARK_BLUE | 0.5)
+    s.ease(s.ref.width, 6).flush()
+    s.easeTogether(
+        (s.ref.height, 2.5),
+        (s.ref.cornerRadius, 15, Easing.Out),
+        (s.ref.strokeWidth, 0.05, Easing.Out),
+    ).flush()
+    s.ease(s.ref.fillColor, DARK_BLUE | 0.25, easing=Easing.Out).flush()
 
     wait()
 
@@ -91,6 +109,8 @@ def example4():
     """
     First Quadrant of a Cartesian Graph.
     """
+    timestamp("Example #4: Graph w/ Curve + Point")
+
     # Graph
     g = FirstQuadrant(xRange=(-1, 7))
 
@@ -110,13 +130,8 @@ def example4():
     wait()
 
     # Point on Curve + Value
-    p = GraphPoint(f).fromTo(x2=4, duration=4)
-
-    wait(0.3)
-
-    p.fromTo(x1=4, x2=2)
-
-    wait()
+    p = GraphPoint(f).fromTo(x2=math.pi, duration=4)
+    p.tipAbove = False
 
     return Group(g, f, p).waitForOthers(updateContext=True)
 
@@ -125,5 +140,7 @@ def example5():
     """
     Chess animation.
     """
+    timestamp("Example #5: Chessboard")
+
     c = ChessBoard()
     # c.play()

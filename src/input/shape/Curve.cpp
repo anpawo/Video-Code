@@ -20,7 +20,6 @@ Curve::Curve(json::object_t&& args)
 Mesh Curve::getMesh(const Metadata& meta, const Config& config)
 {
     const auto& args = meta.args;
-
     const auto& pts = args.at("points");
     if (pts.size() < 2) {
         return {};
@@ -33,16 +32,15 @@ Mesh Curve::getMesh(const Metadata& meta, const Config& config)
         return {};
     }
 
-    // Collect points
     std::vector<cv::Vec2f> points;
     points.reserve(pts.size());
     for (const auto& p : pts) {
-        points.push_back({p[0].get<float>() * config::worldToPixelRatio, p[1].get<float>() * config::worldToPixelRatio});
+        points.push_back({
+            p[0].get<float>() * config::worldToPixelRatio,
+            -p[1].get<float>() * config::worldToPixelRatio,
+        });
     }
 
-    // Build N-1 quadratic bezier segments.
-    // Handle = midpoint between anchors (degenerate = straight line).
-    // With enough sample points this renders as a smooth curve.
     size_t                         N = points.size();
     std::vector<QuadraticBezier2D> curves;
     curves.reserve(N - 1);
@@ -51,25 +49,10 @@ Mesh Curve::getMesh(const Metadata& meta, const Config& config)
         curves.push_back({points[i], mid, points[i + 1]});
     }
 
-    // Bounding box to build a local MeshFactory.
-    float minX = points[0][0], maxX = points[0][0];
-    float minY = points[0][1], maxY = points[0][1];
-    for (const auto& p : points) {
-        minX = std::min(minX, p[0]);
-        maxX = std::max(maxX, p[0]);
-        minY = std::min(minY, p[1]);
-        maxY = std::max(maxY, p[1]);
-    }
-
-    cv::Vec2f offset{-minX, -minY};
-    for (auto& c : curves) {
-        c.p0 += offset;
-        c.p1 += offset;
-        c.p2 += offset;
-    }
-
-    MeshFactory factory({maxX - minX, maxY - minY}, meta, config);
+    // No offset — pass a dummy local size; M will handle world placement.
+    // localSize just needs to be non-zero; (0,0) is fine if MeshFactory
+    // doesn't use it for anything other than the transform.
+    MeshFactory factory({0.f, 0.f}, meta, config);
     factory.addQuadraticStrokePath(curves, strokeWidth, strokeColor, false);
-
     return factory.generateMesh();
 }

@@ -125,3 +125,13 @@ def wait(n: sec = 0) -> None:
             "n": n,
         },
     )
+
+
+def timestamp(name: str) -> None:
+    Context.stack.append(
+        {
+            "action": "Timestamp",
+            "name": name,
+            "time": Context.waitOffset,
+        }
+    )

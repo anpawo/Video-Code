@@ -135,13 +135,13 @@ struct MeshFactory
             return n2;
         }
 
-        // Bevel past Manim's threshold (cos of full angle < -0.8, i.e. angle > 143°).
-        float cos_a = dot2d(prevDir, nextDir);
-        if (cos_a < -0.8f) {
-            return n2;
-        }
+        // Cap the miter so spikes at sharp corners never exceed MITER_LIMIT × halfStrokeWidth.
+        // Matches the SVG/CSS default miter-limit of 4: angles with interior < ~29° get a
+        // small bevel at the tip; everything else is a proper miter join.
+        constexpr float MITER_LIMIT = 4.f;
+        float scale = std::min(1.f / cosHalf, MITER_LIMIT);
 
-        return bisDir * (1.f / cosHalf);
+        return bisDir * scale;
     }
 
     int quadraticStrokeSteps(const QuadraticBezier2D &curve) const

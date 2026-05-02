@@ -12,7 +12,7 @@
 #include "vulkan/MeshFactory.hpp"
 
 #ifndef FONT_DIR
-#define FONT_DIR "assets/fonts"
+    #define FONT_DIR "assets/fonts"
 #endif
 
 Text::Text(json::object_t &&args)
@@ -28,12 +28,12 @@ GlyphCache &Text::glyphCache()
 
 Mesh Text::getMesh(const Metadata &meta, const Config &config)
 {
-    const std::string &text     = meta.args.at("text").get<std::string>();
+    const std::string &text = meta.args.at("text").get<std::string>();
     float              fontSize = meta.args.at("fontSize").get<float>() * config::worldToPixelRatio;
-    cv::Vec4b          color    = colorFromJson(meta.args.at("color"), meta.opacity);
+    cv::Vec4b          color = colorFromJson(meta.args.at("fillColor"), meta.opacity);
 
-    GlyphCache &cache     = glyphCache();
-    float       ascender  = cache.ascender()  * fontSize;
+    GlyphCache &cache = glyphCache();
+    float       ascender = cache.ascender() * fontSize;
     float       descender = cache.descender() * fontSize;
     float       lineHeight = ascender + descender;
 
@@ -48,7 +48,7 @@ Mesh Text::getMesh(const Metadata &meta, const Config &config)
     float cursorX = 0.f;
 
     for (unsigned char c : text) {
-        const GlyphMesh &g    = cache.get(c);
+        const GlyphMesh &g = cache.get(c);
         uint16_t         base = factory.vertexCount();
 
         for (const auto &v : g.vertices) {

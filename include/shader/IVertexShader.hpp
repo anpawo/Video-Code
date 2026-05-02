@@ -59,7 +59,7 @@ inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size2f& size, c
     float y = meta.position.y;
 
     float px = size.width * meta.align.x;
-    float py = size.height * meta.align.y;
+    float py = size.height * (1.0f - meta.align.y);
 
     float rad = meta.rotation * M_PI / 180.0f;
     float c = std::cos(rad);

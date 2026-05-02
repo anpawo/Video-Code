@@ -4,8 +4,7 @@
 import time
 
 
-from typing import TYPE_CHECKING, Any, Callable
-from videocode.constants import FRAMERATE
+from typing import TYPE_CHECKING, Callable
 from videocode.context import Context
 from videocode.utils.funcutils import upperFirst
 from videocode.utils.timeit import *
@@ -72,83 +71,28 @@ class Checks:
         return True
 
 
-# def typecheck(f: Callable, *args, **kwargs):
-#     # **Kwargs
-#     for k, v in kwargs.items():
-#         typeName: str = f.__annotations__[k].__name__ if isinstance(f.__annotations__[k], type) else str(f.__annotations__[k])
-#         typeCheck: Callable = Checks()[typeName]
-#         if not typeCheck(v):
-#             raise ValueError(f"\n\tin: {args[0].__class__.__name__}\n\tfor: {k}\n\texpected: {typeCheck.__doc__}\n\tgot: {v}")
-
-#     # *Args
-#     for i, v in enumerate(args[1:]):  # Ignore self
-#         valueName: str = str(list(f.__annotations__.keys())[i])
-#         typeName: str = str(list(f.__annotations__.values())[i])
-#         typeCheck: Callable = Checks()[typeName]
-#         if not typeCheck(v):
-#             raise ValueError(f"\n\tin: {args[0].__class__.__name__}\n\tfor: {valueName}\n\texpected: {typeCheck.__doc__}\n\tgot: {v}")
-
-
-# def bindArgs(f: Callable, *args, **kwargs) -> tuple[Input, dict[str, Any]]:
-#     attrs: dict[str, Any] = {}
-#     input: Input = args[0]
-
-#     argNames = list(f.__annotations__.keys())
-#     defaults = f.__defaults__ or ()
-
-#     for i in range(-len(defaults), 0):
-#         attrs[argNames[i]] = defaults[i]
-
-#     # *args
-#     for name, value in zip(argNames, args[1:]):  # skip self
-#         attrs[name] = value
-
-#     # **kargs
-#     for k, v in kwargs.items():
-#         attrs[k] = v
-
-#     # attrs from init()
-#     for k, v in input.__dict__.items():
-#         if k != "meta":
-#             attrs[k] = v
-
-#     # input's attrs
-#     for k, v in attrs.items():
-#         object.__setattr__(input, k, v)
-
-#     return input, attrs
-
-
 def inputCreation(f: Callable[..., None]):
     """
     Automate the `Input` creation.
     """
 
-    def wrapper(self, *args, **kwargs):
+    def wrapper(self: "Input", *args, **kwargs):  # need the string type because autoCppAttrs would bug
         # Input's init
         f(self, *args, **kwargs)
-
-        # Input
-        attrs = {k: v for k, v in self.__dict__.items() if k != "meta"}
-
-        # Incorporate the annotations of the init function into the class
-        # If you import futur.__annotations__ all types become strings
-        for a in f.__annotations__:
-            self.__class__.__annotations__[a] = f.__annotations__[a]
 
         # Generate the stack creation
         Context.stack.append(
             {
                 "action": "Create",
                 "type": upperFirst(self.meta.name),
-                "args": {k: v for k, v in self.__dict__.items() if k in f.__annotations__},
+                "args": {k: v for k, v in self.__dict__.items() if k in self.cppAttrs},
                 "hide": Context.waitOffset > 0,
             },
         )
 
         # If created mid-timeline (after a flush), hide until the current offset
         if Context.waitOffset > 0:
-            self.show()
+            self.show()  # add start ?
 
     return wrapper
 
@@ -171,8 +115,8 @@ def sandboxFlush(f):
 def setAttrOn(f):
     def wrapper(self: Input, *args, **kwargs):
         setattrCallbackOn = self.meta.setattrCallbackOn
-        self.meta.setattrCallbackOn = True
 
+        self.meta.setattrCallbackOn = True
         result = f(self, *args, **kwargs)
 
         self.meta.setattrCallbackOn = setattrCallbackOn
@@ -185,6 +129,7 @@ def setAttrOn(f):
 def trackProps(initFunc, autoInit=True):
     """
     Decorator that keeps track of the props of a class on creation.
+
     Also inits the props with the default value given in init if any.
     """
 
@@ -194,13 +139,15 @@ def trackProps(initFunc, autoInit=True):
         # If False, the class does some shenanigans with the args before settings the attr.
         if autoInit:
             # match args to param names via __code__
-            paramNames = initFunc.__code__.co_varnames[1:]  # skip 'self'
-            for paramName, paramValue in zip(paramNames, args):
-                if paramName in self.meta.props:
-                    object.__setattr__(self, f"_{paramName}", paramValue)
+            paramNames = initFunc.__code__.co_varnames[1 : initFunc.__code__.co_argcount]  # skip 'self' and local var
+            defaults = initFunc.__defaults__ or ()
 
-            # handle kwargs too
-            for paramName, paramValue in kwargs.items():
+            # defaults align to the END of paramNames
+            defaultOffset = len(paramNames) - len(defaults)
+            defaultMap = {paramNames[i + defaultOffset]: defaults[i] for i in range(len(defaults))}
+
+            params = defaultMap | dict(zip(paramNames, args)) | kwargs
+            for paramName, paramValue in params.items():
                 if paramName in self.meta.props:
                     object.__setattr__(self, f"_{paramName}", paramValue)
 

@@ -6,6 +6,10 @@ from videocode.input.input import *
 
 
 class Video(Input):
+    cppAttrs = {
+        "filepath",
+    }
+
     @inputCreation
     def __init__(
         self,

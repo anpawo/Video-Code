@@ -18,9 +18,9 @@ class Offset[T: Input](Input):
         instance.meta = Metadata(interface=True)
         return instance
 
-    def __init__(self, x: wfloat, y: wfloat, i: T):
-        self.inputPosition = v2(*i.meta.position)
-        self.i: T = i
+    def __init__(self, x: wfloat, y: wfloat, input: T):
+        self.inputPosition = v2(*input.meta.position)
+        self.input: T = input
         self.inputOffset = v2(x, y)
 
     @property
@@ -37,7 +37,7 @@ class Offset[T: Input](Input):
         self.inputOffset.x = value
 
         # Shenanigans
-        self.i.apply(position(x=self.inputPosition.x + self.inputOffset.x))
+        self.input.apply(position(x=self.inputPosition.x + self.inputOffset.x))
 
     @y.setter
     def y(self, value: wnumber):
@@ -45,10 +45,10 @@ class Offset[T: Input](Input):
         self.inputOffset.y = value
 
         # Shenanigans
-        self.i.apply(position(y=self.inputPosition.y + self.inputOffset.y))
+        self.input.apply(position(y=self.inputPosition.y + self.inputOffset.y))
 
     def flush(self) -> Self:
-        self.i.flush()
+        self.input.flush()
         return self
 
     def apply(self, *shaders: IShader, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)) -> Self:
@@ -76,12 +76,12 @@ class Offset[T: Input](Input):
 
             return s
 
-        self.i.apply(*map(offsetPosition, shaders), start=start, duration=duration)
+        self.input.apply(*map(offsetPosition, shaders), start=start, duration=duration)
 
         return self
 
     def __str__(self) -> str:
-        return f"\nOffset p({self.inputPosition}), o({self.inputOffset}):\n({self.i})"
+        return f"\nOffset p({self.inputPosition}), o({self.inputOffset}):\n({self.input})"
 
     def __repr__(self) -> str:
         return self.__str__()

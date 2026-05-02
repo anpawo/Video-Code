@@ -13,11 +13,9 @@ class args(VertexShader):
     Should not be instantiated on its own but only through __setattr__.
     """
 
-    def __init__(self, name: str, value: Any, annotation: type | None) -> None:
+    def __init__(self, name: str, value: Any) -> None:
         self.name = name
         self.value = value
-        # Override annotation
-        self.__init__.__annotations__["value"] = annotation
 
     def modificator(self, i: Input):
         """

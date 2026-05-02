@@ -14,8 +14,6 @@ class Group(Input):
     A `Group` contains many inputs and will apply each transformations it gets to all of its inputs.
     """
 
-    # TODO: easeTo
-
     def __new__(cls, *args, **kwargs) -> Self:
         instance = object.__new__(cls)
         instance.meta = Metadata(interface=True)
@@ -24,9 +22,10 @@ class Group(Input):
     def __init__(self, *inputs: Input):
         self.inputs = [i for i in inputs]
 
-    def addInput(self, *inputs: Input):
+    def addInput(self, *inputs: Input) -> Self:
         for i in inputs:
             self.inputs.append(i)
+        return self
 
     def flush(self) -> Self:
         """
@@ -42,11 +41,8 @@ class Group(Input):
         Applies the `Transformations` `ts` to all the `Inputs` of the `Group`.
         """
         for s in shaders:
-            if isinstance(s, VertexShader):
-                s.modificator(self)
-
             for i in self.inputs:
-                i.apply(s, start=start, duration=duration)
+                i.apply(copy.deepcopy(s), start=start, duration=duration)
 
         return self
 

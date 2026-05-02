@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 
 
-from typing import Any
-
-from videocode.context import Any
 from videocode.input.input import *
-from videocode.utils.funcutils import Any
 
 
 class Dummy(Input):

@@ -14,10 +14,16 @@ if TYPE_CHECKING:
 
 
 class Curve(Input):
+    cppAttrs = {
+        "points",
+        "strokeColor",
+        "strokeWidth",
+    }
+
     @inputCreation
     def __init__(
         self,
-        points: list[tuple[number, number]],
+        points: list[point],
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.025,
     ):
@@ -35,7 +41,7 @@ class Curve(Input):
         lastCount = 0
 
         for i in range(n):
-            t = i / (n - 1) if n > 1 else 1.0
+            t = i / (n - 1)
             count = max(2, round(easing(t) * len(allPoints)))
             if count != lastCount:
                 self.points = allPoints[:count]
@@ -53,17 +59,21 @@ class FunctionGraph(Curve):
         self,
         f: lambdaFunction,
         xRange: tuple[int, int],
-        parentGraph: Graph,
+        parentGraph: maybe[Graph] = None,
         numPoints: int = 100,
         strokeColor: rgba = BLUE_A,
         strokeWidth: wufloat = 0.025,
-        onGraph=True,
+        alignOn=True,
     ):
         self.f = f
         self.parentGraph = parentGraph
         self.numPoints = numPoints
         self.xRange = xRange
-        self.onGraph = onGraph
+        self.alignOn = alignOn
+
+        # x => y
+        self.xs = []
+        self.ys = []
 
         super().__init__(
             points=self.generatePoints(),
@@ -71,8 +81,9 @@ class FunctionGraph(Curve):
             strokeWidth=strokeWidth,
         )
 
-        self.alignOnGraph()
+        self.alignOrdinate()
 
+    @setAttrOn
     def update(self, f: maybe[lambdaFunction] = None, numPoints: maybe[int] = None, xRange: maybe[tuple[int, int]] = None):
         if f is not None:
             self.f = f
@@ -82,17 +93,19 @@ class FunctionGraph(Curve):
             self.xRange = xRange
 
         points = self.generatePoints()
-        self.alignOnGraph()
+        self.alignOrdinate()
 
-        with self:
-            self.points = points
-            self.flush()
+        self.points = points
+        self.flush()
 
-    def alignOnGraph(self):
-        if self.onGraph:
-            self.align(0, 0).position(self.parentGraph.origin.x + self.xRange[0], self.parentGraph.origin.y + max(self.ys))
+    def alignOrdinate(self):
+        if self.alignOn:
+            if self.parentGraph is not None:
+                self.align(0, 0).position(self.parentGraph.origin.x, self.parentGraph.origin.y)
+            else:
+                self.align(0, 0).position(y=-min(self.ys))
 
-    def generatePoints(self) -> list[tuple[number, number]]:
+    def generatePoints(self) -> list[point]:
         self.xs = [self.xRange[0] + i * (self.xRange[1] - self.xRange[0]) / (self.numPoints - 1) for i in range(self.numPoints)]
         self.ys = [self.f(x) for x in self.xs]
-        return [(x, -y) for x, y in zip(self.xs, self.ys)]
+        return [(x, y) for x, y in zip(self.xs, self.ys)]

@@ -67,16 +67,15 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     // surface (and swapchain) is a clean multiple of the video resolution.
     QRect screen = QGuiApplication::primaryScreen()->availableGeometry();
     float scale = std::min(
-        (float)screen.width()  / config.windowWidth,
+        (float)screen.width() / config.windowWidth,
         (float)screen.height() / config.windowHeight
     );
     scale = std::min(scale, 1.0f);
-    int w = (int)(config.windowWidth  * scale);
+    int w = (int)(config.windowWidth * scale);
     int h = (int)(config.windowHeight * scale);
     _vulkanWidget->setFixedSize(w, h);
     adjustSize();
-    move(screen.center().x() - width()  / 2,
-         screen.center().y() - height() / 2);
+    move(screen.center().x() - width() / 2, 0);
     show();
 
     ///< Wire up the frame callback before init so the first render already
@@ -110,13 +109,21 @@ void VC::Window::keyPressEvent(QKeyEvent* event)
     } else if (event->key() == Qt::Key_Space) {
         _core.pause();
     } else if (event->key() == Qt::Key_Down) {
-        _core.goToFirstFrame();
+        if (event->modifiers() & Qt::ControlModifier) {
+            _core.goToPrevTimestamp();
+        } else {
+            _core.goToFirstFrame();
+        }
     } else if (event->key() == Qt::Key_Up) {
-        _core.goToLastFrame();
+        if (event->modifiers() & Qt::ControlModifier) {
+            _core.goToNextTimestamp();
+        } else {
+            _core.goToLastFrame();
+        }
     } else if (event->key() == Qt::Key_Left) {
-        _core.backward1frame();
+        _core.backwardFrame(event->modifiers() & Qt::ControlModifier ? 5 : 1);
     } else if (event->key() == Qt::Key_Right) {
-        _core.forward1frame();
+        _core.forwardFrame(event->modifiers() & Qt::ControlModifier ? 5 : 1);
     } else {
         QMainWindow::keyPressEvent(event);
     }

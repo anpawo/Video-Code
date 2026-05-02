@@ -35,7 +35,7 @@ void Circle::buildPath(const json::object_t& args)
     for (int i = 0; i < N; ++i) {
         float aAngle = i * segAngle;
         float hAngle = aAngle + segAngle / 2.f;
-        _points.push_back(radius * cv::Vec2f{std::cos(aAngle), std::sin(aAngle)});
+        _points.push_back(radius * cv::Vec2f{std::cos(aAngle), std::sin(aAngle)}); // not reversed
         _points.push_back((radius / cosHalf) * cv::Vec2f{std::cos(hAngle), std::sin(hAngle)});
     }
 }

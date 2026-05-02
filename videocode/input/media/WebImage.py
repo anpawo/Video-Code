@@ -6,6 +6,10 @@ from videocode.input.input import *
 
 
 class WebImage(Input):
+    cppAttrs = {
+        "url",
+    }
+
     @inputCreation
     def __init__(
         self,
