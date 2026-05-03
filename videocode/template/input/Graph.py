@@ -181,7 +181,7 @@ class GraphPoint(Group):
             self.text.y = 0.60 * (1 if self.tipAbove else -1)
             self.tip.y = 0.30 * (1 if self.tipAbove else -1)
 
-    @autoProp(lambda self: self.updateTipPosition())
+    @autoProp(updateTipPosition)
     def tipAbove(self) -> bool: ...
 
     def fadeInIfHidden(self):

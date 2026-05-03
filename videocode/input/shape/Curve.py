@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 
 class Curve(Input):
+    cppName = "Curve"
     cppAttrs = {
         "points",
         "strokeColor",
@@ -27,8 +28,6 @@ class Curve(Input):
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.025,
     ):
-        self.meta.name = "Curve"
-
         self.points = points
         self.strokeColor = strokeColor
         self.strokeWidth = strokeWidth

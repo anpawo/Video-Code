@@ -43,14 +43,19 @@ class Input(ABC):
     """
 
     """
-    Metadata of the `Input`.
+    Name of the Input.
     """
-    meta: Metadata
+    cppName: str
 
     """
     Attributes to pass to the cpp.
     """
     cppAttrs: set[str]
+
+    """
+    Metadata of the `Input`.
+    """
+    meta: Metadata
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = super().__new__(cls)

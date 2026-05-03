@@ -6,6 +6,7 @@ from videocode.input.input import *
 
 
 class WebImage(Input):
+    cppName = "WebImage"
     cppAttrs = {
         "url",
     }
@@ -15,6 +16,4 @@ class WebImage(Input):
         self,
         url: url,
     ):
-        self.meta.name = "WebImage"
-
         self.url = url

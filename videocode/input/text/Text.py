@@ -7,6 +7,7 @@ from videocode.input.input import *
 
 
 class Text(Input):
+    cppName = "Text"
     cppAttrs = {
         "text",
         "fontSize",
@@ -20,8 +21,6 @@ class Text(Input):
         fontSize: wufloat = 0.5,
         fillColor: rgba = WHITE,
     ):
-        self.meta.name = "Text"
-
         self.text = text
         self.fontSize = fontSize
         self.fillColor = fillColor

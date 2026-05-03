@@ -6,6 +6,7 @@ from videocode.input.input import *
 
 
 class Image(Input):
+    cppName = "Image"
     cppAttrs = {
         "filepath",
     }
@@ -15,6 +16,4 @@ class Image(Input):
         self,
         filepath: str,
     ):
-        self.meta.name = "Image"
-
         self.filepath = filepath

@@ -84,7 +84,7 @@ def inputCreation(f: Callable[..., None]):
         Context.stack.append(
             {
                 "action": "Create",
-                "type": upperFirst(self.meta.name),
+                "type": self.cppName,
                 "args": {k: v for k, v in self.__dict__.items() if k in self.cppAttrs},
                 "hide": Context.waitOffset > 0,
             },

@@ -130,7 +130,7 @@ def example4():
     wait()
 
     # Point on Curve + Value
-    p = GraphPoint(f).fromTo(x2=math.pi, duration=4)
+    p = GraphPoint(f).fromTo(x2=math.pi, duration=3)
     p.tipAbove = False
 
     return Group(g, f, p).waitForOthers(updateContext=True)

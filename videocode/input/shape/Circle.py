@@ -10,6 +10,7 @@ from videocode.constants import *
 
 
 class Circle(Input):
+    cppName = "Circle"
     cppAttrs = {
         "radius",
         "fillColor",
@@ -25,8 +26,6 @@ class Circle(Input):
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.05,
     ):
-        self.meta.name = "Circle"
-
         self.radius = radius
         self.fillColor = fillColor
         self.strokeColor = strokeColor

@@ -11,6 +11,7 @@ from videocode.constants import *
 
 
 class Polygon(Input):
+    cppName = "Polygon"
     cppAttrs = {
         "points",
         "fillColor",
@@ -28,8 +29,6 @@ class Polygon(Input):
         strokeWidth: wufloat,
         cornerRadius: percent,
     ):
-        self.meta.name = "Polygon"
-
         self.vertices = vertices
         self.fillColor = fillColor
         self.strokeColor = strokeColor
@@ -87,8 +86,12 @@ class Polygon(Input):
         for i in range(n):
             nxt = (i + 1) % n
             mid = ((arcEnd[i][0] + arcStart[nxt][0]) / 2, (arcEnd[i][1] + arcStart[nxt][1]) / 2)
-            bezier.append(arcStart[i])
-            bezier.append(rev[i])
-            bezier.append(arcEnd[i])
-            bezier.append(mid)
+            if r < 1e-9:
+                bezier.append(rev[i])
+                bezier.append(mid)
+            else:
+                bezier.append(arcStart[i])
+                bezier.append(rev[i])
+                bezier.append(arcEnd[i])
+                bezier.append(mid)
         return bezier

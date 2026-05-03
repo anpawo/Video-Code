@@ -235,6 +235,11 @@ struct MeshFactory
             }
         }
 
+        // Remove consecutive near-duplicate samples (produced by degenerate bezier segments).
+        auto dupEnd = std::unique(samples.begin(), samples.end(),
+            [](const cv::Vec2f& a, const cv::Vec2f& b) { return length2d(a - b) < 1e-4f; });
+        samples.erase(dupEnd, samples.end());
+
         if (samples.size() < 2) {
             return;
         }
@@ -295,12 +300,13 @@ struct MeshFactory
 
             if (insideOnly) {
                 // Inside stroke: solid strip from the shape boundary inward by strokeWidth.
-                // No inner expand — the fill polygon starts exactly at the inner edge,
-                // so no fade is needed there (SSAA handles the outer boundary edge).
+                // Outer vertex uv.x = halfW so the fragment shader places it at the clip
+                // threshold, giving AA at the polygon boundary edge. Inner vertex uv.x = 0
+                // (fully inside the stroke, covered by the fill — no fade needed there).
                 cv::Vec2f outerNdc = toNdcPoint(point);
                 cv::Vec2f innerNdc = toNdcPoint(point + step * 2.f * halfW);
-                mesh.vertices.push_back(Vertex{{outerNdc[0], outerNdc[1]}, {0.f, halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
-                mesh.vertices.push_back(Vertex{{innerNdc[0], innerNdc[1]}, {0.f, halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
+                mesh.vertices.push_back(Vertex{{outerNdc[0], outerNdc[1]}, {halfW, halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
+                mesh.vertices.push_back(Vertex{{innerNdc[0], innerNdc[1]}, {0.f,   halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
             } else {
                 // Centered stroke: ±halfW_expanded around the path centerline
                 cv::Vec2f negNdc = toNdcPoint(point - step * halfW_expanded);
