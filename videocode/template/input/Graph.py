@@ -2,6 +2,7 @@
 
 
 from videocode import *
+from videocode.input.offset.Offset import Offset
 
 
 class Graph(Group):
@@ -165,14 +166,14 @@ class GraphPoint(Group):
 
         if showTip:
             self.text = Offset(
+                i=Text(text=str(round(self.curve.f(self.curve.xs[0]), 2)), fillColor=WHITE, fontSize=0.2),
                 x=0,
                 y=0.60 * (1 if self.tipAbove else -1),
-                input=Text(text=str(round(self.curve.f(self.curve.xs[0]), 2)), fillColor=WHITE, fontSize=0.2),
             )
             self.tip = Offset(
+                i=VerticalLine(length=0.25, strokeWidth=0.025, fillColor=WHITE, rounded=True),
                 x=0,
                 y=0.30 * (1 if self.tipAbove else -1),
-                input=VerticalLine(length=0.25, strokeWidth=0.025, fillColor=WHITE, rounded=True),
             )
             self.addInput(self.text, self.tip)
 
@@ -180,6 +181,7 @@ class GraphPoint(Group):
         if self.showTip:
             self.text.y = 0.60 * (1 if self.tipAbove else -1)
             self.tip.y = 0.30 * (1 if self.tipAbove else -1)
+            self.position()
 
     @autoProp(updateTipPosition)
     def tipAbove(self) -> bool: ...
@@ -193,7 +195,7 @@ class GraphPoint(Group):
         x1 = self.curve.xs[0] if x1 is None else x1
         x2 = self.curve.xs[-1] if x2 is None else x2
 
-        r = CubicBezier.range(Easing.InOut, x1, x2, duration)
+        r = Easing.InOut.range(x1, x2, duration)
         o = v2(0, 0) if self.curve.parentGraph is None else self.curve.parentGraph.origin
 
         self.position(x=o.x + x1, y=o.y + self.curve.f(x1))

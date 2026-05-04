@@ -8,6 +8,7 @@
 #include "core/Core.hpp"
 
 #include <cstddef>
+#include <format>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -20,6 +21,7 @@
 #include "input/media/WebImage.hpp"
 // #include "input/media/Video.hpp"
 #include "utils/Exception.hpp"
+#include "utils/Logger.hpp"
 #include "window/VulkanWidget.hpp"
 
 VC::Core::Core(const argparse::ArgumentParser& parser, const Config& config)
@@ -75,9 +77,8 @@ std::string VC::Core::serializeScene()
 void VC::Core::executeStack()
 {
     for (auto& s : _stack) {
-        if (_showstack) {
-            std::cout << s << std::endl;
-        }
+        if (_showstack)
+            VC::Debug.logStack(s);
 
         if (s["action"] == "Create") {
             _inputs.push_back(Factory::inputs.at(s["type"])(s["args"]));

@@ -20,7 +20,6 @@ class position(VertexShader):
         self.y = y
 
     def modificator(self, i: Input):
-        # Update the position of the Input
         if self.x is not None:
             i.meta.position.x = self.x
         else:

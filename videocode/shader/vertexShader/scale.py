@@ -10,16 +10,11 @@ class scale(VertexShader):
     # TODO: a position where the scaling should take place from, it will move the input
     """
 
-    def __init__(
-        self,
-        x: maybe[number],
-        y: maybe[number],
-    ):
+    def __init__(self, x: maybe[number], y: maybe[number]):
         self.x = x
         self.y = y
 
     def modificator(self, i: Input):
-        # Update the scaling of the Input
         if self.x is not None:
             i.meta.scale.x = self.x
         else:

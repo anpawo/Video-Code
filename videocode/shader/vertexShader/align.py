@@ -11,12 +11,11 @@ class align(VertexShader):
     can be `None` if you only want to change one of the two.
     """
 
-    def __init__(self, x: number | None = None, y: number | None = None) -> None:
-        self.x: number | None = x
-        self.y: number | None = y
+    def __init__(self, x: maybe[number], y: maybe[number]) -> None:
+        self.x = x
+        self.y = y
 
     def modificator(self, i: Input):
-        # Update the alignment of the Input
         if self.x is not None:
             i.meta.align.x = self.x
         else:

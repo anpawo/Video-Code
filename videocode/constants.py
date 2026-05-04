@@ -60,14 +60,12 @@ RED         = rgba(255, 0, 0)
 GREEN       = rgba(0, 255, 0)
 BLUE        = rgba(0, 0, 255)
 
-LIGHT_RED   = rgba(255, 104, 104)
-LIGHT_GREEN = rgba(115, 255, 115)
-LIGHT_BLUE  = rgba(132, 204, 255)
+RED_A       = rgba("#FC6255")
+RED_B       = rgba("#ED7F7B")
 
-DARK_RED    = rgba(255, 37, 37)
-DARK_GREEN  = rgba(42, 255, 23)
-DARK_BLUE   = rgba(32, 50, 255)
+GREEN_A     = rgba("#9ADF8E")
 
-BLUE_A      = rgba("#58C4DD")
-RED_C       = rgba("#FC6255")
+BLUE_A      = rgba("#58C4DD") # light blue
+BLUE_B      = rgba("#0B142B") # very dark blue
+BLUE_C      = rgba("#69A5F1")
 # fmt: on

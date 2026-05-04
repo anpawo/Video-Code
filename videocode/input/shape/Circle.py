@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-from videocode.constants import RED_C, WHITE, rgba, wufloat
+from videocode.constants import RED_A, WHITE, rgba, wufloat
 from videocode.input.input import Input
 from videocode.ty import rgba, wufloat
 from videocode.utils.decorators import inputCreation
@@ -22,7 +22,7 @@ class Circle(Input):
     def __init__(
         self,
         radius: wufloat = 1,
-        fillColor: rgba = RED_C,
+        fillColor: rgba = RED_A,
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.05,
     ):
@@ -36,7 +36,7 @@ class Dot(Circle):
     def __init__(
         self,
         radius: float = 0.0375,
-        fillColor: rgba = RED_C,
+        fillColor: rgba = RED_A,
     ):
         super().__init__(
             radius=radius,

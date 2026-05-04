@@ -3,22 +3,21 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any, Self, cast
-from videocode.template.effect.fadeIn import fadeIn
-from videocode.template.effect.fadeOut import fadeOut
+from functools import singledispatchmethod
+from typing import Any, Generator, Self, cast
+from videocode.template.effect.alignTo import alignTo
+from videocode.template.effect.fadeTo import fadeTo
 from videocode.template.effect.moveTo import moveTo
-from videocode.template.effect.moveBy import moveBy
-from videocode.template.effect.scaleBy import scaleBy
+from videocode.template.effect.rotateTo import rotateTo
 from videocode.template.effect.scaleTo import scaleTo
-from videocode.shader.ishader import IShader, VertexShader, FragmentShader
+from videocode.shader.ishader import IShader, VertexShader
 from videocode.context import *
 from videocode.constants import *
-from videocode.utils.decorators import timed
 from videocode.utils.funcutils import *
 from videocode.shader.vertexShader.align import align
 from videocode.shader.vertexShader.args import args
 from videocode.shader.vertexShader.hide import hide
-from videocode.shader.vertexShader.rotate import rotate
+from videocode.shader.vertexShader.rotate import rotation
 from videocode.shader.vertexShader.scale import scale
 from videocode.shader.vertexShader.position import position
 from videocode.shader.vertexShader.show import show
@@ -77,13 +76,20 @@ class Input(ABC):
         return self
 
     def wait(self, n: sec) -> Self:
-        self.meta.transformationOffset = self.meta.lastAffectedFrame = int(n * FRAMERATE)
-        return self
+        self.meta.lastAffectedFrame += int(n * FRAMERATE)
+        return self.flush()
 
     def waitFor(self, i: Input) -> Self:
         return self.waitTo(i.meta.lastAffectedFrame)
 
-    def apply(self, *shaders: IShader, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)) -> Self:
+    @overload
+    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = 1) -> Self: ...
+
+    @overload
+    def apply(self, *shaders: tuple[IShader, sec, sec]) -> Self: ...
+
+    @singledispatchmethod
+    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = 1) -> Self:
         """
         Applies some `Transformations` to the `Input`.
 
@@ -95,8 +101,8 @@ class Input(ABC):
             self.meta.transformationOffset = self.meta.lastAffectedFrame = Context.waitOffset
 
         for s in shaders:
-            __start: int = int(getValueByPriority(s, start, "start") * FRAMERATE) + self.meta.transformationOffset
-            __duration: int = int(getValueByPriority(s, duration, "duration") * FRAMERATE)
+            __start: int = int(start * FRAMERATE) + self.meta.transformationOffset
+            __duration: int = int((s.duration if hasattr(s, "duration") else duration) * FRAMERATE)
 
             # Update lastEverAffectedFrame
             if Context.lastEverAffectedFrame < __start + __duration:
@@ -123,6 +129,12 @@ class Input(ABC):
 
         return self
 
+    @apply.register(tuple)
+    def _(self, *shaders: tuple[IShader, sec, sec]):
+        for s, start, duration in shaders:
+            self.apply(s, start=start, duration=duration)
+        return self
+
     ### Builtins ###
 
     def __enter__(self):
@@ -146,7 +158,7 @@ class Input(ABC):
                     return
         object.__setattr__(self, name, value)
 
-    def timedSetattr(self, name: str, value: Any, *, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)):
+    def timedSetattr(self, name: str, value: Any, *, start: sec = 0, duration: sec = 1):
         oldPendingSetattrStart = self.meta.pendingSetattrStart
         oldPendingSetattrDuration = self.meta.pendingSetattrDuration
         oldSetattrCallbackOn = self.meta.setattrCallbackOn
@@ -219,23 +231,23 @@ class Input(ABC):
 
     ### Transformations ###
 
-    def position(self, x: maybe[wint | wfloat] = None, y: maybe[wint | wfloat] = None) -> Self:
+    def position(self, x: maybe[wnumber] = None, y: maybe[wnumber] = None) -> Self:
         return self.apply(position(x, y))
+
+    def align(self, x: maybe[wnumber] = None, y: maybe[wnumber] = None) -> Self:
+        return self.apply(align(x, y))
+
+    def rotation(self, degree: number) -> Self:
+        return self.apply(rotation(degree))
 
     def scale(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None) -> Self:
         if factor is not None:
             x = factor
             y = factor
-        return self.apply(scale(x=x, y=y))
-
-    def rotate(self, degree: number) -> Self:
-        return self.apply(rotate(degree))
+        return self.apply(scale(x, y))
 
     def opacity(self, o: number) -> Self:
         return self.apply(opacity(o))
-
-    def align(self, x: maybe[number] = None, y: maybe[number] = None) -> Self:
-        return self.apply(align(x, y))
 
     def hide(self, start: sec = 0):
         return self.apply(hide(), start=start)
@@ -250,15 +262,16 @@ class Input(ABC):
         return self
 
     def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        moveBy(self, x=x, y=y, easing=easing, start=start, duration=duration)
+        p = self.meta.position
+        moveTo(self, x=(p.x + x) if x is not None else None, y=(p.y + y) if y is not None else None, easing=easing, start=start, duration=duration)
         return self
 
     def fadeIn(self, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        fadeIn(self, easing=easing, start=start, duration=duration)
+        fadeTo(self, src=0, dst=255, easing=easing, start=start, duration=duration)
         return self
 
     def fadeOut(self, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4, hide=False) -> Self:
-        fadeOut(self, easing=easing, start=start, duration=duration)
+        fadeTo(self, src=255, dst=0, easing=easing, start=start, duration=duration)
         if hide:
             return self.hide(start + duration)
         return self
@@ -274,5 +287,18 @@ class Input(ABC):
         if factor is not None:
             x = factor
             y = factor
-        scaleBy(self, x=x, y=y, easing=easing, start=start, duration=duration)
+        s = self.meta.scale
+        scaleTo(self, x=(s.x * x) if x is not None else None, y=(s.y * y) if y is not None else None, easing=easing, start=start, duration=duration)
+        return self
+
+    def rotateTo(self, degree: number, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+        rotateTo(self, degree=degree, easing=easing, start=start, duration=duration)
+        return self
+
+    def rotateBy(self, degree: number, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+        rotateTo(self, degree=self.meta.rotation + degree, easing=easing, start=start, duration=duration)
+        return self
+
+    def alignTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+        alignTo(self, x=self.meta.align.x if x is None else x, y=self.meta.align.y if y is None else y, easing=easing, start=start, duration=duration)
         return self

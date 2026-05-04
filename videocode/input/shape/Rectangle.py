@@ -12,7 +12,7 @@ class Rectangle(Polygon):
         self,
         width: wfloat = 5,
         height: wfloat = 3,
-        fillColor: rgba = DARK_BLUE,
+        fillColor: rgba = BLUE_B,
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.05,
         cornerRadius: percent = 0,  # percent 0-100, 100 = circle on a square
@@ -34,17 +34,17 @@ class Rectangle(Polygon):
         ]
 
     @autoProp(Polygon.updatePoints)
-    def width(self, value: wfloat): ...
+    def width() -> wfloat: ...
 
     @autoProp(Polygon.updatePoints)
-    def height(self, value: wfloat): ...
+    def height() -> wfloat: ...
 
 
 class Square(Rectangle):
     def __init__(
         self,
         side: wfloat = 4,
-        fillColor: rgba = DARK_BLUE,
+        fillColor: rgba = BLUE_B,
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.05,
         cornerRadius: float = 0,

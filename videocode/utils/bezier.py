@@ -61,6 +61,16 @@ class CubicBezier:
 
         return bezierRangeGenerator(self, start, end)
 
+    def rangeIdx(self, start: number, end: number, duration: sec):
+
+        def bezierRangeGenerator(bezier, start, end):
+            n = int(duration * FRAMERATE)
+            for i in range(0, n):
+                t = i / (n - 1) if n > 1 else 0.0
+                yield start + bezier(t) * (end - start), i
+
+        return bezierRangeGenerator(self, start, end)
+
 
 class Easing:
     Linear = CubicBezier(0.0, 0.0, 1.0, 1.0)

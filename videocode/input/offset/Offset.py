@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
 
 
-import copy
+import math
 
 
 from videocode.input.input import *
 from videocode.shader.vertexShader.position import position
+from videocode.shader.vertexShader.rotate import rotation
+from videocode.shader.vertexShader.scale import scale
 
 
 class Offset[T: Input](Input):
     """
-    An `Offset` offsets the position of the contained Input.
+    Wraps an input with a fixed local-frame offset `(x, y)` and rotation delta `r`.
+
+    The offset is expressed in the input's local coordinate frame: positive `x` moves
+    along the input's forward direction, positive `y` moves perpendicular (up at 0°).
+    When the input rotates, the offset rotates with it.
     """
 
     def __new__(cls, *args, **kwargs) -> Self:
@@ -18,70 +24,60 @@ class Offset[T: Input](Input):
         instance.meta = Metadata(interface=True)
         return instance
 
-    def __init__(self, x: wfloat, y: wfloat, input: T):
-        self.inputPosition = v2(*input.meta.position)
-        self.input: T = input
-        self.inputOffset = v2(x, y)
+    def __init__(self, i: T, x: wnumber = 0, y: wnumber = 0, r: wnumber = 0):
+        self.input: T = i
+        self.x = x
+        self.y = y
+        self.r = r
+        self._basePosition = v2(*i.meta.position)
+        self._baseRotation = i.meta.rotation
+        self._sync(start=0, duration=0)
 
-    @property
-    def x(self):
-        return self.inputOffset.x
-
-    @property
-    def y(self):
-        return self.inputOffset.y
-
-    @x.setter
-    def x(self, value: wnumber):
-        # Setter
-        self.inputOffset.x = value
-
-        # Shenanigans
-        self.input.apply(position(x=self.inputPosition.x + self.inputOffset.x))
-
-    @y.setter
-    def y(self, value: wnumber):
-        # Setter
-        self.inputOffset.y = value
-
-        # Shenanigans
-        self.input.apply(position(y=self.inputPosition.y + self.inputOffset.y))
+    def _sync(self, *, start: sec, duration: sec):
+        angle = math.radians(self._baseRotation)
+        lx = self.x * self.input.meta.scale.x
+        ly = -self.y * self.input.meta.scale.y  # negate: user +y = up, trig needs -ly
+        wx = self._basePosition.x + lx * math.cos(angle) - ly * math.sin(angle)
+        wy = self._basePosition.y - lx * math.sin(angle) - ly * math.cos(angle)
+        self.input.apply(
+            position(wx, wy),
+            rotation(self._baseRotation + self.r),
+            start=start,
+            duration=duration,
+        )
 
     def flush(self) -> Self:
         self.input.flush()
         return self
 
-    def apply(self, *shaders: IShader, start: defaultable[sec] = default(0), duration: defaultable[sec] = default(1)) -> Self:
-        """
-        Applies some `Transformations` to the `Input`.
+    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = 1) -> Self:
+        needs_sync = False
 
-        The `duration` is in `seconds`, so it will affect `duration * framerate` frames of the video.
-        """
+        for s in shaders:
+            if isinstance(s, position):
+                if s.x is not None:
+                    self._basePosition.x = s.x
+                    self.meta.position.x = s.x
+                if s.y is not None:
+                    self._basePosition.y = s.y
+                    self.meta.position.y = s.y
+                needs_sync = True
+            elif isinstance(s, rotation):
+                self._baseRotation = s.degree
+                needs_sync = True
+            elif isinstance(s, scale):
+                self.input.apply(s, start=start, duration=duration)
+                needs_sync = True
+            else:
+                self.input.apply(s, start=start, duration=duration)
 
-        def offsetPosition(s: IShader) -> IShader:
-            if type(s) == position:
-                s = copy.deepcopy(s)
-
-                if s.x is None:
-                    s.x = self.inputPosition.x
-                else:
-                    self.inputPosition.x = s.x
-                if s.y is None:
-                    s.y = self.inputPosition.y
-                else:
-                    self.inputPosition.y = s.y
-
-                s.x += self.inputOffset.x
-                s.y += self.inputOffset.y
-
-            return s
-
-        self.input.apply(*map(offsetPosition, shaders), start=start, duration=duration)
+        if needs_sync:
+            self._sync(start=start, duration=duration)
 
         return self
 
     def __str__(self) -> str:
-        return f"\nOffset p({self.inputPosition}), o({self.inputOffset}):\n({self.input})"
+        return f"\nOffset ({self.x}, {self.y}, r+{self.r}):\n{self.input}"
 
     def __repr__(self) -> str:
         return self.__str__()

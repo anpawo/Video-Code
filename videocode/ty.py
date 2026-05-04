@@ -6,6 +6,7 @@
 
 # alias
 from typing import Any, overload
+from typing_extensions import Self
 
 
 type int8 = int
@@ -151,18 +152,3 @@ class v2[T]:
 
     def __repr__(self) -> str:
         return str(self)
-
-
-class default[T]:
-    """
-    Default value to specify that a value is the default one and should be overriden by a given one.
-    """
-
-    def __init__(self, value: T) -> None:
-        self.value = value
-
-    def __str__(self) -> str:
-        return f"default({self.value})"
-
-
-type defaultable[T] = default[T] | T

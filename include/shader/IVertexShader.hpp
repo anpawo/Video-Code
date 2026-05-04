@@ -31,7 +31,7 @@ enum VertexShader {
     Align,
     Position,
     Scale,
-    Rotate,
+    Rotation,
     Opacity,
     Hide,
     Show,
@@ -46,7 +46,7 @@ const std::map<std::string, VertexShader> getTransformFromString = {
     {"Position", VertexShader::Position},
     {"Scale", VertexShader::Scale},
     {"Align", VertexShader::Align},
-    {"Rotate", VertexShader::Rotate},
+    {"Rotation", VertexShader::Rotation},
     {"Opacity", VertexShader::Opacity},
     {"Hide", VertexShader::Hide},
     {"Show", VertexShader::Show},
@@ -125,7 +125,7 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
             meta.scale.y = args.at("y");
             break;
         }
-        case Rotate: {
+        case Rotation: {
             meta.rotation = args.at("degree");
             break;
         }

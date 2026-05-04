@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 
+import functools
 import time
 
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Concatenate, ParamSpec, TypeVar
+
 from videocode.context import Context
 from videocode.utils.funcutils import upperFirst
 from videocode.utils.timeit import *
@@ -14,6 +16,9 @@ from videocode.utils.logger import *
 
 if TYPE_CHECKING:
     from videocode.input.input import Input
+
+P = ParamSpec("P")
+T = TypeVar("T", bound="Input")
 
 
 # Validators
@@ -71,12 +76,13 @@ class Checks:
         return True
 
 
-def inputCreation(f: Callable[..., None]):
+def inputCreation(f: Callable[Concatenate[T, P], None]) -> Callable[Concatenate[T, P], None]:
     """
     Automate the `Input` creation.
     """
 
-    def wrapper(self: "Input", *args, **kwargs):  # need the string type because autoCppAttrs would bug
+    @functools.wraps(f)
+    def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> None:
         # Input's init
         f(self, *args, **kwargs)
 
@@ -94,10 +100,11 @@ def inputCreation(f: Callable[..., None]):
         if Context.waitOffset > 0:
             self.show()  # add start ?
 
-    return wrapper
+    return wrapper  # type: ignore[return-value]
 
 
 def sandboxFlush(f):
+    @functools.wraps(f)
     def wrapper(self, *args, **kwargs):
         transformationOffset = self.meta.transformationOffset
         lastAffectedFrame = self.meta.lastAffectedFrame
@@ -113,6 +120,7 @@ def sandboxFlush(f):
 
 
 def setAttrOn(f):
+    @functools.wraps(f)
     def wrapper(self: Input, *args, **kwargs):
         setattrCallbackOn = self.meta.setattrCallbackOn
 
@@ -126,14 +134,15 @@ def setAttrOn(f):
     return wrapper
 
 
-def trackProps(initFunc, autoInit=True):
+def trackProps(initFunc: Callable[Concatenate[T, P], None], autoInit=True) -> Callable[Concatenate[T, P], None]:
     """
     Decorator that keeps track of the props of a class on creation.
 
     Also inits the props with the default value given in init if any.
     """
 
-    def wrapper(self, *args, **kwargs):
+    @functools.wraps(initFunc)
+    def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> None:
         self.meta.props = {name for cls in type(self).__mro__ for name, val in vars(cls).items() if isinstance(val, property)}
 
         # If False, the class does some shenanigans with the args before settings the attr.
@@ -156,26 +165,7 @@ def trackProps(initFunc, autoInit=True):
     return wrapper
 
 
-def autoProp(setterCallback=None):
-    """
-    Decorator that generates a property + setter for a given name.
-    """
-
-    def decorator(func):
-        attrName = func.__name__
-        privateName = f"_{attrName}"
-
-        def getter(self):
-            return getattr(self, privateName)
-
-        def setter(self, value):
-            object.__setattr__(self, privateName, value)
-            if setterCallback:
-                setterCallback(self)
-
-        return property(getter, setter)
-
-    return decorator
+from videocode.utils.decoratorsTyped import autoProp
 
 
 def timed(func):

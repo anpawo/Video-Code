@@ -2,11 +2,13 @@
 
 
 import math
+import random
 
 
-from videocode.template.input.Arrow import Arrow
+from videocode.template.effect.click import click
+from videocode.template.input.Arrow import Arrow, Arrow
 from videocode.template.input.Graph import *
-from videocode.template.input.Plane import Plane
+from videocode.template.input.Plane import Plane, SoftPlane
 from videocode.template.misc.chess.chessboard import ChessBoard
 from videocode import *
 
@@ -18,7 +20,9 @@ def example0():
     wait()
     example3().fadeOut()
     wait()
-    example4()
+    example4().fadeOut()
+    wait()
+    example5()
 
 
 def example1():
@@ -34,9 +38,9 @@ def example1():
     sqrRounded = Square(side=2, cornerRadius=30).position(x=1)
     triRandom = Triangle().position(x=4)
 
-    img = Offset(0, 0.5, Image("wb.png").position(x=-6.5))
+    img = Offset(Image("wb.png").position(x=-6.5), x=0, y=0.5)
     text = Text("Hello World", fontSize=0.75).position(x=-5.075)
-    triEqui = EquilateralTriangle(side=1, strokeColor=TRANSPARENT).position(x=0)
+    triEqui = EquilateralTriangle(side=1).position(x=0)
     triRight = RightTriangle(width=1, height=1).position(x=2)
     triEquiRounded = EquilateralTriangle(side=1, cornerRadius=30).position(x=4)
     arrow = Arrow().position(x=6.5, y=0.5)
@@ -89,14 +93,14 @@ def example3():
     """
     timestamp("Example #3: Game Dialogue")
 
-    s = HorizontalLine(length=0, strokeColor=WHITE, fillColor=DARK_BLUE | 0.5)
+    s = HorizontalLine(length=0, strokeColor=WHITE, fillColor=BLUE_B | 0.5)
     s.ease(s.ref.width, 6).flush()
     s.easeTogether(
         (s.ref.height, 2.5),
         (s.ref.cornerRadius, 15, Easing.Out),
         (s.ref.strokeWidth, 0.05, Easing.Out),
     ).flush()
-    s.ease(s.ref.fillColor, DARK_BLUE | 0.25, easing=Easing.Out).flush()
+    s.ease(s.ref.fillColor, BLUE_B | 0.25, easing=Easing.Out).flush()
 
     wait()
 
@@ -124,7 +128,7 @@ def example4():
     ).animate()
 
     # Update Function
-    for i in CubicBezier.range(Easing.Linear, 1, 30, duration=1):
+    for i in Easing.Linear.range(1, 30, duration=1):
         f.update(f=lambda x: math.cos(x * (1 + i / 15)), numPoints=int(100 * (1 + i / 10)))
 
     wait()
@@ -133,14 +137,84 @@ def example4():
     p = GraphPoint(f).fromTo(x2=math.pi, duration=3)
     p.tipAbove = False
 
+    wait(0.3)
+
+    # Wait for others doesnt work
     return Group(g, f, p).waitForOthers(updateContext=True)
 
 
 def example5():
     """
-    Chess animation.
+    Advanced Animation
     """
-    timestamp("Example #5: Chessboard")
+    timestamp("Example #5: Advanced Animation")
 
-    c = ChessBoard()
-    # c.play()
+    p = SoftPlane()
+
+    def makeArrows():
+        movement = 0.1
+        cycles = 50
+        circleSize = 1.5
+
+        def makeArrow(deg: float):
+            c = math.cos(math.radians(deg)) * circleSize
+            s = math.sin(math.radians(deg)) * circleSize
+            o = Offset(Arrow(0.75, cornerRadius=50), x=-c, y=-s, r=-deg)
+            for i in range(cycles):
+                sign = 1 if i % 2 == 0 else -1
+                o.moveBy(x=c * movement * sign, y=s * movement * sign, duration=0.5, easing=Easing.InOut).flush()
+            return o
+
+        return Group(*[makeArrow(deg) for deg in range(0, 360, 45)])
+
+    def makeButton():
+        button = Square(
+            side=1,
+            fillColor=RED_B | 0.75 | BLACK,
+            strokeColor=RED_B,
+            cornerRadius=30,
+            strokeWidth=0.025,
+        )
+        text = Text(text="Off", fillColor=RED_B, fontSize=0.35)
+        return Group(button, text)
+
+    def makeCursor():
+        cursor = (
+            Arrow(
+                fillColor=BLACK,
+                strokeColor=WHITE,
+                strokeWidth=0.0125,
+                bodyLength=0.05,
+                bodyWidth=0.1 * 0.2,
+                bodyInTip=0.015,
+                tipLength=0.15,
+                tipHeight=0.085,
+                cornerRadius=50,
+            )
+            .position(x=-1, y=-2)
+            .rotation(-112.5)
+            .align(x=1)
+            .moveTo(x=0.35, y=-0.35, duration=0.8)
+            .flush()
+            .wait(0.075)
+        )
+
+        cursor.apply(*click()).flush()
+
+        return cursor
+
+    arrows = makeArrows()
+    button = makeButton()
+    cursor = makeCursor()
+
+    return Group(p, arrows, button, cursor)
+
+
+# def example5():
+#     """
+#     Chess animation.
+#     """
+#     timestamp("Example #5: Chessboard")
+
+#     c = ChessBoard()
+#     # c.play()

@@ -25,11 +25,11 @@ class Metadata:
         # --- Align ---
         self.align: v2[number] = v2(0.5, 0.5)
 
-        # --- Scale ---
-        self.scale: v2[number] = v2(1, 1)
-
         # --- Rotation ---
         self.rotation: number = 0
+
+        # --- Scale ---
+        self.scale: v2[number] = v2(1, 1)
 
         # --- Opacity ---
         self.opacity: number = 255
@@ -56,11 +56,11 @@ class Metadata:
         """
         Setting an Attribute will trigger an `apply(args(attr))`
         """
-        self.pendingSetattrStart: defaultable[sec] = default(0)
+        self.pendingSetattrStart: sec = 0
         """
         Keep start through setattr.
         """
-        self.pendingSetattrDuration: defaultable[sec] = default(1)
+        self.pendingSetattrDuration: sec = 1
         """
         Keep duration through setattr.
         """
@@ -129,6 +129,6 @@ def timestamp(name: str) -> None:
         {
             "action": "Timestamp",
             "name": name,
-            "time": Context.waitOffset,
+            "time": Context.lastEverAffectedFrame,
         }
     )

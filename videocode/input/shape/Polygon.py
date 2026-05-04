@@ -8,6 +8,7 @@ from videocode.input.input import Input
 from videocode.utils.decorators import inputCreation, setAttrOn, autoProp, trackProps
 from videocode.ty import *
 from videocode.constants import *
+from videocode.utils.logger import DEBUG
 
 
 class Polygon(Input):
@@ -28,11 +29,13 @@ class Polygon(Input):
         strokeColor: rgba,
         strokeWidth: wufloat,
         cornerRadius: percent,
+        sharpCorners: set[int] | frozenset[int] = frozenset(),
     ):
         self.vertices = vertices
         self.fillColor = fillColor
         self.strokeColor = strokeColor
         self.strokeWidth = strokeWidth
+        self.sharpCorners = sharpCorners
         self.points = self.roundCorners()
 
     @abstractmethod
@@ -44,7 +47,7 @@ class Polygon(Input):
         self.points = self.roundCorners()
 
     @autoProp(updatePoints)
-    def cornerRadius(self, value: percent): ...
+    def cornerRadius(self) -> percent: ...
 
     def roundCorners(self) -> list[point]:
         """
@@ -76,7 +79,7 @@ class Polygon(Input):
             prev = (i - 1 + n) % n
             nxt = (i + 1) % n
             maxR = min(dist(rev[i], rev[prev]), dist(rev[i], rev[nxt])) * 0.5
-            r = frac * maxR
+            r = 0 if (n - 1 - i) in self.sharpCorners else frac * maxR
             uIn = unit(rev[i], rev[prev])
             uOut = unit(rev[i], rev[nxt])
             arcStart.append((rev[i][0] + uIn[0] * r, rev[i][1] + uIn[1] * r))
@@ -86,12 +89,8 @@ class Polygon(Input):
         for i in range(n):
             nxt = (i + 1) % n
             mid = ((arcEnd[i][0] + arcStart[nxt][0]) / 2, (arcEnd[i][1] + arcStart[nxt][1]) / 2)
-            if r < 1e-9:
-                bezier.append(rev[i])
-                bezier.append(mid)
-            else:
-                bezier.append(arcStart[i])
-                bezier.append(rev[i])
-                bezier.append(arcEnd[i])
-                bezier.append(mid)
+            bezier.append(arcStart[i])
+            bezier.append(rev[i])
+            bezier.append(arcEnd[i])
+            bezier.append(mid)
         return bezier

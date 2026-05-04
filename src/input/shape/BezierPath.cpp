@@ -7,6 +7,8 @@
 
 #include "input/shape/BezierPath.hpp"
 
+#include <mapbox/earcut.hpp>
+
 #include "vulkan/MeshFactory.hpp"
 
 BezierPath::BezierPath(json::object_t&& args)
@@ -79,25 +81,21 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         }
     }
 
-    // Fill triangulation — always occupies the full shape boundary.
+    // Fill triangulation — earcut handles non-convex polygons correctly.
     if (fillColor[3] > 0 && poly.size() >= 3) {
-        cv::Vec2f centroid{0.f, 0.f};
-        for (const auto& p : poly) centroid += p;
-        centroid *= (1.f / static_cast<float>(poly.size()));
+        std::vector<std::vector<std::array<float, 2>>> polygon(1);
+        polygon[0].reserve(poly.size());
+        for (const auto& p : poly)
+            polygon[0].push_back({p[0], p[1]});
 
-        uint16_t centerIdx = factory.vertexCount();
-        factory.addVertex(centroid[0], centroid[1], fillColor);
+        auto earIndices = mapbox::earcut<uint16_t>(polygon);
 
         uint16_t firstPolyIdx = factory.vertexCount();
         for (const auto& p : poly)
             factory.addVertex(p[0], p[1], fillColor);
 
-        size_t polySize = poly.size();
-        for (size_t i = 0; i < polySize; ++i) {
-            factory.mesh.indices.push_back(centerIdx);
-            factory.mesh.indices.push_back(firstPolyIdx + static_cast<uint16_t>(i));
-            factory.mesh.indices.push_back(firstPolyIdx + static_cast<uint16_t>((i + 1) % polySize));
-        }
+        for (auto idx : earIndices)
+            factory.mesh.indices.push_back(firstPolyIdx + idx);
     }
 
     // Stroke rendered on top of fill, extruded inward so it stays within the boundary.

@@ -4,17 +4,14 @@
 from videocode.shader.ishader import *
 
 
-class rotate(VertexShader):
+class rotation(VertexShader):
     """
-    `Rotate` by degree.
+    `Rotation` is set to degree.
 
     # TODO: a position where the rotation should take place from.
     """
 
-    def __init__(
-        self,
-        degree: number,
-    ):
+    def __init__(self, degree: number):
         self.degree = degree
 
     def modificator(self, i: Input):

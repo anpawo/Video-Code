@@ -11,8 +11,8 @@ if TYPE_CHECKING:
     from videocode.input.input import Input
 
 
-def scaleTo(input: Input, x: maybe[number] = None, y: maybe[number] = None, *, easing: easing = Easing.Linear, start: sec = 0, duration: sec = 0.4) -> None:
-    src = input.meta.scale
+def scaleTo(input: Input, x: maybe[number], y: maybe[number], *, easing: easing = Easing.Linear, start: sec = 0, duration: sec = 0.4) -> None:
+    src = v2(*input.meta.scale)
     dst = v2(x if x is not None else src.x, y if y is not None else src.y)
 
     def apply(m: number, i: int):
