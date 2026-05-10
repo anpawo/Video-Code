@@ -8,7 +8,6 @@
 #include "input/AInput.hpp"
 
 #include <cstddef>
-#include <iostream>
 
 #include "input/IInput.hpp"
 #include "input/Metadata.hpp"
@@ -54,6 +53,19 @@ void AInput::add(json& modification)
             _effectTimeline[i].push_back(effectIndex);
         }
     }
+}
+
+std::vector<ActiveEffect> AInput::getActiveEffectsAtFrame(size_t frame) const
+{
+    if (frame >= _effectTimeline.size())
+        return {};
+
+    std::vector<ActiveEffect> result;
+    for (size_t i : _effectTimeline[frame]) {
+        const IFragmentShader* e = _effects[i].get();
+        result.push_back({std::string(e->shaderName()), e->shaderParams()});
+    }
+    return result;
 }
 
 Metadata AInput::getMetadata(size_t index)

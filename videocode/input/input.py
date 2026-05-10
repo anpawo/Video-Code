@@ -83,7 +83,7 @@ class Input(ABC):
     def apply(self, *shaders: tuple[IShader, sec, sec]) -> Self: ...
 
     @singledispatchmethod
-    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = 1) -> Self:
+    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME) -> Self:
         """
         Applies some `Transformations` to the `Input`.
 

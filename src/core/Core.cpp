@@ -136,7 +136,10 @@ std::vector<Mesh> VC::Core::generateMeshes()
         for (auto& i : _inputs) {
             auto meta = i->getMetadata(renderIndex);
             if (!meta.hidden) {
-                _cachedMeshes.push_back(i->getMesh(meta, _config));
+                auto mesh = i->getMesh(meta, _config);
+                if (auto* a = dynamic_cast<AInput*>(i.get()))
+                    mesh.effects = a->getActiveEffectsAtFrame(renderIndex);
+                _cachedMeshes.push_back(std::move(mesh));
             }
         }
         _lastRenderedIndex = renderIndex;

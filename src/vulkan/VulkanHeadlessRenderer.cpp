@@ -7,6 +7,7 @@
 
 #include "vulkan/VulkanHeadlessRenderer.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstring>
 #include <fstream>
@@ -15,9 +16,10 @@
 #include <sstream>
 
 #include "vulkan/ShaderCompiler.hpp"
+#include "vulkan/Vertex.hpp"
 
 // ---------------------------------------------------------------------------
-// loadShaderSource — read GLSL from assets/shaders/quadraticBezier/
+// loadShaderSource — read GLSL from assets/shaders/{subfolder}/{filename}
 // ---------------------------------------------------------------------------
 
 static std::string loadShaderSource(const std::string& filename)
@@ -28,6 +30,78 @@ static std::string loadShaderSource(const std::string& filename)
     std::ostringstream ss;
     ss << f.rdbuf();
     return ss.str();
+}
+
+static std::string loadEffectShader(const std::string& folder, const std::string& file)
+{
+    std::string   path = std::string(SHADER_DIR) + "/" + folder + "/" + file;
+    std::ifstream f(path);
+    if (!f.is_open()) return {};
+    std::ostringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+// Push constants shared by all effect passes
+struct EffectPC {
+    float texelX;
+    float texelY;
+    float p[6];
+};
+
+// Explicit image memory barrier between effect passes.
+// More reliable than subpass external dependencies on MoltenVK / Metal.
+static void effectBarrier(VkCommandBuffer cb,
+    VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
+    VkImage image,
+    VkAccessFlags srcAccess, VkAccessFlags dstAccess,
+    VkImageLayout oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    VkImageLayout newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+{
+    VkImageMemoryBarrier b{};
+    b.sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    b.srcAccessMask       = srcAccess;
+    b.dstAccessMask       = dstAccess;
+    b.oldLayout           = oldLayout;
+    b.newLayout           = newLayout;
+    b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    b.image               = image;
+    b.subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    vkCmdPipelineBarrier(cb, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &b);
+}
+
+// Two-image barrier covering both RAW (written→read) and WAR (read→write) at the same point.
+static void effectBarrier2(VkCommandBuffer cb,
+    VkImage readImg,    // image that was the write target — now being made readable
+    VkImage writeImg)   // image that was the read source — now being made writable
+{
+    VkImageMemoryBarrier bs[2]{};
+    // RAW: previous COLOR_ATTACHMENT write → upcoming FRAGMENT_SHADER read
+    bs[0].sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    bs[0].srcAccessMask       = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    bs[0].dstAccessMask       = VK_ACCESS_SHADER_READ_BIT;
+    bs[0].oldLayout           = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    bs[0].newLayout           = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    bs[0].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bs[0].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bs[0].image               = readImg;
+    bs[0].subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    // WAR: previous FRAGMENT_SHADER read → upcoming COLOR_ATTACHMENT write
+    bs[1].sType               = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    bs[1].srcAccessMask       = VK_ACCESS_SHADER_READ_BIT;
+    bs[1].dstAccessMask       = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    bs[1].oldLayout           = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    bs[1].newLayout           = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    bs[1].srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bs[1].dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    bs[1].image               = writeImg;
+    bs[1].subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+
+    vkCmdPipelineBarrier(cb,
+        VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT | VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        0, 0, nullptr, 0, nullptr, 2, bs);
 }
 
 // ---------------------------------------------------------------------------
@@ -131,6 +205,7 @@ bool VC::VulkanHeadlessRenderer::init()
         std::cerr << "VulkanHeadlessRenderer::init: uploadTexture(white) failed\n";
         return false;
     }
+    STEP(createEffectResources())
 #undef STEP
     return true;
 }
@@ -735,10 +810,14 @@ void VC::VulkanHeadlessRenderer::setMeshes(const std::vector<Mesh>& meshes)
 {
     m_vertices.clear();
     m_indices.clear();
-    m_meshes    = meshes;
+    m_meshes = meshes;
     m_meshDrawInfos.clear();
+    m_normalMeshIndices.clear();
+    m_effectMeshIndices.clear();
 
-    for (const auto& mesh : meshes) {
+    for (size_t mi = 0; mi < meshes.size(); ++mi) {
+        const auto& mesh = meshes[mi];
+
         MeshDrawInfo info{};
         info.firstIndex = (uint32_t)m_indices.size();
         info.indexCount = (uint32_t)mesh.indices.size();
@@ -748,6 +827,11 @@ void VC::VulkanHeadlessRenderer::setMeshes(const std::vector<Mesh>& meshes)
         for (auto idx : mesh.indices)
             m_indices.push_back(offset + idx);
         m_meshDrawInfos.push_back(info);
+
+        if (mesh.effects.empty())
+            m_normalMeshIndices.push_back(mi);
+        else
+            m_effectMeshIndices.push_back(mi);
     }
     m_geomDirty = true;
 }
@@ -780,7 +864,60 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
     bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     vkBeginCommandBuffer(m_commandBuffer, &bi);
 
-    // ── Render pass → SSAA image ──────────────────────────────────────────
+    // ── Effect pre-passes (render-to-texture + GLSL effect) ───────────────
+    // Explicit pipeline barriers between passes are required for correct
+    // synchronization on MoltenVK / Metal, which may not honour subpass
+    // external dependencies reliably.
+    bool hasEffects = !m_effectMeshIndices.empty();
+    if (hasEffects) {
+        const auto& effects = m_meshes[m_effectMeshIndices[0]].effects;
+
+        recordEffectGeomPass(m_commandBuffer, m_pingFb);
+        // RAW: geom's write of ping → H-blur / single-pass read of ping
+        effectBarrier(m_commandBuffer,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            m_pingImage,
+            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+
+        for (const auto& eff : effects) {
+            std::string lower = eff.name;
+            std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+
+            if (lower == "blur") {
+                // H blur: ping → pong
+                recordEffectKernelPass(m_commandBuffer, m_pongFb, m_pingSrcSet,
+                    eff.name, 1.f / m_extent.width, 0.f, eff.params);
+                // RAW on pong + WAR on ping (H-blur wrote pong, read ping; V-blur reads pong, writes ping)
+                effectBarrier2(m_commandBuffer, m_pongImage, m_pingImage);
+
+                // V blur: pong → ping
+                recordEffectKernelPass(m_commandBuffer, m_pingFb, m_pongSrcSet,
+                    eff.name, 0.f, 1.f / m_extent.height, eff.params);
+                // RAW: V-blur's write of ping → composite read of ping
+                effectBarrier(m_commandBuffer,
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    m_pingImage,
+                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+            } else {
+                // ping → pong
+                recordEffectKernelPass(m_commandBuffer, m_pongFb, m_pingSrcSet,
+                    eff.name, 0.f, 0.f, eff.params);
+                effectBarrier2(m_commandBuffer, m_pongImage, m_pingImage);
+                // pong → ping
+                recordEffectKernelPass(m_commandBuffer, m_pingFb, m_pongSrcSet,
+                    eff.name, 0.f, 0.f, eff.params);
+                effectBarrier(m_commandBuffer,
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    m_pingImage,
+                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+            }
+        }
+    }
+
+    // ── Main SSAA render pass ─────────────────────────────────────────────
     VkClearValue clearColor = {{{0.2f, 0.2f, 0.2f, 1.0f}}};
     VkViewport   vp{0, 0, (float)m_ssaaExtent.width, (float)m_ssaaExtent.height, 0, 1};
     VkRect2D     sc{{0, 0}, m_ssaaExtent};
@@ -801,13 +938,14 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
 
     VkBuffer     vbufs[] = {m_vertexBuffer};
     VkDeviceSize offsets[] = {0};
-    vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, vbufs, offsets);
 
-    if (!m_indices.empty()) {
+    // Draw non-effect meshes
+    if (!m_normalMeshIndices.empty()) {
+        vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, vbufs, offsets);
         vkCmdBindIndexBuffer(m_commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
         vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTexSet, 0, nullptr);
 
-        for (size_t i = 0; i < m_meshes.size(); ++i) {
+        for (size_t i : m_normalMeshIndices) {
             const Mesh&         mesh = m_meshes[i];
             const MeshDrawInfo& info = m_meshDrawInfos[i];
             if (mesh.hasTexture && mesh.textureDescriptor != VK_NULL_HANDLE) {
@@ -818,6 +956,17 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
             vkCmdDrawIndexed(m_commandBuffer, info.indexCount, 1, info.firstIndex, 0, 0);
         }
     }
+
+    // Composite effect result (ping image) as a full-resolution textured quad.
+    // Transparent pixels in ping are invisible; only the processed input is visible.
+    if (hasEffects && m_compVtxBuf != VK_NULL_HANDLE) {
+        VkDeviceSize zero = 0;
+        vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, &m_compVtxBuf, &zero);
+        vkCmdBindIndexBuffer(m_commandBuffer, m_compIdxBuf, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_pingCompSet, 0, nullptr);
+        vkCmdDrawIndexed(m_commandBuffer, 6, 1, 0, 0, 0);
+    }
+
     vkCmdEndRenderPass(m_commandBuffer);
     // SSAA is now VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL (render pass finalLayout).
 
@@ -887,6 +1036,372 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
 }
 
 // ===========================================================================
+// createEffectResources — ping/pong images, effect render pass, pipelines
+// ===========================================================================
+
+static bool makeEffectImage(VkDevice device, VkPhysicalDevice /*physDev*/,
+    uint32_t w, uint32_t h,
+    VkImage& img, VkDeviceMemory& mem, VkImageView& view,
+    std::function<uint32_t(uint32_t, VkMemoryPropertyFlags)> findMem)
+{
+    VkImageCreateInfo ici{};
+    ici.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    ici.imageType     = VK_IMAGE_TYPE_2D;
+    ici.format        = VK_FORMAT_B8G8R8A8_UNORM;
+    ici.extent        = {w, h, 1};
+    ici.mipLevels     = 1;
+    ici.arrayLayers   = 1;
+    ici.samples       = VK_SAMPLE_COUNT_1_BIT;
+    ici.tiling        = VK_IMAGE_TILING_OPTIMAL;
+    ici.usage         = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    ici.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+    ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    if (vkCreateImage(device, &ici, nullptr, &img) != VK_SUCCESS) return false;
+
+    VkMemoryRequirements req;
+    vkGetImageMemoryRequirements(device, img, &req);
+    VkMemoryAllocateInfo ai{};
+    ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    ai.allocationSize  = req.size;
+    ai.memoryTypeIndex = findMem(req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (vkAllocateMemory(device, &ai, nullptr, &mem) != VK_SUCCESS) return false;
+    vkBindImageMemory(device, img, mem, 0);
+
+    VkImageViewCreateInfo ivci{};
+    ivci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    ivci.image            = img;
+    ivci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
+    ivci.format           = VK_FORMAT_B8G8R8A8_UNORM;
+    ivci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    return vkCreateImageView(device, &ivci, nullptr, &view) == VK_SUCCESS;
+}
+
+bool VC::VulkanHeadlessRenderer::createEffectResources()
+{
+    auto fm = [this](uint32_t f, VkMemoryPropertyFlags p) { return findMemoryType(f, p); };
+
+    // Ping/pong scratch images
+    if (!makeEffectImage(m_device, m_physicalDevice, m_extent.width, m_extent.height,
+            m_pingImage, m_pingMemory, m_pingView, fm)) return false;
+    if (!makeEffectImage(m_device, m_physicalDevice, m_extent.width, m_extent.height,
+            m_pongImage, m_pongMemory, m_pongView, fm)) return false;
+
+    // Effect render pass: transparent clear, SHADER_READ_ONLY_OPTIMAL final
+    {
+        VkAttachmentDescription att{};
+        att.format         = VK_FORMAT_B8G8R8A8_UNORM;
+        att.samples        = VK_SAMPLE_COUNT_1_BIT;
+        att.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        att.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+        att.stencilLoadOp  = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        att.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        att.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+        att.finalLayout    = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        VkAttachmentReference ref{0, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+
+        VkSubpassDescription sub{};
+        sub.pipelineBindPoint    = VK_PIPELINE_BIND_POINT_GRAPHICS;
+        sub.colorAttachmentCount = 1;
+        sub.pColorAttachments    = &ref;
+
+        VkSubpassDependency deps[2]{};
+        // RAW: colour-attachment writes must be visible to subsequent fragment-shader reads
+        deps[0].srcSubpass    = 0;
+        deps[0].dstSubpass    = VK_SUBPASS_EXTERNAL;
+        deps[0].srcStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        deps[0].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+        deps[0].dstStageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        deps[0].dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        // WAR: preceding fragment-shader reads must complete before colour-attachment writes begin.
+        // Without this, the V-blur pass's LOAD_OP_CLEAR can race with the H-blur pass still
+        // sampling the ping image, producing non-deterministic blur output.
+        deps[1].srcSubpass    = VK_SUBPASS_EXTERNAL;
+        deps[1].dstSubpass    = 0;
+        deps[1].srcStageMask  = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        deps[1].srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        deps[1].dstStageMask  = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        deps[1].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+        VkRenderPassCreateInfo rpci{};
+        rpci.sType           = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+        rpci.attachmentCount = 1;
+        rpci.pAttachments    = &att;
+        rpci.subpassCount    = 1;
+        rpci.pSubpasses      = &sub;
+        rpci.dependencyCount = 2;
+        rpci.pDependencies   = deps;
+        if (vkCreateRenderPass(m_device, &rpci, nullptr, &m_effectPass) != VK_SUCCESS)
+            return false;
+    }
+
+    // Framebuffers
+    auto makeFb = [&](VkImageView view, VkFramebuffer& fb) -> bool {
+        VkFramebufferCreateInfo fci{};
+        fci.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        fci.renderPass      = m_effectPass;
+        fci.attachmentCount = 1;
+        fci.pAttachments    = &view;
+        fci.width           = m_extent.width;
+        fci.height          = m_extent.height;
+        fci.layers          = 1;
+        return vkCreateFramebuffer(m_device, &fci, nullptr, &fb) == VK_SUCCESS;
+    };
+    if (!makeFb(m_pingView, m_pingFb)) return false;
+    if (!makeFb(m_pongView, m_pongFb)) return false;
+
+    // Sampler for effect source images
+    {
+        VkSamplerCreateInfo sci{};
+        sci.sType        = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+        sci.magFilter    = VK_FILTER_LINEAR;
+        sci.minFilter    = VK_FILTER_LINEAR;
+        sci.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sci.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sci.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+        sci.maxLod       = 0.f;
+        if (vkCreateSampler(m_device, &sci, nullptr, &m_effectSampler) != VK_SUCCESS)
+            return false;
+    }
+
+    // Allocate pingSrc, pongSrc (for effect pipeline set=0) and pingComp (main pipeline set=1)
+    // All use m_texLayout (binding=0 = combined image sampler)
+    auto allocAndWrite = [&](VkImageView view, VkDescriptorSet& set) -> bool {
+        VkDescriptorSetAllocateInfo ai{};
+        ai.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        ai.descriptorPool     = m_texPool;
+        ai.descriptorSetCount = 1;
+        ai.pSetLayouts        = &m_texLayout;
+        if (vkAllocateDescriptorSets(m_device, &ai, &set) != VK_SUCCESS) return false;
+
+        VkDescriptorImageInfo imgInfo{m_effectSampler, view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkWriteDescriptorSet  w{};
+        w.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        w.dstSet          = set;
+        w.dstBinding      = 0;
+        w.descriptorCount = 1;
+        w.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        w.pImageInfo      = &imgInfo;
+        vkUpdateDescriptorSets(m_device, 1, &w, 0, nullptr);
+        return true;
+    };
+    if (!allocAndWrite(m_pingView, m_pingSrcSet)) return false;
+    if (!allocAndWrite(m_pongView, m_pongSrcSet)) return false;
+    if (!allocAndWrite(m_pingView, m_pingCompSet)) return false;
+
+    // Try to compile pipelines for all registered shaders
+    createEffectPipeline("Blur");
+
+    // Static composite quad: fullscreen, mode=3 (textured), opacity=1
+    {
+        Vertex verts[4] = {
+            {{-1.f, -1.f}, {0.f, 0.f}, {0.f, 0.f, 0.f, 1.f}, {3.f, 0.f, 0.f, 0.f}},
+            {{ 1.f, -1.f}, {1.f, 0.f}, {0.f, 0.f, 0.f, 1.f}, {3.f, 0.f, 0.f, 0.f}},
+            {{ 1.f,  1.f}, {1.f, 1.f}, {0.f, 0.f, 0.f, 1.f}, {3.f, 0.f, 0.f, 0.f}},
+            {{-1.f,  1.f}, {0.f, 1.f}, {0.f, 0.f, 0.f, 1.f}, {3.f, 0.f, 0.f, 0.f}},
+        };
+        uint16_t idx[6] = {0, 1, 2, 0, 2, 3};
+
+        auto uploadStatic = [&](const void* data, VkDeviceSize sz, VkBufferUsageFlags usage,
+                                 VkBuffer& buf, VkDeviceMemory& mem) -> bool {
+            if (!makeBuffer(m_device, sz, usage, buf, mem, fm)) return false;
+            void* mapped;
+            vkMapMemory(m_device, mem, 0, sz, 0, &mapped);
+            memcpy(mapped, data, sz);
+            vkUnmapMemory(m_device, mem);
+            return true;
+        };
+
+        if (!uploadStatic(verts, sizeof(verts), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                          m_compVtxBuf, m_compVtxMem)) return false;
+        if (!uploadStatic(idx,   sizeof(idx),   VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                          m_compIdxBuf, m_compIdxMem)) return false;
+    }
+
+    return true;
+}
+
+bool VC::VulkanHeadlessRenderer::createEffectPipeline(const std::string& name)
+{
+    std::string lower = name;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+
+    auto vertSrc = loadEffectShader("effects", "vert.glsl");
+    auto fragSrc = loadEffectShader(lower, "frag.glsl");
+    if (vertSrc.empty() || fragSrc.empty()) return false;  // GLSL not found — skip silently
+
+    auto vertSpv = compileGLSL(vertSrc, VK_SHADER_STAGE_VERTEX_BIT);
+    auto fragSpv = compileGLSL(fragSrc, VK_SHADER_STAGE_FRAGMENT_BIT);
+    if (vertSpv.empty() || fragSpv.empty()) return false;
+
+    // Pipeline layout: set=0 = sampler (reuse m_texLayout), push constants = EffectPC
+    VkPushConstantRange pcRange{};
+    pcRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    pcRange.offset     = 0;
+    pcRange.size       = sizeof(EffectPC);
+
+    VkPipelineLayoutCreateInfo plci{};
+    plci.sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    plci.setLayoutCount         = 1;
+    plci.pSetLayouts            = &m_texLayout;
+    plci.pushConstantRangeCount = 1;
+    plci.pPushConstantRanges    = &pcRange;
+
+    EffectPipeline ep{};
+    if (vkCreatePipelineLayout(m_device, &plci, nullptr, &ep.layout) != VK_SUCCESS)
+        return false;
+
+    VkShaderModule vert = createShaderModule(vertSpv);
+    VkShaderModule frag = createShaderModule(fragSpv);
+
+    VkPipelineShaderStageCreateInfo stages[2]{};
+    stages[0] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT,   vert, "main", nullptr};
+    stages[1] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, frag, "main", nullptr};
+
+    // No vertex input — fullscreen quad driven by gl_VertexIndex
+    VkPipelineVertexInputStateCreateInfo vi{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+    VkPipelineInputAssemblyStateCreateInfo ia{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
+    ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    VkDynamicState dynStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+    VkPipelineDynamicStateCreateInfo dyn{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
+    dyn.dynamicStateCount = 2;
+    dyn.pDynamicStates    = dynStates;
+
+    VkPipelineViewportStateCreateInfo vs{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
+    vs.viewportCount = 1;
+    vs.scissorCount  = 1;
+
+    VkPipelineRasterizationStateCreateInfo rs{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
+    rs.polygonMode = VK_POLYGON_MODE_FILL;
+    rs.cullMode    = VK_CULL_MODE_NONE;
+    rs.frontFace   = VK_FRONT_FACE_CLOCKWISE;
+    rs.lineWidth   = 1.0f;
+
+    VkPipelineMultisampleStateCreateInfo ms{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
+    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
+
+    // Replace-blend: effect writes are self-contained, no scene-layer blending needed here
+    VkPipelineColorBlendAttachmentState blendA{};
+    blendA.blendEnable    = VK_FALSE;
+    blendA.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+                            VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
+
+    VkPipelineColorBlendStateCreateInfo blend{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
+    blend.attachmentCount = 1;
+    blend.pAttachments    = &blendA;
+
+    VkGraphicsPipelineCreateInfo gpci{};
+    gpci.sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    gpci.stageCount          = 2;
+    gpci.pStages             = stages;
+    gpci.pVertexInputState   = &vi;
+    gpci.pInputAssemblyState = &ia;
+    gpci.pViewportState      = &vs;
+    gpci.pRasterizationState = &rs;
+    gpci.pMultisampleState   = &ms;
+    gpci.pColorBlendState    = &blend;
+    gpci.pDynamicState       = &dyn;
+    gpci.layout              = ep.layout;
+    gpci.renderPass          = m_effectPass;
+
+    bool ok = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &gpci, nullptr, &ep.pipeline) == VK_SUCCESS;
+    vkDestroyShaderModule(m_device, vert, nullptr);
+    vkDestroyShaderModule(m_device, frag, nullptr);
+
+    if (!ok) {
+        vkDestroyPipelineLayout(m_device, ep.layout, nullptr);
+        return false;
+    }
+
+    m_effectPipelines[lower] = ep;
+    return true;
+}
+
+void VC::VulkanHeadlessRenderer::recordEffectGeomPass(VkCommandBuffer cb, VkFramebuffer fb)
+{
+    VkClearValue clear = {{{0.f, 0.f, 0.f, 0.f}}};
+    VkViewport   vp{0, 0, (float)m_extent.width, (float)m_extent.height, 0, 1};
+    VkRect2D     sc{{0, 0}, m_extent};
+
+    VkRenderPassBeginInfo rpi{};
+    rpi.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    rpi.renderPass        = m_effectPass;
+    rpi.framebuffer       = fb;
+    rpi.renderArea.extent = m_extent;
+    rpi.clearValueCount   = 1;
+    rpi.pClearValues      = &clear;
+
+    vkCmdBeginRenderPass(cb, &rpi, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdSetViewport(cb, 0, 1, &vp);
+    vkCmdSetScissor(cb, 0, 1, &sc);
+
+    // Reuse the main geometry pipeline (same format + sample count as m_effectPass)
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+    vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_uboSet, 0, nullptr);
+
+    VkDeviceSize zero = 0;
+    vkCmdBindVertexBuffers(cb, 0, 1, &m_vertexBuffer, &zero);
+    vkCmdBindIndexBuffer(cb, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTexSet, 0, nullptr);
+
+    for (size_t i : m_effectMeshIndices) {
+        const Mesh&         mesh = m_meshes[i];
+        const MeshDrawInfo& info = m_meshDrawInfos[i];
+        if (mesh.hasTexture && mesh.textureDescriptor != VK_NULL_HANDLE) {
+            vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &mesh.textureDescriptor, 0, nullptr);
+        } else {
+            vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTexSet, 0, nullptr);
+        }
+        vkCmdDrawIndexed(cb, info.indexCount, 1, info.firstIndex, 0, 0);
+    }
+
+    vkCmdEndRenderPass(cb);
+}
+
+void VC::VulkanHeadlessRenderer::recordEffectKernelPass(
+    VkCommandBuffer cb, VkFramebuffer fb,
+    VkDescriptorSet srcSet,
+    const std::string& name,
+    float texelX, float texelY,
+    const std::vector<float>& params)
+{
+    std::string lower = name;
+    std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+
+    auto it = m_effectPipelines.find(lower);
+    if (it == m_effectPipelines.end()) return;
+
+    VkClearValue clear = {{{0.f, 0.f, 0.f, 0.f}}};
+    VkViewport   vp{0, 0, (float)m_extent.width, (float)m_extent.height, 0, 1};
+    VkRect2D     sc{{0, 0}, m_extent};
+
+    VkRenderPassBeginInfo rpi{};
+    rpi.sType             = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    rpi.renderPass        = m_effectPass;
+    rpi.framebuffer       = fb;
+    rpi.renderArea.extent = m_extent;
+    rpi.clearValueCount   = 1;
+    rpi.pClearValues      = &clear;
+
+    vkCmdBeginRenderPass(cb, &rpi, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdSetViewport(cb, 0, 1, &vp);
+    vkCmdSetScissor(cb, 0, 1, &sc);
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, it->second.pipeline);
+    vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, it->second.layout, 0, 1, &srcSet, 0, nullptr);
+
+    EffectPC pc{};
+    pc.texelX = texelX;
+    pc.texelY = texelY;
+    for (size_t i = 0; i < std::min(params.size(), size_t(6)); i++)
+        pc.p[i] = params[i];
+    vkCmdPushConstants(cb, it->second.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(EffectPC), &pc);
+
+    vkCmdDraw(cb, 6, 1, 0, 0);  // fullscreen quad from gl_VertexIndex, no vertex buffer
+    vkCmdEndRenderPass(cb);
+}
+
+// ===========================================================================
 // cleanup
 // ===========================================================================
 
@@ -930,6 +1445,26 @@ void VC::VulkanHeadlessRenderer::cleanup()
     vkFreeMemory(m_device, m_vertexMemory, nullptr);
     vkDestroyBuffer(m_device, m_indexBuffer, nullptr);
     vkFreeMemory(m_device, m_indexMemory, nullptr);
+
+    // Effect resources
+    for (auto& [name, ep] : m_effectPipelines) {
+        vkDestroyPipeline(m_device, ep.pipeline, nullptr);
+        vkDestroyPipelineLayout(m_device, ep.layout, nullptr);
+    }
+    if (m_effectSampler) vkDestroySampler(m_device, m_effectSampler, nullptr);
+    if (m_effectPass)    vkDestroyRenderPass(m_device, m_effectPass, nullptr);
+    if (m_pingFb)        vkDestroyFramebuffer(m_device, m_pingFb, nullptr);
+    if (m_pongFb)        vkDestroyFramebuffer(m_device, m_pongFb, nullptr);
+    if (m_pingView)      vkDestroyImageView(m_device, m_pingView, nullptr);
+    if (m_pingImage)     vkDestroyImage(m_device, m_pingImage, nullptr);
+    if (m_pingMemory)    vkFreeMemory(m_device, m_pingMemory, nullptr);
+    if (m_pongView)      vkDestroyImageView(m_device, m_pongView, nullptr);
+    if (m_pongImage)     vkDestroyImage(m_device, m_pongImage, nullptr);
+    if (m_pongMemory)    vkFreeMemory(m_device, m_pongMemory, nullptr);
+    if (m_compVtxBuf)    vkDestroyBuffer(m_device, m_compVtxBuf, nullptr);
+    if (m_compVtxMem)    vkFreeMemory(m_device, m_compVtxMem, nullptr);
+    if (m_compIdxBuf)    vkDestroyBuffer(m_device, m_compIdxBuf, nullptr);
+    if (m_compIdxMem)    vkFreeMemory(m_device, m_compIdxMem, nullptr);
 
     vkDestroyDevice(m_device, nullptr);
     vkDestroyInstance(m_instance, nullptr);

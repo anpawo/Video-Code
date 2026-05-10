@@ -216,9 +216,16 @@ def example6():
     """
     timestamp("Example #6: Youtube Templates")
 
-    p = SoftPlane().fadeIn()
+    p = SoftPlane()
 
-    red = Button(width=1, height=1, text="Off", color=RED_B).apply(blur(10)).flush()
+    red = (
+        Button(width=1, height=1, text="Off", color=RED_B)
+        .apply(
+            # contrast(25),
+            # blur(5),
+        )
+        .flush()
+    )
 
 
 # def example5():

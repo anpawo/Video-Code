@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <functional>
 #include <map>
 #include <nlohmann/json.hpp>
 #include <string>
@@ -16,47 +17,45 @@
 using json = nlohmann::json;
 
 // -----------------------------------------------------------------------------
-// Transformations
+// Registered fragment shaders
 // -----------------------------------------------------------------------------
 
 #define SHADERS(X) \
-    X(Blur)
-// X(Grayscale)   \
-    // X(Opacity)     \
-    // X(Gamma)       \
-    // X(Grain)       \
-    // X(Brightness)  \
-    // X(Contrast)
+    X(Blur)        \
+    X(Grayscale)   \
+    X(Gamma)       \
+    X(Grain)       \
+    X(Brightness)  \
+    X(Contrast)
 
 // -------------------------------------------------------------------------
-// Function declaration
+// Generated class for each registered shader
 // -------------------------------------------------------------------------
-#define DECLARE_SHADERS(name)                              \
-    class name final : public IFragmentShader              \
-    {                                                      \
-    public:                                                \
-                                                           \
-        name(const json::object_t& args)                   \
-            : _start(args.at("start").get<size_t>())       \
-            , _duration(args.at("duration").get<size_t>()) \
-            , _args(args) {};                              \
-                                                           \
-        void render(cv::Mat&, size_t) const;               \
-                                                           \
-        size_t start() const { return _start; }            \
-                                                           \
-    private:                                               \
-                                                           \
-        const size_t _start;                               \
-        const size_t _duration;                            \
-                                                           \
-        const json::object_t _args;                        \
+#define DECLARE_SHADERS(name)                                               \
+    class name final : public IFragmentShader                               \
+    {                                                                       \
+    public:                                                                 \
+                                                                            \
+        name(const json::object_t& args)                                    \
+            : _start(args.at("start").get<size_t>())                        \
+            , _duration(args.at("duration").get<size_t>())                  \
+            , _args(args) {}                                                \
+                                                                            \
+        size_t                start() const override { return _start; }     \
+        std::string_view      shaderName() const override { return #name; } \
+        const json::object_t& args() const override { return _args; }       \
+                                                                            \
+    private:                                                                \
+                                                                            \
+        const size_t         _start;                                        \
+        const size_t         _duration;                                     \
+        const json::object_t _args;                                         \
     };
 
 SHADERS(DECLARE_SHADERS)
 
 // -------------------------------------------------------------------------
-// Map binding
+// Factory map: shader name → constructor
 // -------------------------------------------------------------------------
 
 #define BIND_SHADERS(name) \

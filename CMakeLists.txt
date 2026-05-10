@@ -128,14 +128,7 @@ set(SOURCES
     src/input/media/WebImage.cpp
     # src/input/media/Video.cpp
 
-    # --- Fragment Shaders ---
-    src/shader/Blur.cpp
-    # src/shader/Grayscale.cpp
-    # src/shader/Opacity.cpp
-    # src/shader/Gamma.cpp
-    # src/shader/Grain.cpp
-    # src/shader/Brightness.cpp
-    # src/shader/Contrast.cpp
+    # --- Fragment Shaders (GLSL-based, no C++ impl needed) ---
 )
 
 if(APPLE)

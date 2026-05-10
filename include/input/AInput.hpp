@@ -35,6 +35,12 @@ public:
 
     // -
 
+    // Returns the fragment shader effects active at the given frame index.
+    // Empty when no effect is scheduled at that frame.
+    std::vector<ActiveEffect> getActiveEffectsAtFrame(size_t frame) const;
+
+    // -
+
 protected:
 
     static cv::Vec4b colorFromJson(const json& c, uint8_t opacity)

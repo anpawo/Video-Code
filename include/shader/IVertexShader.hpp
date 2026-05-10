@@ -27,7 +27,7 @@ Transformations affect anything non pixel related in an Input
 
 */
 
-enum VertexShader {
+enum class VertexShader {
     Align,
     Position,
     Scale,
@@ -44,13 +44,13 @@ enum VertexShader {
 
 const std::map<std::string, VertexShader> getTransformFromString = {
     {"Position", VertexShader::Position},
-    {"Scale", VertexShader::Scale},
-    {"Align", VertexShader::Align},
+    {"Scale",    VertexShader::Scale},
+    {"Align",    VertexShader::Align},
     {"Rotation", VertexShader::Rotation},
-    {"Opacity", VertexShader::Opacity},
-    {"Hide", VertexShader::Hide},
-    {"Show", VertexShader::Show},
-    {"Args", VertexShader::Args},
+    {"Opacity",  VertexShader::Opacity},
+    {"Hide",     VertexShader::Hide},
+    {"Show",     VertexShader::Show},
+    {"Args",     VertexShader::Args},
 };
 
 inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size2f& size, const Metadata& meta)
@@ -107,41 +107,41 @@ inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size2f& size, c
 inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Metadata& meta)
 {
     switch (t) {
-        case __End: {
+        case VertexShader::__End: {
             throw Error("Impossible __End Transform.");
         }
-        case Align: {
+        case VertexShader::Align: {
             meta.align.x = args.at("x");
             meta.align.y = args.at("y");
             break;
         }
-        case Position: {
+        case VertexShader::Position: {
             meta.position.x = config::screenOffset.x + args.at("x").get<float>() * config::worldToPixelRatio;
             meta.position.y = config::screenOffset.y - args.at("y").get<float>() * config::worldToPixelRatio;
             break;
         }
-        case Scale: {
+        case VertexShader::Scale: {
             meta.scale.x = args.at("x");
             meta.scale.y = args.at("y");
             break;
         }
-        case Rotation: {
+        case VertexShader::Rotation: {
             meta.rotation = args.at("degree");
             break;
         }
-        case Opacity: {
+        case VertexShader::Opacity: {
             meta.opacity = args.at("opacity");
             break;
         }
-        case Hide: {
+        case VertexShader::Hide: {
             meta.hidden = true;
             break;
         }
-        case Show: {
+        case VertexShader::Show: {
             meta.hidden = false;
             break;
         }
-        case Args: {
+        case VertexShader::Args: {
             meta.args[args.at("name")] = args.at("value");
             break;
         }

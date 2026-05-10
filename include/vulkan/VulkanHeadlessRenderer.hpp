@@ -9,6 +9,8 @@
 
 #include <vulkan/vulkan.h>
 #include <opencv2/core/mat.hpp>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "vulkan/Mesh.hpp"
@@ -65,7 +67,7 @@ namespace VC
         VkImage        m_readbackImage  = VK_NULL_HANDLE;
         VkDeviceMemory m_readbackMemory = VK_NULL_HANDLE;
 
-        // ── Render pass / pipeline ────────────────────────────────────────────
+        // ── Main render pass / pipeline ───────────────────────────────────────
         VkRenderPass     m_renderPass     = VK_NULL_HANDLE;
         VkFramebuffer    m_framebuffer    = VK_NULL_HANDLE;
         VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
@@ -111,6 +113,44 @@ namespace VC
         std::vector<uint16_t>     m_indices;
         bool                      m_geomDirty = false;
 
+        // ── Per-frame partitioned mesh indices ────────────────────────────────
+        std::vector<size_t> m_normalMeshIndices;  // meshes with no active effects
+        std::vector<size_t> m_effectMeshIndices;  // meshes with active effects
+
+        // ── Effect (fragment shader) post-process infrastructure ──────────────
+
+        // Render pass: transparent clear, SHADER_READ_ONLY_OPTIMAL final (1 sample)
+        VkRenderPass  m_effectPass    = VK_NULL_HANDLE;
+
+        // Ping/pong scratch images at output resolution (SAMPLED + COLOR_ATTACHMENT)
+        VkImage        m_pingImage   = VK_NULL_HANDLE;
+        VkDeviceMemory m_pingMemory  = VK_NULL_HANDLE;
+        VkImageView    m_pingView    = VK_NULL_HANDLE;
+        VkImage        m_pongImage   = VK_NULL_HANDLE;
+        VkDeviceMemory m_pongMemory  = VK_NULL_HANDLE;
+        VkImageView    m_pongView    = VK_NULL_HANDLE;
+        VkFramebuffer  m_pingFb      = VK_NULL_HANDLE;
+        VkFramebuffer  m_pongFb      = VK_NULL_HANDLE;
+
+        // Sampler + descriptor sets for ping/pong source reads and composite
+        VkSampler       m_effectSampler = VK_NULL_HANDLE;
+        VkDescriptorSet m_pingSrcSet    = VK_NULL_HANDLE; // effect pipeline set=0 → ping
+        VkDescriptorSet m_pongSrcSet    = VK_NULL_HANDLE; // effect pipeline set=0 → pong
+        VkDescriptorSet m_pingCompSet   = VK_NULL_HANDLE; // main pipeline   set=1 → ping
+
+        // Per-effect GLSL pipeline (keyed by lowercase shader name)
+        struct EffectPipeline {
+            VkPipelineLayout layout   = VK_NULL_HANDLE;
+            VkPipeline       pipeline = VK_NULL_HANDLE;
+        };
+        std::unordered_map<std::string, EffectPipeline> m_effectPipelines;
+
+        // Static fullscreen composite quad (Vertex format, mode=3)
+        VkBuffer       m_compVtxBuf = VK_NULL_HANDLE;
+        VkDeviceMemory m_compVtxMem = VK_NULL_HANDLE;
+        VkBuffer       m_compIdxBuf = VK_NULL_HANDLE;
+        VkDeviceMemory m_compIdxMem = VK_NULL_HANDLE;
+
         // ── Init helpers ──────────────────────────────────────────────────────
         bool createInstance();
         bool pickPhysicalDevice();
@@ -124,6 +164,7 @@ namespace VC
         bool createGeometryBuffers();
         bool createCommandPool();
         bool createCommandBuffer();
+        bool createEffectResources();
 
         // ── Vulkan utilities ──────────────────────────────────────────────────
         uint32_t       findMemoryType(uint32_t filter, VkMemoryPropertyFlags props);
@@ -131,6 +172,16 @@ namespace VC
         void           transitionImageLayout(VkImage image, VkImageLayout from, VkImageLayout to);
         void           copyBufferToImage(VkBuffer buf, VkImage image, uint32_t w, uint32_t h);
         void           updateUniforms();
+
+        bool           createEffectPipeline(const std::string& name);
+
+        // ── Effect pass recording helpers ─────────────────────────────────────
+        void recordEffectGeomPass(VkCommandBuffer cb, VkFramebuffer fb);
+        void recordEffectKernelPass(VkCommandBuffer cb, VkFramebuffer fb,
+                                    VkDescriptorSet srcSet,
+                                    const std::string& name,
+                                    float texelX, float texelY,
+                                    const std::vector<float>& params);
 
         void cleanup();
     };

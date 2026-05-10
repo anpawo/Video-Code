@@ -11,6 +11,8 @@
 
 #include <QWidget>
 #include <functional>
+#include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <opencv2/core/mat.hpp>
@@ -231,6 +233,52 @@ namespace VC
         std::vector<uint16_t>     m_indices;
         bool                      m_geomDirty = false;
 
+        // ── Per-frame partitioned mesh indices ────────────────────────────
+        std::vector<size_t> m_normalMeshIndices;
+        std::vector<size_t> m_effectMeshIndices;
+
+        // ── Effect post-process infrastructure ────────────────────────────
+        VkRenderPass   m_effectPass   = VK_NULL_HANDLE;  // 1× kernel pass
+        VkRenderPass   m_effectGeomPass = VK_NULL_HANDLE; // 4× MSAA → resolve to ping
+        VkImage        m_pingImage    = VK_NULL_HANDLE;
+        VkDeviceMemory m_pingMemory   = VK_NULL_HANDLE;
+        VkImageView    m_pingView     = VK_NULL_HANDLE;
+        VkImage        m_pongImage    = VK_NULL_HANDLE;
+        VkDeviceMemory m_pongMemory   = VK_NULL_HANDLE;
+        VkImageView    m_pongView     = VK_NULL_HANDLE;
+        VkFramebuffer  m_pingFb       = VK_NULL_HANDLE;
+        VkFramebuffer  m_pongFb       = VK_NULL_HANDLE;
+        VkFramebuffer  m_effectGeomFb = VK_NULL_HANDLE;  // [msaaView, pingView]
+        VkImage        m_effectMsaaImage  = VK_NULL_HANDLE;
+        VkDeviceMemory m_effectMsaaMemory = VK_NULL_HANDLE;
+        VkImageView    m_effectMsaaView   = VK_NULL_HANDLE;
+        VkSampler      m_effectSampler = VK_NULL_HANDLE;
+        VkDescriptorSet m_pingSrcSet  = VK_NULL_HANDLE;
+        VkDescriptorSet m_pongSrcSet  = VK_NULL_HANDLE;
+        VkDescriptorSet m_pingCompSet = VK_NULL_HANDLE;
+
+        // 4× MSAA geometry pipeline for effect ping pass
+        VkPipeline m_effectGeomPipeline = VK_NULL_HANDLE;
+
+        struct EffectPipeline {
+            VkPipelineLayout layout   = VK_NULL_HANDLE;
+            VkPipeline       pipeline = VK_NULL_HANDLE;
+        };
+        std::unordered_map<std::string, EffectPipeline> m_effectPipelines;
+
+        VkBuffer       m_compVtxBuf = VK_NULL_HANDLE;
+        VkDeviceMemory m_compVtxMem = VK_NULL_HANDLE;
+        VkBuffer       m_compIdxBuf = VK_NULL_HANDLE;
+        VkDeviceMemory m_compIdxMem = VK_NULL_HANDLE;
+
+        bool createEffectResources();
+        bool createEffectPipeline(const std::string& name);
+        void recordEffectGeomPass(VkCommandBuffer cb);
+        void recordEffectKernelPass(VkCommandBuffer cb, VkFramebuffer fb,
+                                    VkDescriptorSet srcSet,
+                                    const std::string& name,
+                                    float texelX, float texelY,
+                                    const std::vector<float>& params);
 
         // ── Frame callback ────────────────────────────────────────────────
         std::function<std::vector<Mesh>()> m_frameCallback;

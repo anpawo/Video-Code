@@ -2,27 +2,36 @@
 ** EPITECH PROJECT, 2025
 ** video-code
 ** File description:
-** Input
+** IFragmentShader
 */
 
 #pragma once
 
 #include <nlohmann/json.hpp>
-#include <opencv2/core/mat.hpp>
+#include <string_view>
+#include <vector>
 
-/*
-
-Shaders affect anything pixel related in an Input
-
-*/
+using json = nlohmann::json;
 
 struct IFragmentShader
 {
     virtual ~IFragmentShader() = default;
 
-    ///< Offset of the index
     virtual size_t start() const = 0;
 
-    ///< The index only matters for effects over time, e.g. fadeIn.
-    virtual void render(cv::Mat&, size_t) const = 0;
+    // The class name used to find the GLSL file: "Blur" → assets/shaders/blur/frag.glsl
+    virtual std::string_view shaderName() const = 0;
+
+    virtual const json::object_t& args() const = 0;
+
+    // Ordered floats from args (excluding start/duration). Passed as pc.p[] to the GLSL shader.
+    std::vector<float> shaderParams() const
+    {
+        std::vector<float> out;
+        for (const auto& [k, v] : args()) {
+            if (k != "start" && k != "duration" && v.is_number())
+                out.push_back(v.get<float>());
+        }
+        return out;
+    }
 };
