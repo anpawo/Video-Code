@@ -29,7 +29,7 @@ namespace VC
         const char*       color;
         std::ostream&     out;
 
-        Logger(std::string prefix, const char* color, std::ostream& out = std::cerr)
+        Logger(std::string prefix, const char* color, std::ostream& out = std::cout)
             : prefix(std::move(prefix)), color(color), out(out)
         {
         }

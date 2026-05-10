@@ -16,12 +16,9 @@ class align(VertexShader):
         self.y = y
 
     def modificator(self, i: Input):
-        if self.x is not None:
-            i.meta.align.x = self.x
-        else:
+        if self.x is None:
             self.x = i.meta.align.x
-
-        if self.y is not None:
-            i.meta.align.y = self.y
-        else:
+        if self.y is None:
             self.y = i.meta.align.y
+
+        i.meta.align = v2(self.x, self.y)

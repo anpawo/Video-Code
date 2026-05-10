@@ -2,9 +2,10 @@
 
 
 from __future__ import annotations
+from copy import deepcopy
 from abc import ABC, abstractmethod
 from functools import singledispatchmethod
-from typing import Any, Generator, Self, cast
+from typing import Any, Callable, Self, cast
 from videocode.template.effect.alignTo import alignTo
 from videocode.template.effect.fadeTo import fadeTo
 from videocode.template.effect.moveTo import moveTo
@@ -24,7 +25,7 @@ from videocode.shader.vertexShader.show import show
 from videocode.shader.vertexShader.opacity import opacity
 from videocode.utils.bezier import animate, CubicBezier, Easing
 from videocode.utils.logger import *
-from videocode.utils.reference import Reference
+from videocode.utils.classutils import AttributeNameReference, Maybe
 
 
 class Input(ABC):
@@ -32,29 +33,22 @@ class Input(ABC):
     An `Input` is a source that you want to add to the timeline of the video.
 
     It can be an `Image`, a `Video`, a `Shape`, some `Text` etc...
-
-    Example:
-    .. code-block:: python
-        def image(filepath: str) -> Input: ...
-        def video(filepath: str) -> Input: ...
-        def text(string: str) -> Input: ...
-        def circle(radius: int) -> Input: ...
     """
 
-    """
-    Name of the Input.
-    """
     cppName: str
+    """
+    Cpp Name of the Input.
+    """
 
+    cppAttrs: set[str]
     """
     Attributes to pass to the cpp.
     """
-    cppAttrs: set[str]
 
+    meta: Metadata = cast(Metadata, None)
     """
     Metadata of the `Input`.
     """
-    meta: Metadata
 
     def __new__(cls, *args, **kwargs) -> Self:
         instance = super().__new__(cls)
@@ -72,8 +66,8 @@ class Input(ABC):
         return self
 
     def waitTo(self, n: frame) -> Self:
-        self.meta.transformationOffset = self.meta.lastAffectedFrame = n
-        return self
+        self.meta.lastAffectedFrame = n
+        return self.flush()
 
     def wait(self, n: sec) -> Self:
         self.meta.lastAffectedFrame += int(n * FRAMERATE)
@@ -98,11 +92,12 @@ class Input(ABC):
 
         # If a `wait()` happens, any input should be flushed before applying any new effect.
         if Context.waitOffset >= self.meta.transformationOffset:
-            self.meta.transformationOffset = self.meta.lastAffectedFrame = Context.waitOffset
+            self.waitTo(Context.waitOffset)
 
-        for s in shaders:
-            __start: int = int(start * FRAMERATE) + self.meta.transformationOffset
-            __duration: int = int((s.duration if hasattr(s, "duration") else duration) * FRAMERATE)
+        # Do not modify the initial shaders.
+        for s in deepcopy(shaders):
+            __start = int(start * FRAMERATE) + self.meta.transformationOffset
+            __duration = int((s.duration if hasattr(s, "duration") else duration) * FRAMERATE)
 
             # Update lastEverAffectedFrame
             if Context.lastEverAffectedFrame < __start + __duration:
@@ -116,22 +111,22 @@ class Input(ABC):
             if isinstance(s, VertexShader):
                 s.modificator(self)
 
+            # Round floats to 6 decimals
+            args = {k: round(v, 6) if isinstance(v, float) else v for k, v in vars(s).items()}
+            args |= {"start": __start, "duration": __duration}
+
             # Add step to the stack
-            Context.stack.append(
-                {
-                    "action": "Apply",
-                    "input": self.meta.index,
-                    "name": upperFirst(s.__class__.__name__),
-                    "type": s._type,
-                    "args": vars(s) | {"start": __start} | {"duration": __duration},
-                }
-            )
+            Context.apply(self.meta.index, upperFirst(s.__class__.__name__), s._type, args)
+
+            # Callbacks
+            for callback in self.meta.callbacks.get(type(s), []):
+                callback(s, __start * SINGLE_FRAME, __duration * SINGLE_FRAME)
 
         return self
 
     @apply.register(tuple)
     def _(self, *shaders: tuple[IShader, sec, sec]):
-        for s, start, duration in shaders:
+        for s, start, duration in deepcopy(shaders):
             self.apply(s, start=start, duration=duration)
         return self
 
@@ -147,18 +142,16 @@ class Input(ABC):
 
     def __setattr__(self, name: str, value: Any) -> None:
         # Modifications should affect the cpp
-        if hasattr(self, "meta") and self.meta.setattrCallbackOn:
-
+        if hasattr(self, "meta") and self.meta is not None and self.meta.setattrCallbackOn:
             # attr isnt a property
             if not name in self.meta.props:
-
                 # attr is an attr that the cpp care about
                 if name in self.cppAttrs:
                     self.apply(args(name, value), start=self.meta.pendingSetattrStart, duration=self.meta.pendingSetattrDuration)
                     return
         object.__setattr__(self, name, value)
 
-    def timedSetattr(self, name: str, value: Any, *, start: sec = 0, duration: sec = 1):
+    def set(self, name: attrName, value: Any, *, start: sec = 0, duration: sec = 1):
         oldPendingSetattrStart = self.meta.pendingSetattrStart
         oldPendingSetattrDuration = self.meta.pendingSetattrDuration
         oldSetattrCallbackOn = self.meta.setattrCallbackOn
@@ -180,7 +173,7 @@ class Input(ABC):
 
         def _apply(m: number, indexOffset: int):
             val = src + (dst - src) * m
-            self.timedSetattr(attributeName, val, start=start + indexOffset * SF, duration=0)
+            self.set(attributeName, val, start=start + indexOffset * SF, duration=0)
 
         animate(duration, easing, _apply)
         return self
@@ -209,21 +202,28 @@ class Input(ABC):
                 m = easingFunc(t)
                 val = src + (dst - src) * m
 
-                self.timedSetattr(attr, val, start=start + i * SF, duration=0)
+                self.set(attr, val, start=start + i * SF, duration=0)
 
         return self
 
     @property
     def ref(self) -> Self:
         """
-        Reference To Prevent String Missmatch
+        Reference to prevent string missmatch
         """
-        return cast(Self, Reference(self))
+        return cast(Self, AttributeNameReference(self))
+
+    def addCallback(self, shaderType: type[IShader], callback: Callable[[IShader, sec, sec], None]) -> None:
+        """
+        Track an Input's Shaders and react by doing something else.
+        """
+        if self.meta.callbacks.get(shaderType) is None:
+            self.meta.callbacks[shaderType] = [callback]
+        else:
+            self.meta.callbacks[shaderType].append(callback)
 
     def __str__(self) -> str:
-        s = f"\n{self.__class__.__name__}:\n"
-        for k, v in self.__dict__.items():
-            s += f"\t{k}={v}\n"
+        s = f"{self.__class__.__name__}"
         return s
 
     def __repr__(self) -> str:
@@ -263,7 +263,14 @@ class Input(ABC):
 
     def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         p = self.meta.position
-        moveTo(self, x=(p.x + x) if x is not None else None, y=(p.y + y) if y is not None else None, easing=easing, start=start, duration=duration)
+        moveTo(
+            self,
+            x=Maybe(x).map(lambda v: p.x + v).get(),
+            y=Maybe(y).map(lambda v: p.y + v).get(),
+            easing=easing,
+            start=start,
+            duration=duration,
+        )
         return self
 
     def fadeIn(self, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
@@ -288,7 +295,14 @@ class Input(ABC):
             x = factor
             y = factor
         s = self.meta.scale
-        scaleTo(self, x=(s.x * x) if x is not None else None, y=(s.y * y) if y is not None else None, easing=easing, start=start, duration=duration)
+        scaleTo(
+            self,
+            x=Maybe(x).map(lambda v: s.x + v).get(),
+            y=Maybe(y).map(lambda v: s.y + v).get(),
+            easing=easing,
+            start=start,
+            duration=duration,
+        )
         return self
 
     def rotateTo(self, degree: number, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
@@ -300,5 +314,12 @@ class Input(ABC):
         return self
 
     def alignTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        alignTo(self, x=self.meta.align.x if x is None else x, y=self.meta.align.y if y is None else y, easing=easing, start=start, duration=duration)
+        alignTo(
+            self,
+            x=Maybe(x) | self.meta.align.x,
+            y=Maybe(y) | self.meta.align.y,
+            easing=easing,
+            start=start,
+            duration=duration,
+        )
         return self

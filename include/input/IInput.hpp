@@ -33,8 +33,4 @@ public:
     // -
 
     virtual Metadata getMetadata(size_t index) = 0;
-
-    // -
-
-    virtual void delayAppearance() = 0;
 };

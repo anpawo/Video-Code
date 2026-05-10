@@ -55,6 +55,7 @@ TRANSPARENT = rgba(000, 000, 000, 0)
 WHITE       = rgba(255, 255, 255)
 BLACK       = rgba(000, 000, 000)
 GRAY        = WHITE | BLACK
+GRAY_10     = rgba(10, 10, 10)
 
 RED         = rgba(255, 0, 0)
 GREEN       = rgba(0, 255, 0)

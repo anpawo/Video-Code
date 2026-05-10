@@ -66,8 +66,3 @@ Metadata AInput::getMetadata(size_t index)
 
     return meta;
 }
-
-void AInput::delayAppearance()
-{
-    _metas[0].hidden = true;
-}

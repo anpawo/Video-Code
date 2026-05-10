@@ -1346,7 +1346,7 @@ void VC::VulkanWidget::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageInd
     vkBeginCommandBuffer(cb, &bi);
 
     VkClearValue clearValues[2]{};
-    clearValues[0] = {{{0.2f, 0.2f, 0.2f, 1.0f}}}; // MSAA attachment clear
+    clearValues[0] = {{{0.2f, 0.2f, 0.2f, 1.0f}}}; // MSAA attachment clear # Color
     // clearValues[1] unused (resolve attachment has loadOp=DONT_CARE)
 
     VkViewport vp{0, 0, (float)m_swapExtent.width, (float)m_swapExtent.height, 0, 1};
@@ -1451,7 +1451,7 @@ cv::Mat VC::VulkanWidget::readFrame()
 
     // ── Render pass → MSAA resolve image ─────────────────────────────────
     VkClearValue clearValues[2]{};
-    clearValues[0] = {{{0.2f, 0.2f, 0.2f, 1.0f}}};
+    clearValues[0] = {{{0.2f, 0.2f, 0.2f, 1.0f}}}; // # Color
     VkViewport   vp{0, 0, (float)m_swapExtent.width, (float)m_swapExtent.height, 0, 1};
     VkRect2D     sc{{0, 0}, m_swapExtent};
 

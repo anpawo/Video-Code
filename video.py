@@ -5,7 +5,7 @@ from videocode.template.misc.example.marius import *
 from videocode import *
 
 # --- Marius' Test (Do not remove, just comment it, you should try it also)
-example5()
+example6()
 
 
 # p = Plane()

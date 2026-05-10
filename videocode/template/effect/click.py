@@ -11,7 +11,7 @@ def click(
     low=0.85,
     up=1.0,
     start: sec = 0,
-    duration: sec = 0.4,
+    duration: sec = 0.2,
     easing=Easing.InOut,
 ):
 
@@ -20,8 +20,10 @@ def click(
 
     def generator():
         for s, i in easing.rangeIdx(up, low, half):
+            # shader, start, duration
             yield scale(s, s), start + i * SINGLE_FRAME, SINGLE_FRAME
         for s, i in easing.rangeIdx(low, up, half):
+            # shader, start, duration
             yield scale(s, s), start + (i + n) * SINGLE_FRAME, SINGLE_FRAME
 
     return generator()

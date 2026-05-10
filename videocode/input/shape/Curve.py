@@ -32,7 +32,6 @@ class Curve(Input):
         self.strokeColor = strokeColor
         self.strokeWidth = strokeWidth
 
-    # sandboxFlush
     @setAttrOn
     def animate(self, duration: sec = 0.4, easing=Easing.InOut) -> Self:
         allPoints = list(self.points)

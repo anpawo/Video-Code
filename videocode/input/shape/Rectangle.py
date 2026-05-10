@@ -2,7 +2,7 @@
 
 
 from videocode.input.shape.Polygon import *
-from videocode.utils.decorators import autoProp, trackProps
+from videocode.utils.decorators import trackProps, prop
 from videocode.utils.logger import *
 
 
@@ -10,11 +10,11 @@ class Rectangle(Polygon):
     @trackProps
     def __init__(
         self,
-        width: wfloat = 5,
-        height: wfloat = 3,
-        fillColor: rgba = BLUE_B,
-        strokeColor: rgba = WHITE,
-        strokeWidth: wufloat = 0.05,
+        width: wunumber = 5,
+        height: wunumber = 3,
+        fillColor: rgba = BLUE_C | BLACK,
+        strokeColor: rgba = BLUE_C | WHITE,
+        strokeWidth: wunumber = 0.05,
         cornerRadius: percent = 0,  # percent 0-100, 100 = circle on a square
     ):
         super().__init__(
@@ -33,20 +33,20 @@ class Rectangle(Polygon):
             (0, self.height),
         ]
 
-    @autoProp(Polygon.updatePoints)
-    def width() -> wfloat: ...
+    @prop(onSet=Polygon.updatePoints)
+    def width() -> wunumber: ...
 
-    @autoProp(Polygon.updatePoints)
-    def height() -> wfloat: ...
+    @prop(onSet=Polygon.updatePoints)
+    def height() -> wunumber: ...
 
 
 class Square(Rectangle):
     def __init__(
         self,
-        side: wfloat = 4,
-        fillColor: rgba = BLUE_B,
-        strokeColor: rgba = WHITE,
-        strokeWidth: wufloat = 0.05,
+        side: wunumber = 4,
+        strokeWidth: wunumber = 0.05,
+        fillColor: rgba = GREEN_A | BLACK,
+        strokeColor: rgba = GREEN_A | WHITE,
         cornerRadius: float = 0,
     ):
         super().__init__(
@@ -66,8 +66,8 @@ class HorizontalLine(Rectangle):
 
     def __init__(
         self,
-        length: wfloat = 3,
-        strokeWidth: wufloat = 0.025,
+        length: wunumber = 3,
+        strokeWidth: wunumber = 0.025,
         fillColor: rgba = BLUE_A,
         strokeColor: rgba = TRANSPARENT,
         rounded: bool = True,
@@ -77,9 +77,17 @@ class HorizontalLine(Rectangle):
             height=strokeWidth,
             fillColor=fillColor,
             strokeColor=strokeColor,
-            strokeWidth=strokeWidth / 3,
+            strokeWidth=strokeWidth / 3,  # TODO: fix this shit
             cornerRadius=100 if rounded else 0,
         )
+
+    @property
+    def length(self):
+        return self.width
+
+    @length.setter
+    def length(self, value: wnumber):
+        self.width = value
 
 
 class VerticalLine(Rectangle):
@@ -89,8 +97,8 @@ class VerticalLine(Rectangle):
 
     def __init__(
         self,
-        length: wfloat = 3,
-        strokeWidth: wufloat = 0.025,
+        length: wunumber = 3,
+        strokeWidth: wunumber = 0.025,
         fillColor: rgba = BLUE_A,
         strokeColor: rgba = TRANSPARENT,
         rounded: bool = True,
@@ -103,3 +111,11 @@ class VerticalLine(Rectangle):
             strokeWidth=strokeWidth / 3,
             cornerRadius=100 if rounded else 0,
         )
+
+    @property
+    def length(self):
+        return self.height
+
+    @length.setter
+    def length(self, value: wnumber):
+        self.height = value

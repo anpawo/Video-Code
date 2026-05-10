@@ -12,10 +12,6 @@ from videocode.context import *
 from videocode import *
 
 
-def makeSerializable(o):
-    return o.makeSerializable()
-
-
 def serializeScene(filepath: str) -> str:
     """
     Serialiaze a file representing a `Scene`.
@@ -35,7 +31,7 @@ def serializeScene(filepath: str) -> str:
     g = Context()
 
     # Serialize the instructions to JSON
-    return json.dumps(g.stack, default=makeSerializable)
+    return json.dumps(g.stack, default=lambda x: x.jsonSerialization())
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 def alignTo(input: Input, x: maybe[wnumber], y: maybe[wnumber], *, easing: easing = Easing.Linear, start: sec = 0, duration: sec = 0.4) -> None:
     src = v2(*input.meta.align)
-    dst = v2(x if x is not None else src.x, y if y is not None else src.y)
+    dst = v2(Maybe(x) | src.x, Maybe(y) | src.y)
 
     def apply(m: number, i: int):
         px = src.x + (dst.x - src.x) * m

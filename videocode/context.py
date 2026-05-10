@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
 
-from typing import TYPE_CHECKING, Any
+from abc import abstractmethod
+from typing import TYPE_CHECKING, Any, Callable
 from videocode.constants import *
+from videocode.utils.funcutils import upperFirst
 
 
 if TYPE_CHECKING:
     from videocode.input.input import Input
+    from videocode.shader.ishader import VertexShader, IShader
 
 
 class Metadata:
@@ -17,19 +20,19 @@ class Metadata:
 
         Groups do not have an index (they are just python wrapper)
         """
-        self.index: maybe[int] = None if interface else Context.getIndex()
+        self.index: int = -1 if interface else Context.getIndex()
 
         # --- Position ---
-        self.position: v2[number] = v2(0, 0)
+        self.position: v2 = v2(0, 0)
 
         # --- Align ---
-        self.align: v2[number] = v2(0.5, 0.5)
+        self.align: v2 = v2(0.5, 0.5)
 
         # --- Rotation ---
         self.rotation: number = 0
 
         # --- Scale ---
-        self.scale: v2[number] = v2(1, 1)
+        self.scale: v2 = v2(1, 1)
 
         # --- Opacity ---
         self.opacity: number = 255
@@ -65,6 +68,9 @@ class Metadata:
         Keep duration through setattr.
         """
 
+        # --- Callbacks ---
+        self.callbacks: dict[type[IShader], list[Callable[[IShader, sec, sec], None]]] = {}
+
         # --- Property Attributes ---
         self.props: set[str] = set()
 
@@ -75,13 +81,54 @@ class Metadata:
         return s
 
 
+class StackAction:
+
+    @abstractmethod
+    def __init__(self): ...
+
+    def __str__(self) -> str:
+        return str(vars(self))
+
+    def jsonSerialization(self):
+        return vars(self)
+
+
+class Create(StackAction):
+    def __init__(self, inputType: str, inputArgs: dict[str, Any]):
+        self.action = self.__class__.__name__
+        self.type = inputType
+        self.args = inputArgs
+
+
+class Apply(StackAction):
+    def __init__(self, inputIndex: int, shaderName: str, shaderType: str, shaderArgs: dict[str, Any]):
+        self.action = self.__class__.__name__
+        self.input = inputIndex
+        self.name = shaderName
+        self.type = shaderType
+        self.args = shaderArgs
+
+
+class Wait(StackAction):
+    def __init__(self, numberOfFrame: int):
+        self.action = self.__class__.__name__
+        self.n = numberOfFrame
+
+
+class Timestamp(StackAction):
+    def __init__(self, name: str, time: int):
+        self.action = self.__class__.__name__
+        self.name = name
+        self.time = time
+
+
 class Context:
     """
     Context containing the `Metadata` of the `Scene`.
     """
 
     # Represents the steps to generate the video.
-    stack: list[dict[str, Any]] = []
+    stack: list[StackAction] = []
 
     # Index of the next `Input`
     inputCounter: int = 0
@@ -97,11 +144,13 @@ class Context:
         Context.inputCounter += 1
         return Context.inputCounter - 1
 
-    def __str__(self) -> str:
-        return f"Stack={self.stack}"
+    @staticmethod
+    def create(inputType: str, inputArgs: dict[str, Any]):
+        Context.stack.append(Create(inputType, inputArgs))
 
-    def __repr__(self) -> str:
-        return str(self)
+    @staticmethod
+    def apply(inputIndex: int, shaderName: str, shaderType: str, shaderArgs: dict[str, Any]):
+        Context.stack.append(Apply(inputIndex, shaderName, shaderType, shaderArgs))
 
 
 def wait(n: sec = 0) -> None:
@@ -113,22 +162,11 @@ def wait(n: sec = 0) -> None:
     n = int(n * FRAMERATE)
 
     # Python
-    Context.waitOffset = Context.lastEverAffectedFrame + n
+    Context.waitOffset = Context.lastEverAffectedFrame = max(Context.lastEverAffectedFrame, Context.waitOffset) + n
 
     # Cpp
-    Context.stack.append(
-        {
-            "action": "Wait",
-            "n": n,
-        },
-    )
+    Context.stack.append(Wait(n))
 
 
 def timestamp(name: str) -> None:
-    Context.stack.append(
-        {
-            "action": "Timestamp",
-            "name": name,
-            "time": Context.lastEverAffectedFrame,
-        }
-    )
+    Context.stack.append(Timestamp(name, Context.lastEverAffectedFrame))

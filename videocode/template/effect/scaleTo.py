@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 def scaleTo(input: Input, x: maybe[number], y: maybe[number], *, easing: easing = Easing.Linear, start: sec = 0, duration: sec = 0.4) -> None:
     src = v2(*input.meta.scale)
-    dst = v2(x if x is not None else src.x, y if y is not None else src.y)
+    dst = v2(Maybe(x) | src.x, Maybe(y) | src.y)
 
     def apply(m: number, i: int):
         sx = src.x + (dst.x - src.x) * m

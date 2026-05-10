@@ -42,8 +42,8 @@ using v2f = v2<float>;
 
 namespace config
 {
-    inline v2f screen{1920.0f, 1080.0f};
-    inline v2f screenOffset{screen.w() / 2.0f, screen.h() / 2.0f};
+    inline v2f   screen{1920.0f, 1080.0f};
+    inline v2f   screenOffset{screen.w() / 2.0f, screen.h() / 2.0f};
     inline float worldToPixelRatio = 120.f;
 };
 

@@ -6,20 +6,11 @@
 
 from videocode.input.input import *
 
-# Camera | Currently Unavailable
-# from videocode.input.camera.Camera import *
-
-# External Inputs
 from videocode.input.media._medias import *
-
-# Shapes
 from videocode.input.shape._shapes import *
 
-# Text
 from videocode.input.text.Text import *
 
-# Group
+from videocode.input.interface.Interface import *
 from videocode.input.group.Group import *
-
-# Dummy
-from videocode.input.dummy.Dummy import *
+from videocode.input.offset.Offset import *

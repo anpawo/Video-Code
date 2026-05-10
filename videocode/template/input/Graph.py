@@ -3,6 +3,7 @@
 
 from videocode import *
 from videocode.input.offset.Offset import Offset
+from videocode.utils.classutils import Maybe
 
 
 class Graph(Group):
@@ -134,7 +135,7 @@ class Graph(Group):
         )
 
 
-class FirstQuadrant(Graph):
+class PositiveGraph(Graph):
     def __init__(
         self,
         xRange: tuple[int, int] = (-1, WORLD_WIDTH // 2),
@@ -157,9 +158,6 @@ class GraphPoint(Group):
         self.showTip = showTip
 
         self.curve = curve
-        self.tip: dummy[Offset[VerticalLine]] = Dummy()
-        self.text: dummy[Offset[Text]] = Dummy()
-
         super().__init__(
             Group(Circle(0.09, fillColor=WHITE, strokeColor=BLACK, strokeWidth=0.015)),
         )
@@ -183,8 +181,8 @@ class GraphPoint(Group):
             self.tip.y = 0.30 * (1 if self.tipAbove else -1)
             self.position()
 
-    @autoProp(updateTipPosition)
-    def tipAbove(self) -> bool: ...
+    @prop(onSet=updateTipPosition)
+    def tipAbove() -> bool: ...
 
     def fadeInIfHidden(self):
         if not self.tipAppeared:
@@ -192,20 +190,21 @@ class GraphPoint(Group):
             self.fadeIn(duration=0.2)
 
     def fromTo(self, x1: maybe[float] = None, x2: maybe[float] = None, duration: sec = 2) -> Self:
-        x1 = self.curve.xs[0] if x1 is None else x1
-        x2 = self.curve.xs[-1] if x2 is None else x2
+        x1 = Maybe(x1) | self.curve.xs[0]
+        x2 = Maybe(x2) | self.curve.xs[-1]
 
         r = Easing.InOut.range(x1, x2, duration)
-        o = v2(0, 0) if self.curve.parentGraph is None else self.curve.parentGraph.origin
+        o = Maybe(self.curve.parentGraph).map(lambda g: g.origin).orElse(v2(0, 0))
 
         self.position(x=o.x + x1, y=o.y + self.curve.f(x1))
         self.fadeInIfHidden()
         self.flush()
 
-        with self.text.input:
-            for x in r:
-                y = self.curve.f(x)
-                self.text.input.text = str(round(y, 2))
-                self.position(x=o.x + x, y=o.y + y).flush()
+        for x in r:
+            y = self.curve.f(x)
+            if self.showTip:
+                with self.text.i:
+                    self.text.i.text = str(round(y, 2))
+            self.position(x=o.x + x, y=o.y + y).flush()
 
         return self

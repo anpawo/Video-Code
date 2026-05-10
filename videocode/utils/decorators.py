@@ -5,136 +5,49 @@ import functools
 import time
 
 
-from typing import TYPE_CHECKING, Callable, Concatenate, ParamSpec, TypeVar
-
+from typing import TYPE_CHECKING, Callable, Concatenate, Generic, ParamSpec, TypeVar
+from typing_extensions import Self
+from videocode.constants import SINGLE_FRAME
 from videocode.context import Context
-from videocode.utils.funcutils import upperFirst
-from videocode.utils.timeit import *
 from videocode.ty import *
+from videocode.utils.funcutils import upperFirst
 from videocode.utils.logger import *
+from videocode.shader.vertexShader.hide import hide
 
 
 if TYPE_CHECKING:
     from videocode.input.input import Input
 
-P = ParamSpec("P")
-T = TypeVar("T", bound="Input")
+
+_P = ParamSpec("_P")
+_T = TypeVar("_T", bound="Input")
 
 
-# Validators
-class Checks:
-
-    def __getitem__(self, x: str) -> Callable:
-        # Should define types as classes.
-        if "'" in x:
-            x = x.split("'")[1]
-        return self.__getattribute__(x)
-
-    @staticmethod
-    def uint(x: int):
-        """positive integer"""
-        if x < 0:
-            return False
-        return True
-
-    @staticmethod
-    def wuint(x: int):
-        """positive integer"""
-        if x < 0:
-            return False
-        return True
-
-    @staticmethod
-    def uint8(x: int):
-        if x < 0 or x > 255:
-            return False
-        return True
-
-    @staticmethod
-    def ufloat(x: float):
-        if x < 0:
-            return False
-        return True
-
-    @staticmethod
-    def wufloat(x: float):
-        if x < 0:
-            return False
-        return True
-
-    @staticmethod
-    def rgba(c: rgba):
-        return Checks.uint8(c.r) and Checks.uint8(c.g) and Checks.uint8(c.b) and Checks.uint8(c.a)
-
-    @staticmethod
-    def bool(x):
-        return isinstance(x, bool)
-
-    # Nothing
-    @staticmethod
-    def str(x):
-        return True
-
-
-def inputCreation(f: Callable[Concatenate[T, P], None]) -> Callable[Concatenate[T, P], None]:
+def inputCreation(f: Callable[Concatenate[_T, _P], None]) -> Callable[Concatenate[_T, _P], None]:
     """
     Automate the `Input` creation.
     """
 
     @functools.wraps(f)
-    def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> None:
+    def wrapper(self: _T, *args: _P.args, **kwargs: _P.kwargs) -> None:
         # Input's init
         f(self, *args, **kwargs)
 
         # Generate the stack creation
-        Context.stack.append(
-            {
-                "action": "Create",
-                "type": self.cppName,
-                "args": {k: v for k, v in self.__dict__.items() if k in self.cppAttrs},
-                "hide": Context.waitOffset > 0,
-            },
+        Context.create(
+            inputType=self.cppName,
+            inputArgs={k: v for k, v in self.__dict__.items() if k in self.cppAttrs},
         )
 
         # If created mid-timeline (after a flush), hide until the current offset
         if Context.waitOffset > 0:
-            self.show()  # add start ?
-
-    return wrapper  # type: ignore[return-value]
-
-
-def sandboxFlush(f):
-    @functools.wraps(f)
-    def wrapper(self, *args, **kwargs):
-        transformationOffset = self.meta.transformationOffset
-        lastAffectedFrame = self.meta.lastAffectedFrame
-
-        result = f(self, *args, **kwargs)
-
-        self.meta.transformationOffset = transformationOffset
-        self.meta.lastAffectedFrame = lastAffectedFrame
-
-        return result
+            Context.apply(self.meta.index, upperFirst(hide.__name__), hide._type, {"start": 0, "duration": hide.duration})
+            self.waitTo(Context.waitOffset).show()
 
     return wrapper
 
 
-def setAttrOn(f):
-    @functools.wraps(f)
-    def wrapper(self: Input, *args, **kwargs):
-        setattrCallbackOn = self.meta.setattrCallbackOn
-
-        self.meta.setattrCallbackOn = True
-        result = f(self, *args, **kwargs)
-
-        self.meta.setattrCallbackOn = setattrCallbackOn
-
-        return result
-
-    return wrapper
-
-
-def trackProps(initFunc: Callable[Concatenate[T, P], None], autoInit=True) -> Callable[Concatenate[T, P], None]:
+def trackProps(initFunc: Callable[Concatenate[_T, _P], None], autoInit=True) -> Callable[Concatenate[_T, _P], None]:
     """
     Decorator that keeps track of the props of a class on creation.
 
@@ -142,8 +55,8 @@ def trackProps(initFunc: Callable[Concatenate[T, P], None], autoInit=True) -> Ca
     """
 
     @functools.wraps(initFunc)
-    def wrapper(self: T, *args: P.args, **kwargs: P.kwargs) -> None:
-        self.meta.props = {name for cls in type(self).__mro__ for name, val in vars(cls).items() if isinstance(val, property)}
+    def wrapper(self: _T, *args: _P.args, **kwargs: _P.kwargs) -> None:
+        self.meta.props = {name for cls in type(self).__mro__ for name, val in vars(cls).items() if isinstance(val, (property, prop, autoProp))}
 
         # If False, the class does some shenanigans with the args before settings the attr.
         if autoInit:
@@ -165,18 +78,84 @@ def trackProps(initFunc: Callable[Concatenate[T, P], None], autoInit=True) -> Ca
     return wrapper
 
 
-from videocode.utils.decoratorsTyped import autoProp
+def setAttrOn(f):
+    @functools.wraps(f)
+    def wrapper(self: Input, *args, **kwargs):
+        setattrCallbackOn = self.meta.setattrCallbackOn
 
+        self.meta.setattrCallbackOn = True
+        result = f(self, *args, **kwargs)
 
-def timed(func):
-    def wrapper(*args, **kwargs):
-        start = time.perf_counter()
-        result = func(*args, **kwargs)
-        elapsed = time.perf_counter() - start
-        DEBUG.log(f"[TIMED] {func.__qualname__}: {elapsed:.6f}s")
+        self.meta.setattrCallbackOn = setattrCallbackOn
+
         return result
 
     return wrapper
+
+
+_CLASS_T = TypeVar("_CLASS_T")
+_ATTR1_T = TypeVar("_ATTR1_T")
+_ATTR2_T = TypeVar("_ATTR2_T")
+
+
+class prop(Generic[_CLASS_T, _ATTR1_T]):
+    @overload
+    def __init__(self, *, onSet: Callable[[Any], None]) -> None: ...
+    @overload
+    def __init__(self) -> None: ...
+
+    def __init__(self, *, onSet: Callable[[_CLASS_T], None] | None = None) -> None:
+        self.onSet: Callable[[_CLASS_T, _ATTR1_T], None] | None = None if onSet is None else lambda s, _: onSet(s)
+        self.onGet: Callable[[_CLASS_T, _ATTR1_T], _ATTR1_T] | None = None
+        self.privateName: str = ""
+
+    @overload
+    def __call__(self, func: Callable[[], _ATTR2_T], /) -> prop[_CLASS_T, _ATTR2_T]: ...  # stub
+    @overload
+    def __call__(self, func: Callable[[_CLASS_T, _ATTR2_T], _ATTR2_T], /) -> prop[_CLASS_T, _ATTR2_T]: ...  # onGet
+
+    def __call__(self, func: Callable) -> Any:
+        self.privateName = f"_{func.__name__}"
+        isStub = func.__code__.co_argcount == 0
+
+        if not isStub:
+            self.onGet = func
+
+        return self
+
+    @overload
+    def __get__(self: prop[_CLASS_T, _ATTR1_T], instance: None, owner: type, /) -> prop[_CLASS_T, _ATTR1_T]: ...
+    @overload
+    def __get__(self: prop[_CLASS_T, _ATTR1_T], instance: Any, owner: type, /) -> _ATTR1_T: ...
+
+    def __get__(self, instance, owner, /):
+        if self.onGet is not None:
+            return self.onGet(instance, getattr(instance, self.privateName))
+        return getattr(instance, self.privateName)
+
+    def __set__(self, instance: Any, value: _ATTR1_T, /) -> None:
+        object.__setattr__(instance, self.privateName, value)
+        if self.onSet is not None:
+            self.onSet(instance, value)
+
+    def setter(self, onSet: Callable[[_CLASS_T, _ATTR1_T], None], /) -> Self:
+        self.onSet = onSet
+        return self
+
+
+class autoProp(Generic[_CLASS_T]):
+    def __new__(cls, func: Callable[..., _CLASS_T], /) -> Self:
+        instance = object.__new__(cls)
+        return instance
+
+    def __init__(self, func: Callable[[], _CLASS_T], /):
+        self.privateName = f"_{func.__name__}"
+
+    def __get__(self, instance: Any, owner: type) -> _CLASS_T:
+        return getattr(instance, self.privateName)
+
+    def __set__(self, instance: Any, value: _CLASS_T) -> None:
+        object.__setattr__(instance, self.privateName, value)
 
 
 if __name__ == "__main__":

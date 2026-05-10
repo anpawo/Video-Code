@@ -15,17 +15,16 @@ class position(VertexShader):
     For a movement over time, see `moveTo`.
     """
 
-    def __init__(self, x: maybe[wint | wfloat] = None, y: maybe[wint | wfloat] = None) -> None:
+    def __init__(self, x: maybe[wnumber] = None, y: maybe[wnumber] = None) -> None:
         self.x = x
         self.y = y
+        # could be self.p = v2(x, y)
+        # so we could use a setattr(attr) with the VertexShader and so remove the modificators
 
     def modificator(self, i: Input):
-        if self.x is not None:
-            i.meta.position.x = self.x
-        else:
+        if self.x is None:
             self.x = i.meta.position.x
-
-        if self.y is not None:
-            i.meta.position.y = self.y
-        else:
+        if self.y is None:
             self.y = i.meta.position.y
+
+        i.meta.position = v2(self.x, self.y)

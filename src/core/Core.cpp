@@ -77,15 +77,12 @@ std::string VC::Core::serializeScene()
 void VC::Core::executeStack()
 {
     for (auto& s : _stack) {
-        if (_showstack)
+        if (_showstack) {
             VC::Debug.logStack(s);
+        }
 
         if (s["action"] == "Create") {
             _inputs.push_back(Factory::inputs.at(s["type"])(s["args"]));
-
-            if (s["hide"]) {
-                _inputs.back()->delayAppearance();
-            }
 
             // if (s["type"] == "Video") {
             //     auto* video = dynamic_cast<Video*>(_inputs.back().get());
@@ -228,7 +225,7 @@ void VC::Core::goToNextTimestamp()
 
 void VC::Core::backwardFrame(size_t n)
 {
-    if (_index - n >= 0) {
+    if (_index >= n) {
         _index -= n;
         _indexChanged = true;
     } else {
@@ -240,7 +237,7 @@ void VC::Core::backwardFrame(size_t n)
 
 void VC::Core::forwardFrame(size_t n)
 {
-    if (_index + n < _nbFrame) {
+    if (n < _nbFrame - _index) {
         _index += n;
         _indexChanged = true;
     } else {

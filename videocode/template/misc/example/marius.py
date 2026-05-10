@@ -6,23 +6,32 @@ import random
 
 
 from videocode.template.effect.click import click
-from videocode.template.input.Arrow import Arrow, Arrow
+from videocode.template.input.Button import Button, RedButton
+from videocode.template.input.Arrow import Arrow, Arrow, Cursor
 from videocode.template.input.Graph import *
+from videocode.template.input.Particles import ParticlesRay
 from videocode.template.input.Plane import Plane, SoftPlane
 from videocode.template.misc.chess.chessboard import ChessBoard
 from videocode import *
 
 
 def example0():
-    example1().fadeOut()
-    wait()
-    example2()  # already fadedOut
-    wait()
-    example3().fadeOut()
-    wait()
-    example4().fadeOut()
-    wait()
-    example5()
+    examples = [
+        example1,
+        example2,
+        example3,
+        example4,
+        example5,
+        example6,
+    ]
+
+    for idx, ex in enumerate(examples):
+        elems = ex()
+        if idx + 1 == len(examples):
+            return
+        wait(0.5)
+        elems.fadeOut(hide=True)
+        wait(0.5)
 
 
 def example1():
@@ -31,7 +40,7 @@ def example1():
     """
     timestamp("Example #1: All Basic Inputs / Shapes")
 
-    plane = Plane()
+    plane = SoftPlane()
 
     rect = Rectangle(height=2, width=4).position(x=-7)
     circle = Circle(radius=1).position(x=-2)
@@ -45,17 +54,11 @@ def example1():
     triEquiRounded = EquilateralTriangle(side=1, cornerRadius=30).position(x=4)
     arrow = Arrow().position(x=6.5, y=0.5)
 
-    all = (
-        Group(
-            plane,
-            Group(rect, sqrRounded, triRandom, circle).align(x=0, y=0).position(y=2),
-            Group(text, triEqui, triRight, triEquiRounded).align(x=0, y=0).addInput(img).position(y=0).addInput(arrow),
-        )
-        .fadeIn()
-        .waitForOthers(0.5, updateContext=True)
-    )
-
-    return all
+    return Group(
+        plane,
+        Group(rect, sqrRounded, triRandom, circle).align(x=0, y=0).position(y=2),
+        Group(text, triEqui, triRight, triEquiRounded).align(x=0, y=0).addInput(img).position(y=0).addInput(arrow),
+    ).fadeIn()
 
 
 def example2():
@@ -66,8 +69,10 @@ def example2():
     """
     timestamp("Example #2: Little Square Animation")
 
-    return (
+    return Group(
         Square(
+            fillColor=BLUE_B | 0.9,
+            strokeColor=BLUE_A | WHITE,
             side=2,
             cornerRadius=30,
         )
@@ -106,7 +111,7 @@ def example3():
 
     t = Text("Hello World!").fadeIn()
 
-    return Group(s, t).waitForOthers(updateContext=True)
+    return Group(s, t)
 
 
 def example4():
@@ -116,7 +121,7 @@ def example4():
     timestamp("Example #4: Graph w/ Curve + Point")
 
     # Graph
-    g = FirstQuadrant(xRange=(-1, 7))
+    g = PositiveGraph(xRange=(-1, 7))
 
     wait(0.1)
 
@@ -140,7 +145,7 @@ def example4():
     wait(0.3)
 
     # Wait for others doesnt work
-    return Group(g, f, p).waitForOthers(updateContext=True)
+    return Group(g, f, p)
 
 
 def example5():
@@ -149,65 +154,71 @@ def example5():
     """
     timestamp("Example #5: Advanced Animation")
 
-    p = SoftPlane()
+    p = SoftPlane().fadeIn()
+
+    wait()
 
     def makeArrows():
         movement = 0.1
-        cycles = 50
+        cycles = 5
         circleSize = 1.5
 
         def makeArrow(deg: float):
             c = math.cos(math.radians(deg)) * circleSize
             s = math.sin(math.radians(deg)) * circleSize
-            o = Offset(Arrow(0.75, cornerRadius=50), x=-c, y=-s, r=-deg)
+            o = Offset(Arrow(length=0.75, cornerRadius=50), x=-c, y=-s, r=-deg).fadeIn().flush()
             for i in range(cycles):
                 sign = 1 if i % 2 == 0 else -1
-                o.moveBy(x=c * movement * sign, y=s * movement * sign, duration=0.5, easing=Easing.InOut).flush()
+                o.moveBy(
+                    x=c * movement * sign,
+                    y=s * movement * sign,
+                    duration=0.5,
+                    easing=Easing.InOut,
+                ).flush()
             return o
 
         return Group(*[makeArrow(deg) for deg in range(0, 360, 45)])
 
-    def makeButton():
-        button = Square(
-            side=1,
-            fillColor=RED_B | 0.75 | BLACK,
-            strokeColor=RED_B,
-            cornerRadius=30,
-            strokeWidth=0.025,
-        )
-        text = Text(text="Off", fillColor=RED_B, fontSize=0.35)
-        return Group(button, text)
-
-    def makeCursor():
-        cursor = (
-            Arrow(
-                fillColor=BLACK,
-                strokeColor=WHITE,
-                strokeWidth=0.0125,
-                bodyLength=0.05,
-                bodyWidth=0.1 * 0.2,
-                bodyInTip=0.015,
-                tipLength=0.15,
-                tipHeight=0.085,
-                cornerRadius=50,
-            )
-            .position(x=-1, y=-2)
-            .rotation(-112.5)
-            .align(x=1)
-            .moveTo(x=0.35, y=-0.35, duration=0.8)
-            .flush()
-            .wait(0.075)
-        )
-
-        cursor.apply(*click()).flush()
-
-        return cursor
-
     arrows = makeArrows()
-    button = makeButton()
-    cursor = makeCursor()
+    button = Button(width=1, height=1, text="Off", color=RED_B).fadeIn().flush()
+    cursor = Cursor().position(x=-1, y=-2).align(x=1).fadeIn().flush()
+
+    def buttonHovered(shader: IShader, s: sec, d: sec):
+        pos = cast(position, shader)
+        assert pos.x is not None
+        assert pos.y is not None
+        button.isHovered = button.rect.contains(pos.x, pos.y)
+        button.waitFor(cursor)
+        button.color = button.color
+
+    # What to do when the cursor moves
+    cursor.addCallback(position, buttonHovered)
+
+    # Cursor moves to the button
+    cursor.moveTo(x=0.35, y=-0.35, duration=0.8).wait(0.1)
+
+    # Button changes to Green when clicked
+    button.waitFor(cursor).wait(0.1)
+    button.color = GREEN_A
+    with button.text:
+        button.text.text = "On"
+    button.flush()
+
+    # Cursor clicks and Moves out of button
+    cursor.apply(*click()).wait(0.05).moveTo(x=2, y=-1, duration=0.8).flush()
 
     return Group(p, arrows, button, cursor)
+
+
+def example6():
+    """
+    Youtube Templates
+    """
+    timestamp("Example #6: Youtube Templates")
+
+    p = SoftPlane().fadeIn()
+
+    red = Button(width=1, height=1, text="Off", color=RED_B).apply(blur(10)).flush()
 
 
 # def example5():

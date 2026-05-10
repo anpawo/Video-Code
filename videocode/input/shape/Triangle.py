@@ -3,7 +3,7 @@
 import math
 
 from videocode.input.shape.Polygon import *
-from videocode.utils.decorators import autoProp, trackProps
+from videocode.utils.decorators import trackProps, prop
 
 
 class Triangle(Polygon):
@@ -13,8 +13,8 @@ class Triangle(Polygon):
         p0: point = (0, 0),
         p1: point = (2, 0),
         p2: point = (3, 2),
-        fillColor: rgba = BLUE_B,
-        strokeColor: rgba = WHITE,
+        fillColor: rgba = RED_B | BLACK,
+        strokeColor: rgba = RED_B | WHITE,
         strokeWidth: wufloat = 0.05,
         cornerRadius: percent = 0,
     ):
@@ -29,14 +29,14 @@ class Triangle(Polygon):
     def generateVertices(self) -> list[point]:
         return [self.p0, self.p1, self.p2]
 
-    @autoProp(Polygon.updatePoints)
-    def p0(self, value: point): ...
+    @prop(onSet=Polygon.updatePoints)
+    def p0() -> point: ...
 
-    @autoProp(Polygon.updatePoints)
-    def p1(self, value: point): ...
+    @prop(onSet=Polygon.updatePoints)
+    def p1() -> point: ...
 
-    @autoProp(Polygon.updatePoints)
-    def p2(self, value: point): ...
+    @prop(onSet=Polygon.updatePoints)
+    def p2() -> point: ...
 
 
 class EquilateralTriangle(Triangle):
@@ -44,8 +44,8 @@ class EquilateralTriangle(Triangle):
     def __init__(
         self,
         side: wufloat = 3,
-        fillColor: rgba = BLUE_B,
-        strokeColor: rgba = WHITE,
+        fillColor: rgba = RED_B | BLACK,
+        strokeColor: rgba = RED_B | WHITE,
         strokeWidth: wufloat = 0.05,
         cornerRadius: percent = 0,
     ):
@@ -66,8 +66,8 @@ class EquilateralTriangle(Triangle):
         h = s * math.sqrt(3) / 2
         return [(0, 0), (s, 0), (s / 2, h)]
 
-    @autoProp(Polygon.updatePoints)
-    def side(self, value: wufloat): ...
+    @prop(onSet=Polygon.updatePoints)
+    def side() -> wufloat: ...
 
 
 class RightTriangle(Triangle):
@@ -76,8 +76,8 @@ class RightTriangle(Triangle):
         self,
         width: wufloat = 4,
         height: wufloat = 3,
-        fillColor: rgba = BLUE_B,
-        strokeColor: rgba = WHITE,
+        fillColor: rgba = RED_B | BLACK,
+        strokeColor: rgba = RED_B | WHITE,
         strokeWidth: wufloat = 0.05,
         cornerRadius: percent = 0,
     ):
@@ -94,8 +94,8 @@ class RightTriangle(Triangle):
     def generateVertices(self) -> list[point]:
         return [(0, 0), (self.width, 0), (0, self.height)]
 
-    @autoProp(Polygon.updatePoints)
-    def width(self, value: wufloat): ...
+    @prop(onSet=Polygon.updatePoints)
+    def width() -> wufloat: ...
 
-    @autoProp(Polygon.updatePoints)
-    def height(self, value: wufloat): ...
+    @prop(onSet=Polygon.updatePoints)
+    def height() -> wufloat: ...

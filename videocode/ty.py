@@ -5,8 +5,10 @@
 #
 
 # alias
-from typing import Any, overload
+from typing import Any, cast, overload
 from typing_extensions import Self
+
+from videocode.utils.classutils import Maybe
 
 
 type int8 = int
@@ -25,7 +27,7 @@ type wunumber = float | int
 
 
 type sec = ufloat | uint
-type frame = int
+type frame = uint
 """
 is in frame count not sec
 """
@@ -34,7 +36,7 @@ type maybe[T] = T | None
 type number = int | float
 type unumber = int | float
 
-type degree = float
+type degree = number
 type index = int
 type url = str
 type percent = number
@@ -64,7 +66,7 @@ class rgba:
             self.b = b
             self.a = a
 
-    def makeSerializable(self):
+    def jsonSerialization(self):
         return (self.r, self.g, self.b, self.a)
 
     def __str__(self) -> str:
@@ -111,32 +113,32 @@ class rgba:
         return self.__mul__(other)
 
 
-# vector 2D
 class v2[T]:
-    x: T
-    y: T
-
-    def __iter__(self):
-        yield self.x
-        yield self.y
+    """
+    Vector 2D
+    """
 
     def __init__(self, x: T, y: T) -> None:
         self.x = x
         self.y = y
 
-    def __add__(self, other: v2[maybe[number]]) -> v2:
-        x = self.x + other.x if isinstance(self.x, int | float) and isinstance(other.x, int | float) else self.x if self.x is not None else other.x
-        y = self.y + other.y if isinstance(self.y, int | float) and isinstance(other.y, int | float) else self.y if self.y is not None else other.y
+    def __iter__(self):
+        yield self.x
+        yield self.y
+
+    def __add__(self, other: v2) -> v2:
+        x = Maybe(self.x).map(lambda a: Maybe(other.x).map(lambda b: a + b).orElse(a)).orElse(other.x)
+        y = Maybe(self.y).map(lambda a: Maybe(other.y).map(lambda b: a + b).orElse(a)).orElse(other.y)
         return v2(x, y)
 
-    def __sub__(self, other: v2[maybe[number]]) -> v2:
-        x = self.x - other.x if isinstance(self.x, int | float) and isinstance(other.x, int | float) else self.x if self.x is not None else other.x
-        y = self.y - other.y if isinstance(self.y, int | float) and isinstance(other.y, int | float) else self.y if self.y is not None else other.y
+    def __sub__(self, other: v2) -> v2:
+        x = Maybe(self.x).map(lambda a: Maybe(other.x).map(lambda b: a - b).orElse(a)).orElse(other.x)
+        y = Maybe(self.y).map(lambda a: Maybe(other.y).map(lambda b: a - b).orElse(a)).orElse(other.y)
         return v2(x, y)
 
     def __mul__(self, m: number) -> v2:
-        x = self.x * m if isinstance(self.x, int | float) else self.x
-        y = self.y * m if isinstance(self.y, int | float) else self.y
+        x = Maybe(self.x).map(lambda a: cast(number, a) * m).get()
+        y = Maybe(self.y).map(lambda a: cast(number, a) * m).get()
         return v2(x, y)
 
     def __div__(self, d: number) -> v2:
@@ -144,8 +146,8 @@ class v2[T]:
         y = self.y / d if isinstance(self.y, int | float) else self.y
         return v2(x, y)
 
-    def makeSerializable(self):
-        return {"x": self.x, "y": self.y}
+    def jsonSerialization(self):
+        return vars(self)
 
     def __str__(self) -> str:
         return f"{{x: {self.x}, y: {self.y}}}"

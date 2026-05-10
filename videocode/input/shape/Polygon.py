@@ -2,13 +2,13 @@
 
 
 import math
-from abc import abstractmethod
+import shapely.geometry as geo
 
+from abc import abstractmethod
 from videocode.input.input import Input
-from videocode.utils.decorators import inputCreation, setAttrOn, autoProp, trackProps
+from videocode.utils.decorators import autoProp, inputCreation, setAttrOn, trackProps, prop
 from videocode.ty import *
 from videocode.constants import *
-from videocode.utils.logger import DEBUG
 
 
 class Polygon(Input):
@@ -29,7 +29,7 @@ class Polygon(Input):
         strokeColor: rgba,
         strokeWidth: wufloat,
         cornerRadius: percent,
-        sharpCorners: set[int] | frozenset[int] = frozenset(),
+        sharpCorners: set[int] = set(),
     ):
         self.vertices = vertices
         self.fillColor = fillColor
@@ -46,8 +46,8 @@ class Polygon(Input):
         self.vertices = self.generateVertices()
         self.points = self.roundCorners()
 
-    @autoProp(updatePoints)
-    def cornerRadius(self) -> percent: ...
+    @prop(onSet=updatePoints)
+    def cornerRadius() -> percent: ...
 
     def roundCorners(self) -> list[point]:
         """
@@ -93,4 +93,27 @@ class Polygon(Input):
             bezier.append(rev[i])
             bezier.append(arcEnd[i])
             bezier.append(mid)
-        return bezier
+        return list(map(lambda x: (round(x[0], 6), round(x[1], 6)), bezier))
+
+    def contains(self, x: wnumber, y: wnumber) -> bool:
+        sx = self.meta.scale.x
+        sy = self.meta.scale.y
+        if sx == 0 or sy == 0:
+            return False
+
+        xs = [v[0] for v in self.vertices]
+        ys = [v[1] for v in self.vertices]
+        pivot_x = min(xs) + (max(xs) - min(xs)) * self.meta.align.x
+        pivot_y = min(ys) + (max(ys) - min(ys)) * self.meta.align.y
+
+        dx = x - self.meta.position.x
+        dy = y - self.meta.position.y
+
+        rad = self.meta.rotation * math.pi / 180
+        dx_r = dx * math.cos(rad) + dy * math.sin(rad)
+        dy_r = -dx * math.sin(rad) + dy * math.cos(rad)
+
+        local_x = dx_r / sx + pivot_x
+        local_y = dy_r / sy + pivot_y
+
+        return geo.Polygon([*self.vertices]).contains(geo.Point(local_x, local_y))
