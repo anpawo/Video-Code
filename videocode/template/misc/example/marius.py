@@ -2,27 +2,27 @@
 
 
 import math
-import random
 
 
+from videocode import *
 from videocode.template.effect.click import click
-from videocode.template.input.Button import Button, RedButton
+from videocode.template.input.Button import Button
 from videocode.template.input.Arrow import Arrow, Arrow, Cursor
 from videocode.template.input.Graph import *
-from videocode.template.input.Particles import ParticlesRay
-from videocode.template.input.Plane import Plane, SoftPlane
-from videocode.template.misc.chess.chessboard import ChessBoard
-from videocode import *
+from videocode.template.input.Plane import SoftPlane
 
 
 def example0():
+    plane = SoftPlane()
+
     examples = [
         example1,
         example2,
         example3,
         example4,
         example5,
-        example6,
+        # example6,
+        # example7,
     ]
 
     for idx, ex in enumerate(examples):
@@ -40,25 +40,22 @@ def example1():
     """
     timestamp("Example #1: All Basic Inputs / Shapes")
 
-    plane = SoftPlane()
-
     rect = Rectangle(height=2, width=4).position(x=-7)
     circle = Circle(radius=1).position(x=-2)
     sqrRounded = Square(side=2, cornerRadius=30).position(x=1)
     triRandom = Triangle().position(x=4)
+    line1 = Group(rect, sqrRounded, triRandom, circle).align(x=0, y=0).position(y=2)
 
-    img = Offset(Image("wb.png").position(x=-6.5), x=0, y=0.5)
-    text = Text("Hello World", fontSize=0.75).position(x=-5.075)
+    text = Text("Hello éric", fontSize=0.75).position(x=-4, y=0.5).align(x=0, y=0)
     triEqui = EquilateralTriangle(side=1).position(x=0)
     triRight = RightTriangle(width=1, height=1).position(x=2)
     triEquiRounded = EquilateralTriangle(side=1, cornerRadius=30).position(x=4)
     arrow = Arrow().position(x=6.5, y=0.5)
+    line2 = Group(triEqui, triRight, triEquiRounded).align(x=0, y=0).position(y=0)
+    line2.inputs.append(text)
+    line2.inputs.append(arrow)
 
-    return Group(
-        plane,
-        Group(rect, sqrRounded, triRandom, circle).align(x=0, y=0).position(y=2),
-        Group(text, triEqui, triRight, triEquiRounded).align(x=0, y=0).addInput(img).position(y=0).addInput(arrow),
-    ).fadeIn()
+    return Group(line1, line2)
 
 
 def example2():
@@ -70,20 +67,25 @@ def example2():
     timestamp("Example #2: Little Square Animation")
 
     return Group(
-        Square(
-            fillColor=BLUE_B | 0.9,
-            strokeColor=BLUE_A | WHITE,
-            side=2,
-            cornerRadius=30,
+        (
+            s := Square(
+                fillColor=BLUE_B | 0.7,
+                strokeColor=WHITE,
+                side=2,
+                cornerRadius=30,
+            )
         )
         .position(x=-2)
+        .fadeIn(duration=0.25)
         .scale(0.1)
         .scaleTo(1)
+        .ease(s.ref.fillColor, BLUE_B | BLACK | 0.55, easing=Easing.Out)
         .flush()
         .moveTo(x=2)
         .flush()
         .fadeOut(hide=True)
         .scaleTo(2)
+        .fadeOut()
         .flush()
     )
 
@@ -105,7 +107,7 @@ def example3():
         (s.ref.cornerRadius, 15, Easing.Out),
         (s.ref.strokeWidth, 0.05, Easing.Out),
     ).flush()
-    s.ease(s.ref.fillColor, BLUE_B | 0.25, easing=Easing.Out).flush()
+    s.ease(s.ref.fillColor, BLUE_B | BLACK | 0.55, easing=Easing.Out).flush()
 
     wait()
 
@@ -154,10 +156,6 @@ def example5():
     """
     timestamp("Example #5: Advanced Animation")
 
-    p = SoftPlane().fadeIn()
-
-    wait()
-
     def makeArrows():
         movement = 0.1
         cycles = 5
@@ -166,73 +164,73 @@ def example5():
         def makeArrow(deg: float):
             c = math.cos(math.radians(deg)) * circleSize
             s = math.sin(math.radians(deg)) * circleSize
-            o = Offset(Arrow(length=0.75, cornerRadius=50), x=-c, y=-s, r=-deg).fadeIn().flush()
+            o = Offset(Arrow(length=0.75, cornerRadius=50), x=-c, y=-s, r=-deg)
             for i in range(cycles):
                 sign = 1 if i % 2 == 0 else -1
-                o.moveBy(
-                    x=c * movement * sign,
-                    y=s * movement * sign,
-                    duration=0.5,
-                    easing=Easing.InOut,
-                ).flush()
+                o.moveBy(x=c * movement * sign, y=s * movement * sign, duration=0.5).flush()
             return o
 
         return Group(*[makeArrow(deg) for deg in range(0, 360, 45)])
 
     arrows = makeArrows()
-    button = Button(width=1, height=1, text="Off", color=RED_B).fadeIn().flush()
-    cursor = Cursor().position(x=-1, y=-2).align(x=1).fadeIn().flush()
-
-    def buttonHovered(shader: IShader, s: sec, d: sec):
-        pos = cast(position, shader)
-        assert pos.x is not None
-        assert pos.y is not None
-        button.isHovered = button.rect.contains(pos.x, pos.y)
-        button.waitFor(cursor)
-        button.color = button.color
+    button = Button(width=1, height=1, text="Off", color=RED_B)
+    cursor = Cursor().position(x=-1, y=-2).align(x=1)
 
     # What to do when the cursor moves
-    cursor.addCallback(position, buttonHovered)
+    cursor.addCallback(position, button.onHover)
 
     # Cursor moves to the button
-    cursor.moveTo(x=0.35, y=-0.35, duration=0.8).wait(0.1)
+    cursor.moveTo(x=0.3, y=-0.3, duration=0.8).wait(0.1)
 
     # Button changes to Green when clicked
     button.waitFor(cursor).wait(0.1)
+    button.text.text = "On"
     button.color = GREEN_A
-    with button.text:
-        button.text.text = "On"
     button.flush()
 
     # Cursor clicks and Moves out of button
     cursor.apply(*click()).wait(0.05).moveTo(x=2, y=-1, duration=0.8).flush()
 
-    return Group(p, arrows, button, cursor)
+    return Group(arrows, button, cursor)
 
 
 def example6():
     """
+    WebImage
+
+    # TODO: Very Slow
+    """
+    timestamp("Example #6: Image & WebImage")
+
+    img = Image("wb.png")
+
+    # wi = WebImage("https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/YouTube_2024.svg/langfr-3840px-YouTube_2024.svg.png")
+    # wi.scale(0.2).flush()
+
+    return Group(img)
+
+
+def example7():
+    """
     Youtube Templates
     """
-    timestamp("Example #6: Youtube Templates")
+    timestamp("Example #7: Youtube Templates")
 
-    p = SoftPlane()
-
-    red = (
-        Button(width=1, height=1, text="Off", color=RED_B)
-        .apply(
-            # contrast(25),
-            # blur(5),
+    t1 = Text(
+        "abcdefghijklmnopqrstuvwxyz",
+        fillColor=RED_B,
+        strokeColor=WHITE,
+        strokeWidth=0.05,
+        fontSize=0.75,
+    )
+    t2 = (
+        Text(
+            "ABCDEFGHJIJKLMNOPQRSTUVWXYZ",
+            fillColor=RED_B,
+            strokeColor=WHITE,
+            strokeWidth=0.05,
+            fontSize=0.6,
         )
+        .position(y=-2)
         .flush()
     )
-
-
-# def example5():
-#     """
-#     Chess animation.
-#     """
-#     timestamp("Example #5: Chessboard")
-
-#     c = ChessBoard()
-#     # c.play()

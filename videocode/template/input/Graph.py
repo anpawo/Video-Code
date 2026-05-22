@@ -2,7 +2,7 @@
 
 
 from videocode import *
-from videocode.input.offset.Offset import Offset
+from videocode.input.interface.Offset import Offset
 from videocode.utils.classutils import Maybe
 
 
@@ -147,17 +147,18 @@ class PositiveGraph(Graph):
 
 
 class GraphPoint(Group):
-    @trackProps
     def __init__(
         self,
         curve: FunctionGraph,
         showTip=True,
         tipAbove=True,
     ) -> None:
-        self.tipAppeared = False
-        self.showTip = showTip
-
         self.curve = curve
+        self.showTip = showTip
+        self.tipAbove = tipAbove
+
+        self.tipAppeared = False
+
         super().__init__(
             Group(Circle(0.09, fillColor=WHITE, strokeColor=BLACK, strokeWidth=0.015)),
         )
@@ -173,12 +174,12 @@ class GraphPoint(Group):
                 x=0,
                 y=0.30 * (1 if self.tipAbove else -1),
             )
-            self.addInput(self.text, self.tip)
+            self.inputs += [self.text, self.tip]
 
     def updateTipPosition(self):
         if self.showTip:
-            self.text.y = 0.60 * (1 if self.tipAbove else -1)
-            self.tip.y = 0.30 * (1 if self.tipAbove else -1)
+            self.text.yOffset = 0.60 * (1 if self.tipAbove else -1)
+            self.tip.yOffset = 0.30 * (1 if self.tipAbove else -1)
             self.position()
 
     @prop(onSet=updateTipPosition)
@@ -203,8 +204,7 @@ class GraphPoint(Group):
         for x in r:
             y = self.curve.f(x)
             if self.showTip:
-                with self.text.i:
-                    self.text.i.text = str(round(y, 2))
+                self.text.input.text = str(round(y, 2))
             self.position(x=o.x + x, y=o.y + y).flush()
 
         return self

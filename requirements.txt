@@ -1,2 +1,4 @@
 # python-chess==1.999
 shapely
+freetype-py
+uharfbuzz

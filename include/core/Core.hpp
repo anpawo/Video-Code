@@ -13,9 +13,12 @@
 #include <functional>
 #include <memory>
 #include <opencv2/opencv.hpp>
+#include <pybind11/pybind11.h>
 
 #include "core/Config.hpp"
 #include "input/IInput.hpp"
+
+namespace py = pybind11;
 
 namespace VC
 {
@@ -29,9 +32,7 @@ namespace VC
         ~Core() = default;
 
         ///< Reload the source file, then execute the stack, then add the new frames to the Timeline.
-        void        reloadSourceFile();
-        std::string serializeScene();
-        void        executeStack();
+        void reloadSourceFile();
 
         ///< Update the current frame by generating the meshes.
         std::vector<Mesh> generateMeshes();
@@ -65,6 +66,8 @@ namespace VC
 
     private:
 
+        void executeStack(const py::list& stack);
+
         ///< Config (Window / Framerate / Paths)
         const Config& _config;
 
@@ -90,7 +93,5 @@ namespace VC
         ///< Inputs created
         std::vector<std::unique_ptr<IInput>> _inputs{};
 
-        ///< Stack containing the steps of the video
-        json::array_t _stack{};
     };
 };

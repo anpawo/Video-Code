@@ -2,16 +2,19 @@
 
 
 from videocode.constants import rgba
-from videocode.input.group.Group import Group
+from videocode.input.interface.Group import Group
+from videocode.input.interface.Offset import Offset
 from videocode.input.shape.Rectangle import Rectangle
-from videocode.input.text.Text import Text
+from videocode.input.shape.text.Text import Text
 from videocode.constants import *
-from videocode.utils.decorators import autoProp, trackProps, prop
+from videocode.shader.vertexShader.position import position
+from videocode.utils.classutils import At
+from videocode.utils.decorators import prop
+from videocode.utils.funcutils import darken, lighten
 
 
 class Button(Group):
 
-    @trackProps
     def __init__(
         self,
         width: wnumber,
@@ -19,12 +22,14 @@ class Button(Group):
         text: str,
         color: rgba,
     ):
+        self.color = color
+
         self.isHovered = False
 
         self.rect = Rectangle(
             width=width,
             height=height,
-            fillColor=self.darken(RED_B),
+            fillColor=darken(RED_B),
             strokeColor=color,
             cornerRadius=30,
             strokeWidth=height / 40,
@@ -40,25 +45,21 @@ class Button(Group):
             self.text,
         )
 
-    @autoProp
-    def isHovered() -> bool: ...
+    def onHover(self, pos: position, s: sec, d: sec, o: frame):
+        """
+        Callback to give to a cursor for example.
+        """
+        self.isHovered = self.rect.contains(pos.x, pos.y)
+        self.color = self.color @ At(s, d, o)
 
     @prop()
     def color() -> rgba: ...
 
     @color.setter
     def colorSetter(self, value: rgba) -> None:
-        with self.rect:
-            self.rect.fillColor = self.lighten(value) if self.isHovered else self.darken(value)
-            self.rect.strokeColor = value
-        with self.text:
-            self.text.fillColor = value
-
-    def darken(self, c: rgba) -> rgba:
-        return c | 0.75 | BLACK | (BLACK | 0.7)
-
-    def lighten(self, c: rgba) -> rgba:
-        return c | 0.75 | BLACK | GRAY_10
+        self.rect.fillColor = lighten(value) if self.isHovered else darken(value)
+        self.rect.strokeColor = value
+        self.text.fillColor = value
 
 
 class RedButton(Button):

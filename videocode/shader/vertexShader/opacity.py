@@ -9,11 +9,11 @@ class opacity(VertexShader):
     Change the `Opacity` of an `Input`.
     """
 
-    def __init__(
-        self,
-        opacity: number,
-    ):
+    def __init__(self, opacity: number):
         self.opacity = opacity
 
-    def modificator(self, i: Input):
+    def autodestroy(self, i: Input) -> bool:
+        return i.meta.opacity == self.opacity
+
+    def modify(self, i: Input):
         i.meta.opacity = self.opacity

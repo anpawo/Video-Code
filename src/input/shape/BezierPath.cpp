@@ -10,6 +10,16 @@
 #include <mapbox/earcut.hpp>
 
 #include "vulkan/MeshFactory.hpp"
+#include "utils/Logger.hpp"
+
+#ifdef VC_DEBUG_ON
+#  include <chrono>
+#  define BP_T(name)  auto name = std::chrono::high_resolution_clock::now()
+#  define BP_US(a, b) std::chrono::duration_cast<std::chrono::microseconds>((b) - (a)).count()
+#else
+#  define BP_T(name)  [[maybe_unused]] int name = 0
+#  define BP_US(a, b) 0L
+#endif
 
 BezierPath::BezierPath(json::object_t&& args)
     : AInput(std::move(args))
@@ -18,8 +28,12 @@ BezierPath::BezierPath(json::object_t&& args)
 
 Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
 {
+    BP_T(t0);
+
     _points.clear();
     buildPath(meta.args);
+
+    BP_T(t1);
 
     size_t n = _points.size();
     if (n < 4 || n % 2 != 0) {
@@ -68,6 +82,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     bool hasStroke = (_strokeWidth > 0.f && strokeColor[3] > 0);
 
     // Sample the bezier path to a local-space polyline for fill tessellation.
+    BP_T(t2);
     std::vector<cv::Vec2f> poly;
     if (fillColor[3] > 0) {
         for (size_t ci = 0; ci < curves.size(); ++ci) {
@@ -82,6 +97,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     }
 
     // Fill triangulation — earcut handles non-convex polygons correctly.
+    BP_T(t3);
     if (fillColor[3] > 0 && poly.size() >= 3) {
         std::vector<std::vector<std::array<float, 2>>> polygon(1);
         polygon[0].reserve(poly.size());
@@ -99,9 +115,16 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     }
 
     // Stroke rendered on top of fill, extruded inward so it stays within the boundary.
+    BP_T(t4);
     if (hasStroke) {
         factory.addQuadraticStrokePath(curves, _strokeWidth, strokeColor, _closed, _closed);
     }
+    BP_T(t5);
+
+    if (BP_US(t0, t5) > 400)
+        VC_LOG(std::format(
+            "[bezier] buildPath:{}µs  curves:{}µs  sample:{}µs  earcut:{}µs  stroke:{}µs  pts:{}\n",
+            BP_US(t0, t1), BP_US(t1, t2), BP_US(t2, t3), BP_US(t3, t4), BP_US(t4, t5), n));
 
     return factory.generateMesh();
 }

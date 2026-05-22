@@ -6,12 +6,12 @@ from copy import deepcopy
 from abc import ABC, abstractmethod
 from functools import singledispatchmethod
 from typing import Any, Callable, Self, cast
-from videocode.template.effect.alignTo import alignTo
-from videocode.template.effect.fadeTo import fadeTo
-from videocode.template.effect.moveTo import moveTo
-from videocode.template.effect.rotateTo import rotateTo
-from videocode.template.effect.scaleTo import scaleTo
-from videocode.shader.ishader import IShader, VertexShader
+from videocode.template.effect.align import alignTo
+from videocode.template.effect.fade import fadeTo
+from videocode.template.effect.move import moveTo, moveBy
+from videocode.template.effect.rotate import rotateBy, rotateTo
+from videocode.template.effect.scale import scaleBy, scaleTo
+from videocode.shader.ishader import DeferredShader, IShader, VertexShader
 from videocode.context import *
 from videocode.constants import *
 from videocode.utils.funcutils import *
@@ -25,7 +25,7 @@ from videocode.shader.vertexShader.show import show
 from videocode.shader.vertexShader.opacity import opacity
 from videocode.utils.bezier import animate, CubicBezier, Easing
 from videocode.utils.logger import *
-from videocode.utils.classutils import AttributeNameReference, Maybe
+from videocode.utils.classutils import At, AttributeNameReference, Maybe
 
 
 class Input(ABC):
@@ -35,12 +35,12 @@ class Input(ABC):
     It can be an `Image`, a `Video`, a `Shape`, some `Text` etc...
     """
 
-    cppName: str
+    cppName: str = "Input"
     """
     Cpp Name of the Input.
     """
 
-    cppAttrs: set[str]
+    cppAttrs: set[str] = set()
     """
     Attributes to pass to the cpp.
     """
@@ -77,13 +77,13 @@ class Input(ABC):
         return self.waitTo(i.meta.lastAffectedFrame)
 
     @overload
-    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = 1) -> Self: ...
+    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self: ...
 
     @overload
     def apply(self, *shaders: tuple[IShader, sec, sec]) -> Self: ...
 
     @singledispatchmethod
-    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME) -> Self:
+    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
         """
         Applies some `Transformations` to the `Input`.
 
@@ -96,7 +96,13 @@ class Input(ABC):
 
         # Do not modify the initial shaders.
         for s in deepcopy(shaders):
-            __start = int(start * FRAMERATE) + self.meta.transformationOffset
+            # Deferred shaders produce other smaller shaders
+            if isinstance(s, DeferredShader):
+                self.apply(*s.resolve(self))
+                continue
+
+            # Normal shader produce other smaller shaders
+            __start = int(start * FRAMERATE) + Maybe(offset).orElse(self.meta.transformationOffset)
             __duration = int((s.duration if hasattr(s, "duration") else duration) * FRAMERATE)
 
             # Update lastEverAffectedFrame
@@ -109,71 +115,89 @@ class Input(ABC):
 
             # Transformations affect the Input's Metadata
             if isinstance(s, VertexShader):
-                s.modificator(self)
+                if s.autodestroy(self):
+                    continue
+                else:
+                    s.modify(self)
 
-            # Round floats to 6 decimals
-            args = {k: round(v, 6) if isinstance(v, float) else v for k, v in vars(s).items()}
-            args |= {"start": __start, "duration": __duration}
+            # Args w/ Start & Duration
+            args = vars(s) | {"start": __start, "duration": __duration}
 
             # Add step to the stack
             Context.apply(self.meta.index, upperFirst(s.__class__.__name__), s._type, args)
 
             # Callbacks
             for callback in self.meta.callbacks.get(type(s), []):
-                callback(s, __start * SINGLE_FRAME, __duration * SINGLE_FRAME)
+                callback(s, start, duration, Maybe(offset).orElse(self.meta.transformationOffset))
 
         return self
 
     @apply.register(tuple)
-    def _(self, *shaders: tuple[IShader, sec, sec]):
+    def _(self, *shaders: tuple[IShader, sec, sec]):  # TODO: add transformationOffset
         for s, start, duration in deepcopy(shaders):
             self.apply(s, start=start, duration=duration)
         return self
 
-    ### Builtins ###
-
-    def __enter__(self):
-        self.meta.setattrCallbackOn = True
-        return self
-
-    def __exit__(self, excType, excValue, traceback):
-        self.meta.setattrCallbackOn = False
-        return False
-
     def __setattr__(self, name: str, value: Any) -> None:
-        # Modifications should affect the cpp
-        if hasattr(self, "meta") and self.meta is not None and self.meta.setattrCallbackOn:
-            # attr isnt a property
-            if not name in self.meta.props:
-                # attr is an attr that the cpp care about
-                if name in self.cppAttrs:
-                    self.apply(args(name, value), start=self.meta.pendingSetattrStart, duration=self.meta.pendingSetattrDuration)
-                    return
-        object.__setattr__(self, name, value)
+        """
+        Handles attributes updates.
 
-    def set(self, name: attrName, value: Any, *, start: sec = 0, duration: sec = 1):
-        oldPendingSetattrStart = self.meta.pendingSetattrStart
-        oldPendingSetattrDuration = self.meta.pendingSetattrDuration
-        oldSetattrCallbackOn = self.meta.setattrCallbackOn
+        __setattr__ has priority over __set__.
+        """
+        # Use object.__getattribute__ to bypass Intefaces's broadcast mechanism — # Old comment to keep for information purpose.
 
-        self.meta.pendingSetattrStart = start
-        self.meta.pendingSetattrDuration = duration
-        self.meta.setattrCallbackOn = True
+        if type(value) == At:
+            value, start, duration, offset = value.unpack()
+            if hasattr(self, name) and name in self.cppAttrs:
+                if not getattr(self, name) == value:
+                    self.apply(args(name, value), start=start, duration=duration, offset=offset)
+            else:
+                # property side effects
+                old = self.meta.pendingStart, self.meta.pendingDuration, self.meta.pendingOffset
+                new = start, duration, offset
 
-        try:
-            setattr(self, name, value)
-        finally:
-            self.meta.pendingSetattrStart = oldPendingSetattrStart
-            self.meta.pendingSetattrDuration = oldPendingSetattrDuration
-            self.meta.setattrCallbackOn = oldSetattrCallbackOn
+                self.meta.pendingStart, self.meta.pendingDuration, self.meta.pendingOffset = new
 
-    def ease(self, attributeName: attrName, to: Any, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        src = self.__getattribute__(attributeName)
-        dst = to
+                def pendingOn(i: Input):
+                    i.meta.pendingStart, i.meta.pendingDuration, i.meta.pendingOffset = new
 
-        def _apply(m: number, indexOffset: int):
-            val = src + (dst - src) * m
-            self.set(attributeName, val, start=start + indexOffset * SF, duration=0)
+                def pendingOff(i: Input):
+                    i.meta.pendingStart, i.meta.pendingDuration, i.meta.pendingOffset = old
+
+                self.broadcast(pendingOn)
+                try:
+                    setattr(self, name, value)
+                finally:
+                    self.meta.pendingStart, self.meta.pendingDuration, self.meta.pendingOffset = old
+                    self.broadcast(pendingOff)
+        elif hasattr(self, name) and name in self.cppAttrs:
+            if not getattr(self, name) == value:
+                self.apply(args(name, value), start=self.meta.pendingStart, duration=self.meta.pendingDuration, offset=self.meta.pendingOffset)
+        else:
+            object.__setattr__(self, name, value)
+
+    def broadcast(self, func: Callable[[Input], Any]):
+        """
+        Broadcast a method through potential children that the Input might have or itself.
+
+        Will be overriden by Interfaces.
+        """
+        func(self)
+
+    def ease(
+        self,
+        attr: attrName,
+        to: Any,
+        *,
+        easing=Easing.InOut,
+        start: sec = 0,
+        duration: sec = 0.4,
+        offset: maybe[frame] = None,
+    ) -> Self:
+        src = self.__getattribute__(attr)
+
+        def _apply(m: number, i: int):
+            setattr(self, attr, At(start=start + i * SF, duration=SINGLE_FRAME, offset=offset) | (src + (to - src) * m))
 
         animate(duration, easing, _apply)
         return self
@@ -184,6 +208,7 @@ class Input(ABC):
         easing=Easing.InOut,
         start: sec = 0,
         duration: sec = 0.4,
+        offset: maybe[frame] = None,
     ) -> Self:
         n = int(duration * FRAMERATE)
 
@@ -196,13 +221,9 @@ class Input(ABC):
             for anim in anims:
                 attr, to, *rest = anim
                 easingFunc = rest[0] if rest else easing
-
                 src = snapshot[attr]
-                dst = to
                 m = easingFunc(t)
-                val = src + (dst - src) * m
-
-                self.set(attr, val, start=start + i * SF, duration=0)
+                setattr(self, attr, At(start=start + i * SF, duration=SINGLE_FRAME, offset=offset) | (src + (to - src) * m))
 
         return self
 
@@ -213,14 +234,15 @@ class Input(ABC):
         """
         return cast(Self, AttributeNameReference(self))
 
-    def addCallback(self, shaderType: type[IShader], callback: Callable[[IShader, sec, sec], None]) -> None:
+    def addCallback[T: IShader](self, shaderType: type[T], callback: Callable[[T, sec, sec, frame], None]) -> None:
         """
         Track an Input's Shaders and react by doing something else.
         """
+        cb = cast(Callable[[IShader, sec, sec, frame], None], callback)
         if self.meta.callbacks.get(shaderType) is None:
-            self.meta.callbacks[shaderType] = [callback]
+            self.meta.callbacks[shaderType] = [cb]
         else:
-            self.meta.callbacks[shaderType].append(callback)
+            self.meta.callbacks[shaderType].append(cb)
 
     def __str__(self) -> str:
         s = f"{self.__class__.__name__}"
@@ -258,68 +280,37 @@ class Input(ABC):
     ### Template ###
 
     def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        moveTo(self, x=x, y=y, easing=easing, start=start, duration=duration)
-        return self
+        return self.apply(moveTo(x=x, y=y, easing=easing, start=start, duration=duration))
 
     def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        p = self.meta.position
-        moveTo(
-            self,
-            x=Maybe(x).map(lambda v: p.x + v).get(),
-            y=Maybe(y).map(lambda v: p.y + v).get(),
-            easing=easing,
-            start=start,
-            duration=duration,
-        )
-        return self
+        return self.apply(moveBy(x=x, y=y, easing=easing, start=start, duration=duration))
 
-    def fadeIn(self, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        fadeTo(self, src=0, dst=255, easing=easing, start=start, duration=duration)
-        return self
+    def fadeIn(self, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4, from0: maybe[bool] = True) -> Self:
+        return self.apply(fadeTo(src=0 if from0 else None, dst=255, easing=easing, start=start, duration=duration))
 
-    def fadeOut(self, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4, hide=False) -> Self:
-        fadeTo(self, src=255, dst=0, easing=easing, start=start, duration=duration)
+    def fadeOut(self, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4, hide=False, from255: maybe[bool] = True) -> Self:
+        self.apply(fadeTo(src=255 if from255 else None, dst=0, easing=easing, start=start, duration=duration))
         if hide:
-            return self.hide(start + duration)
+            return self.hide(start=start + duration)
         return self
 
     def scaleTo(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         if factor is not None:
             x = factor
             y = factor
-        scaleTo(self, x=x, y=y, easing=easing, start=start, duration=duration)
-        return self
+        return self.apply(scaleTo(x=x, y=y, easing=easing, start=start, duration=duration))
 
     def scaleBy(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         if factor is not None:
             x = factor
             y = factor
-        s = self.meta.scale
-        scaleTo(
-            self,
-            x=Maybe(x).map(lambda v: s.x + v).get(),
-            y=Maybe(y).map(lambda v: s.y + v).get(),
-            easing=easing,
-            start=start,
-            duration=duration,
-        )
-        return self
+        return self.apply(scaleBy(x=x, y=y, easing=easing, start=start, duration=duration))
 
     def rotateTo(self, degree: number, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        rotateTo(self, degree=degree, easing=easing, start=start, duration=duration)
-        return self
+        return self.apply(rotateTo(dst=degree, easing=easing, start=start, duration=duration))
 
     def rotateBy(self, degree: number, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        rotateTo(self, degree=self.meta.rotation + degree, easing=easing, start=start, duration=duration)
-        return self
+        return self.apply(rotateBy(dst=degree, easing=easing, start=start, duration=duration))
 
     def alignTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        alignTo(
-            self,
-            x=Maybe(x) | self.meta.align.x,
-            y=Maybe(y) | self.meta.align.y,
-            easing=easing,
-            start=start,
-            duration=duration,
-        )
-        return self
+        return self.apply(alignTo(x=x, y=y, easing=easing, start=start, duration=duration))

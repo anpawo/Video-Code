@@ -3,11 +3,10 @@
 import math
 
 from videocode.input.shape.Polygon import *
-from videocode.utils.decorators import trackProps, prop
+from videocode.utils.decorators import prop
 
 
 class Triangle(Polygon):
-    @trackProps
     def __init__(
         self,
         p0: point = (0, 0),
@@ -18,6 +17,10 @@ class Triangle(Polygon):
         strokeWidth: wufloat = 0.05,
         cornerRadius: percent = 0,
     ):
+        self.p0 = p0
+        self.p1 = p1
+        self.p2 = p2
+
         super().__init__(
             vertices=self.generateVertices(),
             fillColor=fillColor,
@@ -40,7 +43,6 @@ class Triangle(Polygon):
 
 
 class EquilateralTriangle(Triangle):
-    @trackProps
     def __init__(
         self,
         side: wufloat = 3,
@@ -49,12 +51,13 @@ class EquilateralTriangle(Triangle):
         strokeWidth: wufloat = 0.05,
         cornerRadius: percent = 0,
     ):
-        s = side
-        h = s * math.sqrt(3) / 2
+        self.side = side
+
+        h = side * math.sqrt(3) / 2
         super().__init__(
             p0=(0, 0),
-            p1=(s, 0),
-            p2=(s / 2, h),
+            p1=(side, 0),
+            p2=(side / 2, h),
             fillColor=fillColor,
             strokeColor=strokeColor,
             strokeWidth=strokeWidth,
@@ -71,7 +74,6 @@ class EquilateralTriangle(Triangle):
 
 
 class RightTriangle(Triangle):
-    @trackProps
     def __init__(
         self,
         width: wufloat = 4,
@@ -81,6 +83,9 @@ class RightTriangle(Triangle):
         strokeWidth: wufloat = 0.05,
         cornerRadius: percent = 0,
     ):
+        self.width = width
+        self.height = height
+
         super().__init__(
             p0=(0, 0),
             p1=(width, 0),

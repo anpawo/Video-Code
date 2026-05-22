@@ -7,18 +7,23 @@
 
 #include "core/Core.hpp"
 
+#include <pybind11/embed.h>
+#include <pybind11/stl.h>
+
 #include <cstddef>
 #include <format>
 #include <iostream>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <string>
+
+using json = nlohmann::json;
 
 #include "core/Config.hpp"
 #include "input/AInput.hpp"
 #include "input/IInput.hpp"
 #include "input/InputFactory.hpp"
 #include "input/media/Image.hpp"
-#include "input/media/WebImage.hpp"
 // #include "input/media/Video.hpp"
 #include "utils/Exception.hpp"
 #include "utils/Logger.hpp"
@@ -32,93 +37,114 @@ VC::Core::Core(const argparse::ArgumentParser& parser, const Config& config)
     reloadSourceFile();
 }
 
+// Recursively convert a Python object to nlohmann::json.
+// Handles all types that can appear in StackAction args.
+static json pyToJson(py::handle h)
+{
+    auto obj = py::reinterpret_borrow<py::object>(h);
+    if (obj.is_none()) return nullptr;
+    if (py::isinstance<py::bool_>(obj)) return obj.cast<bool>();
+    if (py::isinstance<py::int_>(obj)) return obj.cast<int64_t>();
+    if (py::isinstance<py::float_>(obj)) return obj.cast<double>();
+    if (py::isinstance<py::str>(obj)) return obj.cast<std::string>();
+    if (py::isinstance<py::dict>(obj)) {
+        json d;
+        for (auto [k, v] : obj.cast<py::dict>())
+            d[k.cast<std::string>()] = pyToJson(v);
+        return d;
+    }
+    if (py::isinstance<py::list>(obj) || py::isinstance<py::tuple>(obj)) {
+        json arr = json::array();
+        for (auto item : obj)
+            arr.push_back(pyToJson(item));
+        return arr;
+    }
+    // Numeric types wrapping float (e.g. wufloat)
+    if (py::hasattr(obj, "__float__")) {
+        try {
+            return obj.cast<double>();
+        } catch (...) {
+        }
+    }
+    // Custom types with explicit serialization (e.g. rgba → [r,g,b,a], v2 → {x,y}).
+    // Must come before __dict__ so rgba doesn't become {"r":…} instead of [r,g,b,a].
+    if (py::hasattr(obj, "jsonSerialization")) {
+        return pyToJson(obj.attr("jsonSerialization")());
+    }
+    // Fallback: convert via __dict__ (StackAction subclasses)
+    if (py::hasattr(obj, "__dict__")) {
+        return pyToJson(obj.attr("__dict__"));
+    }
+    return obj.cast<std::string>();
+}
+
 void VC::Core::reloadSourceFile()
 {
-    std::string serializedScene;
-
-    try {
-        serializedScene = serializeScene();
-    } catch (const Error& e) {
-        std::cerr << "\nVideoCode: Invalid source file '" << _config.sourceFile << "', could not parse the instructions." << std::endl;
-        return;
-    }
-
     _inputs.clear();
-    _stack.clear();
+    _waits.clear();
+    _timestamps.clear();
+    _nbFrame = 0;
+    _index = 0;
+    _lastRenderedIndex = SIZE_MAX;
+    _cachedMeshes.clear();
 
     try {
-        _stack = json::parse(serializedScene);
-    } catch (const std::exception& e) {
-        std::cerr << "\nVideoCode: Couldn't parse source file: " << e.what() << std::endl;
-        return;
-    }
+        auto serialize = py::module_::import("videocode.serialize");
+        VC_TIME("execScene (in-process)", serialize.attr("execScene")(_config.sourceFile));
 
-    executeStack();
+        auto     ctx = py::module_::import("videocode.context").attr("Context");
+        py::list stack = ctx.attr("stack");
+
+        VC_TIME("executeStack", executeStack(stack));
+
+    } catch (const py::error_already_set& e) {
+        std::cerr << "\nError in source file '" << _config.sourceFile << "':\n"
+                  << e.what() << "\n";
+    }
 }
 
-std::string VC::Core::serializeScene()
+void VC::Core::executeStack(const py::list& stack)
 {
-    std::string command = "python3 -c \"import sys; sys.path.append('./videocode');from serialize import serializeScene; print(serializeScene('video.py'))\"";
+    for (const auto& item : stack) {
+        auto obj = py::reinterpret_borrow<py::object>(item);
+        auto action = obj.attr("action").cast<std::string>();
 
-    FILE* pipe = popen(command.c_str(), "r");
-    if (!pipe) {
-        throw Error("Failed to load '" + _config.sourceFile + "'.");
-    }
-
-    char        buffer[4096];
-    std::string result;
-    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-        result += buffer;
-    }
-
-    return result;
-}
-
-void VC::Core::executeStack()
-{
-    for (auto& s : _stack) {
         if (_showstack) {
-            VC::Debug.logStack(s);
+            Debug.logStack(pyToJson(obj));
         }
 
-        if (s["action"] == "Create") {
-            _inputs.push_back(Factory::inputs.at(s["type"])(s["args"]));
+        if (action == "Create") {
+            auto type = obj.attr("type").cast<std::string>();
+            json args = pyToJson(obj.attr("args"));
+            _inputs.push_back(Factory::inputs.at(type)(args));
 
-            // if (s["type"] == "Video") {
-            //     auto* video = dynamic_cast<Video*>(_inputs.back().get());
+        } else if (action == "Apply") {
+            ssize_t index = obj.attr("input").cast<int>();
+            json    args = pyToJson(obj.attr("args"));
+            size_t  start = args["start"];
+            size_t  duration = args["duration"];
+            size_t  lastFrame = start + duration;
 
-            // if (video->_nbFrame > _nbFrame) {
-            //     _nbFrame = video->_nbFrame;
-            // }
-            // }
-
-        } else if (s["action"] == "Apply") {
-            ssize_t index = s["input"];
-
-            size_t start = s["args"]["start"];
-            size_t duration = s["args"]["duration"];
-            size_t lastFrame = start + duration;
-
-            if (lastFrame > _nbFrame) {
+            if (lastFrame > _nbFrame)
                 _nbFrame = lastFrame;
-            }
+
+            json s = pyToJson(obj);
             _inputs[index]->add(s);
 
-        } else if (s["action"] == "Wait") {
-            size_t n = s["n"];
+        } else if (action == "Wait") {
+            size_t n = obj.attr("n").cast<int>();
 
-            for (size_t i = 0; i < n; i++) {
+            for (size_t i = 0; i < n; i++)
                 _waits[_nbFrame + i] = _nbFrame == 0 ? 0 : (_nbFrame - 1);
-            }
             _nbFrame += n;
 
-        } else if (s["action"] == "Timestamp") {
-            std::string name = s["name"];
-            size_t      time = s["time"];
-
+        } else if (action == "Timestamp") {
+            auto   name = obj.attr("name").cast<std::string>();
+            size_t time = obj.attr("time").cast<int>();
             _timestamps[time] = name;
+
         } else {
-            throw Error("Invalid action: " + s["action"].get<std::string>());
+            throw Error("Invalid action: " + action);
         }
     }
 }
@@ -133,15 +159,28 @@ std::vector<Mesh> VC::Core::generateMeshes()
 
     if (renderIndex != _lastRenderedIndex) {
         _cachedMeshes.clear();
-        for (auto& i : _inputs) {
-            auto meta = i->getMetadata(renderIndex);
-            if (!meta.hidden) {
-                auto mesh = i->getMesh(meta, _config);
-                if (auto* a = dynamic_cast<AInput*>(i.get()))
-                    mesh.effects = a->getActiveEffectsAtFrame(renderIndex);
-                _cachedMeshes.push_back(std::move(mesh));
+        VC_TIME("generateMeshes", {
+            for (auto& i : _inputs) {
+#ifdef VC_DEBUG_ON
+                auto _tInput0 = std::chrono::high_resolution_clock::now();
+#endif
+                auto meta = i->getMetadata(renderIndex);
+                if (!meta.hidden) {
+                    auto mesh = i->getMesh(meta, _config);
+                    if (auto* a = dynamic_cast<AInput*>(i.get()))
+                        mesh.effects = a->getActiveEffectsAtFrame(renderIndex);
+                    _cachedMeshes.push_back(std::move(mesh));
+                }
+#ifdef VC_DEBUG_ON
+                auto _tInputMs = std::chrono::duration_cast<std::chrono::microseconds>(
+                                     std::chrono::high_resolution_clock::now() - _tInput0
+                )
+                                     .count();
+                if (_tInputMs > 500)
+                    VC_LOG(std::format("[timer] getMesh input#{}: {}µs\n", &i - &_inputs[0], _tInputMs));
+#endif
             }
-        }
+        });
         _lastRenderedIndex = renderIndex;
         _meshesRebuilt = true;
     } else {
@@ -256,9 +295,6 @@ void VC::Core::uploadTextures(VC::VulkanWidget* widget)
         if (Image* img = dynamic_cast<Image*>(inputPtr.get())) {
             VkDescriptorSet desc = widget->uploadTexture(img->getBase());
             img->setTextureDescriptor(desc);
-        } else if (WebImage* img = dynamic_cast<WebImage*>(inputPtr.get())) {
-            VkDescriptorSet desc = widget->uploadTexture(img->getBase());
-            img->setTextureDescriptor(desc);
         }
     }
 }
@@ -267,8 +303,6 @@ void VC::Core::uploadTextures(std::function<VkDescriptorSet(const cv::Mat&)> upl
 {
     for (auto& inputPtr : _inputs) {
         if (Image* img = dynamic_cast<Image*>(inputPtr.get())) {
-            img->setTextureDescriptor(uploadFn(img->getBase()));
-        } else if (WebImage* img = dynamic_cast<WebImage*>(inputPtr.get())) {
             img->setTextureDescriptor(uploadFn(img->getBase()));
         }
     }

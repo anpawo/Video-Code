@@ -71,6 +71,15 @@ endif()
 
 find_package(OpenCV CONFIG REQUIRED)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
+# pybind11 is pip-installed, not in any system CMake registry.
+# Ask it directly where its CMake config lives, then point find_package at that path.
+# (pybind11_DIR is the conventional hint variable find_package uses for pybind11Config.cmake)
+execute_process(
+    COMMAND python3 -m pybind11 --cmakedir
+    OUTPUT_VARIABLE pybind11_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE  # strip the trailing newline or the path is invalid
+)
+find_package(pybind11 REQUIRED)
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
 find_package(CURL REQUIRED)
 if(APPLE)
@@ -125,7 +134,6 @@ set(SOURCES
     src/input/shape/Circle.cpp
     src/input/text/Text.cpp
     src/input/media/Image.cpp
-    src/input/media/WebImage.cpp
     # src/input/media/Video.cpp
 
     # --- Fragment Shaders (GLSL-based, no C++ impl needed) ---
@@ -167,7 +175,7 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Widgets
     Qt6::Core
     Qt6::Gui
-    # Python3::Python
+    pybind11::embed
     CURL::libcurl
     Vulkan::Vulkan
     glslang::glslang

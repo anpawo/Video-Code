@@ -2,6 +2,7 @@
 
 
 from sys import stderr
+from typing import Any
 
 
 class Logger:
@@ -13,7 +14,8 @@ class Logger:
     def log(self, s: str):
         print(f"{self.color}[{self.prefix}]:\033[0m {s}", file=self.file)
 
+    def __call__(self, s: str) -> None:
+        self.log(s)
+
 
 TEXT_GREEN = "\033[36m"
-
-DEBUG = Logger(prefix="Debug", color=TEXT_GREEN)

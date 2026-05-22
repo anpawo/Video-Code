@@ -2,13 +2,10 @@
 
 
 from videocode import *
-from videocode.input.offset.Offset import Offset
-from videocode.input.sticky.Sticky import Sticky
-from videocode.utils.decorators import trackProps, prop
+from videocode.utils.decorators import prop
 
 
 class Arrow(Polygon):
-    @trackProps
     def __init__(
         self,
         length: wfloat = 1,
@@ -22,6 +19,13 @@ class Arrow(Polygon):
         strokeWidth: wufloat = 0,
         cornerRadius: percent = 0,
     ):
+        self.length = length
+        self.bodyWidth = bodyWidth
+        self.bodyLength = bodyLength
+        self.tipLength = tipLength
+        self.tipHeight = tipHeight
+        self.bodyInTip = bodyInTip
+
         super().__init__(
             vertices=self.generateVertices(),
             fillColor=fillColor,
@@ -52,23 +56,23 @@ class Arrow(Polygon):
     def length() -> wfloat: ...
 
     @prop(onSet=Polygon.updatePoints)
-    def bodyWidth(self, v: wufloat) -> wfloat:
+    def bodyWidth(self, v: maybe[wufloat]) -> wfloat:
         return Maybe(v) | self.length * 0.05
 
     @prop(onSet=Polygon.updatePoints)
-    def bodyLength(self, v: wufloat) -> wfloat:
+    def bodyLength(self, v: maybe[wufloat]) -> wfloat:
         return Maybe(v) | self.length * 0.8
 
     @prop(onSet=Polygon.updatePoints)
-    def tipLength(self, v: wufloat) -> wfloat:
+    def tipLength(self, v: maybe[wufloat]) -> wfloat:
         return Maybe(v) | self.length * 0.2
 
     @prop(onSet=Polygon.updatePoints)
-    def tipHeight(self, v: wufloat) -> wfloat:
+    def tipHeight(self, v: maybe[wufloat]) -> wfloat:
         return Maybe(v) | self.length * 0.2
 
     @prop(onSet=Polygon.updatePoints)
-    def bodyInTip(self, v: wufloat) -> wfloat:
+    def bodyInTip(self, v: maybe[wufloat]) -> wfloat:
         return Maybe(v) | 0
 
 

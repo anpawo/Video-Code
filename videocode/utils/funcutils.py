@@ -4,10 +4,8 @@
 # Types
 #
 
-import types
 
-from constants import *
-from typing import Any, TypeAliasType, Union, get_origin, get_args
+from videocode.constants import *
 from videocode.utils.logger import *
 
 
@@ -24,3 +22,21 @@ def floatRange(start: number, end: number, step: number):
             n += step
 
     return rangeGenerator(start, end, step)
+
+
+def darken(c: rgba):
+    return c | 0.75 | BLACK | (BLACK | 0.7)
+
+
+def lighten(c: rgba):
+    return c | 0.75 | BLACK | GRAY_10
+
+
+def ppDict(d: dict) -> str:
+    """
+    Pretty Print a Dict
+    """
+    s = ""
+    for k, v in d.items():
+        s += f"{k}:\n\t{v}\n"
+    return s

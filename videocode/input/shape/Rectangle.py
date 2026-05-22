@@ -2,21 +2,23 @@
 
 
 from videocode.input.shape.Polygon import *
-from videocode.utils.decorators import trackProps, prop
+from videocode.utils.decorators import prop
 from videocode.utils.logger import *
 
 
 class Rectangle(Polygon):
-    @trackProps
     def __init__(
         self,
-        width: wunumber = 5,
-        height: wunumber = 3,
+        width: wunumber = 3,
+        height: wunumber = 2,
         fillColor: rgba = BLUE_C | BLACK,
         strokeColor: rgba = BLUE_C | WHITE,
         strokeWidth: wunumber = 0.05,
         cornerRadius: percent = 0,  # percent 0-100, 100 = circle on a square
     ):
+        self.width = width
+        self.height = height
+
         super().__init__(
             vertices=self.generateVertices(),
             fillColor=fillColor,
@@ -43,11 +45,11 @@ class Rectangle(Polygon):
 class Square(Rectangle):
     def __init__(
         self,
-        side: wunumber = 4,
+        side: wunumber = 2,
         strokeWidth: wunumber = 0.05,
         fillColor: rgba = GREEN_A | BLACK,
         strokeColor: rgba = GREEN_A | WHITE,
-        cornerRadius: float = 0,
+        cornerRadius: percent = 0,
     ):
         super().__init__(
             width=side,
@@ -77,7 +79,7 @@ class HorizontalLine(Rectangle):
             height=strokeWidth,
             fillColor=fillColor,
             strokeColor=strokeColor,
-            strokeWidth=strokeWidth / 3,  # TODO: fix this shit
+            strokeWidth=strokeWidth / 3,
             cornerRadius=100 if rounded else 0,
         )
 

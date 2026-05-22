@@ -5,6 +5,8 @@
 ** Main
 */
 
+#include <pybind11/embed.h>
+
 #include <QApplication>
 #include <QMainWindow>
 #include <QMessageLogContext>
@@ -16,6 +18,8 @@
 
 #include "compiler/Compiler.hpp"
 #include "window/Window.hpp"
+
+namespace py = pybind11;
 
 void setParserArgument(argparse::ArgumentParser &p)
 {
@@ -64,8 +68,14 @@ void setParserArgument(argparse::ArgumentParser &p)
 
 int main(int argc, char *argv[])
 {
+    // Initialize the Python interpreter once for the whole process.
+    // false = don't override Qt's signal handlers.
+    py::scoped_interpreter guard{false};
+    py::exec("import sys; sys.path.insert(0, '')");
+
     // Suppress the spurious Qt/macOS fullscreen position warning
-    qInstallMessageHandler([](QtMsgType type, const QMessageLogContext&, const QString& msg) {
+    // Message: "qt.qpa.window: Window position QRect(-1,0 1470x826) outside any known screen, using primary screen"
+    qInstallMessageHandler([](QtMsgType type, const QMessageLogContext &, const QString &msg) {
         if (type == QtWarningMsg && msg.contains("outside any known screen"))
             return;
         fprintf(stderr, "%s\n", msg.toLocal8Bit().constData());

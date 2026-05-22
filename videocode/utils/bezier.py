@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
 
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Any, Callable, Generator, overload
 from videocode.constants import FRAMERATE, number
-from videocode.ty import sec
+from videocode.ty import Arithmetic, sec, index
 
 
 if TYPE_CHECKING:
@@ -51,25 +51,25 @@ class CubicBezier:
     def __call__(self, x: float) -> float:
         return self.getValueAtX(x)
 
-    def range(self, start: number, end: number, duration: sec):
+    @overload
+    def range(self, start: int, end: int, duration: sec) -> Generator[float, Any, None]: ...
+    @overload
+    def range[T: Arithmetic](self, start: T, end: T, duration: sec) -> Generator[T, Any, None]: ...
+    def range(self, start: Any, end: Any, duration: sec) -> Generator[Any, Any, None]:
+        n = int(duration * FRAMERATE)
+        for i in range(0, n):
+            t = i / (n - 1) if n > 1 else 0.0
+            yield start + (end - start) * self(t)
 
-        def bezierRangeGenerator(bezier, start, end):
-            n = int(duration * FRAMERATE)
-            for i in range(0, n):
-                t = i / (n - 1) if n > 1 else 0.0
-                yield start + bezier(t) * (end - start)
-
-        return bezierRangeGenerator(self, start, end)
-
-    def rangeIdx(self, start: number, end: number, duration: sec):
-
-        def bezierRangeGenerator(bezier, start, end):
-            n = int(duration * FRAMERATE)
-            for i in range(0, n):
-                t = i / (n - 1) if n > 1 else 0.0
-                yield start + bezier(t) * (end - start), i
-
-        return bezierRangeGenerator(self, start, end)
+    @overload
+    def rangeIdx(self, start: int, end: int, duration: sec) -> Generator[tuple[float, index], Any, None]: ...
+    @overload
+    def rangeIdx[T: Arithmetic](self, start: T, end: T, duration: sec) -> Generator[tuple[T, index], Any, None]: ...
+    def rangeIdx(self, start: Any, end: Any, duration: sec) -> Generator[tuple[Any, index], Any, None]:
+        n = int(duration * FRAMERATE)
+        for i in range(0, n):
+            t = i / (n - 1) if n > 1 else 0.0
+            yield start + (end - start) * self(t), i
 
 
 class Easing:

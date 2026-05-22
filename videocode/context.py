@@ -4,12 +4,10 @@
 from abc import abstractmethod
 from typing import TYPE_CHECKING, Any, Callable
 from videocode.constants import *
-from videocode.utils.funcutils import upperFirst
 
 
 if TYPE_CHECKING:
-    from videocode.input.input import Input
-    from videocode.shader.ishader import VertexShader, IShader
+    from videocode.shader.ishader import IShader
 
 
 class Metadata:
@@ -20,19 +18,19 @@ class Metadata:
 
         Groups do not have an index (they are just python wrapper)
         """
-        self.index: int = -1 if interface else Context.getIndex()
+        self.index: int = cast(int, None) if interface else Context.getIndex()
 
         # --- Position ---
-        self.position: v2 = v2(0, 0)
+        self.position: v2[wnumber, wnumber] = v2(0, 0)
 
         # --- Align ---
-        self.align: v2 = v2(0.5, 0.5)
+        self.align: v2[wnumber, wnumber] = v2(0.5, 0.5)
+
+        # --- Scale ---
+        self.scale: v2[wnumber, wnumber] = v2(1, 1)
 
         # --- Rotation ---
         self.rotation: number = 0
-
-        # --- Scale ---
-        self.scale: v2 = v2(1, 1)
 
         # --- Opacity ---
         self.opacity: number = 255
@@ -47,32 +45,29 @@ class Metadata:
 
         Starts at waitOffset because any waits should consume all previous effects.
         """
-        self.transformationOffset: int = self.lastAffectedFrame
+        self.transformationOffset: frame = self.lastAffectedFrame
         """
         Increased by `lastAffectedFrame` when flushed.
 
         Also starts at Global.waitOffset
         """
 
-        # --- SetAttr On ---
-        self.setattrCallbackOn = False
-        """
-        Setting an Attribute will trigger an `apply(args(attr))`
-        """
-        self.pendingSetattrStart: sec = 0
+        # --- Delay ---
+        self.pendingStart: sec = 0
         """
         Keep start through setattr.
         """
-        self.pendingSetattrDuration: sec = 1
+        self.pendingDuration: sec = SINGLE_FRAME
         """
         Keep duration through setattr.
         """
+        self.pendingOffset: maybe[frame] = None
+        """
+        Keep transformation offset through setattr.
+        """
 
         # --- Callbacks ---
-        self.callbacks: dict[type[IShader], list[Callable[[IShader, sec, sec], None]]] = {}
-
-        # --- Property Attributes ---
-        self.props: set[str] = set()
+        self.callbacks: dict[type[IShader], list[Callable[[IShader, sec, sec, frame], None]]] = {}
 
     def __str__(self) -> str:
         s = "\n"
@@ -150,7 +145,16 @@ class Context:
 
     @staticmethod
     def apply(inputIndex: int, shaderName: str, shaderType: str, shaderArgs: dict[str, Any]):
-        Context.stack.append(Apply(inputIndex, shaderName, shaderType, shaderArgs))
+        a = Apply(inputIndex, shaderName, shaderType, shaderArgs)
+        for i, action in enumerate(Context.stack):
+            if isinstance(action, Apply):
+                sameShader = action.input == inputIndex and action.name == shaderName and action.type == shaderType
+                sameTiming = action.args.get("start") == shaderArgs.get("start") and action.args.get("duration") == shaderArgs.get("duration")
+                sameArg = (action.name != "Args") or (action.args.get("name") == shaderArgs.get("name"))
+                if sameShader and sameTiming and sameArg:
+                    Context.stack[i] = a
+                    return
+        Context.stack.append(a)
 
 
 def wait(n: sec = 0) -> None:
@@ -170,3 +174,6 @@ def wait(n: sec = 0) -> None:
 
 def timestamp(name: str) -> None:
     Context.stack.append(Timestamp(name, Context.lastEverAffectedFrame))
+
+
+# TODO: background level

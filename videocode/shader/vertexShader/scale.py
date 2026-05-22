@@ -1,26 +1,25 @@
 #!/usr/bin/env python3
 
+
 from videocode.shader.ishader import *
+from videocode.utils.classutils import Maybe
 
 
 class scale(VertexShader):
     """
-    `Scale` will scale up or down an `Input` according to `factor` while changing it's original width and height.
-
-    # TODO: a position where the scaling should take place from, it will move the input
+    `Scale` up or down an `Input`'s size.
     """
 
     def __init__(self, x: maybe[number], y: maybe[number]):
         self.x = x
         self.y = y
 
-    def modificator(self, i: Input):
-        if self.x is not None:
-            i.meta.scale.x = self.x
-        else:
-            self.x = i.meta.scale.x
+    def autodestroy(self, i: Input) -> bool:
+        return (i.meta.scale.x is None or i.meta.scale.x == self.x) and (i.meta.scale.y is None or i.meta.scale.y == self.y)
 
-        if self.y is not None:
-            i.meta.scale.y = self.y
-        else:
-            self.y = i.meta.scale.y
+    def modify(self, i: Input):
+        i.meta.scale = v2(
+            Maybe(self.x) | i.meta.scale.x,
+            Maybe(self.y) | i.meta.scale.y,
+        )
+        self.x, self.y = i.meta.scale

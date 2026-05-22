@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Generator
 from videocode.constants import *
 from videocode.utils.funcutils import *
 
@@ -23,9 +23,7 @@ class IShader(ABC):
     def __init__(self) -> None: ...
 
     def __str__(self) -> str:
-        s = f"\n{self.__class__.__name__}:\n"
-        for i in self.__dict__:
-            s += f"\t{i}='{self.__getattribute__(i)}'\n"
+        s = f"{self.__class__.__name__}"
         return s
 
     def __repr__(self) -> str:
@@ -35,11 +33,6 @@ class IShader(ABC):
 class FragmentShader(IShader):
     """
     An `FragmentShader` modifies the pixels of an `Input`.
-
-    .. code-block:: python
-        def fade() -> Effect: ...
-        def grayscale() -> Effect: ...
-
     """
 
     _type = "FragmentShader"
@@ -47,12 +40,21 @@ class FragmentShader(IShader):
 
 class VertexShader(IShader):
     """
-    A `VertexShader` modifies the geometry (metadata) of an `Input`.
+    A `VertexShader` modifies the metadata of an `Input`.
 
-    .. code-block:: python
-        def position() -> Transformation: ...
-        def scale() -> Transformation: ...
+    ### Geometry
+    - position
+    - align
+    - rotate
+    - scale
 
+    ### Visibility
+    - opacity
+    - hide
+    - show
+
+    ### Default arguments of an Input
+    - args
     """
 
     _type = "VertexShader"
@@ -62,11 +64,28 @@ class VertexShader(IShader):
     """
     duration = SINGLE_FRAME
 
+    def autodestroy(self, i: Input) -> bool:
+        return False
+
     @abstractmethod
-    def modificator(self, i: Input):
+    def modify(self, i: Input) -> None:
         """
         Modify the `Input`'s `Metadata`. (may do more)
 
         We want the python interface to keep trace of the changes made on the inputs but they need
         to be applied the moment the transformations are applied, not the moment they are created.
+        """
+
+
+class DeferredShader(IShader):
+    """
+    A `DeferredShader` will generate other shaders when applied.
+
+    click() -> list[scale] => quick scale down then back to normal, like a cursor click.
+    """
+
+    @abstractmethod
+    def resolve(self, i: Input) -> Generator[IShader, Any, None]:
+        """
+        Generate the underlying IShaders.
         """

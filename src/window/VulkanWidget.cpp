@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <iostream>
 
 #include <filesystem>
 #include <fstream>
@@ -1757,15 +1758,23 @@ void VC::VulkanWidget::render()
         return;
     }
 
-    // Advance the animation and upload new geometry before touching the GPU.
+    using Clock = std::chrono::high_resolution_clock;
+    using Ms    = std::chrono::duration<double, std::milli>;
+
+    auto t = [](auto t0) { return std::chrono::duration_cast<Ms>(Clock::now() - t0).count(); };
+
+    // --- frameCallback + setMeshes ---
+    auto t0 = Clock::now();
     if (m_frameCallback) {
         setMeshes(m_frameCallback());
     }
+    [[maybe_unused]] double ms_meshes = t(t0);
 
-    // Block the CPU until the GPU has finished the previous frame so we don't
-    // overwrite the command buffer while it is still in use.
+    // --- GPU fence (stall waiting for previous frame to finish) ---
+    auto t1 = Clock::now();
     vkWaitForFences(m_device, 1, &m_inFlightFence, VK_TRUE, UINT64_MAX);
     vkResetFences(m_device, 1, &m_inFlightFence);
+    [[maybe_unused]] double ms_fence = t(t1);
 
     uint32_t imageIndex;
     VkResult res = vkAcquireNextImageKHR(m_device, m_swapchain, UINT64_MAX, m_imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
@@ -1774,9 +1783,14 @@ void VC::VulkanWidget::render()
         return;
     }
 
+    // --- command buffer recording ---
+    auto t2 = Clock::now();
     vkResetCommandBuffer(m_commandBuffer, 0);
     recordCommandBuffer(m_commandBuffer, imageIndex);
+    [[maybe_unused]] double ms_record = t(t2);
 
+    // --- submit + present ---
+    auto t3 = Clock::now();
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
     VkSubmitInfo         submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1797,6 +1811,25 @@ void VC::VulkanWidget::render()
     presentInfo.pSwapchains = &m_swapchain;
     presentInfo.pImageIndices = &imageIndex;
     vkQueuePresentKHR(m_graphicsQueue, &presentInfo);
+    [[maybe_unused]] double ms_submit = t(t3);
+
+#ifdef VC_DEBUG_ON
+    static auto   s_lastPrint = Clock::now();
+    static double s_meshes = 0, s_fence = 0, s_record = 0, s_submit = 0;
+    static int    s_frames = 0;
+    s_meshes += ms_meshes; s_fence += ms_fence;
+    s_record += ms_record; s_submit += ms_submit;
+    ++s_frames;
+    if (t(s_lastPrint) >= 1000.0) {
+        double n = s_frames;
+        std::cout << std::format(
+            "[render] meshes+upload:{:.1f}ms  fence:{:.1f}ms  record:{:.1f}ms  submit+present:{:.1f}ms  ({} fps)\n",
+            s_meshes/n, s_fence/n, s_record/n, s_submit/n, s_frames);
+        s_meshes = s_fence = s_record = s_submit = 0;
+        s_frames = 0;
+        s_lastPrint = Clock::now();
+    }
+#endif
 
     // windowHandle()->requestUpdate() ties the next repaint to the platform
     // display sync (CADisplayLink on macOS) rather than posting through Qt's

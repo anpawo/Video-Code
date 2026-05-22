@@ -4,11 +4,7 @@
 # Types
 #
 
-# alias
-from typing import Any, cast, overload
-from typing_extensions import Self
-
-from videocode.utils.classutils import Maybe
+from typing import Any, Generic, Protocol, Self, TypeVar, cast, overload
 
 
 type int8 = int
@@ -35,6 +31,10 @@ is in frame count not sec
 type maybe[T] = T | None
 type number = int | float
 type unumber = int | float
+type mnbr = maybe[number]
+"""
+shorthand for `maybe[number]`
+"""
 
 type degree = number
 type index = int
@@ -113,38 +113,38 @@ class rgba:
         return self.__mul__(other)
 
 
-class v2[T]:
+class v2[XT: maybe[number], YT: maybe[number]]:
     """
     Vector 2D
     """
 
-    def __init__(self, x: T, y: T) -> None:
-        self.x = x
-        self.y = y
+    def __init__(self, x: XT, y: YT) -> None:
+        self.x: XT = x
+        self.y: YT = y
+
+    def __add__(self, other: v2) -> v2:
+        x = self.x + other.x if (self.x is not None and other.x is not None) else (self.x if self.x is not None else other.x)
+        y = self.y + other.y if (self.y is not None and other.y is not None) else (self.y if self.y is not None else other.y)
+        return v2(x, y)
+
+    def __sub__(self, other: v2) -> v2:
+        x = self.x - other.x if (self.x is not None and other.x is not None) else (self.x if self.x is not None else other.x)
+        y = self.y - other.y if (self.y is not None and other.y is not None) else (self.y if self.y is not None else other.y)
+        return v2(x, y)
+
+    def __mul__(self, m: number) -> v2:
+        x = self.x * m if self.x is not None else self.x
+        y = self.y * m if self.y is not None else self.y
+        return v2(x, y)
+
+    def __div__(self, d: number) -> v2:
+        x = self.x / d if self.x is not None else self.x
+        y = self.y / d if self.y is not None else self.y
+        return v2(x, y)
 
     def __iter__(self):
         yield self.x
         yield self.y
-
-    def __add__(self, other: v2) -> v2:
-        x = Maybe(self.x).map(lambda a: Maybe(other.x).map(lambda b: a + b).orElse(a)).orElse(other.x)
-        y = Maybe(self.y).map(lambda a: Maybe(other.y).map(lambda b: a + b).orElse(a)).orElse(other.y)
-        return v2(x, y)
-
-    def __sub__(self, other: v2) -> v2:
-        x = Maybe(self.x).map(lambda a: Maybe(other.x).map(lambda b: a - b).orElse(a)).orElse(other.x)
-        y = Maybe(self.y).map(lambda a: Maybe(other.y).map(lambda b: a - b).orElse(a)).orElse(other.y)
-        return v2(x, y)
-
-    def __mul__(self, m: number) -> v2:
-        x = Maybe(self.x).map(lambda a: cast(number, a) * m).get()
-        y = Maybe(self.y).map(lambda a: cast(number, a) * m).get()
-        return v2(x, y)
-
-    def __div__(self, d: number) -> v2:
-        x = self.x / d if isinstance(self.x, int | float) else self.x
-        y = self.y / d if isinstance(self.y, int | float) else self.y
-        return v2(x, y)
 
     def jsonSerialization(self):
         return vars(self)
@@ -154,3 +154,13 @@ class v2[T]:
 
     def __repr__(self) -> str:
         return str(self)
+
+
+class Arithmetic(Protocol):
+    """
+    Supports basic arithmetic operations.
+    """
+
+    def __add__(self, other: Self, /) -> Self: ...
+    def __sub__(self, other: Self, /) -> Self: ...
+    def __mul__(self, other: number, /) -> Self: ...

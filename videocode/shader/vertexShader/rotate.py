@@ -8,11 +8,14 @@ class rotation(VertexShader):
     """
     `Rotation` is set to degree.
 
-    # TODO: a position where the rotation should take place from.
+    The rotation can take place from another place than the center by using Offset.
     """
 
     def __init__(self, degree: number):
         self.degree = degree
 
-    def modificator(self, i: Input):
+    def autodestroy(self, i: Input) -> bool:
+        return i.meta.rotation == self.degree
+
+    def modify(self, i: Input):
         i.meta.rotation = self.degree

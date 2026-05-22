@@ -4,7 +4,7 @@
 from typing import TYPE_CHECKING, Callable, Self
 from videocode.input.input import Input
 from videocode.utils.bezier import Easing
-from videocode.utils.decorators import inputCreation, setAttrOn
+from videocode.utils.decorators import inputCreation
 from videocode.ty import *
 from videocode.constants import *
 
@@ -32,7 +32,6 @@ class Curve(Input):
         self.strokeColor = strokeColor
         self.strokeWidth = strokeWidth
 
-    @setAttrOn
     def animate(self, duration: sec = 0.4, easing=Easing.InOut) -> Self:
         allPoints = list(self.points)
         n = int(duration * FRAMERATE)
@@ -81,7 +80,6 @@ class FunctionGraph(Curve):
 
         self.alignOrdinate()
 
-    @setAttrOn
     def update(self, f: maybe[lambdaFunction] = None, numPoints: maybe[int] = None, xRange: maybe[tuple[int, int]] = None):
         if f is not None:
             self.f = f
@@ -92,7 +90,6 @@ class FunctionGraph(Curve):
 
         points = self.generatePoints()
         self.alignOrdinate()
-
         self.points = points
         self.flush()
 

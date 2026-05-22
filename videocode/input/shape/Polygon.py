@@ -6,7 +6,8 @@ import shapely.geometry as geo
 
 from abc import abstractmethod
 from videocode.input.input import Input
-from videocode.utils.decorators import autoProp, inputCreation, setAttrOn, trackProps, prop
+from videocode.utils.classutils import Maybe
+from videocode.utils.decorators import inputCreation, prop
 from videocode.ty import *
 from videocode.constants import *
 
@@ -20,7 +21,6 @@ class Polygon(Input):
         "strokeWidth",
     }
 
-    @trackProps
     @inputCreation
     def __init__(
         self,
@@ -28,28 +28,38 @@ class Polygon(Input):
         fillColor: rgba,
         strokeColor: rgba,
         strokeWidth: wufloat,
-        cornerRadius: percent,
+        cornerRadius: percent = 0,
         sharpCorners: set[int] = set(),
     ):
         self.vertices = vertices
         self.fillColor = fillColor
         self.strokeColor = strokeColor
         self.strokeWidth = strokeWidth
+        self.cornerRadius = cornerRadius
         self.sharpCorners = sharpCorners
-        self.points = self.roundCorners()
+        self.points = self.buildPoints()
 
     @abstractmethod
     def generateVertices(self) -> list[point]: ...
 
-    @setAttrOn
     def updatePoints(self):
         self.vertices = self.generateVertices()
-        self.points = self.roundCorners()
+        self.points = self.buildPoints()
 
     @prop(onSet=updatePoints)
     def cornerRadius() -> percent: ...
 
-    def roundCorners(self) -> list[point]:
+    @property
+    def width(self) -> wunumber:
+        xs = [v[0] for v in self.vertices]
+        return max(xs) - min(xs)
+
+    @property
+    def height(self) -> wunumber:
+        ys = [v[1] for v in self.vertices]
+        return max(ys) - min(ys)
+
+    def buildPoints(self) -> list[point]:
         """
         Build 4n bezier control points from self.vertices and self.cornerRadius.
 

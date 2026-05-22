@@ -3,7 +3,7 @@
 from __future__ import annotations
 from enum import Enum
 from videocode.constants import SH, SINGLE_FRAME, SW, url
-from videocode.input.group.Group import Group
+from videocode.input.interface.Group import Group
 from videocode.input.media.WebImage import WebImage
 from videocode.utils.easings import Easing
 

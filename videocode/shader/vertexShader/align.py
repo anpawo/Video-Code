@@ -2,6 +2,7 @@
 
 
 from videocode.shader.ishader import *
+from videocode.utils.classutils import Maybe
 
 
 class align(VertexShader):
@@ -15,10 +16,12 @@ class align(VertexShader):
         self.x = x
         self.y = y
 
-    def modificator(self, i: Input):
-        if self.x is None:
-            self.x = i.meta.align.x
-        if self.y is None:
-            self.y = i.meta.align.y
+    def autodestroy(self, i: Input) -> bool:
+        return (i.meta.align.x is None or i.meta.align.x == self.x) and (i.meta.align.y is None or i.meta.align.y == self.y)
 
-        i.meta.align = v2(self.x, self.y)
+    def modify(self, i: Input):
+        i.meta.align = v2(
+            Maybe(self.x) | i.meta.align.x,
+            Maybe(self.y) | i.meta.align.y,
+        )
+        self.x, self.y = i.meta.align
