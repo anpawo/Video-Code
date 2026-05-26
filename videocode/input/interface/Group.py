@@ -24,7 +24,7 @@ class Group(Interface, Generic[_GROUP_T]):
 
     def broadcast(self, func: Callable[[Input], Any]):
         for child in self.inputs:
-            func(child)
+            child.broadcast(func)
 
     def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
         for s in shaders:

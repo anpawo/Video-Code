@@ -20,8 +20,5 @@ class args(VertexShader):
     # Already checked in Input.__setattr__
     # def autodestroy(self, i: Input) -> bool: ...
 
-    def modify(self, _: Input):
-        """
-        Input.__setattr__ has already been called.
-        """
-        object.__setattr__(self, self.name, self.value)
+    def modify(self, i: Input):
+        object.__setattr__(i, self.name, self.value)

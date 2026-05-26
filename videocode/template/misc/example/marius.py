@@ -21,7 +21,7 @@ def example0():
         example3,
         example4,
         example5,
-        # example6,
+        example6,
         # example7,
     ]
 
@@ -194,27 +194,29 @@ def example5():
     return Group(arrows, button, cursor)
 
 
+# def example6():
+#     """
+#     WebImage
+
+#     # TODO: Very Slow
+#     """
+#     timestamp("Example #6: Image & WebImage")
+
+#     img = Image("wb.png")
+
+#     # wi = WebImage("https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/YouTube_2024.svg/langfr-3840px-YouTube_2024.svg.png")
+#     # wi.scale(0.2).flush()
+
+#     return Group(img)
+
+
 def example6():
     """
-    WebImage
+    Text With Fill And Stroke Color
 
-    # TODO: Very Slow
+    # TODO: fix the stroke line with the earcuts
     """
-    timestamp("Example #6: Image & WebImage")
-
-    img = Image("wb.png")
-
-    # wi = WebImage("https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/YouTube_2024.svg/langfr-3840px-YouTube_2024.svg.png")
-    # wi.scale(0.2).flush()
-
-    return Group(img)
-
-
-def example7():
-    """
-    Youtube Templates
-    """
-    timestamp("Example #7: Youtube Templates")
+    timestamp("Example #6: Text With Fill And Stroke Color")
 
     t1 = Text(
         "abcdefghijklmnopqrstuvwxyz",
@@ -234,3 +236,10 @@ def example7():
         .position(y=-2)
         .flush()
     )
+
+
+def example7():
+    """
+    Youtube Templates
+    """
+    timestamp("Example #7: Youtube Templates")

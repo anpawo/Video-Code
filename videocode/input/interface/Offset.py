@@ -32,9 +32,9 @@ class Offset[T: Input](Interface):
 
     def _syncPending(self):
         self._sync(
-            start=self.meta.pendingStart,
-            duration=self.meta.pendingDuration,
-            offset=self.meta.pendingOffset,
+            start=self.input.meta.pendingStart,
+            duration=self.input.meta.pendingDuration,
+            offset=self.input.meta.pendingOffset,
         )
 
     @prop(onSet=_syncPending)
@@ -47,7 +47,7 @@ class Offset[T: Input](Interface):
     def rOffset() -> wnumber: ...
 
     def broadcast(self, func: Callable[[Input], Any]):
-        func(self.input)
+        self.input.broadcast(func)
 
     def _sync(self, *, start: sec, duration: sec, offset: maybe[frame]):
         angle = math.radians(self.meta.rotation)
@@ -88,7 +88,7 @@ class Offset[T: Input](Interface):
         return self
 
     def __str__(self) -> str:
-        s = f"{self.__class__.__name__}"
+        s = f"{self.__class__.__name__}({self.input}, x={self.xOffset}, y={self.yOffset})"
         return s
 
     def __repr__(self) -> str:

@@ -18,8 +18,7 @@ class Graph(Group):
         # --
         unitSize: number | tuple[number, number] = 1.0,
         # --
-        labelOffset=-0.23,
-        fontSize=0.25,
+        fontSize=0.175,
         # --
         color=rgba("#BBBBBB"),
         # --
@@ -53,8 +52,8 @@ class Graph(Group):
             )
             .align(x=0)
             .position(
-                -(len(x) - 1) / 2 * unitSizeX,
-                (-(len(y) - 1) / 2 - yRange[0]) * unitSizeY,
+                x=-(len(x) - 1) / 2 * unitSizeX,
+                y=(-(len(y) - 1) / 2 - yRange[0]) * unitSizeY,
             )
             .ease(r.ref.width, (len(x) - 1) * unitSizeX, easing=Easing.InOut)
             .flush()
@@ -70,8 +69,8 @@ class Graph(Group):
             )
             .align(y=0)
             .position(
-                (-(len(x) - 1) / 2 - xRange[0]) * unitSizeX,
-                -(len(y) - 1) / 2 * unitSizeY,
+                x=(-(len(x) - 1) / 2 - xRange[0]) * unitSizeX,
+                y=-(len(y) - 1) / 2 * unitSizeY,
             )
             .ease(r.ref.height, (len(y) - 1) * unitSizeY, easing=Easing.InOut)
             .flush()
@@ -94,13 +93,15 @@ class Graph(Group):
             if n in xExclude:
                 continue
             self.numbers.append(
-                (t := Text(text=str(n), fontSize=0))
-                .align(x=0.75 if n < 0 else None)
+                Text(text=str(n), fontSize=fontSize)
+                .align(x=0.5, y=1.75)
+                .opacity(0)
                 .position(
-                    -(len(x) - 1) / 2 * unitSizeX + n * unitSizeX - xRange[0],
-                    (-(len(y) - 1) / 2 - yRange[0]) * unitSizeY + labelOffset,
+                    x=-(len(x) - 1) / 2 * unitSizeX + n * unitSizeX - xRange[0],
+                    y=(-(len(y) - 1) / 2 - yRange[0]) * unitSizeY,
                 )
-                .ease(t.ref.fontSize, fontSize, start=start, duration=0.15)
+                .scale(0)
+                .scaleTo(1, start=start, duration=0.15)
                 .fadeIn(start=start, duration=0.15)
             )
 
@@ -118,12 +119,15 @@ class Graph(Group):
             if n in yExclude:
                 continue
             self.numbers.append(
-                (t := Text(text=str(n), fontSize=0))
+                Text(text=str(n), fontSize=fontSize)
+                .align(x=2.25, y=0.51)
+                .opacity(0)
                 .position(
-                    (-(len(x) - 1) / 2 - xRange[0]) * unitSizeX + labelOffset,
-                    -(len(y) - 1) / 2 * unitSizeY + n * unitSizeY - yRange[0],
+                    x=(-(len(x) - 1) / 2 - xRange[0]) * unitSizeX,
+                    y=-(len(y) - 1) / 2 * unitSizeY + n * unitSizeY - yRange[0],
                 )
-                .ease(t.ref.fontSize, fontSize, start=start, duration=0.15)
+                .scale(0)
+                .scaleTo(1, start=start, duration=0.15)
                 .fadeIn(start=start, duration=0.15)
             )
 
@@ -160,12 +164,12 @@ class GraphPoint(Group):
         self.tipAppeared = False
 
         super().__init__(
-            Group(Circle(0.09, fillColor=WHITE, strokeColor=BLACK, strokeWidth=0.015)),
+            Circle(0.09, fillColor=WHITE, strokeColor=BLACK, strokeWidth=0.0175),
         )
 
         if showTip:
             self.text = Offset(
-                i=Text(text=str(round(self.curve.f(self.curve.xs[0]), 2)), fillColor=WHITE, fontSize=0.2),
+                i=Text(text=str(round(self.curve.f(self.curve.xs[0]), 2)), fillColor=WHITE, fontSize=0.175),
                 x=0,
                 y=0.60 * (1 if self.tipAbove else -1),
             )

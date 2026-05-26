@@ -165,7 +165,7 @@ std::vector<Mesh> VC::Core::generateMeshes()
                 auto _tInput0 = std::chrono::high_resolution_clock::now();
 #endif
                 auto meta = i->getMetadata(renderIndex);
-                if (!meta.hidden) {
+                if (!meta.hidden && meta.opacity != 0) {
                     auto mesh = i->getMesh(meta, _config);
                     if (auto* a = dynamic_cast<AInput*>(i.get()))
                         mesh.effects = a->getActiveEffectsAtFrame(renderIndex);

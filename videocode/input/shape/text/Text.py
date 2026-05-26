@@ -74,8 +74,22 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
             for i in range(l - r):
                 self.inputs[-i - 1].hide()
         elif l < r:
+            # New letters are created with transformationOffset = Context.waitOffset, but
+            # during animation loops (e.g. GraphPoint.fromTo) existing letters are many frames ahead.
+            # Without syncing, the new letter's char/position updates land at wrong absolute
+            # frames, causing wrong displayed values. Sync to existing letters' frame.
+            # hide()/show() calls are autodestroy-safe (no-op if already in that state).
+            # show(W)+hide(W) at same frame stay separate in the stack (different names) and
+            # C++ processes them in order: shown→hidden, so the letter stays hidden until
+            # our show(target) fires. Context.apply only deduplicates same-name+same-timing.
+            target = self.inputs[0].input.meta.transformationOffset if self.inputs else 0
             for i in range(r - l):
-                self.inputs.append(Offset(Letter(value[l + i], *self.config())))
+                newLetter = Offset(Letter(value[l + i], *self.config()))
+                if target > newLetter.input.meta.transformationOffset:
+                    newLetter.hide()  # re-hide at W, undoing inputCreation's show(W)
+                    newLetter.input.waitTo(target)  # advance letter timeline to current frame
+                    newLetter.show()  # show at current frame
+                self.inputs.append(newLetter)
 
         for i in range(min(l, r)):
             self.inputs[i].show()

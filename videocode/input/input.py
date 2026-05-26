@@ -156,8 +156,6 @@ class Input(ABC):
                 old = self.meta.pendingStart, self.meta.pendingDuration, self.meta.pendingOffset
                 new = start, duration, offset
 
-                self.meta.pendingStart, self.meta.pendingDuration, self.meta.pendingOffset = new
-
                 def pendingOn(i: Input):
                     i.meta.pendingStart, i.meta.pendingDuration, i.meta.pendingOffset = new
 
@@ -168,7 +166,6 @@ class Input(ABC):
                 try:
                     setattr(self, name, value)
                 finally:
-                    self.meta.pendingStart, self.meta.pendingDuration, self.meta.pendingOffset = old
                     self.broadcast(pendingOff)
         elif hasattr(self, name) and name in self.cppAttrs:
             if not getattr(self, name) == value:
