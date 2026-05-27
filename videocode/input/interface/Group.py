@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 
+from copy import copy as _shallow_copy
 from typing import Any, TypeVar
 from videocode.input.input import *
 from videocode.input.interface.Interface import Interface
@@ -28,13 +29,16 @@ class Group(Interface, Generic[_GROUP_T]):
 
     def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
         for s in shaders:
-            for i in self.inputs:
-                # Transformations affect the Group's Metadata
-                if isinstance(s, VertexShader):
-                    deepcopy(s).modify(self)
+            # Apply vertex shader's modify() to the Group itself — once per shader,
+            # not once per child.  Shallow copy so the original s is not mutated
+            # (children below need s.x/y still at their original values).
+            if isinstance(s, VertexShader):
+                _shallow_copy(s).modify(self)
 
-                # Transformations affect the Input's Metadata
-                i.apply(deepcopy(s), start=start, duration=duration, offset=offset)
+            # Broadcast to each child.  i.apply() makes its own shallow copy for
+            # VertexShaders before calling modify(), so passing s directly is safe.
+            for i in self.inputs:
+                i.apply(s, start=start, duration=duration, offset=offset)
         return self
 
     def waitForOthers(self) -> Self:

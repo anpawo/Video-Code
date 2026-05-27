@@ -14,6 +14,7 @@ from videocode import *
 
 def _resetContext():
     Context.stack = []
+    Context._applyIndex = {}
     Context.inputCounter = 0
     Context.lastEverAffectedFrame = 0
     Context.waitOffset = 0
@@ -32,7 +33,20 @@ def execScene(filepath: str) -> None:
     global __name__
     __name__ = "Scene"
     code = compile(content, filepath, "exec")
-    exec(code, globals())
+
+    import os
+    if os.environ.get("VC_PROFILE"):
+        import cProfile, pstats, io
+        pr = cProfile.Profile()
+        pr.enable()
+        exec(code, globals())
+        pr.disable()
+        s = io.StringIO()
+        ps = pstats.Stats(pr, stream=s).sort_stats("cumulative")
+        ps.print_stats(30)
+        print("[profile] Top 30 cumulative:\n" + s.getvalue(), flush=True)
+    else:
+        exec(code, globals())
 
 
 def serializeScene(filepath: str) -> str:

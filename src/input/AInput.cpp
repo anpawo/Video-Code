@@ -35,6 +35,8 @@ void AInput::add(json& modification)
             _metas.resize(start + 1, meta);
         }
 
+        if (t == VertexShader::Args)
+            _hasArgsShader = true;
         getMetadataFromArgs(t, args, _metas[start]);
 
     } else if (type == "FragmentShader") {
@@ -75,6 +77,7 @@ Metadata AInput::getMetadata(size_t index)
                         : _metas[index];
 
     meta.args["index"] = index;
+    meta.argsStatic = !_hasArgsShader;
 
     return meta;
 }

@@ -125,6 +125,12 @@ class Context:
     # Represents the steps to generate the video.
     stack: list[StackAction] = []
 
+    # O(1) deduplication index for Apply actions.
+    # Key: (inputIndex, shaderName, shaderType, start, duration, argName)
+    # Value: index into stack[] where that Apply lives.
+    # Mirrors the dedup criteria in apply() — updated on every append or replace.
+    _applyIndex: dict[tuple, int] = {}
+
     # Index of the next `Input`
     inputCounter: int = 0
 
@@ -146,15 +152,19 @@ class Context:
     @staticmethod
     def apply(inputIndex: int, shaderName: str, shaderType: str, shaderArgs: dict[str, Any]):
         a = Apply(inputIndex, shaderName, shaderType, shaderArgs)
-        for i, action in enumerate(Context.stack):
-            if isinstance(action, Apply):
-                sameShader = action.input == inputIndex and action.name == shaderName and action.type == shaderType
-                sameTiming = action.args.get("start") == shaderArgs.get("start") and action.args.get("duration") == shaderArgs.get("duration")
-                sameArg = (action.name != "Args") or (action.args.get("name") == shaderArgs.get("name"))
-                if sameShader and sameTiming and sameArg:
-                    Context.stack[i] = a
-                    return
-        Context.stack.append(a)
+        # Dedup key mirrors the original three conditions:
+        #   sameShader : (inputIndex, shaderName, shaderType)
+        #   sameTiming : start, duration
+        #   sameArg    : for "Args" shaders also include the arg name; None otherwise
+        argName = shaderArgs.get("name") if shaderName == "Args" else None
+        key = (inputIndex, shaderName, shaderType,
+               shaderArgs.get("start"), shaderArgs.get("duration"), argName)
+        idx = Context._applyIndex.get(key)
+        if idx is not None:
+            Context.stack[idx] = a   # replace in-place, index stays valid
+        else:
+            Context._applyIndex[key] = len(Context.stack)
+            Context.stack.append(a)
 
 
 def wait(n: sec = 0) -> None:

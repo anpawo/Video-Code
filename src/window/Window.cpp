@@ -11,6 +11,13 @@
 #include <QScreen>
 #include <QStatusBar>
 #include <algorithm>
+#include <chrono>
+#include <format>
+#include <iostream>
+
+// Window startup timer — measures wall time from the first line of the
+// constructor until Vulkan init completes.  Printed once at startup.
+static auto s_windowStart = std::chrono::high_resolution_clock::now();
 
 VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     : QMainWindow(parent)
@@ -24,8 +31,12 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
           .sourceFile = parser.get("--file"),
           .outputFile = parser.get("--generate"),
       })
-    , _core(parser, config)
+    , _core(parser, config)       // ← reloadSourceFile() runs here (Python + executeStack)
 {
+    using Clock = std::chrono::high_resolution_clock;
+    using Ms    = std::chrono::duration<double, std::milli>;
+    double core_ms = std::chrono::duration_cast<Ms>(Clock::now() - s_windowStart).count();
+    std::cout << std::format("[startup] Core ctor (Python load + executeStack): {:.1f}ms\n", core_ms);
     ///< Animation is advanced inside the Vulkan render loop via setFrameCallback(),
     ///< so no separate QTimer is needed. _timer is kept as nullptr.
     _timer = nullptr;
@@ -95,8 +106,17 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     ///< Defer Vulkan init until the event loop is running and the native
     ///< window handle is guaranteed to be available.
     QTimer::singleShot(0, _vulkanWidget, [this] {
+        using Clock = std::chrono::high_resolution_clock;
+        using Ms    = std::chrono::duration<double, std::milli>;
+        // VulkanWidget::init() already prints per-step timing itself.
         _vulkanWidget->init();
+        auto _t_tex = Clock::now();
         _core.uploadTextures(_vulkanWidget);
+        double tex_ms   = std::chrono::duration_cast<Ms>(Clock::now() - _t_tex).count();
+        double total_ms = std::chrono::duration_cast<Ms>(Clock::now() - s_windowStart).count();
+        std::cout << std::format("[startup] {:35s} {:7.1f}ms\n", "uploadTextures (CPU→GPU)", tex_ms);
+        std::cout << std::format("[startup] === total Window ctor → first-frame-ready: {:.1f}ms ===\n",
+                                 total_ms);
     });
 }
 

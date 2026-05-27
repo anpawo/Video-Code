@@ -56,6 +56,10 @@ protected:
     ///< Arguments needed to generate the Input's matrix
     const json::object_t _baseArgs;
 
+    ///< True once any "Args" VertexShader has been applied to this input.
+    ///< Passed through to Metadata.argsStatic so getMesh() can skip buildPath.
+    bool _hasArgsShader{false};
+
     ///< Effects (Affect the pixels of the Input) | Effects are duplicated over duration
     ///< That't why we have 2 vectors.
     std::vector<std::unique_ptr<IFragmentShader>> _effects{};

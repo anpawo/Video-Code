@@ -29,7 +29,7 @@ all: cmake
 
 .PHONY: cmake
 cmake:
-	cmake -B $(BUILD_DIR) $(VCPKG_FLAGS) $(CMAKE_FLAGS)
+	cmake -B $(BUILD_DIR) -DDEBUG=OFF $(VCPKG_FLAGS) $(CMAKE_FLAGS)
 	cmake --build $(BUILD_DIR)
 	@ cp -f $(BUILD_DIR)/$(BINARY_NAME).app/Contents/MacOS/$(BINARY_NAME) .
 	@ cp -f $(BUILD_DIR)/compile_commands.json .

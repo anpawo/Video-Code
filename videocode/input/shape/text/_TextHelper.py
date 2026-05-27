@@ -22,6 +22,7 @@ _STEPS = 4
 _FT_FLAGS = 1 | 2 | 8  # FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP
 
 
+@cache
 def fontPath(family: str, bold: bool, italic: bool) -> str:
     styles = ["BoldItalic", "Bold-Italic", "Bold_Italic"] if bold and italic else ["Bold"] if bold else ["Italic"] if italic else ["Regular", ""]
     if _FONT_DIR.is_dir():
@@ -206,6 +207,7 @@ def toAnchorHandle(pts: list[tuple]) -> list[tuple]:
     return result
 
 
+@cache
 def buildLetterData(
     text: str,
     fontSize: float,
@@ -238,6 +240,7 @@ def buildLetterData(
     return result
 
 
+@cache
 def lineAnchor(fontFamily: str, bold: bool, italic: bool, fontSize: float, alignY: float) -> float:
     path = fontPath(fontFamily, bold, italic)
     _, _, _, capH, (desc, asc) = loadFaces(path)

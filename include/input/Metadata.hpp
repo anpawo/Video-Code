@@ -59,6 +59,10 @@ struct Metadata
 
     bool hidden{false};
 
+    // True when no "Args" VertexShader has ever fired for this input.
+    // BezierPath uses this to skip buildPath on frames 2+ (geometry is stable).
+    bool argsStatic{true};
+
     json::object_t args; // args for the base matrix of the input
 
     friend std::ostream& operator<<(std::ostream& os, const Metadata& m)

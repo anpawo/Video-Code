@@ -97,6 +97,11 @@ class prop(Generic[_CLASS_T, _ATTR1_T, _ATTR2_T]):
 
     def __set__(self, instance: Any, value: _ATTR1_T, /) -> None:
         isInitialized = hasattr(instance, self.privateName)
+        # Skip storage + onSet entirely when the value hasn't changed.
+        # Avoids redundant geometry rebuilds (e.g. unchanged chars in textSetter).
+        if isInitialized and self.onSet is not None:
+            if object.__getattribute__(instance, self.privateName) == value:
+                return
         object.__setattr__(instance, self.privateName, value)
         if isInitialized and self.onSet is not None:
             self.onSet(instance, value)

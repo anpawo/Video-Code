@@ -10,6 +10,7 @@
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
 
+#include <chrono>
 #include <cstddef>
 #include <format>
 #include <iostream>
@@ -88,19 +89,36 @@ void VC::Core::reloadSourceFile()
     _lastRenderedIndex = SIZE_MAX;
     _cachedMeshes.clear();
 
+    // Always-on startup timing — printed on every load/hot-reload so we can
+    // track where time goes without a debug build.
+    using Clock = std::chrono::high_resolution_clock;
+    using Ms    = std::chrono::duration<double, std::milli>;
+    auto _t_reload = Clock::now();
+    auto _t        = Clock::now();
+    auto _step = [&](const char* name) {
+        double ms = std::chrono::duration_cast<Ms>(Clock::now() - _t).count();
+        std::cout << std::format("[startup] {:35s} {:7.1f}ms\n", name, ms);
+        _t = Clock::now();
+    };
+
     try {
         auto serialize = py::module_::import("videocode.serialize");
         VC_TIME("execScene (in-process)", serialize.attr("execScene")(_config.sourceFile));
+        _step("execScene (Python in-process)");
 
         auto     ctx = py::module_::import("videocode.context").attr("Context");
         py::list stack = ctx.attr("stack");
 
         VC_TIME("executeStack", executeStack(stack));
+        _step("executeStack (C++ reads py::list)");
 
     } catch (const py::error_already_set& e) {
         std::cerr << "\nError in source file '" << _config.sourceFile << "':\n"
                   << e.what() << "\n";
     }
+
+    double total_ms = std::chrono::duration_cast<Ms>(Clock::now() - _t_reload).count();
+    std::cout << std::format("[startup] === reloadSourceFile() total: {:.1f}ms ===\n", total_ms);
 }
 
 void VC::Core::executeStack(const py::list& stack)

@@ -219,91 +219,164 @@ bool VC::VulkanWidget::eventFilter(QObject* obj, QEvent* e)
 
 bool VC::VulkanWidget::init()
 {
+    // ── Startup timing ────────────────────────────────────────────────────────
+    // Always-on: printed once at startup so we can see where time goes without
+    // a special debug build.  Each step resets _t_step.
+    using Clock = std::chrono::high_resolution_clock;
+    using Ms    = std::chrono::duration<double, std::milli>;
+    auto _t_init_start = Clock::now();
+    auto _t_step       = Clock::now();
+    auto _step = [&](const char* name, bool ok = true) -> bool {
+        double ms = std::chrono::duration_cast<Ms>(Clock::now() - _t_step).count();
+        std::cout << std::format("[startup] {:35s} {:7.1f}ms{}\n",
+                                 name, ms, ok ? "" : "  ← FAILED");
+        _t_step = Clock::now();
+        return ok;
+    };
+
     // Attach a CAMetalLayer to the Qt native window (macOS).
     WId handle = winId();
     m_metalLayer = createMetalLayer(reinterpret_cast<void*>(handle));
+    _step("createMetalLayer");
 
     if (!createInstance()) {
+        _step("createInstance", false);
         qWarning("createInstance failed");
         return false;
     }
+    _step("createInstance");
+
     if (!createSurface()) {
+        _step("createSurface", false);
         qWarning("createSurface failed");
         return false;
     }
+    _step("createSurface");
+
     if (!pickPhysicalDevice()) {
+        _step("pickPhysicalDevice", false);
         qWarning("pickPhysicalDevice failed");
         return false;
     }
+    _step("pickPhysicalDevice");
+
     if (!createDevice()) {
+        _step("createDevice", false);
         qWarning("createDevice failed");
         return false;
     }
+    _step("createDevice");
+
     if (!createSwapchain()) {
+        _step("createSwapchain", false);
         qWarning("createSwapchain failed");
         return false;
     }
+    _step("createSwapchain");
+
     if (!createSsaaResources()) {
+        _step("createSsaaResources", false);
         qWarning("createSsaaResources failed");
         return false;
     }
+    _step("createSsaaResources");
+
     if (!createReadbackResources()) {
+        _step("createReadbackResources", false);
         qWarning("createReadbackResources failed");
         return false;
     }
+    _step("createReadbackResources");
+
     if (!createRenderPass()) {
+        _step("createRenderPass", false);
         qWarning("createRenderPass failed");
         return false;
     }
+    _step("createRenderPass");
+
     if (!createUniformBuffer()) {
+        _step("createUniformBuffer", false);
         qWarning("createUniformBuffer failed");
         return false;
     }
+    _step("createUniformBuffer");
+
     if (!createDescriptorSet()) {
+        _step("createDescriptorSet", false);
         qWarning("createDescriptorSet failed");
         return false;
     }
+    _step("createDescriptorSet");
+
     if (!createPipeline()) {
+        _step("createPipeline [main vert+frag]", false);
         qWarning("createPipeline failed");
         return false;
     }
+    _step("createPipeline [main vert+frag]");
+
     if (!createVertexBuffer()) {
+        _step("createVertexBuffer", false);
         qWarning("createVertexBuffer failed");
         return false;
     }
+    _step("createVertexBuffer");
+
     if (!createIndexBuffer()) {
+        _step("createIndexBuffer", false);
         qWarning("createIndexBuffer failed");
         return false;
     }
+    _step("createIndexBuffer");
+
     if (!createFramebuffers()) {
+        _step("createFramebuffers", false);
         qWarning("createFramebuffers failed");
         return false;
     }
+    _step("createFramebuffers");
+
     if (!createCommandPool()) {
+        _step("createCommandPool", false);
         qWarning("createCommandPool failed");
         return false;
     }
+    _step("createCommandPool");
 
     // Upload the default 1×1 white texture now that the command pool exists.
     cv::Mat white(1, 1, CV_8UC4, cv::Scalar(255, 255, 255, 255));
     m_defaultTextureSet = uploadTexture(white);
     if (m_defaultTextureSet == VK_NULL_HANDLE) {
+        _step("uploadDefaultTexture", false);
         qWarning("default texture upload failed");
         return false;
     }
+    _step("uploadDefaultTexture");
 
     if (!createCommandBuffers()) {
+        _step("createCommandBuffers", false);
         qWarning("createCommandBuffers failed");
         return false;
     }
+    _step("createCommandBuffers");
+
     if (!createSyncObjects()) {
+        _step("createSyncObjects", false);
         qWarning("createSyncObjects failed");
         return false;
     }
+    _step("createSyncObjects");
+
     if (!createEffectResources()) {
+        _step("createEffectResources [all effect shaders]", false);
         qWarning("createEffectResources failed");
         return false;
     }
+    _step("createEffectResources [all effect shaders]");
+
+    double total_ms = std::chrono::duration_cast<Ms>(Clock::now() - _t_init_start).count();
+    std::cout << std::format("[startup] === VulkanWidget::init() total: {:.1f}ms ===\n", total_ms);
 
     m_initialized = true;
     qDebug() << "Vulkan initialized successfully";

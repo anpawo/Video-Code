@@ -76,6 +76,19 @@ class Polygon(Input):
         frac = self.cornerRadius / 100.0
         rev = list(reversed(verts))
 
+        # Fast path: no rounded corners — skip all dist/unit work.
+        # Output is identical to the general path with r=0 everywhere:
+        # each corner emits [v, v, v, mid(v, next_v)].
+        if frac == 0:
+            bezier = []
+            for i in range(n):
+                nxt = (i + 1) % n
+                bezier.append(rev[i])
+                bezier.append(rev[i])
+                bezier.append(rev[i])
+                bezier.append(((rev[i][0] + rev[nxt][0]) / 2, (rev[i][1] + rev[nxt][1]) / 2))
+            return bezier
+
         def dist(a, b):
             return math.hypot(b[0] - a[0], b[1] - a[1])
 
@@ -103,7 +116,7 @@ class Polygon(Input):
             bezier.append(rev[i])
             bezier.append(arcEnd[i])
             bezier.append(mid)
-        return list(map(lambda x: (round(x[0], 6), round(x[1], 6)), bezier))
+        return bezier
 
     def contains(self, x: wnumber, y: wnumber) -> bool:
         sx = self.meta.scale.x

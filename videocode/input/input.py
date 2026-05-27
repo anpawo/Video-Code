@@ -2,7 +2,7 @@
 
 
 from __future__ import annotations
-from copy import deepcopy
+from copy import copy as _shallow_copy
 from abc import ABC, abstractmethod
 from functools import singledispatchmethod
 from typing import Any, Callable, Self, cast
@@ -94,9 +94,9 @@ class Input(ABC):
         if Context.waitOffset >= self.meta.transformationOffset:
             self.waitTo(Context.waitOffset)
 
-        # Do not modify the initial shaders.
-        for s in deepcopy(shaders):
-            # Deferred shaders produce other smaller shaders
+        for s in shaders:
+            # Deferred shaders produce other smaller shaders — no copy needed,
+            # resolve() reads from s but never mutates it.
             if isinstance(s, DeferredShader):
                 self.apply(*s.resolve(self))
                 continue
@@ -113,12 +113,18 @@ class Input(ABC):
             if __start + __duration > self.meta.lastAffectedFrame:
                 self.meta.lastAffectedFrame = __start + __duration
 
-            # Transformations affect the Input's Metadata
+            # Transformations affect the Input's Metadata.
+            # VertexShader.modify() writes resolved values back to self.* (e.g. position.modify
+            # sets self.x = current x when x=None) so vars(s) contains the right args.
+            # Shallow copy is sufficient: only primitive attributes are reassigned, never mutated.
+            # FragmentShaders never mutate self, so no copy is needed there.
+            # autodestroy() only reads from self (the Input), never mutates s — safe to check
+            # before copying so no-op shaders skip the allocation entirely.
             if isinstance(s, VertexShader):
                 if s.autodestroy(self):
                     continue
-                else:
-                    s.modify(self)
+                s = _shallow_copy(s)
+                s.modify(self)
 
             # Args w/ Start & Duration
             args = vars(s) | {"start": __start, "duration": __duration}
@@ -134,7 +140,8 @@ class Input(ABC):
 
     @apply.register(tuple)
     def _(self, *shaders: tuple[IShader, sec, sec]):  # TODO: add transformationOffset
-        for s, start, duration in deepcopy(shaders):
+        # No copy needed here — the inner apply() call handles VertexShader copies itself.
+        for s, start, duration in shaders:
             self.apply(s, start=start, duration=duration)
         return self
 
