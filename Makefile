@@ -19,6 +19,7 @@ VCPKG_FLAGS		= \
 	-DWITH_FFMPEG=ON
 
 DEBUG_FLAG		=	-DDEBUG=ON
+VERBOSE_FLAG	=	-DVC_VERBOSE=ON
 
 
 # >>> Rules <<<
@@ -40,6 +41,14 @@ debug:
 	cmake -B $(BUILD_DIR) $(DEBUG_FLAG) $(VCPKG_FLAGS) $(CMAKE_FLAGS)
 	cmake --build $(BUILD_DIR)
 	@ cp $(BUILD_DIR)/$(BINARY_NAME).app/Contents/MacOS/$(BINARY_NAME) .
+	@ cp -f $(BUILD_DIR)/compile_commands.json .
+
+
+.PHONY: verbose
+verbose:
+	cmake -B $(BUILD_DIR) -DDEBUG=OFF $(VERBOSE_FLAG) $(VCPKG_FLAGS) $(CMAKE_FLAGS)
+	cmake --build $(BUILD_DIR)
+	@ cp -f $(BUILD_DIR)/$(BINARY_NAME).app/Contents/MacOS/$(BINARY_NAME) .
 	@ cp -f $(BUILD_DIR)/compile_commands.json .
 
 

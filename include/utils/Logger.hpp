@@ -14,6 +14,14 @@
 
 // VC_TIME(label, block) — times a block and prints; compiles to just `block` in release.
 // VC_LOG(msg)           — prints a debug line; compiles to nothing in release.
+// VC_SLOG(msg)          — startup/perf diagnostic print; gated on VC_VERBOSE.
+//                         Silent by default in release. Enable with -DVC_VERBOSE.
+#ifdef VC_VERBOSE
+    #define VC_SLOG(msg) (std::cout << (msg))
+#else
+    #define VC_SLOG(msg) ((void)0)
+#endif
+
 #ifdef VC_DEBUG_ON
     #include <chrono>
     #define VC_TIME(label, block)                                                                                                                    \

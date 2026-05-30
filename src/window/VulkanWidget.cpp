@@ -10,6 +10,7 @@
 // Every method is roughly in the order it is called during startup.
 
 #include "window/VulkanWidget.hpp"
+#include "utils/Logger.hpp"
 
 #include <vulkan/vulkan_metal.h>
 
@@ -226,10 +227,10 @@ bool VC::VulkanWidget::init()
     using Ms    = std::chrono::duration<double, std::milli>;
     auto _t_init_start = Clock::now();
     auto _t_step       = Clock::now();
-    auto _step = [&](const char* name, bool ok = true) -> bool {
-        double ms = std::chrono::duration_cast<Ms>(Clock::now() - _t_step).count();
-        std::cout << std::format("[startup] {:35s} {:7.1f}ms{}\n",
-                                 name, ms, ok ? "" : "  ← FAILED");
+    auto _step = [&]([[maybe_unused]] const char* name, bool ok = true) -> bool {
+        [[maybe_unused]] double ms = std::chrono::duration_cast<Ms>(Clock::now() - _t_step).count();
+        VC_SLOG(std::format("[startup] {:35s} {:7.1f}ms{}\n",
+                                 name, ms, ok ? "" : "  ← FAILED"));
         _t_step = Clock::now();
         return ok;
     };
@@ -375,8 +376,8 @@ bool VC::VulkanWidget::init()
     }
     _step("createEffectResources [all effect shaders]");
 
-    double total_ms = std::chrono::duration_cast<Ms>(Clock::now() - _t_init_start).count();
-    std::cout << std::format("[startup] === VulkanWidget::init() total: {:.1f}ms ===\n", total_ms);
+    [[maybe_unused]] double total_ms = std::chrono::duration_cast<Ms>(Clock::now() - _t_init_start).count();
+    VC_SLOG(std::format("[startup] === VulkanWidget::init() total: {:.1f}ms ===\n", total_ms));
 
     m_initialized = true;
     qDebug() << "Vulkan initialized successfully";

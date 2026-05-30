@@ -11,6 +11,7 @@
 //              glslang ABI change  → bump the "v1" version prefix below.
 
 #include "vulkan/ShaderCompiler.hpp"
+#include "utils/Logger.hpp"
 
 #include <glslang/Public/ResourceLimits.h> // GetDefaultResources()
 #include <glslang/Public/ShaderLang.h>     // glslang::TShader, TProgram
@@ -129,9 +130,9 @@ std::vector<uint32_t> compileGLSL(const std::string& source, VkShaderStageFlagBi
     fs::path    path = cachePath(hash, stageName);
     auto        hit  = loadSPIRV(path);
     if (!hit.empty()) {
-        double ms = std::chrono::duration_cast<Ms>(Clock::now() - _t0).count();
-        std::cout << std::format("[startup] compileGLSL({:4s}): {:6.1f}ms  ({} words)  [cache hit]\n",
-                                 stageName, ms, hit.size());
+        [[maybe_unused]] double ms = std::chrono::duration_cast<Ms>(Clock::now() - _t0).count();
+        VC_SLOG(std::format("[startup] compileGLSL({:4s}): {:6.1f}ms  ({} words)  [cache hit]\n",
+                                 stageName, ms, hit.size()));
         return hit;
     }
 
@@ -170,9 +171,9 @@ std::vector<uint32_t> compileGLSL(const std::string& source, VkShaderStageFlagBi
     // ── Persist to cache ──────────────────────────────────────────────────────
     saveSPIRV(path, spirv);
 
-    double ms = std::chrono::duration_cast<Ms>(Clock::now() - _t0).count();
-    std::cout << std::format("[startup] compileGLSL({:4s}): {:6.1f}ms  ({} words)  [compiled + cached]\n",
-                             stageName, ms, spirv.size());
+    [[maybe_unused]] double ms = std::chrono::duration_cast<Ms>(Clock::now() - _t0).count();
+    VC_SLOG(std::format("[startup] compileGLSL({:4s}): {:6.1f}ms  ({} words)  [compiled + cached]\n",
+                             stageName, ms, spirv.size()));
 
     return spirv;
 }

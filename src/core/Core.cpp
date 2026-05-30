@@ -89,8 +89,8 @@ void VC::Core::reloadSourceFile()
     _lastRenderedIndex = SIZE_MAX;
     _cachedMeshes.clear();
 
-    // Always-on startup timing — printed on every load/hot-reload so we can
-    // track where time goes without a debug build.
+    // Startup timing — printed when compiled with -DVC_VERBOSE.
+#ifdef VC_VERBOSE
     using Clock = std::chrono::high_resolution_clock;
     using Ms    = std::chrono::duration<double, std::milli>;
     auto _t_reload = Clock::now();
@@ -100,6 +100,9 @@ void VC::Core::reloadSourceFile()
         std::cout << std::format("[startup] {:35s} {:7.1f}ms\n", name, ms);
         _t = Clock::now();
     };
+#else
+    auto _step = [](const char*) {};
+#endif
 
     try {
         auto serialize = py::module_::import("videocode.serialize");
@@ -117,8 +120,10 @@ void VC::Core::reloadSourceFile()
                   << e.what() << "\n";
     }
 
+#ifdef VC_VERBOSE
     double total_ms = std::chrono::duration_cast<Ms>(Clock::now() - _t_reload).count();
     std::cout << std::format("[startup] === reloadSourceFile() total: {:.1f}ms ===\n", total_ms);
+#endif
 }
 
 void VC::Core::executeStack(const py::list& stack)
