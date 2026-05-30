@@ -120,18 +120,24 @@ class autoProp(prop[_CLASS_T, _CLASS_T, _CLASS_T]):
 class propagate(prop[_CLASS_T, _ATTR1_T, _ATTR2_T]):
     """
     Like prop, but also broadcasts the new value down to all children on set.
+    Pass `after=lambda self: ...` to run a callback on the parent after the broadcast.
     """
 
-    def __init__(self, func: Callable[[], _CLASS_T], /):
+    def __init__(self, func: Callable[[], _CLASS_T] | None = None, /, *, after: Callable[[Any], None] | None = None):
         super().__init__()
-        self.__call__(func)
+        self._after = after
+        if func is not None:
+            self.__call__(func)
 
     def __call__(self, func: Callable[[], _CLASS_T]) -> Any:
         super().__call__(func)
         attr = func.__name__
+        after = self._after
 
         def callback(instance, value):
             instance.broadcast(lambda self: self.broadcast(lambda self: setattr(self, attr, value)))
+            if after is not None:
+                after(instance)
 
         self.onSet = callback
         return self

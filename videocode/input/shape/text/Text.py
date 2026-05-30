@@ -134,13 +134,13 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
             l.xOffset = x - ax
             l.yOffset = y - ay
 
-    @propagate
+    @propagate(after=alignLetters)
     def fontSize() -> wnumber: ...
-    @propagate
+    @propagate(after=alignLetters)
     def fontFamily() -> str: ...
-    @propagate
+    @propagate(after=alignLetters)
     def bold() -> bool: ...
-    @propagate
+    @propagate(after=alignLetters)
     def italic() -> bool: ...
 
     @property
