@@ -67,7 +67,8 @@ class Metadata:
         """
 
         # --- Callbacks ---
-        self.callbacks: dict[type[IShader], list[Callable[[IShader, sec, sec, frame], None]]] = {}
+        self.preCallbacks: dict[type[IShader], list[Callable[[IShader, sec, sec, frame], bool]]] = {}
+        self.postCallbacks: dict[type[IShader], list[Callable[[IShader, sec, sec, frame], None]]] = {}
 
     def __str__(self) -> str:
         s = "\n"

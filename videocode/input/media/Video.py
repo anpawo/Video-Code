@@ -5,7 +5,11 @@ from videocode.utils.decorators import inputCreation
 from videocode.input.input import *
 
 
+__all__ = ["Video"]
+
+
 class Video(Input):
+    cppName = "Video"
     cppAttrs = {
         "filepath",
     }

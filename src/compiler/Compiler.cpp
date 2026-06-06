@@ -40,9 +40,10 @@ int VC::Compiler::generateVideo()
         return 1;
     }
 
-    _core.uploadTextures([&](const cv::Mat& mat) {
-        return renderer.uploadTexture(mat);
-    });
+    _core.uploadTextures(
+        [&](const cv::Mat& mat) { return renderer.uploadTexture(mat); },
+        [&](VkDescriptorSet desc, const cv::Mat& mat) { renderer.updateTexturePixels(desc, mat); }
+    );
 
     FILE* pipe = popen(
         std::format(

@@ -25,6 +25,7 @@ using json = nlohmann::json;
 #include "input/IInput.hpp"
 #include "input/InputFactory.hpp"
 #include "input/media/Image.hpp"
+#include "input/media/Video.hpp"
 // #include "input/media/Video.hpp"
 #include "utils/Exception.hpp"
 #include "utils/Logger.hpp"
@@ -114,6 +115,14 @@ void VC::Core::reloadSourceFile()
 
         VC_TIME("executeStack", executeStack(stack));
         _step("executeStack (C++ reads py::list)");
+
+        // Extend _nbFrame to cover any Video inputs whose duration exceeds the stack's range.
+        for (const auto& inputPtr : _inputs) {
+            if (const Video* vid = dynamic_cast<const Video*>(inputPtr.get())) {
+                if (vid->_nbFrame > _nbFrame)
+                    _nbFrame = vid->_nbFrame;
+            }
+        }
 
     } catch (const py::error_already_set& e) {
         std::cerr << "\nError in source file '" << _config.sourceFile << "':\n"
@@ -318,15 +327,31 @@ void VC::Core::uploadTextures(VC::VulkanWidget* widget)
         if (Image* img = dynamic_cast<Image*>(inputPtr.get())) {
             VkDescriptorSet desc = widget->uploadTexture(img->getBase());
             img->setTextureDescriptor(desc);
+        } else if (Video* vid = dynamic_cast<Video*>(inputPtr.get())) {
+            VkDescriptorSet desc = widget->uploadTexture(vid->currentFrame());
+            vid->setDescriptor(desc);
+            vid->setReuploadFn([widget, desc](const cv::Mat& mat) {
+                widget->updateTexturePixels(desc, mat);
+            });
         }
     }
 }
 
-void VC::Core::uploadTextures(std::function<VkDescriptorSet(const cv::Mat&)> uploadFn)
+void VC::Core::uploadTextures(
+    std::function<VkDescriptorSet(const cv::Mat&)>          uploadFn,
+    std::function<void(VkDescriptorSet, const cv::Mat&)>    reuploadFn)
 {
     for (auto& inputPtr : _inputs) {
         if (Image* img = dynamic_cast<Image*>(inputPtr.get())) {
             img->setTextureDescriptor(uploadFn(img->getBase()));
+        } else if (Video* vid = dynamic_cast<Video*>(inputPtr.get())) {
+            VkDescriptorSet desc = uploadFn(vid->currentFrame());
+            vid->setDescriptor(desc);
+            if (reuploadFn) {
+                vid->setReuploadFn([desc, reuploadFn](const cv::Mat& mat) {
+                    reuploadFn(desc, mat);
+                });
+            }
         }
     }
 }

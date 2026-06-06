@@ -47,14 +47,10 @@ private:
     // Keyed on a FNV-1a hash of _points + scale + rotation.
     // Invalidated when the shape geometry or display scale changes.
     struct GeomCache {
-        std::vector<cv::Vec2f>         localPoly;      // sampled bezier polygon
-        std::vector<uint16_t>          earIndices;     // earcut triangulation indices
-        std::vector<QuadraticBezier2D> curves;         // offset-adjusted bezier segments
-        cv::Size2f                     localSize;      // bounding box dimensions
-        cv::Vec4b                      rawFillColor;   // fill color before opacity
-        cv::Vec4b                      rawStrokeColor; // stroke color before opacity
-        float                          strokeWidth = 0.f;
-        bool                           hasFill     = false;
+        std::vector<cv::Vec2f>         localPoly;  // sampled bezier polygon
+        std::vector<uint16_t>          earIndices; // earcut triangulation indices
+        std::vector<QuadraticBezier2D> curves;     // offset-adjusted bezier segments
+        cv::Size2f                     localSize;  // bounding box dimensions
     };
 
     size_t    _lastGeomHash{std::numeric_limits<size_t>::max()};

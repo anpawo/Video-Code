@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 
+from copy import copy as _shallow_copy
 from videocode.input.interface.Interface import Interface
 from videocode.input.interface.Offset import Offset
 import videocode.input.shape.text._TextHelper as _helper
@@ -9,7 +10,9 @@ import videocode.input.shape.text._TextHelper as _helper
 from videocode.input.shape.Polygon import Polygon
 from videocode.input.interface.Group import Group
 from videocode.input.shape.text.Letter import Letter
+from videocode.shader.vertexShader.align import align
 from videocode.shader.vertexShader.hide import hide
+from videocode.utils.classutils import At
 from videocode.utils.decorators import prop, propagate
 from videocode.ty import *
 from videocode.constants import *
@@ -34,7 +37,6 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
         bold: bool = False,
         italic: bool = False,
     ):
-        # Method vs Property: why ?
         self.text = text
         self.fontSize = fontSize
         self.fontFamily = fontFamily
@@ -67,28 +69,19 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
 
     @text.setter
     def textSetter(self, value: str) -> None:
-        # hide exceedent or show hidden letters
-        l = len(self.inputs)  # actual current letters, not self.text (already updated)
+        l = len(self.inputs)
         r = len(value)
         if l > r:
             for i in range(l - r):
                 self.inputs[-i - 1].hide()
         elif l < r:
-            # New letters are created with transformationOffset = Context.waitOffset, but
-            # during animation loops (e.g. GraphPoint.fromTo) existing letters are many frames ahead.
-            # Without syncing, the new letter's char/position updates land at wrong absolute
-            # frames, causing wrong displayed values. Sync to existing letters' frame.
-            # hide()/show() calls are autodestroy-safe (no-op if already in that state).
-            # show(W)+hide(W) at same frame stay separate in the stack (different names) and
-            # C++ processes them in order: shown→hidden, so the letter stays hidden until
-            # our show(target) fires. Context.apply only deduplicates same-name+same-timing.
             target = self.inputs[0].input.meta.transformationOffset if self.inputs else 0
             for i in range(r - l):
                 newLetter = Offset(Letter(value[l + i], *self.config()))
                 if target > newLetter.input.meta.transformationOffset:
-                    newLetter.hide()  # re-hide at W, undoing inputCreation's show(W)
-                    newLetter.input.waitTo(target)  # advance letter timeline to current frame
-                    newLetter.show()  # show at current frame
+                    newLetter.hide()
+                    newLetter.input.waitTo(target)
+                    newLetter.show()
                 self.inputs.append(newLetter)
 
         for i in range(min(l, r)):
@@ -108,7 +101,17 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
             self.italic,
         )
 
-    def alignLetters(self) -> None:
+    def apply(self, *shaders, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+        for s in shaders:
+            if isinstance(s, align):
+                _s, _d, _o = s.resolve(start, duration, offset)
+                _shallow_copy(s).modify(self)
+                self.alignLetters(start=_s, duration=_d, offset=_o)
+            else:
+                super().apply(s, start=start, duration=duration, offset=offset)
+        return self
+
+    def alignLetters(self, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> None:
         n = len(self.text)
         letters = self.inputs[:n]
         if not letters:
@@ -121,18 +124,17 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
             bold=self.bold,
             italic=self.italic,
         )
-        if not data:
-            return
 
         x_min = min(x for _, x, _ in data)
         x_max = max(x + l.input.width for (_, x, _), l in zip(data, letters))
         ax = x_min + self.meta.align.x * (x_max - x_min)
+
         ay = _helper.lineAnchor(self.fontFamily, self.bold, self.italic, self.fontSize, self.meta.align.y)
 
         for l, (_, x, y) in zip(letters, data):
-            l.align(x=0, y=0)
-            l.xOffset = x - ax
-            l.yOffset = y - ay
+            l.align(x=0, y=0)  # gets canceled out after first iteration
+            l.xOffset = (x - ax) @ At(start, duration, offset)
+            l.yOffset = (y - ay) @ At(start, duration, offset)
 
     @propagate(after=alignLetters)
     def fontSize() -> wnumber: ...
@@ -153,5 +155,3 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
 
     def __str__(self) -> str:
         return f"Text({self.text})"
-
-    # fontFamily / size ...

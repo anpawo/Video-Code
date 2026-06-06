@@ -10,29 +10,7 @@ from videocode import *
 class Plane(Group):
     def __init__(
         self,
-    ) -> None:
-        super().__init__(
-            *[
-                VerticalLine(
-                    length=WORLD_HEIGHT,
-                    rounded=False,
-                ).position(x=i, y=0)
-                for i in range(WORLD_WIDTH // -2 + 1, WORLD_WIDTH // 2)
-            ],
-            *[
-                HorizontalLine(
-                    length=WORLD_WIDTH,
-                    rounded=False,
-                ).position(x=0, y=i)
-                for i in range(math.ceil(WORLD_HEIGHT / -2), math.ceil(WORLD_HEIGHT / 2))
-            ],
-            Dot().position(0, 0),
-        )
-
-
-class SoftPlane(Group):
-    def __init__(
-        self,
+        center=False,
     ) -> None:
         transparent = 0.05
 
@@ -61,4 +39,5 @@ class SoftPlane(Group):
                 ).position(x=0, y=i)
                 for i in floatRange(math.ceil(WORLD_HEIGHT / -2) - 1, math.ceil(WORLD_HEIGHT / 2), 1 / 3)
             ],
+            *([Dot().position(0, 0)] if center else []),
         )

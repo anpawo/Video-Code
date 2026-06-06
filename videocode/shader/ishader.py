@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Generator
+from typing import TYPE_CHECKING, Self
 from videocode.constants import *
 from videocode.utils.funcutils import *
+from videocode.utils.classutils import Maybe
 
 if TYPE_CHECKING:
     from videocode.input.input import Input
@@ -17,7 +18,22 @@ class IShader(ABC):
 
     _type: str
 
-    duration: sec
+    start: maybe[sec] = None
+    duration: maybe[sec] = None
+    offset: maybe[frame] = None
+
+    def at(self, *, start: sec, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+        self.start = start
+        self.duration = duration
+        self.offset = offset
+        return self
+
+    def resolve(self, start: sec, duration: sec, offset: maybe[frame]) -> tuple[sec, sec, maybe[frame]]:
+        return (
+            Maybe(self.start) | start,
+            Maybe(self.duration) | duration,
+            Maybe(self.offset) | offset,
+        )
 
     @abstractmethod
     def __init__(self) -> None: ...
@@ -59,11 +75,6 @@ class VertexShader(IShader):
 
     _type = "VertexShader"
 
-    """
-    affects only one frame
-    """
-    duration = SINGLE_FRAME
-
     def autodestroy(self, i: Input) -> bool:
         return False
 
@@ -74,18 +85,4 @@ class VertexShader(IShader):
 
         We want the python interface to keep trace of the changes made on the inputs but they need
         to be applied the moment the transformations are applied, not the moment they are created.
-        """
-
-
-class DeferredShader(IShader):
-    """
-    A `DeferredShader` will generate other shaders when applied.
-
-    click() -> list[scale] => quick scale down then back to normal, like a cursor click.
-    """
-
-    @abstractmethod
-    def resolve(self, i: Input) -> Generator[IShader, Any, None]:
-        """
-        Generate the underlying IShaders.
         """

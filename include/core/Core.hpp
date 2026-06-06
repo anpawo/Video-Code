@@ -40,7 +40,9 @@ namespace VC
         ///< Upload textures for all Image inputs to a Vulkan renderer.
         ///< uploadFn receives each image's cv::Mat and returns the VkDescriptorSet.
         void uploadTextures(VulkanWidget* widget);
-        void uploadTextures(std::function<VkDescriptorSet(const cv::Mat&)> uploadFn);
+        void uploadTextures(
+            std::function<VkDescriptorSet(const cv::Mat&)>          uploadFn,
+            std::function<void(VkDescriptorSet, const cv::Mat&)>    reuploadFn = {});
 
         ///< Time control
         void pause();

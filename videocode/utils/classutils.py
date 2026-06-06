@@ -5,7 +5,7 @@ import time
 
 
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, cast, overload
 from videocode.constants import DEBUG, SINGLE_FRAME
 from videocode.ty import frame, maybe
 
@@ -73,7 +73,11 @@ class Maybe(Generic[_MAYBE_T_VAL]):
     def __init__(self, value: _MAYBE_T_VAL | None) -> None:
         self.value = value
 
-    def __or__(self, default: _MAYBE_T_VAL) -> _MAYBE_T_VAL:
+    @overload
+    def __or__(self, default: _MAYBE_T_VAL) -> _MAYBE_T_VAL: ...
+    @overload
+    def __or__(self, default: None) -> None: ...
+    def __or__(self, default: _MAYBE_T_VAL | None) -> _MAYBE_T_VAL | None:
         if self.value is None:
             return default
         return self.value

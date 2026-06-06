@@ -1462,8 +1462,39 @@ VkDescriptorSet VC::VulkanWidget::uploadTexture(const cv::Mat& mat)
     dsWrite.pImageInfo      = &imgInfo;
     vkUpdateDescriptorSets(m_device, 1, &dsWrite, 0, nullptr);
 
+    m_textureIndex[descSet] = m_textures.size();
     m_textures.push_back(tex);
     return descSet;
+}
+
+void VC::VulkanWidget::updateTexturePixels(VkDescriptorSet desc, const cv::Mat& mat)
+{
+    auto it = m_textureIndex.find(desc);
+    if (it == m_textureIndex.end()) return;
+    TextureResource& tex = m_textures[it->second];
+
+    uint32_t     w         = static_cast<uint32_t>(mat.cols);
+    uint32_t     h         = static_cast<uint32_t>(mat.rows);
+    VkDeviceSize imageSize = static_cast<VkDeviceSize>(w * h * 4);
+
+    VkBuffer       stagingBuf = VK_NULL_HANDLE;
+    VkDeviceMemory stagingMem = VK_NULL_HANDLE;
+    createBuffer(m_device, imageSize,
+        VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+        stagingBuf, stagingMem,
+        [this](uint32_t f, VkMemoryPropertyFlags p) { return findMemoryType(f, p); });
+
+    void* data;
+    vkMapMemory(m_device, stagingMem, 0, imageSize, 0, &data);
+    std::memcpy(data, mat.data, static_cast<size_t>(imageSize));
+    vkUnmapMemory(m_device, stagingMem);
+
+    transitionImageLayout(tex.image, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    copyBufferToImage(stagingBuf, tex.image, w, h);
+    transitionImageLayout(tex.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    vkDestroyBuffer(m_device, stagingBuf, nullptr);
+    vkFreeMemory(m_device, stagingMem, nullptr);
 }
 
 // ============================================================================

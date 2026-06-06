@@ -86,6 +86,11 @@ namespace VC
         // they are freed in cleanup().
         VkDescriptorSet uploadTexture(const cv::Mat& mat);
 
+        // updateTexturePixels() — re-upload pixel data into an existing texture in-place.
+        // Descriptor set, image, view and sampler are reused; only pixel data changes.
+        // Same dimensions as the original upload are assumed.
+        void updateTexturePixels(VkDescriptorSet desc, const cv::Mat& mat);
+
         // readFrame() — render the current scene offscreen and return the pixels
         // as a BGRA cv::Mat at (screenWidth × screenHeight). Used for video generation.
         // Must be called after init() and setMeshes(). Blocks until GPU is done.
@@ -199,8 +204,9 @@ namespace VC
             VkSampler      sampler = VK_NULL_HANDLE;
         };
 
-        std::vector<TextureResource> m_textures;      // one per uploadTexture() call
-        TextureResource              m_defaultTexture; // the 1×1 white default
+        std::vector<TextureResource>                    m_textures;      // one per uploadTexture() call
+        std::unordered_map<VkDescriptorSet, size_t>    m_textureIndex;  // descriptor → m_textures index
+        TextureResource                                 m_defaultTexture; // the 1×1 white default
 
         // ── Framebuffers & commands ───────────────────────────────────────
         std::vector<VkFramebuffer> m_framebuffers;

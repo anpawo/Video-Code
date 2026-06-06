@@ -56,13 +56,15 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     }
 
     // --- Geometry cache --------------------------------------------------------
-    // Key: _points bytes + scale.x/y + rotation.
-    // quadraticStrokeSteps() depends on the R*S part of the transform matrix,
-    // but is translation-invariant — scale+rotation are sufficient as cache key.
+    // Key: _points bytes + scale.x/y + rotation + fill/stroke visibility.
+    // Fill sampling (localPoly/earIndices) only runs when fill is non-transparent,
+    // so a transparency change must bust the cache.
     size_t geomHash = fnvHash(_points.data(), n * sizeof(cv::Vec2f));
     geomHash = fnvHash(&meta.scale.x,   sizeof(float), geomHash);
     geomHash = fnvHash(&meta.scale.y,   sizeof(float), geomHash);
     geomHash = fnvHash(&meta.rotation,  sizeof(float), geomHash);
+    bool hasFillNow = _fillColor[3] > 0;
+    geomHash = fnvHash(&hasFillNow,     sizeof(bool),  geomHash);
 
     if (!_geomValid || geomHash != _lastGeomHash) {
         // Build quadratic bezier segments from the anchor-handle path.
@@ -131,10 +133,6 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             std::move(earIndices),
             std::move(curves),
             localSize,
-            _fillColor,
-            _strokeColor,
-            _strokeWidth,
-            _fillColor[3] > 0,
         };
         _lastGeomHash = geomHash;
         _geomValid    = true;
@@ -147,16 +145,16 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
 
     // Apply meta.opacity to both colors.
     float     opacityF    = meta.opacity / 255.f;
-    cv::Vec4b fillColor   = _geomCache.rawFillColor;
-    cv::Vec4b strokeColor = _geomCache.rawStrokeColor;
+    cv::Vec4b fillColor   = _fillColor;
+    cv::Vec4b strokeColor = _strokeColor;
     fillColor[3]   = static_cast<uint8_t>(fillColor[3]   * opacityF);
     strokeColor[3] = static_cast<uint8_t>(strokeColor[3] * opacityF);
 
-    bool hasStroke = (_geomCache.strokeWidth > 0.f && strokeColor[3] > 0);
+    bool hasStroke = (_strokeWidth > 0.f && strokeColor[3] > 0);
 
     // Emit fill vertices (applies current transform M to each local point).
     BP_T(t3);
-    if (_geomCache.hasFill && fillColor[3] > 0 && !_geomCache.earIndices.empty()) {
+    if (!_geomCache.localPoly.empty() && fillColor[3] > 0 && !_geomCache.earIndices.empty()) {
         uint16_t firstPolyIdx = factory.vertexCount();
         for (const auto& p : _geomCache.localPoly)
             factory.addVertex(p[0], p[1], fillColor);
@@ -169,7 +167,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     BP_T(t4);
     if (hasStroke) {
         factory.addQuadraticStrokePath(
-            _geomCache.curves, _geomCache.strokeWidth, strokeColor, _closed, _closed);
+            _geomCache.curves, _strokeWidth, strokeColor, _closed, _closed);
     }
     BP_T(t5);
 

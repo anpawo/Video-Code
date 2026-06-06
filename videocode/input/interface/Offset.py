@@ -64,26 +64,23 @@ class Offset[T: Input](Interface):
         )
 
     def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
-        needs_sync = False
-
         for s in shaders:
+            _s, _d, _o = s.resolve(start, duration, offset)
+
             if isinstance(s, position):
                 if s.x is not None:
                     self.meta.position.x = s.x
                 if s.y is not None:
                     self.meta.position.y = s.y
-                needs_sync = True
+                self._sync(start=_s, duration=_d, offset=_o)
             elif isinstance(s, rotation):
                 self.meta.rotation = s.degree
-                needs_sync = True
+                self._sync(start=_s, duration=_d, offset=_o)
             elif isinstance(s, scale):
-                self.input.apply(s, start=start, duration=duration, offset=offset)
-                needs_sync = True
+                self.input.apply(s, start=_s, duration=_d, offset=_o)
+                self._sync(start=_s, duration=_d, offset=_o)
             else:
-                self.input.apply(s, start=start, duration=duration, offset=offset)
-
-        if needs_sync:
-            self._sync(start=start, duration=duration, offset=offset)
+                self.input.apply(s, start=_s, duration=_d, offset=_o)
 
         return self
 

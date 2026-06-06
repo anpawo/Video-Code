@@ -29,9 +29,11 @@ class Group(Interface, Generic[_GROUP_T]):
 
     def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
         for s in shaders:
-            # Apply vertex shader's modify() to the Group itself — once per shader,
-            # not once per child.  Shallow copy so the original s is not mutated
-            # (children below need s.x/y still at their original values).
+            # Keep group.meta current even though groups never push to C++.
+            # Subclasses and external code read group.meta.* directly —
+            # e.g. Text.alignLetters reads self.meta.align.x, or user code
+            # inspects text.meta.scale to query the group's current logical state.
+            # Groups are otherwise stateless — children own the rendering state.
             if isinstance(s, VertexShader):
                 _shallow_copy(s).modify(self)
 

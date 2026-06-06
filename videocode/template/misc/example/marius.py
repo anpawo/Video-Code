@@ -9,11 +9,10 @@ from videocode.template.effect.click import click
 from videocode.template.input.Button import Button
 from videocode.template.input.Arrow import Arrow, Arrow, Cursor
 from videocode.template.input.Graph import *
-from videocode.template.input.Plane import SoftPlane
+from videocode.template.input.Plane import Plane
 
 
 def example0():
-    plane = SoftPlane()
 
     examples = [
         example1,
@@ -46,11 +45,11 @@ def example1():
     triRandom = Triangle().position(x=4)
     line1 = Group(rect, sqrRounded, triRandom, circle).align(x=0, y=0).position(y=2)
 
-    text = Text("Hello éric", fontSize=0.75).position(x=-4, y=0.5).align(x=0, y=0)
-    triEqui = EquilateralTriangle(side=1).position(x=0)
-    triRight = RightTriangle(width=1, height=1).position(x=2)
-    triEquiRounded = EquilateralTriangle(side=1, cornerRadius=30).position(x=4)
-    arrow = Arrow().position(x=6.5, y=0.5)
+    text = Text("Hello éric", fontSize=0.75).position(x=-7, y=0).align(x=0, y=0)
+    triEqui = EquilateralTriangle(side=1).position(x=-1)
+    triRight = RightTriangle(width=1, height=1).position(x=1)
+    triEquiRounded = EquilateralTriangle(side=1, cornerRadius=30).position(x=3)
+    arrow = Arrow().position(x=5.5, y=0.5)
     line2 = Group(triEqui, triRight, triEquiRounded).align(x=0, y=0).position(y=0)
     line2.inputs.append(text)
     line2.inputs.append(arrow)
@@ -177,7 +176,7 @@ def example5():
     cursor = Cursor().position(x=-1, y=-2).align(x=1)
 
     # What to do when the cursor moves
-    cursor.addCallback(position, button.onHover)
+    cursor.addPostCallback(position, button.onHover)
 
     # Cursor moves to the button
     cursor.moveTo(x=0.3, y=-0.3, duration=0.8).wait(0.1)

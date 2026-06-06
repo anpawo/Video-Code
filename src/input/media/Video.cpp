@@ -2,18 +2,15 @@
 ** EPITECH PROJECT, 2025
 ** video-code
 ** File description:
-** Image
+** Video
 */
 
 #include "input/media/Video.hpp"
 
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/opencv.hpp>
-#include <utility>
+#include <opencv2/imgproc.hpp>
 
-#include "input/AInput.hpp"
-#include "opencv2/videoio.hpp"
 #include "utils/Exception.hpp"
+#include "vulkan/MeshFactory.hpp"
 
 Video::Video(json::object_t&& args)
     : AInput(std::move(args))
@@ -31,12 +28,13 @@ Video::Video(json::object_t&& args)
     if (_nbFrame == 0) {
         throw Error("Video has no frames: " + filepath);
     }
+
+    _currentFrame = getFrameAt(0);
+    _lastIndex    = 0;
 }
 
-cv::Mat Video::getBaseMatrix(const json::object_t& args)
+cv::Mat Video::getFrameAt(size_t index)
 {
-    size_t index = args.at("index");
-
     if (index >= _nbFrame) {
         index = _nbFrame - 1;
     }
@@ -48,11 +46,8 @@ cv::Mat Video::getBaseMatrix(const json::object_t& args)
         _video.read(frame);
 
         if (frame.empty()) {
-            if (index == _nbFrame - 1) {
-                _nbFrame--;
-                if (_nbFrame == 0) {
-                    throw Error("Video has no frames: " + _baseArgs.at("filepath").get<std::string>());
-                }
+            if (index == 0) {
+                throw Error("Video has no readable frames: " + _baseArgs.at("filepath").get<std::string>());
             }
             index--;
         } else {
@@ -65,4 +60,44 @@ cv::Mat Video::getBaseMatrix(const json::object_t& args)
     }
 
     return frame;
+}
+
+Mesh Video::getMesh(const Metadata& meta, const Config& config)
+{
+    size_t index = meta.args.at("index");
+
+    if (index != _lastIndex) {
+        _currentFrame = getFrameAt(index);
+        _lastIndex    = index;
+        if (_reupload) {
+            _reupload(_currentFrame);
+        }
+    }
+
+    float w = static_cast<float>(_currentFrame.cols);
+    float h = static_cast<float>(_currentFrame.rows);
+
+    if (meta.args.contains("width"))  w = meta.args.at("width").get<float>();
+    if (meta.args.contains("height")) h = meta.args.at("height").get<float>();
+
+    MeshFactory factory({w, h}, meta, config);
+
+    float    opacity = meta.opacity / 255.f;
+    uint16_t base    = factory.vertexCount();
+    factory.addVertex(0.f, 0.f, 0.f, 0.f, opacity);
+    factory.addVertex(w,   0.f, 1.f, 0.f, opacity);
+    factory.addVertex(w,   h,   1.f, 1.f, opacity);
+    factory.addVertex(0.f, h,   0.f, 1.f, opacity);
+
+    factory.addIndex(base + 0);
+    factory.addIndex(base + 1);
+    factory.addIndex(base + 2);
+    factory.addIndex(base + 0);
+    factory.addIndex(base + 2);
+    factory.addIndex(base + 3);
+
+    Mesh mesh         = factory.generateMesh();
+    mesh.hasTexture   = true;
+    mesh.textureDescriptor = _descriptor;
+    return mesh;
 }

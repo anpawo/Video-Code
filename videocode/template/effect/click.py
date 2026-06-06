@@ -25,11 +25,11 @@ class click:
         self.duration = duration
         self.easing = easing
 
-    def __iter__(self) -> Generator[tuple[scale, sec, sec], Any, None]:
+    def __iter__(self) -> Generator[scale, Any, None]:
         half = self.duration / 2
         n = int(half * FRAMERATE)
 
         for s, i in self.easing.rangeIdx(self.up, self.low, half):
-            yield scale(s, s), self.start + i * SINGLE_FRAME, SINGLE_FRAME
+            yield scale(s, s).at(start=self.start + i * SINGLE_FRAME)
         for s, i in self.easing.rangeIdx(self.low, self.up, half):
-            yield scale(s, s), self.start + (i + n) * SINGLE_FRAME, SINGLE_FRAME
+            yield scale(s, s).at(start=self.start + (i + n) * SINGLE_FRAME)

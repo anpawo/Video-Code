@@ -36,6 +36,9 @@ namespace VC
         // Upload a BGRA cv::Mat to the GPU as a combined image sampler (set=1).
         VkDescriptorSet uploadTexture(const cv::Mat& mat);
 
+        // Re-upload pixel data into an existing texture in-place (same dimensions assumed).
+        void updateTexturePixels(VkDescriptorSet desc, const cv::Mat& mat);
+
         // Replace the scene geometry for the next readFrame() call.
         void setMeshes(const std::vector<Mesh>& meshes);
 
@@ -102,8 +105,9 @@ namespace VC
             VkImageView    view    = VK_NULL_HANDLE;
             VkSampler      sampler = VK_NULL_HANDLE;
         };
-        std::vector<TextureResource> m_textures;
-        TextureResource              m_defaultTexture;
+        std::vector<TextureResource>                 m_textures;
+        std::unordered_map<VkDescriptorSet, size_t>  m_textureIndex;
+        TextureResource                              m_defaultTexture;
 
         // ── CPU-side geometry ─────────────────────────────────────────────────
         struct MeshDrawInfo { uint32_t firstIndex; uint32_t indexCount; };

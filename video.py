@@ -5,10 +5,12 @@ from videocode.template.input import *
 from videocode.template.misc.example.marius import *
 from videocode import *
 
-# --- Marius' Test (Do not remove, just comment it, you should try it also)
-# p = SoftPlane()
+plane = Plane()
 example0()
 
+# v = Video("test.mp4")
+# p = Plane(center=True)
+# t = Text("Bonjour").alignTo(x=1).flush().alignTo(x=0).flush()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CURRENT API — solid colors (works today)
