@@ -6,7 +6,7 @@ import chess.pgn
 
 
 from videocode.constants import SF
-from videocode.input.media.WebImage import WebImage
+from videocode.input.media.Image import WebImage
 from videocode.utils.bezier import Easing
 from videocode.context import wait
 
@@ -116,16 +116,30 @@ class ChessBoard:
                 raise ValueError("En Passant not yet implemented")
 
             # Normal Move
-            self.pieces[(sx, sy)][0].moveTo(self.ox + dx * self.tileSize, self.oy + dy * self.tileSize, easing=Easing.Linear, duration=duration).flush()
+            mover = self.pieces[(sx, sy)][0]
+            mover.moveTo(self.ox + dx * self.tileSize, self.oy + dy * self.tileSize, easing=Easing.Linear, duration=duration).flush()
+            if (dx, dy) in self.pieces:
+                self.pieces[(dx, dy)][0].waitTo(mover.meta.transformationOffset).hide().flush()
             wait(duration - SF)
-            # TODO: bring back hide
-            # if (dx, dy) in self.pieces:
-            #     self.pieces[(dx, dy)][0].hide()
             self.pieces[(dx, dy)] = self.pieces[(sx, sy)]
             del self.pieces[(sx, sy)]
             if move.promotion:
-                self.pieces[(dx, dy)] = self.pieces[(dx, dy)][0], (self.pieces[(dx, dy)][1][0], chess.PIECE_SYMBOLS[move.promotion])
-                self.pieces[(dx, dy)][0].url = self.getUrl(*self.pieces[(dx, dy)][1])
+                # Image textures are fixed at creation — swap the pawn for a
+                # freshly-created piece image rather than mutating its filepath.
+                color = self.pieces[(dx, dy)][1][0]
+                piece = chess.PIECE_SYMBOLS[move.promotion]
+                target = mover.meta.transformationOffset
+                promoted = (
+                    WebImage(self.getUrl(color, piece))
+                    .position(self.ox + dx * self.tileSize, self.oy + dy * self.tileSize)
+                    .scale(self.defaultScaling)
+                )
+                if target > promoted.meta.transformationOffset:
+                    promoted.hide()
+                    promoted.waitTo(target)
+                    promoted.show().flush()
+                mover.hide().flush()
+                self.pieces[(dx, dy)] = (promoted, (color, piece))
 
             wait(0.1)
             if nMove is not None:

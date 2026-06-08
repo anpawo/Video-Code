@@ -89,6 +89,7 @@ namespace
         {"text",      "test/visual/scenes/text.py",      {0}},
         {"animation", "test/visual/scenes/animation.py", {0, 10, 25}},
         {"groups",    "test/visual/scenes/groups.py",    {0, 15, 29}},
+        {"chess",     "test/visual/scenes/chess.py",     {0, 30, 65, 100, 130}},
     };
 
     const std::vector<ReloadCase> kReloadCases = {
