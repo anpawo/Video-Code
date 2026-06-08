@@ -31,6 +31,14 @@ public:
 
     // -
 
+    // Restores all modification-derived state (metas, effects, timeline) to the
+    // freshly-constructed state, keeping _baseArgs (and any subclass resources, e.g.
+    // a loaded texture or open video file). Lets hot-reload reuse an input whose
+    // Create entry didn't change without re-running its (possibly expensive) constructor.
+    void resetModifications();
+
+    // -
+
     Metadata getMetadata(size_t index) final;
 
     // -

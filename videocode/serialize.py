@@ -13,8 +13,8 @@ from videocode import *
 
 
 def _resetContext():
-    Context.stack = []
-    Context._applyIndex = {}
+    Context.stack = {}
+    Context.events = []
     Context.inputCounter = 0
     Context.lastEverAffectedFrame = 0
     Context.waitOffset = 0
@@ -35,8 +35,10 @@ def execScene(filepath: str) -> None:
     code = compile(content, filepath, "exec")
 
     import os
+
     if os.environ.get("VC_PROFILE"):
         import cProfile, pstats, io
+
         pr = cProfile.Profile()
         pr.enable()
         exec(code, globals())
@@ -65,14 +67,11 @@ def serializeScene(filepath: str) -> str:
     code = compile(content, filepath, "exec")
     exec(code, globals())
 
-    # Access Stack
-    g = Context()
-
-    # Serialize the instructions to JSON
-    return json.dumps(g.stack, default=lambda x: x.jsonSerialization())
+    return json.dumps(
+        {"stack": Context.stack, "events": [e.jsonSerialization() for e in Context.events]},
+        default=lambda x: x.jsonSerialization(),
+    )
 
 
 if __name__ == "__main__":
-
-    for i in json.loads(serializeScene("video.py")):
-        print(i, file=sys.stderr)
+    print(serializeScene("video.py"), file=sys.stderr)

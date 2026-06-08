@@ -80,6 +80,18 @@ docvid:
 	./$(BINARY_NAME) --generate
 
 
+# Visual regression suite — golden-frame + hot-reload equivalence checks.
+.PHONY: test
+test:
+	./$(BINARY_NAME) --visual-test
+
+
+# (Re)write the golden images the suite compares against.
+.PHONY: test-golden
+test-golden:
+	./$(BINARY_NAME) --visual-test --update-golden
+
+
 # 1. Generate the Readme
 # 2. Copies the generated video to example.gif
 .PHONY: docdoc

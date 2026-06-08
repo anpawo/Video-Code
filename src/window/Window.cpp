@@ -141,6 +141,10 @@ void VC::Window::keyPressEvent(QKeyEvent* event)
         } else {
             _core.goToLastFrame();
         }
+    } else if (event->key() == Qt::Key_R) {
+        _core.reloadSourceFile();
+        _core.uploadTextures(_vulkanWidget);
+        _lastMeshes.clear(); // force immediate redraw on next frame tick
     } else if (event->key() == Qt::Key_Left) {
         _core.backwardFrame(event->modifiers() & Qt::ControlModifier ? 5 : 1);
     } else if (event->key() == Qt::Key_Right) {

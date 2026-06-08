@@ -35,6 +35,7 @@ def inputCreation(f: Callable[Concatenate[_T, _P], None]) -> Callable[Concatenat
 
         # Generate the stack creation
         Context.create(
+            inputIndex=self.meta.index,
             inputType=self.cppName,
             inputArgs={k: v for k, v in self.__dict__.items() if k in self.cppAttrs},
         )

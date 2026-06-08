@@ -89,25 +89,10 @@ class StackAction:
         return vars(self)
 
 
-class Create(StackAction):
-    def __init__(self, inputType: str, inputArgs: dict[str, Any]):
-        self.action = self.__class__.__name__
-        self.type = inputType
-        self.args = inputArgs
-
-
-class Apply(StackAction):
-    def __init__(self, inputIndex: int, shaderName: str, shaderType: str, shaderArgs: dict[str, Any]):
-        self.action = self.__class__.__name__
-        self.input = inputIndex
-        self.name = shaderName
-        self.type = shaderType
-        self.args = shaderArgs
-
-
 class Wait(StackAction):
-    def __init__(self, numberOfFrame: int):
+    def __init__(self, startFrame: int, numberOfFrame: int):
         self.action = self.__class__.__name__
+        self.start = startFrame
         self.n = numberOfFrame
 
 
@@ -123,14 +108,13 @@ class Context:
     Context containing the `Metadata` of the `Scene`.
     """
 
-    # Represents the steps to generate the video.
-    stack: list[StackAction] = []
+    # stack[inputIdx][-1]            = {"type": str, "args": dict}          — Create
+    # stack[inputIdx][frameIdx][key] = {"type": shaderType, **shaderArgs}   — Apply
+    # "Args" shaders use key "Args:{argName}" to allow multiple per frame.
+    stack: dict[int, dict] = {}
 
-    # O(1) deduplication index for Apply actions.
-    # Key: (inputIndex, shaderName, shaderType, start, duration, argName)
-    # Value: index into stack[] where that Apply lives.
-    # Mirrors the dedup criteria in apply() — updated on every append or replace.
-    _applyIndex: dict[tuple, int] = {}
+    # Wait and Timestamp actions; C++ consumes these separately.
+    events: list[StackAction] = []
 
     # Index of the next `Input`
     inputCounter: int = 0
@@ -147,25 +131,18 @@ class Context:
         return Context.inputCounter - 1
 
     @staticmethod
-    def create(inputType: str, inputArgs: dict[str, Any]):
-        Context.stack.append(Create(inputType, inputArgs))
+    def create(inputIndex: int, inputType: str, inputArgs: dict[str, Any]):
+        Context.stack.setdefault(inputIndex, {})[-1] = {"type": inputType, "args": inputArgs}
 
     @staticmethod
     def apply(inputIndex: int, shaderName: str, shaderType: str, shaderArgs: dict[str, Any]):
-        a = Apply(inputIndex, shaderName, shaderType, shaderArgs)
-        # Dedup key mirrors the original three conditions:
-        #   sameShader : (inputIndex, shaderName, shaderType)
-        #   sameTiming : start, duration
-        #   sameArg    : for "Args" shaders also include the arg name; None otherwise
+        frameIdx = shaderArgs["start"]
         argName = shaderArgs.get("name") if shaderName == "Args" else None
-        key = (inputIndex, shaderName, shaderType,
-               shaderArgs.get("start"), shaderArgs.get("duration"), argName)
-        idx = Context._applyIndex.get(key)
-        if idx is not None:
-            Context.stack[idx] = a   # replace in-place, index stays valid
-        else:
-            Context._applyIndex[key] = len(Context.stack)
-            Context.stack.append(a)
+        dictKey = f"Args:{argName}" if argName is not None else shaderName
+        Context.stack.setdefault(inputIndex, {}).setdefault(frameIdx, {})[dictKey] = {
+            "type": shaderType,
+            "args": shaderArgs,
+        }
 
 
 def wait(n: sec = 0) -> None:
@@ -177,14 +154,14 @@ def wait(n: sec = 0) -> None:
     n = int(n * FRAMERATE)
 
     # Python
-    Context.waitOffset = Context.lastEverAffectedFrame = max(Context.lastEverAffectedFrame, Context.waitOffset) + n
+    startFrame = max(Context.lastEverAffectedFrame, Context.waitOffset)
+    Context.waitOffset = Context.lastEverAffectedFrame = startFrame + n
 
-    # Cpp
-    Context.stack.append(Wait(n))
+    Context.events.append(Wait(startFrame, n))
 
 
 def timestamp(name: str) -> None:
-    Context.stack.append(Timestamp(name, Context.lastEverAffectedFrame))
+    Context.events.append(Timestamp(name, Context.lastEverAffectedFrame))
 
 
 # TODO: background level

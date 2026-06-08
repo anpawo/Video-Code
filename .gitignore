@@ -54,5 +54,9 @@ wherewasi
 todo
 pgn
 
+# Visual regression golden images — tracked despite the *.png rule above,
+# the test suite needs them to compare against on a fresh checkout.
+!test/visual/golden/*.png
+
 # WebImage
 webimage/

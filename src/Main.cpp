@@ -17,6 +17,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "compiler/Compiler.hpp"
+#include "test/VisualTest.hpp"
 #include "window/Window.hpp"
 
 namespace py = pybind11;
@@ -64,6 +65,16 @@ void setParserArgument(argparse::ArgumentParser &p)
         .add_argument("--showtimeline")
         .flag()
         .help("Show the timeline of the video.");
+
+    p
+        .add_argument("--visual-test")
+        .flag()
+        .help("Run the visual regression suite (golden-frame + hot-reload equivalence checks) and exit.");
+
+    p
+        .add_argument("--update-golden")
+        .flag()
+        .help("With --visual-test, (re)write the golden images instead of comparing against them.");
 }
 
 int main(int argc, char *argv[])
@@ -96,6 +107,12 @@ int main(int argc, char *argv[])
     } catch (const std::exception &e) {
         std::cerr << e.what() << std::endl;
         return EXIT_FAILURE;
+    }
+
+    // Visual regression suite (headless — no window, no Qt event loop)
+    if (parser.get<bool>("--visual-test")) {
+        VC::VisualTest visualTest(parser);
+        return visualTest.run(parser.get<bool>("--update-golden"));
     }
 
     // Generate the video (headless — no window, no Qt event loop)

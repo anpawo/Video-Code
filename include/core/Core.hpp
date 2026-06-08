@@ -68,7 +68,22 @@ namespace VC
 
     private:
 
-        void executeStack(const py::list& stack);
+        void executeStack(const py::dict& stack, const py::list& events);
+
+        ///< (Re)build a single input from its stack subtree (Create + Apply entries),
+        ///< replacing _inputs[idx] in place. Used by both full and incremental rebuilds.
+        ///< When reuseExisting is true and _inputs[idx]'s Create entry is unchanged, the
+        ///< existing AInput is kept alive (skipping its — possibly expensive — constructor,
+        ///< e.g. Image/Video file I/O) and only its modification state is reset + replayed.
+        void rebuildInput(size_t idx, const py::dict& inputData, bool reuseExisting);
+
+        ///< Per-input snapshot of the stack (as JSON) from the last reload — diffed against
+        ///< the freshly-executed stack so reloadSourceFile() only rebuilds inputs that changed.
+        std::map<int, json> _stackSnapshot{};
+
+        ///< Indices of inputs rebuilt during the last executeStack() that need a texture
+        ///< (re)upload — consumed and cleared by uploadTextures().
+        std::vector<size_t> _pendingTextureUpload{};
 
         ///< Config (Window / Framerate / Paths)
         const Config& _config;

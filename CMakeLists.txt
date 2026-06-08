@@ -123,6 +123,9 @@ set(SOURCES
     # --- Compiler ---
     src/compiler/Compiler.cpp
 
+    # --- Test ---
+    src/test/VisualTest.cpp
+
     # --- Core ---
     src/core/Core.cpp
 

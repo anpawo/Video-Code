@@ -19,6 +19,14 @@ AInput::AInput(json::object_t&& args)
 {
 }
 
+void AInput::resetModifications()
+{
+    _hasArgsShader = false;
+    _effects.clear();
+    _effectTimeline.clear();
+    _metas = {Metadata{.args = _baseArgs}};
+}
+
 void AInput::add(json& modification)
 {
     std::string    name = modification["name"];
