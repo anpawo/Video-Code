@@ -7,6 +7,7 @@
 
 #include "input/media/Video.hpp"
 
+#include <algorithm>
 #include <opencv2/imgproc.hpp>
 
 #include "utils/Exception.hpp"
@@ -29,8 +30,59 @@ Video::Video(json::object_t&& args)
         throw Error("Video has no frames: " + filepath);
     }
 
-    _currentFrame = getFrameAt(0);
-    _lastIndex    = 0;
+    // Parse, clamp and merge the requested cut ranges into sorted, non-overlapping
+    // [start, end) pairs so mapToSourceIndex can walk them in a single forward pass.
+    if (_baseArgs.contains("cuts")) {
+        for (const auto& raw : _baseArgs.at("cuts")) {
+            auto   pair  = raw.get<std::vector<size_t>>();
+            size_t start = std::min(pair[0], _nbFrame);
+            size_t end   = std::min(pair[1], _nbFrame);
+
+            if (end > start) {
+                _cuts.push_back({start, end});
+            }
+        }
+    }
+
+    std::sort(_cuts.begin(), _cuts.end());
+
+    std::vector<std::pair<size_t, size_t>> merged;
+    for (const auto& cut : _cuts) {
+        if (!merged.empty() && cut.first <= merged.back().second) {
+            merged.back().second = std::max(merged.back().second, cut.second);
+        } else {
+            merged.push_back(cut);
+        }
+    }
+    _cuts = std::move(merged);
+
+    size_t totalCut = 0;
+    for (const auto& [start, end] : _cuts) {
+        totalCut += end - start;
+    }
+    _playbackLength = (totalCut < _nbFrame) ? (_nbFrame - totalCut) : 1;
+
+    _lastIndex    = mapToSourceIndex(0);
+    _currentFrame = getFrameAt(_lastIndex);
+}
+
+// Maps a position in the cut-down playback timeline back to the corresponding
+// source-video frame index, by shifting forward over every cut range that the
+// (progressively shifted) index has reached. Cuts are sorted and non-overlapping,
+// so a single forward pass suffices.
+size_t Video::mapToSourceIndex(size_t playbackIndex) const
+{
+    size_t source = playbackIndex;
+
+    for (const auto& [start, end] : _cuts) {
+        if (source >= start) {
+            source += end - start;
+        } else {
+            break;
+        }
+    }
+
+    return source;
 }
 
 cv::Mat Video::getFrameAt(size_t index)
@@ -64,7 +116,13 @@ cv::Mat Video::getFrameAt(size_t index)
 
 Mesh Video::getMesh(const Metadata& meta, const Config& config)
 {
-    size_t index = meta.args.at("index");
+    size_t playbackIndex = meta.args.at("index");
+
+    if (playbackIndex >= _playbackLength) {
+        playbackIndex = _playbackLength - 1;
+    }
+
+    size_t index = mapToSourceIndex(playbackIndex);
 
     if (index != _lastIndex) {
         _currentFrame = getFrameAt(index);

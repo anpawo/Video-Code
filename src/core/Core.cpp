@@ -115,8 +115,8 @@ void VC::Core::reloadSourceFile()
         // Extend _nbFrame to cover any Video inputs whose duration exceeds the stack's range.
         for (const auto& inputPtr : _inputs) {
             if (const Video* vid = dynamic_cast<const Video*>(inputPtr.get())) {
-                if (vid->_nbFrame > _nbFrame)
-                    _nbFrame = vid->_nbFrame;
+                if (vid->_playbackLength > _nbFrame)
+                    _nbFrame = vid->_playbackLength;
             }
         }
 
