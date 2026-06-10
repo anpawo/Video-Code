@@ -57,6 +57,20 @@ struct Metadata
 
     float rotation{0.0};
 
+    // Render order — meshes are stable-sorted by (zIndex, zOrderSeq)
+    // ascending before drawing, so lower values render first (further
+    // behind). Only meaningful when zIndexExplicit is true; otherwise
+    // Core::generateMeshes falls back to the input's creation order, which
+    // is what the Python-side default (Metadata.zIndex = self.index) means.
+    int zIndex{0};
+
+    // True once a `ZIndex` VertexShader has been applied.
+    bool zIndexExplicit{false};
+
+    // Tiebreak for equal zIndex: bumped each time zIndex is explicitly set,
+    // so the most recently changed one wins (renders on top).
+    int zOrderSeq{0};
+
     bool hidden{false};
 
     // True when no "Args" VertexShader has ever fired for this input.
@@ -83,6 +97,12 @@ struct Metadata
 
         os << std::setw(11) << "rotation:"
            << m.rotation << "°\n";
+
+        os << std::setw(11) << "zIndex:"
+           << m.zIndex << (m.zIndexExplicit ? "" : " (default)") << '\n';
+
+        os << std::setw(11) << "zOrderSeq:"
+           << m.zOrderSeq << '\n';
 
         os << std::setw(11) << "opacity:"
            << (int)(m.opacity) << "\n";

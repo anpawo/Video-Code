@@ -93,6 +93,8 @@ namespace
         {"gradient",         "test/visual/scenes/gradient.py",         {0}},
         {"gradient-percent", "test/visual/scenes/gradient_percent.py", {0}},
         {"gradient-conic",   "test/visual/scenes/gradient_conic.py",   {0}},
+        {"shadow",           "test/visual/scenes/shadow.py",           {0}},
+        {"layers",           "test/visual/scenes/layers.py",           {0, 31, 61, 91}},
     };
 
     const std::vector<ReloadCase> kReloadCases = {

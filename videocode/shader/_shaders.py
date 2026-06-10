@@ -24,3 +24,4 @@ from videocode.shader.vertexShader.rotate import *
 from videocode.shader.vertexShader.opacity import *
 from videocode.shader.vertexShader.scale import *
 from videocode.shader.vertexShader.show import *
+from videocode.shader.vertexShader.zIndex import *

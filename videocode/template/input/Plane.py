@@ -41,3 +41,8 @@ class Plane(Group):
             ],
             *([Dot().position(0, 0)] if center else []),
         )
+
+        # The grid (and its background rectangle) shouldn't be considered
+        # part of the layer stack — sendToBack/bringToFront/etc. should treat
+        # user shapes as the whole scene, not get pushed behind/in front of it.
+        self.background()

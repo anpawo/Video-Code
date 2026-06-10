@@ -9,107 +9,35 @@ from videocode import *
 p = Plane()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# LinearGradient — varies along a direction (0° = left→right, 90° = bottom→top).
-# RadialGradient  — varies by distance from the shape's center outward.
-# ConicGradient   — sweeps around the shape's center, like CSS conic-gradient.
-# All accept bare colors (auto-spaced 0%…100%) or (color, percent) stop pins.
+# Shadow — wraps a Polygon, then creates an offset, darker, semi-transparent
+# copy of its geometry rendered behind it via zIndex.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# Row 1 — LinearGradient
-rect_linear = Rectangle(
-    width=4,
-    height=1.8,
-    fillColor=LinearGradient(RED_B, BLUE_B),
-    strokeColor=TRANSPARENT,
-).position(x=-5, y=3.3)
+box = Rectangle(width=5, height=2.5, fillColor=BLUE_C, strokeColor=TRANSPARENT)
 
-rect_linear_angled = Rectangle(
-    width=4,
-    height=1.8,
-    fillColor=LinearGradient(GREEN, RED_A, angle=45),
-    strokeColor=TRANSPARENT,
-).position(x=0, y=3.3)
-
-rect_linear_breakpoints = Rectangle(
-    width=4,
-    height=1.8,
-    fillColor=LinearGradient(RED_B, (GREEN, 20), WHITE),
-    strokeColor=TRANSPARENT,
-).position(x=5, y=3.3)
-
-# Row 2 — RadialGradient on rectangles
-rect_radial = Rectangle(
-    width=4,
-    height=1.8,
-    fillColor=RadialGradient(WHITE, BLUE_B),
-    strokeColor=TRANSPARENT,
-).position(x=-5, y=1.1)
-
-rect_radial_multi = Rectangle(
-    width=4,
-    height=1.8,
-    fillColor=RadialGradient(WHITE, (rgba(255, 200, 50), 40), BLUE_B),
-    strokeColor=TRANSPARENT,
-).position(x=0, y=1.1)
-
-rect_radial_dark = Rectangle(
-    width=4,
-    height=1.8,
-    fillColor=RadialGradient(rgba(60, 20, 80), (rgba(180, 80, 200), 50), BLACK),
-    strokeColor=TRANSPARENT,
-).position(x=5, y=1.1)
-
-# Row 3 — RadialGradient on circles
-circle_radial = Circle(
-    radius=0.95,
-    fillColor=RadialGradient(WHITE, BLUE_B),
-    strokeColor=TRANSPARENT,
-).position(x=-5, y=-1.1)
-
-circle_radial_multi = Circle(
-    radius=0.95,
-    fillColor=RadialGradient(WHITE, (rgba(255, 200, 50), 40), rgba(180, 60, 0)),
-    strokeColor=TRANSPARENT,
-).position(x=0, y=-1.1)
-
-circle_radial_glow = Circle(
-    radius=0.95,
-    fillColor=RadialGradient(WHITE, (rgba(100, 200, 255), 60), rgba(0, 30, 80)),
-    strokeColor=TRANSPARENT,
-).position(x=5, y=-1.1)
-
-# Row 4 — ConicGradient
-circle_conic = Circle(
-    radius=0.95,
-    fillColor=ConicGradient(RED, BLUE),
-    strokeColor=TRANSPARENT,
-).position(x=-5, y=-3.3)
-
-circle_conic_wheel = Circle(
-    radius=0.95,
-    fillColor=ConicGradient(RED, (rgba(255, 200, 50), 33), GREEN, (BLUE_B, 66), RED),
-    strokeColor=TRANSPARENT,
-).position(x=0, y=-3.3)
-
-rect_conic_angled = Rectangle(
-    width=4,
-    height=1.8,
-    fillColor=ConicGradient(WHITE, (rgba(255, 200, 50), 50), BLACK, angle=90),
-    strokeColor=TRANSPARENT,
-).position(x=5, y=-3.3)
-
+# Created after `box` — copies its vertices, renders an offset, darker,
+# semi-transparent clone behind it via zIndex.
+Shadow(box, offset=(0.3, -0.3), color=BLACK | 0.35).apply(blur(5))
 
 # ─────────────────────────────────────────────────────────────────────────────
-# FUTURE API — mirror / shadow (council decision D4, not yet implemented)
-#
-# Whenever a shader is applied to `leader`, `follower` gets the same shader
-# with identical timing. Pure Python — no C++ changes.
+# Layer order — relative to creation order by default, or controlled
+# explicitly:
+#   .inFrontOf(other) / .behind(other) — relative to one input
+#   .bringToFront()   / .sendToBack()  — relative to everything in the scene
+#   .bringForward()   / .sendBackward() — move one layer at a time
 # ─────────────────────────────────────────────────────────────────────────────
 
-# leader   = Rectangle(width=3, height=1).position(x=-3)
-# follower = Rectangle(width=3, height=1).position(x= 3)
-#
-# follower.shadow(leader)           # follower now mirrors all shaders on leader
-#
-# leader.moveBy(x=1)                # follower also moves by x=1, same timing
-# leader.fadeTo(0)                  # follower also fades, same timing
+a = Rectangle(width=3, height=3, fillColor=RED_A, strokeColor=TRANSPARENT)
+a.position(-4.5, -2.5)
+
+b = Rectangle(width=3, height=3, fillColor=BLUE_A, strokeColor=TRANSPARENT)
+b.position(-3, -2.5)
+# created after `a` → in front of it by default
+
+c = Rectangle(width=3, height=3, fillColor=GREEN_A, strokeColor=TRANSPARENT)
+c.position(-1.5, -2.5)
+# created after `b` → in front of it by default. Order so far (back→front): a, b, c
+
+a.wait(1).bringToFront()  # `a` now in front of everything
+b.wait(2).behind(c)  # `b` now behind `c` (but still in front of `a`)
+c.wait(3).sendToBack()  # `c` now behind everything

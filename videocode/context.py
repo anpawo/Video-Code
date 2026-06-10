@@ -38,6 +38,18 @@ class Metadata:
         # --- Hidden ---
         self.hidden: bool = False
 
+        # --- ZIndex ---
+        # Defaults to creation order (no ties unless explicitly set).
+        self.zIndex: int = self.index if self.index is not None else 0
+
+        # Bumped via Context.nextZOrderSeq() every time zIndex is explicitly
+        # set. Ties in zIndex are broken by this: the most recently changed
+        # one wins (renders on top), regardless of creation order.
+        self.zOrderSeq: int = 0
+
+        if not interface:
+            Context.metas.append(self)
+
         # --- Offset ---
         self.lastAffectedFrame: frame = Context.waitOffset
         """
@@ -125,10 +137,42 @@ class Context:
     # Wait creates an offset affecting the start of any transformation
     waitOffset: frame = 0
 
+    # Monotonic counter for zIndex tiebreaks — see Metadata.zOrderSeq
+    zOrderCounter: int = 0
+
+    # Every non-interface Metadata ever created — used to resolve relative
+    # layer-order operations (bringToFront, sendToBack, bringForward, sendBackward).
+    metas: list[Metadata] = []
+
     @staticmethod
     def getIndex() -> int:
         Context.inputCounter += 1
         return Context.inputCounter - 1
+
+    @staticmethod
+    def nextZOrderSeq() -> int:
+        Context.zOrderCounter += 1
+        return Context.zOrderCounter
+
+    @staticmethod
+    def maxZIndex() -> int:
+        return max((m.zIndex for m in Context.metas if m.zIndex != BACKGROUND_Z_INDEX), default=0)
+
+    @staticmethod
+    def minZIndex() -> int:
+        return min((m.zIndex for m in Context.metas if m.zIndex != BACKGROUND_Z_INDEX), default=0)
+
+    @staticmethod
+    def zIndexAbove(z: int) -> maybe[int]:
+        """Smallest zIndex among all non-background inputs strictly greater than `z`, or None."""
+        candidates = [m.zIndex for m in Context.metas if m.zIndex != BACKGROUND_Z_INDEX and m.zIndex > z]
+        return min(candidates) if candidates else None
+
+    @staticmethod
+    def zIndexBelow(z: int) -> maybe[int]:
+        """Largest zIndex among all non-background inputs strictly less than `z`, or None."""
+        candidates = [m.zIndex for m in Context.metas if m.zIndex != BACKGROUND_Z_INDEX and m.zIndex < z]
+        return max(candidates) if candidates else None
 
     @staticmethod
     def create(inputIndex: int, inputType: str, inputArgs: dict[str, Any]):
@@ -162,6 +206,3 @@ def wait(n: sec = 0) -> None:
 
 def timestamp(name: str) -> None:
     Context.events.append(Timestamp(name, Context.lastEverAffectedFrame))
-
-
-# TODO: background level

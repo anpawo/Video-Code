@@ -10,6 +10,7 @@
 #include <pybind11/embed.h>
 #include <pybind11/stl.h>
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <format>
@@ -313,6 +314,10 @@ std::vector<Mesh> VC::Core::generateMeshes()
                     auto mesh = i->getMesh(meta, _config);
                     if (auto* a = dynamic_cast<AInput*>(i.get()))
                         mesh.effects = a->getActiveEffectsAtFrame(renderIndex);
+                    // Default zIndex = creation order, matching the
+                    // Python-side default (Metadata.zIndex = self.index).
+                    mesh.zIndex = meta.zIndexExplicit ? meta.zIndex : static_cast<int>(&i - &_inputs[0]);
+                    mesh.zOrderSeq = meta.zOrderSeq;
                     _cachedMeshes.push_back(std::move(mesh));
                 }
 #ifdef VC_DEBUG_ON
@@ -324,6 +329,13 @@ std::vector<Mesh> VC::Core::generateMeshes()
                     VC_LOG(std::format("[timer] getMesh input#{}: {}µs\n", &i - &_inputs[0], _tInputMs));
 #endif
             }
+        });
+        // Sort by zIndex ascending (lower = further behind). Ties broken by
+        // zOrderSeq: the zIndex changed most recently wins (renders on top).
+        std::stable_sort(_cachedMeshes.begin(), _cachedMeshes.end(), [](const Mesh& a, const Mesh& b) {
+            if (a.zIndex != b.zIndex)
+                return a.zIndex < b.zIndex;
+            return a.zOrderSeq < b.zOrderSeq;
         });
         _lastRenderedIndex = renderIndex;
         _meshesRebuilt = true;

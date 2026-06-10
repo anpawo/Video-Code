@@ -36,6 +36,7 @@ enum class VertexShader {
     Hide,
     Show,
     Args,
+    ZIndex,
 
     // -
 
@@ -51,6 +52,7 @@ const std::map<std::string, VertexShader> getTransformFromString = {
     {"Hide",     VertexShader::Hide},
     {"Show",     VertexShader::Show},
     {"Args",     VertexShader::Args},
+    {"ZIndex",   VertexShader::ZIndex},
 };
 
 inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size2f& size, const Metadata& meta)
@@ -143,6 +145,12 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
         }
         case VertexShader::Args: {
             meta.args[args.at("name")] = args.at("value");
+            break;
+        }
+        case VertexShader::ZIndex: {
+            meta.zIndex = args.at("zIndex").get<int>();
+            meta.zOrderSeq = args.at("zOrderSeq").get<int>();
+            meta.zIndexExplicit = true;
             break;
         }
     }
