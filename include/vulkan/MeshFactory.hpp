@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <optional>
 #include <opencv2/core/matx.hpp>
 #include <opencv2/core/types.hpp>
 #include <vector>
@@ -17,6 +18,7 @@
 #include "core/Config.hpp"
 #include "input/Metadata.hpp"
 #include "shader/IVertexShader.hpp"
+#include "utils/Color.hpp"
 #include "vulkan/Mesh.hpp"
 
 struct QuadraticBezier2D
@@ -217,10 +219,46 @@ struct MeshFactory
         bool                                  insideOnly = false
     )
     {
+        addQuadraticStrokePathImpl(localCurves, localStrokeWidth, color, nullptr, std::nullopt, closed, insideOnly);
+    }
+
+    // Gradient variant — `gradientDir` is a unit vector in *local* mesh space (same
+    // convention as the fill gradient, so it rotates with the shape). Each stroke
+    // sample is colored via `lerpGradient(stops, t)` based on its projection onto
+    // that direction, normalized across the path's own extent along it — generalizes
+    // to any number of color breakpoints, not just a 2-color lerp.
+    void addQuadraticStrokePath(
+        const std::vector<QuadraticBezier2D> &localCurves,
+        float                                 localStrokeWidth,
+        const std::vector<GradientStop>      &stops,
+        const cv::Vec2f                      &gradientDir,
+        bool                                  closed,
+        bool                                  insideOnly = false
+    )
+    {
+        addQuadraticStrokePathImpl(localCurves, localStrokeWidth, stops.front().color, &stops, gradientDir, closed, insideOnly);
+    }
+
+private:
+
+    void addQuadraticStrokePathImpl(
+        const std::vector<QuadraticBezier2D> &localCurves,
+        float                                 localStrokeWidth,
+        const cv::Vec4b                      &color,
+        const std::vector<GradientStop>      *stops,
+        std::optional<cv::Vec2f>              gradientDir,
+        bool                                  closed,
+        bool                                  insideOnly
+    )
+    {
         if (localCurves.empty()) {
             return;
         }
 
+        // Track local- and world-space points in lockstep so the gradient can be
+        // projected in local space (rotates with the shape, matches fill gradient)
+        // while stroke geometry is still extruded in world space (matches M scale).
+        std::vector<cv::Vec2f> localSamples;
         std::vector<cv::Vec2f> samples;
         for (size_t curveIndex = 0; curveIndex < localCurves.size(); ++curveIndex) {
             const auto &curve = localCurves[curveIndex];
@@ -231,20 +269,30 @@ struct MeshFactory
                 }
                 float     t = static_cast<float>(i) / static_cast<float>(steps - 1);
                 cv::Vec2f localPoint = evalQuadratic(curve, t);
+                localSamples.push_back(localPoint);
                 samples.push_back(toWorldPoint(localPoint[0], localPoint[1]));
             }
         }
 
-        // Remove consecutive near-duplicate samples (produced by degenerate bezier segments).
-        auto dupEnd = std::unique(samples.begin(), samples.end(),
-            [](const cv::Vec2f& a, const cv::Vec2f& b) { return length2d(a - b) < 1e-4f; });
-        samples.erase(dupEnd, samples.end());
+        // Remove consecutive near-duplicate samples (produced by degenerate bezier
+        // segments) — apply the same removals to localSamples to keep them aligned.
+        size_t writeIdx = 0;
+        for (size_t readIdx = 0; readIdx < samples.size(); ++readIdx) {
+            if (writeIdx == 0 || length2d(samples[readIdx] - samples[writeIdx - 1]) >= 1e-4f) {
+                samples[writeIdx]      = samples[readIdx];
+                localSamples[writeIdx] = localSamples[readIdx];
+                ++writeIdx;
+            }
+        }
+        samples.resize(writeIdx);
+        localSamples.resize(writeIdx);
 
         if (samples.size() < 2) {
             return;
         }
         if (closed && length2d(samples.front() - samples.back()) < 1e-4f) {
             samples.pop_back();
+            localSamples.pop_back();
         }
         if (samples.size() < 2) {
             return;
@@ -261,6 +309,29 @@ struct MeshFactory
         float g = color[1] / 255.f;
         float b = color[2] / 255.f;
         float a = color[3] / 255.f;
+
+        // Precompute per-sample gradient colors (projected in local space, normalized
+        // across this path's own extent along the gradient axis).
+        std::vector<cv::Vec4f> sampleColors;
+        if (gradientDir && stops) {
+            const cv::Vec2f &dir = *gradientDir;
+            float minProj = std::numeric_limits<float>::max();
+            float maxProj = std::numeric_limits<float>::lowest();
+            for (const auto &p : localSamples) {
+                float proj = p[0] * dir[0] + p[1] * dir[1];
+                minProj = std::min(minProj, proj);
+                maxProj = std::max(maxProj, proj);
+            }
+            float range = maxProj - minProj;
+
+            sampleColors.reserve(localSamples.size());
+            for (const auto &p : localSamples) {
+                float     proj = p[0] * dir[0] + p[1] * dir[1];
+                float     t    = (range > 0.f) ? (proj - minProj) / range : 0.f;
+                cv::Vec4b c    = lerpGradient(*stops, t);
+                sampleColors.push_back({c[0] / 255.f, c[1] / 255.f, c[2] / 255.f, c[3] / 255.f});
+            }
+        }
 
         std::vector<uint16_t> pairBases;
         pairBases.reserve(samples.size());
@@ -295,6 +366,12 @@ struct MeshFactory
             bool      isEndpoint = !closed && (i == 0 || i + 1 == samples.size());
             cv::Vec2f step = stepToCorner(prevDir, nextDir, isEndpoint);
 
+            float vr = r, vg = g, vb = b, va = a;
+            if (gradientDir) {
+                const cv::Vec4f &c = sampleColors[i];
+                vr = c[0]; vg = c[1]; vb = c[2]; va = c[3];
+            }
+
             uint16_t base = vertexCount();
             pairBases.push_back(base);
 
@@ -305,14 +382,14 @@ struct MeshFactory
                 // (fully inside the stroke, covered by the fill — no fade needed there).
                 cv::Vec2f outerNdc = toNdcPoint(point);
                 cv::Vec2f innerNdc = toNdcPoint(point + step * 2.f * halfW);
-                mesh.vertices.push_back(Vertex{{outerNdc[0], outerNdc[1]}, {halfW, halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
-                mesh.vertices.push_back(Vertex{{innerNdc[0], innerNdc[1]}, {0.f,   halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
+                mesh.vertices.push_back(Vertex{{outerNdc[0], outerNdc[1]}, {halfW, halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
+                mesh.vertices.push_back(Vertex{{innerNdc[0], innerNdc[1]}, {0.f,   halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
             } else {
                 // Centered stroke: ±halfW_expanded around the path centerline
                 cv::Vec2f negNdc = toNdcPoint(point - step * halfW_expanded);
                 cv::Vec2f posNdc = toNdcPoint(point + step * halfW_expanded);
-                mesh.vertices.push_back(Vertex{{negNdc[0], negNdc[1]}, {-halfW_expanded, halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
-                mesh.vertices.push_back(Vertex{{posNdc[0], posNdc[1]}, {halfW_expanded,  halfW}, {r, g, b, a}, {2.f, 0.f, 0.f, 0.f}});
+                mesh.vertices.push_back(Vertex{{negNdc[0], negNdc[1]}, {-halfW_expanded, halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
+                mesh.vertices.push_back(Vertex{{posNdc[0], posNdc[1]}, {halfW_expanded,  halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
             }
         }
 
@@ -332,6 +409,9 @@ struct MeshFactory
             mesh.indices.push_back(base1);
         }
     }
+
+public:
+
 
     void addVertex(float localX, float localY, float u, float v, float opacity = 1.f) // textured variant
     {

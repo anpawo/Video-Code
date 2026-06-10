@@ -16,8 +16,8 @@ void Polygon::buildPath(const json::object_t& args)
 {
     auto raw = args.at("points").get<std::vector<std::vector<float>>>();
     _strokeWidth = args.at("strokeWidth").get<float>() * config::worldToPixelRatio;
-    _fillColor = colorFromJson(args.at("fillColor"), 255);
-    _strokeColor = colorFromJson(args.at("strokeColor"), 255);
+    parseColorOrGradient(args, "fillColor",   _fillColor,   _fillStops,   _fillGradType,   _fillGradientAngle);
+    parseColorOrGradient(args, "strokeColor", _strokeColor, _strokeStops, _strokeGradType, _strokeGradientAngle);
     _closed = true;
 
     int n = static_cast<int>(raw.size());

@@ -2,69 +2,101 @@
 
 
 from videocode.template.input import *
+from videocode.template.misc.chess.chessboard import ChessBoard
 from videocode.template.misc.example.marius import *
 from videocode import *
 
-plane = Plane()
-example0()
-
-# v = Video("test.mp4")
-# p = Plane(center=True)
-# t = Text("Bonjour").alignTo(x=1).flush().alignTo(x=0).flush()
+p = Plane()
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CURRENT API — solid colors (works today)
+# LinearGradient — varies along a direction (0° = left→right, 90° = bottom→top).
+# RadialGradient  — varies by distance from the shape's center outward.
+# ConicGradient   — sweeps around the shape's center, like CSS conic-gradient.
+# All accept bare colors (auto-spaced 0%…100%) or (color, percent) stop pins.
 # ─────────────────────────────────────────────────────────────────────────────
 
-# rect = Rectangle(
-#     width=4,
-#     height=2,
-#     fillColor=RED_B,  # rgba — solid color
-#     strokeColor=WHITE,
-#     strokeWidth=0.05,
-# )
+# Row 1 — LinearGradient
+rect_linear = Rectangle(
+    width=4,
+    height=1.8,
+    fillColor=LinearGradient(RED_B, BLUE_B),
+    strokeColor=TRANSPARENT,
+).position(x=-5, y=3.3)
 
-# text = Text(
-#     "Hello World",
-#     fillColor=BLUE_B,  # rgba — solid color
-#     strokeColor=WHITE,
-#     strokeWidth=0.03,
-#     fontSize=0.75,
-# ).position(y=-2)
+rect_linear_angled = Rectangle(
+    width=4,
+    height=1.8,
+    fillColor=LinearGradient(GREEN, RED_A, angle=45),
+    strokeColor=TRANSPARENT,
+).position(x=0, y=3.3)
 
+rect_linear_breakpoints = Rectangle(
+    width=4,
+    height=1.8,
+    fillColor=LinearGradient(RED_B, (GREEN, 20), WHITE),
+    strokeColor=TRANSPARENT,
+).position(x=5, y=3.3)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# FUTURE API — gradient colors (council decision D6, not yet implemented)
-#
-# `Gradient(*stops, angle)` is a new type accepted anywhere rgba is accepted.
-# fillColor / strokeColor will be typed as `rgba | Gradient` (a `paint` union).
-# Rendering happens in the fragment shader — no new earcut/geometry work.
-# ─────────────────────────────────────────────────────────────────────────────
+# Row 2 — RadialGradient on rectangles
+rect_radial = Rectangle(
+    width=4,
+    height=1.8,
+    fillColor=RadialGradient(WHITE, BLUE_B),
+    strokeColor=TRANSPARENT,
+).position(x=-5, y=1.1)
 
-# rect_gradient = Rectangle(
-#     width=4, height=2,
-#     fillColor=Gradient(           # linear gradient, left→right (angle=0)
-#         (0.0, RED_B),             # stop at 0%: RED_B
-#         (1.0, BLUE_B),            # stop at 100%: BLUE_B
-#         angle=0,                  # 0° = horizontal left→right
-#     ),
-#     strokeColor=WHITE,
-#     strokeWidth=0.05,
-# )
+rect_radial_multi = Rectangle(
+    width=4,
+    height=1.8,
+    fillColor=RadialGradient(WHITE, (rgba(255, 200, 50), 40), BLUE_B),
+    strokeColor=TRANSPARENT,
+).position(x=0, y=1.1)
 
-# text_gradient = Text(
-#     "Hello World",
-#     fillColor=Gradient(
-#         (0.0, YELLOW),
-#         (0.5, RED_B),
-#         (1.0, PURPLE),
-#         angle=90,                 # 90° = vertical top→bottom
-#     ),
-#     fontSize=0.75,
-# ).position(y=-2)
+rect_radial_dark = Rectangle(
+    width=4,
+    height=1.8,
+    fillColor=RadialGradient(rgba(60, 20, 80), (rgba(180, 80, 200), 50), BLACK),
+    strokeColor=TRANSPARENT,
+).position(x=5, y=1.1)
 
-# # Possible sugar shorthand (one-liner two-stop gradient):
-# # rect2 = Rectangle(fillColor=RED_B.to(BLUE_B))    # if we add .to() later
+# Row 3 — RadialGradient on circles
+circle_radial = Circle(
+    radius=0.95,
+    fillColor=RadialGradient(WHITE, BLUE_B),
+    strokeColor=TRANSPARENT,
+).position(x=-5, y=-1.1)
+
+circle_radial_multi = Circle(
+    radius=0.95,
+    fillColor=RadialGradient(WHITE, (rgba(255, 200, 50), 40), rgba(180, 60, 0)),
+    strokeColor=TRANSPARENT,
+).position(x=0, y=-1.1)
+
+circle_radial_glow = Circle(
+    radius=0.95,
+    fillColor=RadialGradient(WHITE, (rgba(100, 200, 255), 60), rgba(0, 30, 80)),
+    strokeColor=TRANSPARENT,
+).position(x=5, y=-1.1)
+
+# Row 4 — ConicGradient
+circle_conic = Circle(
+    radius=0.95,
+    fillColor=ConicGradient(RED, BLUE),
+    strokeColor=TRANSPARENT,
+).position(x=-5, y=-3.3)
+
+circle_conic_wheel = Circle(
+    radius=0.95,
+    fillColor=ConicGradient(RED, (rgba(255, 200, 50), 33), GREEN, (BLUE_B, 66), RED),
+    strokeColor=TRANSPARENT,
+).position(x=0, y=-3.3)
+
+rect_conic_angled = Rectangle(
+    width=4,
+    height=1.8,
+    fillColor=ConicGradient(WHITE, (rgba(255, 200, 50), 50), BLACK, angle=90),
+    strokeColor=TRANSPARENT,
+).position(x=5, y=-3.3)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

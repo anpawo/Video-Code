@@ -90,6 +90,9 @@ namespace
         {"animation", "test/visual/scenes/animation.py", {0, 10, 25}},
         {"groups",    "test/visual/scenes/groups.py",    {0, 15, 29}},
         {"chess",     "test/visual/scenes/chess.py",     {0, 30, 65, 100, 130}},
+        {"gradient",         "test/visual/scenes/gradient.py",         {0}},
+        {"gradient-percent", "test/visual/scenes/gradient_percent.py", {0}},
+        {"gradient-conic",   "test/visual/scenes/gradient_conic.py",   {0}},
     };
 
     const std::vector<ReloadCase> kReloadCases = {
