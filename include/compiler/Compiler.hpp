@@ -15,6 +15,8 @@
 
 namespace VC
 {
+    class VulkanHeadlessRenderer; // forward declaration for generateImage
+
     class Compiler
     {
     public:
@@ -22,9 +24,15 @@ namespace VC
         Compiler(const argparse::ArgumentParser& parser);
         ~Compiler();
 
+        ///< Generates a video, or — when `config.outputFile` has an image
+        ///< extension (.png, .jpg/.jpeg, .bmp, .tiff/.tif, .webp) — a single
+        ///< still frame instead.
         int generateVideo();
 
     private:
+
+        ///< Renders a single frame and writes it to `config.outputFile`.
+        int generateImage(VulkanHeadlessRenderer& renderer);
 
         Config config;
 

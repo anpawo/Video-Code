@@ -7,10 +7,30 @@
 
 #include "compiler/Compiler.hpp"
 
+#include <algorithm>
+#include <filesystem>
 #include <format>
 #include <iostream>
 
 #include "vulkan/VulkanHeadlessRenderer.hpp"
+
+namespace
+{
+    // Image extensions cv::imwrite can write a 4-channel BGRA Mat to directly.
+    bool isAlphaCapableImageExt(const std::string &ext)
+    {
+        return ext == ".png" || ext == ".tiff" || ext == ".tif" || ext == ".webp";
+    }
+
+    // Whether `path`'s extension identifies a still-image format (as opposed to video).
+    bool isImageOutput(const std::string &path)
+    {
+        std::string ext = std::filesystem::path(path).extension().string();
+        std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+        return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp"
+            || ext == ".tiff" || ext == ".tif" || ext == ".webp";
+    }
+}
 
 VC::Compiler::Compiler(const argparse::ArgumentParser &parser)
     : config({
@@ -44,6 +64,9 @@ int VC::Compiler::generateVideo()
         [&](const cv::Mat& mat) { return renderer.uploadTexture(mat); },
         [&](VkDescriptorSet desc, const cv::Mat& mat) { renderer.updateTexturePixels(desc, mat); }
     );
+
+    if (isImageOutput(config.outputFile))
+        return generateImage(renderer);
 
     FILE* pipe = popen(
         std::format(
@@ -96,5 +119,28 @@ int VC::Compiler::generateVideo()
 
     pclose(pipe);
     std::cout << std::format("\nDone → {}\n", config.outputFile);
+    return 0;
+}
+
+int VC::Compiler::generateImage(VulkanHeadlessRenderer& renderer)
+{
+    auto meshes = _core.generateMeshes();
+    renderer.setMeshes(meshes);
+
+    cv::Mat frame = renderer.readFrame();
+    if (!frame.isContinuous())
+        frame = frame.clone();
+
+    std::string ext = std::filesystem::path(config.outputFile).extension().string();
+    std::transform(ext.begin(), ext.end(), ext.begin(), [](unsigned char c) { return std::tolower(c); });
+    if (!isAlphaCapableImageExt(ext))
+        cv::cvtColor(frame, frame, cv::COLOR_BGRA2BGR);
+
+    if (!cv::imwrite(config.outputFile, frame)) {
+        std::cerr << std::format("Failed to write image to {}\n", config.outputFile);
+        return 1;
+    }
+
+    std::cout << std::format("Done → {}\n", config.outputFile);
     return 0;
 }
