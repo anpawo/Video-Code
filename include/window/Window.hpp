@@ -19,6 +19,8 @@
 #include "window/TimelineWidget.hpp"
 #include "window/VulkanWidget.hpp"
 
+class QLabel;
+
 namespace VC
 {
     class Window : public QMainWindow
@@ -52,6 +54,9 @@ namespace VC
 
         ///< Timeline overlay
         TimelineWidget* _timeline{nullptr};
+
+        ///< Keyboard-shortcut help overlay (toggled by 'H')
+        QLabel* _helpOverlay{nullptr};
 
         ///< Frame-rate throttle for the Vulkan frame callback
         std::chrono::steady_clock::time_point _lastFrameTime{};

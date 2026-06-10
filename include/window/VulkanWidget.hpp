@@ -92,7 +92,8 @@ namespace VC
         void updateTexturePixels(VkDescriptorSet desc, const cv::Mat& mat);
 
         // readFrame() — render the current scene offscreen and return the pixels
-        // as a BGRA cv::Mat at (screenWidth × screenHeight). Used for video generation.
+        // as a BGRA cv::Mat at the widget's current size (m_swapExtent). Used by
+        // the preview window's frame-export hotkey (Ctrl+S).
         // Must be called after init() and setMeshes(). Blocks until GPU is done.
         cv::Mat readFrame();
 

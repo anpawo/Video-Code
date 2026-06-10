@@ -9,12 +9,17 @@
 #include "utils/Logger.hpp"
 
 #include <QGuiApplication>
+#include <QInputDialog>
+#include <QLabel>
+#include <QLineEdit>
 #include <QScreen>
 #include <QStatusBar>
 #include <algorithm>
 #include <chrono>
 #include <format>
 #include <iostream>
+
+#include "utils/ImageIO.hpp"
 
 // Window startup timer — measures wall time from the first line of the
 // constructor until Vulkan init completes.  Printed once at startup.
@@ -126,7 +131,11 @@ VC::Window::~Window() = default;
 void VC::Window::keyPressEvent(QKeyEvent* event)
 {
     if (event->key() == Qt::Key_Escape) {
-        close();
+        if (_helpOverlay && _helpOverlay->isVisible()) {
+            _helpOverlay->hide();
+        } else {
+            close();
+        }
     } else if (event->key() == Qt::Key_Space) {
         _core.pause();
     } else if (event->key() == Qt::Key_Down) {
@@ -141,7 +150,7 @@ void VC::Window::keyPressEvent(QKeyEvent* event)
         } else {
             _core.goToLastFrame();
         }
-    } else if (event->key() == Qt::Key_R) {
+    } else if (event->key() == Qt::Key_R && (event->modifiers() & Qt::ControlModifier)) {
         _core.reloadSourceFile();
         _core.uploadTextures(_vulkanWidget);
         _lastMeshes.clear(); // force immediate redraw on next frame tick
@@ -149,6 +158,52 @@ void VC::Window::keyPressEvent(QKeyEvent* event)
         _core.backwardFrame(event->modifiers() & Qt::ControlModifier ? 5 : 1);
     } else if (event->key() == Qt::Key_Right) {
         _core.forwardFrame(event->modifiers() & Qt::ControlModifier ? 5 : 1);
+    } else if (event->key() == Qt::Key_S && (event->modifiers() & Qt::ControlModifier)) {
+        bool    ok       = false;
+        QString fileName = QInputDialog::getText(
+            this, "Export Frame", "File name:", QLineEdit::Normal, "frame.png", &ok
+        );
+        if (ok && !fileName.isEmpty()) {
+            cv::Mat frame = _vulkanWidget->readFrame();
+            if (VC::ImageIO::write(fileName.toStdString(), frame))
+                std::cout << std::format("Saved frame → {}\n", fileName.toStdString());
+            else
+                std::cerr << std::format("Failed to write image to {}\n", fileName.toStdString());
+        }
+    } else if (event->key() == Qt::Key_H) {
+        if (!_helpOverlay) {
+            _helpOverlay = new QLabel(_vulkanWidget);
+            _helpOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+            _helpOverlay->setStyleSheet(
+                "background-color: rgba(30, 30, 30, 230);"
+                "color: white;"
+                "border-radius: 8px;"
+                "padding: 16px;"
+            );
+            _helpOverlay->setText(
+                "<pre>"
+                "Escape           Close window / dismiss this help\n"
+                "Space            Pause / resume\n"
+                "Left / Right     Step backward / forward 1 frame (x5 with Ctrl)\n"
+                "Down / Up        Go to first / last frame\n"
+                "Ctrl+Down/Up     Go to previous / next timestamp\n"
+                "Ctrl+R           Reload source file\n"
+                "Ctrl+S           Export current frame to image\n"
+                "H                Toggle this help"
+                "</pre>"
+            );
+            _helpOverlay->adjustSize();
+            _helpOverlay->move(
+                (_vulkanWidget->width() - _helpOverlay->width()) / 2,
+                (_vulkanWidget->height() - _helpOverlay->height()) / 2
+            );
+        }
+        if (_helpOverlay->isVisible()) {
+            _helpOverlay->hide();
+        } else {
+            _helpOverlay->raise();
+            _helpOverlay->show();
+        }
     } else {
         QMainWindow::keyPressEvent(event);
     }
