@@ -14,6 +14,7 @@ from videocode.shader.fragmentShader.gamma import *
 from videocode.shader.fragmentShader.grain import *
 from videocode.shader.fragmentShader.brightness import *
 from videocode.shader.fragmentShader.contrast import *
+from videocode.shader.fragmentShader.crop import *
 
 # Transformations
 from videocode.shader.vertexShader.align import *

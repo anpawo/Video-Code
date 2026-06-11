@@ -118,7 +118,6 @@ namespace VC
         bool                      m_geomDirty = false;
 
         // ── Per-frame partitioned mesh indices ────────────────────────────────
-        std::vector<size_t> m_normalMeshIndices;  // meshes with no active effects
         std::vector<size_t> m_effectMeshIndices;  // meshes with active effects
 
         // ── Effect (fragment shader) post-process infrastructure ──────────────
@@ -136,11 +135,10 @@ namespace VC
         VkFramebuffer  m_pingFb      = VK_NULL_HANDLE;
         VkFramebuffer  m_pongFb      = VK_NULL_HANDLE;
 
-        // Sampler + descriptor sets for ping/pong source reads and composite
+        // Sampler + descriptor sets for ping/pong source reads
         VkSampler       m_effectSampler = VK_NULL_HANDLE;
         VkDescriptorSet m_pingSrcSet    = VK_NULL_HANDLE; // effect pipeline set=0 → ping
         VkDescriptorSet m_pongSrcSet    = VK_NULL_HANDLE; // effect pipeline set=0 → pong
-        VkDescriptorSet m_pingCompSet   = VK_NULL_HANDLE; // main pipeline   set=1 → ping
 
         // Per-effect GLSL pipeline (keyed by lowercase shader name)
         struct EffectPipeline {
@@ -154,6 +152,18 @@ namespace VC
         VkDeviceMemory m_compVtxMem = VK_NULL_HANDLE;
         VkBuffer       m_compIdxBuf = VK_NULL_HANDLE;
         VkDeviceMemory m_compIdxMem = VK_NULL_HANDLE;
+
+        // Per-effect-mesh result image (final effect output, sampled by the
+        // composite quad in the main pass). Grow-on-demand pool, never shrinks,
+        // indexed in parallel with m_effectMeshIndices.
+        struct EffectResultSlot {
+            VkImage         image         = VK_NULL_HANDLE;
+            VkDeviceMemory  memory        = VK_NULL_HANDLE;
+            VkImageView     view          = VK_NULL_HANDLE;
+            VkFramebuffer   framebuffer   = VK_NULL_HANDLE;
+            VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+        };
+        std::vector<EffectResultSlot> m_effectResults;
 
         // ── Init helpers ──────────────────────────────────────────────────────
         bool createInstance();
@@ -179,8 +189,11 @@ namespace VC
 
         bool           createEffectPipeline(const std::string& name);
 
+        // Grow m_effectResults (never shrinks) so it has at least `count` slots.
+        bool ensureEffectResultCapacity(size_t count);
+
         // ── Effect pass recording helpers ─────────────────────────────────────
-        void recordEffectGeomPass(VkCommandBuffer cb, VkFramebuffer fb);
+        void recordEffectGeomPass(VkCommandBuffer cb, VkFramebuffer fb, size_t meshIndex);
         void recordEffectKernelPass(VkCommandBuffer cb, VkFramebuffer fb,
                                     VkDescriptorSet srcSet,
                                     const std::string& name,
