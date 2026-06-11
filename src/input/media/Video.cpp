@@ -116,7 +116,7 @@ cv::Mat Video::getFrameAt(size_t index)
 
 Mesh Video::getMesh(const Metadata& meta, const Config& config)
 {
-    size_t playbackIndex = meta.args.at("index");
+    size_t playbackIndex = meta.frameIndex;
 
     if (playbackIndex >= _playbackLength) {
         playbackIndex = _playbackLength - 1;
@@ -135,8 +135,8 @@ Mesh Video::getMesh(const Metadata& meta, const Config& config)
     float w = static_cast<float>(_currentFrame.cols);
     float h = static_cast<float>(_currentFrame.rows);
 
-    if (meta.args.contains("width"))  w = meta.args.at("width").get<float>();
-    if (meta.args.contains("height")) h = meta.args.at("height").get<float>();
+    if (meta.args().contains("width"))  w = meta.args().at("width").get<float>();
+    if (meta.args().contains("height")) h = meta.args().at("height").get<float>();
 
     MeshFactory factory({w, h}, meta, config);
 

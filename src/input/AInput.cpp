@@ -15,7 +15,8 @@
 #include "shader/ShaderFactory.hpp"
 
 AInput::AInput(json::object_t&& args)
-    : _baseArgs(std::move(args))
+    : _baseArgsPtr(std::make_shared<const json::object_t>(std::move(args)))
+    , _baseArgs(*_baseArgsPtr)
 {
 }
 
@@ -24,16 +25,13 @@ void AInput::resetModifications()
     _hasArgsShader = false;
     _effects.clear();
     _effectTimeline.clear();
-    _metas = {Metadata{.args = _baseArgs}};
+    _metas = {Metadata{.argsPtr = _baseArgsPtr}};
 }
 
-void AInput::add(json& modification)
+void AInput::add(const std::string& name, const std::string& type, json::object_t&& args)
 {
-    std::string    name = modification["name"];
-    json::object_t args = modification["args"];
-    size_t         start = modification["args"]["start"];
-    size_t         duration = modification["args"]["duration"];
-    std::string    type = modification["type"];
+    size_t start = args.at("start");
+    size_t duration = args.at("duration");
 
     if (type == "VertexShader") {
         VertexShader t = getTransformFromString.at(name);
@@ -84,7 +82,7 @@ Metadata AInput::getMetadata(size_t index)
                         ? _metas.back()
                         : _metas[index];
 
-    meta.args["index"] = index;
+    meta.frameIndex = index;
     meta.argsStatic = !_hasArgsShader;
 
     return meta;

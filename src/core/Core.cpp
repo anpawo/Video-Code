@@ -177,18 +177,11 @@ void VC::Core::rebuildInput(size_t idx, const py::dict& inputData, bool reuseExi
 
             json        entry = pyToJson(py::reinterpret_borrow<py::object>(rawEntry));
             std::string shaderType = entry["type"].get<std::string>();
-            json        args2 = entry["args"];
-
-            json modification = {
-                {"name", shaderName},
-                {"type", shaderType},
-                {"args", args2},
-            };
 
             if (_showstack)
-                Debug.logStack({{"action", "Apply"}, {"input", (ssize_t)idx}, {"name", shaderName}, {"type", shaderType}, {"args", args2}});
+                Debug.logStack({{"action", "Apply"}, {"input", (ssize_t)idx}, {"name", shaderName}, {"type", shaderType}, {"args", entry["args"]}});
 
-            target->add(modification);
+            target->add(shaderName, shaderType, std::move(entry["args"].get_ref<json::object_t&>()));
         }
     }
 
@@ -294,7 +287,7 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
     }
 }
 
-std::vector<Mesh> VC::Core::generateMeshes()
+const std::vector<Mesh>& VC::Core::generateMeshes()
 {
     size_t renderIndex = _index;
     auto   potentialIndex = _waits.find(_index);

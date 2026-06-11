@@ -19,7 +19,7 @@ Curve::Curve(json::object_t&& args)
 
 Mesh Curve::getMesh(const Metadata& meta, const Config& config)
 {
-    const auto& args = meta.args;
+    const auto& args = meta.args();
     const auto& pts = args.at("points");
     if (pts.size() < 2) {
         return {};

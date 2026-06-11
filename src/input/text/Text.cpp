@@ -28,9 +28,9 @@ GlyphCache &Text::glyphCache()
 
 Mesh Text::getMesh(const Metadata &meta, const Config &config)
 {
-    const std::string &text = meta.args.at("text").get<std::string>();
-    float              fontSize = meta.args.at("fontSize").get<float>() * config::worldToPixelRatio;
-    cv::Vec4b          color = colorFromJson(meta.args.at("fillColor"), meta.opacity);
+    const std::string &text = meta.args().at("text").get<std::string>();
+    float              fontSize = meta.args().at("fontSize").get<float>() * config::worldToPixelRatio;
+    cv::Vec4b          color = colorFromJson(meta.args().at("fillColor"), meta.opacity);
 
     GlyphCache &cache = glyphCache();
     float       ascender = cache.ascender() * fontSize;

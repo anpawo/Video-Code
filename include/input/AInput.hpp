@@ -27,7 +27,7 @@ public:
 
     // -
 
-    void add(nlohmann::basic_json<>& modification) final;
+    void add(const std::string& name, const std::string& type, json::object_t&& args) final;
 
     // -
 
@@ -61,8 +61,11 @@ protected:
         );
     }
 
-    ///< Arguments needed to generate the Input's matrix
-    const json::object_t _baseArgs;
+    ///< Arguments needed to generate the Input's matrix. The shared_ptr is the
+    ///< canonical owner — every Metadata in _metas shares it (copy-on-write);
+    ///< _baseArgs is a convenience alias for subclasses.
+    const std::shared_ptr<const json::object_t> _baseArgsPtr;
+    const json::object_t&                       _baseArgs;
 
     ///< True once any "Args" VertexShader has been applied to this input.
     ///< Passed through to Metadata.argsStatic so getMesh() can skip buildPath.
@@ -74,5 +77,5 @@ protected:
     std::vector<std::vector<size_t>>              _effectTimeline{};
 
     ///< Transformations (Affect the Metadata of the Input)
-    std::vector<Metadata> _metas{Metadata{.args = _baseArgs}};
+    std::vector<Metadata> _metas{Metadata{.argsPtr = _baseArgsPtr}};
 };

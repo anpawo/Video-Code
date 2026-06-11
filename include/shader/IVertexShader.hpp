@@ -144,7 +144,11 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
             break;
         }
         case VertexShader::Args: {
-            meta.args[args.at("name")] = args.at("value");
+            // Copy-on-write: args is shared between every Metadata that hasn't
+            // diverged, so clone it before mutating this frame's version.
+            auto mutableArgs = std::make_shared<json::object_t>(meta.args());
+            (*mutableArgs)[args.at("name")] = args.at("value");
+            meta.argsPtr = std::move(mutableArgs);
             break;
         }
         case VertexShader::ZIndex: {

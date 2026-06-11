@@ -34,8 +34,11 @@ namespace VC
         ///< Reload the source file, then execute the stack, then add the new frames to the Timeline.
         void reloadSourceFile();
 
-        ///< Update the current frame by generating the meshes.
-        std::vector<Mesh> generateMeshes();
+        ///< Update the current frame by generating the meshes. Returns a reference
+        ///< to the internal cache — valid until the next generateMeshes() /
+        ///< reloadSourceFile() call. Returning by value used to copy every vertex
+        ///< of every mesh once per frame.
+        const std::vector<Mesh>& generateMeshes();
 
         ///< Upload textures for all Image inputs to a Vulkan renderer.
         ///< uploadFn receives each image's cv::Mat and returns the VkDescriptorSet.

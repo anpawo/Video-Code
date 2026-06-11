@@ -43,11 +43,11 @@ Mesh Image::getMesh(const Metadata& meta, const Config& config)
     float w = static_cast<float>(_base.cols);
     float h = static_cast<float>(_base.rows);
 
-    if (meta.args.contains("width")) {
-        w = meta.args.at("width").get<float>();
+    if (meta.args().contains("width")) {
+        w = meta.args().at("width").get<float>();
     }
-    if (meta.args.contains("height")) {
-        h = meta.args.at("height").get<float>();
+    if (meta.args().contains("height")) {
+        h = meta.args().at("height").get<float>();
     }
 
     MeshFactory factory({w, h}, meta, config);

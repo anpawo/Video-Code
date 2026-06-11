@@ -16,6 +16,12 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 endif()
 
+# `make verbose` — release build + the VC_SLOG/[startup] phase-timing prints.
+if(VC_VERBOSE)
+    message(STATUS ">>> VC_VERBOSE startup diagnostics enabled <<<")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVC_VERBOSE")
+endif()
+
 set_property(GLOBAL PROPERTY CXX_STANDARD 20)
 
 if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)

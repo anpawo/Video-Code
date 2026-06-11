@@ -54,7 +54,7 @@ namespace
         std::vector<cv::Mat> captured(frames.size());
 
         for (size_t i = 0; i <= maxFrame && i < core._nbFrame; ++i) {
-            auto meshes = core.generateMeshes();
+            const auto& meshes = core.generateMeshes();
             renderer.setMeshes(meshes);
 
             cv::Mat frame = renderer.readFrame();

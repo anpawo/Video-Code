@@ -28,7 +28,9 @@ public:
 
     // -
 
-    virtual void add(nlohmann::basic_json<>& modification) = 0;
+    ///< Record one timeline modification (a shader application). args is taken
+    ///< by rvalue so the ~13k entries of an animated scene are moved, not copied.
+    virtual void add(const std::string& name, const std::string& type, json::object_t&& args) = 0;
 
     // -
 

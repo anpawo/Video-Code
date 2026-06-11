@@ -2,7 +2,6 @@
 
 
 import math
-import shapely.geometry as geo
 
 from abc import abstractmethod
 from videocode.input.input import Input
@@ -119,6 +118,10 @@ class Polygon(Input):
         return bezier
 
     def contains(self, x: wnumber, y: wnumber) -> bool:
+        # Imported lazily: shapely drags in numpy (~60ms of startup), and this
+        # is the only place it's used.
+        import shapely.geometry as geo
+
         sx = self.meta.scale.x
         sy = self.meta.scale.y
         if sx == 0 or sy == 0:

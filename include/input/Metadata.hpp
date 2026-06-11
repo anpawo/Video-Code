@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cstdint>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <ostream>
 
@@ -77,7 +78,22 @@ struct Metadata
     // BezierPath uses this to skip buildPath on frames 2+ (geometry is stable).
     bool argsStatic{true};
 
-    json::object_t args; // args for the base matrix of the input
+    // Playback frame index (the render index after Wait remapping). Only Video
+    // consumes it; kept out of args so copying a Metadata never touches JSON.
+    size_t frameIndex{0};
+
+    // Args for the base matrix of the input. Shared copy-on-write: copying a
+    // Metadata only bumps a refcount — for letter glyphs the underlying object
+    // holds a ~600-point outline, and a deep copy per frame was the renderer's
+    // single biggest CPU cost. Only the "Args" VertexShader clones-then-mutates
+    // (see getMetadataFromArgs).
+    std::shared_ptr<const json::object_t> argsPtr;
+
+    const json::object_t& args() const
+    {
+        static const json::object_t empty;
+        return argsPtr ? *argsPtr : empty;
+    }
 
     friend std::ostream& operator<<(std::ostream& os, const Metadata& m)
     {

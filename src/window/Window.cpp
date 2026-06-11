@@ -211,7 +211,7 @@ void VC::Window::keyPressEvent(QKeyEvent* event)
 
 void VC::Window::mainRoutine()
 {
-    auto meshes = _core.generateMeshes();
+    const auto& meshes = _core.generateMeshes();
     _vulkanWidget->setMeshes(meshes);
     if (_timeline) {
         _timeline->update();

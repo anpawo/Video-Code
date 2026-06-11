@@ -2,7 +2,6 @@
 
 
 import math
-import chess.pgn
 
 
 from videocode.constants import SF
@@ -31,6 +30,10 @@ BOARD_URL = "https://assets-themes.chess.com/image/9rdwe/200.png"
 
 class ChessBoard:
     def __init__(self, pgn="pgn") -> None:
+        # Imported lazily: python-chess computes its attack tables at import
+        # (~100ms) — scenes that don't build a ChessBoard shouldn't pay for it.
+        import chess.pgn
+
         # GameState
         with open(pgn) as f:
             game = chess.pgn.read_game(f)
@@ -90,6 +93,8 @@ class ChessBoard:
         return f"https://assets-themes.chess.com/image/ejgfv/150/{'w' if color == WHITE else 'b'}{piece}.png"
 
     def play(self, nMove: int | None = None):
+        import chess  # already loaded by __init__; this is just a name lookup
+
         for move in self.game.mainline_moves():
             sx, sy = move.from_square % 8, 7 - move.from_square // 8
             dx, dy = move.to_square % 8, 7 - move.to_square // 8

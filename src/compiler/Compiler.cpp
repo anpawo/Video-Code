@@ -7,8 +7,12 @@
 
 #include "compiler/Compiler.hpp"
 
+#include <condition_variable>
+#include <deque>
 #include <format>
 #include <iostream>
+#include <mutex>
+#include <thread>
 
 #include "utils/ImageIO.hpp"
 #include "vulkan/VulkanHeadlessRenderer.hpp"
@@ -78,34 +82,80 @@ int VC::Compiler::generateVideo()
         return 1;
     }
 
+    // Pipelined encode: the blocking fwrite into the FFmpeg pipe (~8 MB/frame,
+    // paced by x264) runs on a writer thread behind a small bounded queue, so
+    // frame N is encoded while frame N+1 is being built and rendered.
+    constexpr size_t        QUEUE_CAP = 4;
+    std::deque<cv::Mat>     queue;
+    std::mutex              mtx;
+    std::condition_variable notFull, notEmpty;
+    bool                    producerDone = false;
+    bool                    writeFailed  = false;
+
+    std::thread writer([&] {
+        while (true) {
+            cv::Mat frame;
+            {
+                std::unique_lock lock(mtx);
+                notEmpty.wait(lock, [&] { return !queue.empty() || producerDone; });
+                if (queue.empty())
+                    break;
+                frame = std::move(queue.front());
+                queue.pop_front();
+            }
+            notFull.notify_one();
+
+            size_t bytes = frame.total() * frame.elemSize();
+            if (fwrite(frame.data, 1, bytes, pipe) != bytes) {
+                std::lock_guard lock(mtx);
+                writeFailed = true;
+                queue.clear();
+                notFull.notify_all();
+                break;
+            }
+        }
+    });
+
     size_t total = _core._nbFrame;
     for (size_t i = 0; i < total; ++i) {
-        auto meshes = _core.generateMeshes();
+        const auto& meshes = _core.generateMeshes();
         renderer.setMeshes(meshes);
 
         cv::Mat frame = renderer.readFrame();
         if (!frame.isContinuous())
             frame = frame.clone();
 
-        size_t bytes   = frame.total() * frame.elemSize();
-        size_t written = fwrite(frame.data, 1, bytes, pipe);
-        if (written != bytes) {
-            std::cerr << std::format("Frame {}: wrote {}/{} bytes.\n", i, written, bytes);
-            pclose(pipe);
-            return 1;
+        {
+            std::unique_lock lock(mtx);
+            notFull.wait(lock, [&] { return queue.size() < QUEUE_CAP || writeFailed; });
+            if (writeFailed) {
+                std::cerr << std::format("\nFrame {}: ffmpeg pipe write failed.\n", i);
+                break;
+            }
+            queue.push_back(std::move(frame));
         }
+        notEmpty.notify_one();
 
         std::cout << std::format("\rGenerating frame {}/{}...", i + 1, total) << std::flush;
     }
 
+    {
+        std::lock_guard lock(mtx);
+        producerDone = true;
+    }
+    notEmpty.notify_all();
+    writer.join();
+
     pclose(pipe);
+    if (writeFailed)
+        return 1;
     std::cout << std::format("\nDone → {}\n", config.outputFile);
     return 0;
 }
 
 int VC::Compiler::generateImage(VulkanHeadlessRenderer& renderer)
 {
-    auto meshes = _core.generateMeshes();
+    const auto& meshes = _core.generateMeshes();
     renderer.setMeshes(meshes);
 
     cv::Mat frame = renderer.readFrame();
