@@ -29,7 +29,7 @@
 #              sendToBack's layer-order query.
 
 from videocode import *
-from videocode.template.input import *
+from videocode.template.input._inputs import *
 
 p = Plane()
 

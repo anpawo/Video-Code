@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 
+import math
 from copy import copy as _shallow_copy
 from videocode.input.interface.Interface import Interface
 from videocode.input.interface.Offset import Offset
@@ -63,6 +64,58 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
             )
         )
         self.alignLetters()
+
+    def _distributeGradientColor(self, attr: str) -> None:
+        """
+        Assigns `getattr(self, attr)` (`fillColor` or `strokeColor`) to each
+        letter. A plain `rgba` is broadcast as-is, but a `LinearGradient` is
+        sliced per letter so the gradient spans the whole word — like CSS
+        `background-clip: text` — instead of repeating across each letter's
+        own bounding box.
+        """
+        letters = self.inputs[: len(self.text)]
+        if not letters:
+            return
+
+        color = getattr(self, attr)
+        if not isinstance(color, LinearGradient):
+            for l in letters:
+                setattr(l.input, attr, color)
+            return
+
+        data = _helper.buildLetterData(self.text, self.fontSize, self.fontFamily, self.bold, self.italic)
+
+        angleRad = math.radians(color.angle)
+        dx, dy = math.cos(angleRad), math.sin(angleRad)
+
+        def projRange(x: float, y: float, w: float, h: float) -> tuple[float, float]:
+            projs = (x * dx + y * dy, (x + w) * dx + y * dy, x * dx + (y + h) * dy, (x + w) * dx + (y + h) * dy)
+            return min(projs), max(projs)
+
+        ranges = [projRange(x, y, l.input.width, l.input.height) for l, (_, x, y) in zip(letters, data)]
+        globalMin = min(r[0] for r in ranges)
+        globalMax = max(r[1] for r in ranges)
+        globalRange = globalMax - globalMin
+
+        for l, (letterMin, letterMax) in zip(letters, ranges):
+            if globalRange < 1e-9:
+                setattr(l.input, attr, color.colorAt(0))
+            else:
+                t0 = (letterMin - globalMin) / globalRange * 100
+                t1 = (letterMax - globalMin) / globalRange * 100
+                setattr(l.input, attr, color.slice(t0, t1))
+
+    def _distributeFillColor(self) -> None:
+        self._distributeGradientColor("fillColor")
+
+    def _distributeStrokeColor(self) -> None:
+        self._distributeGradientColor("strokeColor")
+
+    @prop(onSet=_distributeFillColor)
+    def fillColor() -> rgba: ...
+
+    @prop(onSet=_distributeStrokeColor)
+    def strokeColor() -> rgba: ...
 
     @prop()
     def text() -> str: ...
@@ -135,6 +188,9 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
             l.align(x=0, y=0)  # gets canceled out after first iteration
             l.xOffset = (x - ax) @ At(start, duration, offset)
             l.yOffset = (y - ay) @ At(start, duration, offset)
+
+        self._distributeFillColor()
+        self._distributeStrokeColor()
 
     @propagate(after=alignLetters)
     def fontSize() -> wnumber: ...

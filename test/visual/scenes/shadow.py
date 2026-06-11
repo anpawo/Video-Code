@@ -8,7 +8,7 @@
 # Triangle, and an independently-blurred shadow.
 
 from videocode import *
-from videocode.template.input import *
+from videocode.template.input._inputs import *
 
 # Default shadow (small offset, default BLACK | 0.5 color)
 rect = Rectangle(width=3, height=1.4, fillColor=BLUE_C, strokeColor=TRANSPARENT)

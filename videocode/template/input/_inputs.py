@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 
+#
+# Input Templates
+#
 
 from videocode.template.input.Plane import *
 from videocode.template.input.Arrow import *

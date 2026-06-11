@@ -153,15 +153,17 @@ check("__or__ preserves angle", orResult.angle == base.angle)
 check("__or__ preserves stop positions", [p for _, p in orResult.stops] == [p for _, p in base.stops])
 check("__or__ applies per-stop", orResult.stops[0][0].jsonSerialization() == (base.stops[0][0] | 0.5).jsonSerialization())
 
-addResult = base + WHITE
+other = LinearGradient(WHITE, (WHITE, 30), WHITE, angle=45)
+
+addResult = base + other
 check("__add__ returns LinearGradient", isinstance(addResult, LinearGradient))
 check("__add__ preserves angle", addResult.angle == base.angle)
-check("__add__ applies per-stop", addResult.stops[0][0].jsonSerialization() == (base.stops[0][0] + WHITE).jsonSerialization())
+check("__add__ applies per-stop", addResult.stops[0][0].jsonSerialization() == (base.stops[0][0] + other.stops[0][0]).jsonSerialization())
 
-subResult = base - BLACK
+subResult = base - other
 check("__sub__ returns LinearGradient", isinstance(subResult, LinearGradient))
 check("__sub__ preserves angle", subResult.angle == base.angle)
-check("__sub__ applies per-stop", subResult.stops[0][0].jsonSerialization() == (base.stops[0][0] - BLACK).jsonSerialization())
+check("__sub__ applies per-stop", subResult.stops[0][0].jsonSerialization() == (base.stops[0][0] - other.stops[0][0]).jsonSerialization())
 
 mulResult = base * 2
 check("__mul__ returns LinearGradient", isinstance(mulResult, LinearGradient))
