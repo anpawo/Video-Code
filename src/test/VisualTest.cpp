@@ -95,6 +95,8 @@ namespace
         {"gradient-conic",   "test/visual/scenes/gradient_conic.py",   {0}},
         {"shadow",           "test/visual/scenes/shadow.py",           {0}},
         {"crop",             "test/visual/scenes/crop.py",             {0}},
+        {"lightsweep",       "test/visual/scenes/lightsweep.py",       {0, 15, 29}},
+        {"lightsweep-group", "test/visual/scenes/lightsweep_group.py", {7, 15, 22}},
         {"layers",           "test/visual/scenes/layers.py",           {0, 31, 61, 91}},
         {"text-gradient",    "test/visual/scenes/text_gradient.py",    {0, 11, 22, 33}},
         {"video",            "test/visual/scenes/video.py",            {0}},

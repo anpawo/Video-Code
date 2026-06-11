@@ -71,7 +71,7 @@ std::vector<ActiveEffect> AInput::getActiveEffectsAtFrame(size_t frame) const
     std::vector<ActiveEffect> result;
     for (size_t i : _effectTimeline[frame]) {
         const IFragmentShader* e = _effects[i].get();
-        result.push_back({std::string(e->shaderName()), e->shaderParams()});
+        result.push_back({std::string(e->shaderName()), e->paramsAtFrame(frame)});
     }
     return result;
 }

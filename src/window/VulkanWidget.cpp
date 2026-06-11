@@ -19,8 +19,10 @@
 #include <QWindow>
 #include <algorithm>
 #include <chrono>
+#include <array>
 #include <cstring>
 #include <iostream>
+#include <map>
 
 #include <filesystem>
 #include <fstream>
@@ -44,7 +46,7 @@ static std::string loadEffectShader(const std::string& folder, const std::string
     return ss.str();
 }
 
-struct EffectPC { float texelX; float texelY; float p[6]; };
+struct EffectPC { float texelX; float texelY; float p[8]; };
 
 static void effectBarrier(VkCommandBuffer cb,
     VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage,
@@ -165,6 +167,19 @@ void VC::VulkanWidget::setMeshes(const std::vector<Mesh>& meshes)
     m_meshDrawInfos.clear();
     m_effectMeshIndices.clear();
 
+    // LightSweep effects sharing a group id sweep the UNION of their meshes'
+    // bounding boxes (e.g. every letter of a Text carries the same instance),
+    // so the band travels continuously across the whole group instead of each
+    // member glinting over its own box simultaneously. Collected during the
+    // mesh loop, resolved after it once all boxes are known.
+    struct PendingSweep {
+        size_t meshIdx, effIdx;
+        float  uMin, vMin, uMax, vMax;
+        float  group;
+    };
+    std::vector<PendingSweep>             pendingSweeps;
+    std::map<float, std::array<float, 4>> groupBox; // group id → union {uMin, vMin, uMax, vMax}
+
     for (size_t mi = 0; mi < meshes.size(); ++mi) {
         const auto& mesh = meshes[mi];
 
@@ -198,25 +213,50 @@ void VC::VulkanWidget::setMeshes(const std::vector<Mesh>& meshes)
         float w = uMax0 - uMin0;
         float h = vMax0 - vMin0;
 
-        for (auto& eff : m_meshes[mi].effects) {
+        for (size_t ei = 0; ei < m_meshes[mi].effects.size(); ++ei) {
+            auto&       eff = m_meshes[mi].effects[ei];
             std::string lower = eff.name;
             std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-            if (lower != "crop" || eff.params.size() < 4)
-                continue;
 
-            // shaderParams() yields args in alphabetical order: bottom, left, right, top (percent 0-100)
-            float bottom = eff.params[0] / 100.f;
-            float left   = eff.params[1] / 100.f;
-            float right  = eff.params[2] / 100.f;
-            float top    = eff.params[3] / 100.f;
-            eff.params = {
-                uMin0 + left * w,
-                vMin0 + top * h,
-                uMax0 - right * w,
-                vMax0 - bottom * h,
-            };
+            if (lower == "crop" && eff.params.size() >= 4) {
+                // shaderParams() yields args in alphabetical order: bottom, left, right, top (percent 0-100)
+                float bottom = eff.params[0] / 100.f;
+                float left   = eff.params[1] / 100.f;
+                float right  = eff.params[2] / 100.f;
+                float top    = eff.params[3] / 100.f;
+                eff.params = {
+                    uMin0 + left * w,
+                    vMin0 + top * h,
+                    uMax0 - right * w,
+                    vMax0 - bottom * h,
+                };
+            } else if (lower == "lightsweep" && eff.params.size() >= 5) {
+                // paramsAtFrame() yields [angle, group, intensity, width, progress];
+                // defer until every mesh's box is known, then sweep the group union.
+                float group = eff.params[1];
+                pendingSweeps.push_back({mi, ei, uMin0, vMin0, uMax0, vMax0, group});
+                auto it = groupBox.find(group);
+                if (it == groupBox.end()) {
+                    groupBox[group] = {uMin0, vMin0, uMax0, vMax0};
+                } else {
+                    it->second[0] = std::min(it->second[0], uMin0);
+                    it->second[1] = std::min(it->second[1], vMin0);
+                    it->second[2] = std::max(it->second[2], uMax0);
+                    it->second[3] = std::max(it->second[3], vMax0);
+                }
+            }
         }
     }
+
+    // Resolve deferred LightSweeps against their group's union box:
+    // [angle, group, intensity, width, progress] → [bounds(4), angle, intensity, width, progress]
+    for (const auto& ps : pendingSweeps) {
+        auto&       box = groupBox[ps.group];
+        auto&       eff = m_meshes[ps.meshIdx].effects[ps.effIdx];
+        const auto  p   = eff.params;
+        eff.params = {box[0], box[1], box[2], box[3], p[0], p[2], p[3], p[4]};
+    }
+
     m_geomDirty = true;
 
     if (!m_effectMeshIndices.empty())
@@ -2490,7 +2530,7 @@ void VC::VulkanWidget::recordEffectKernelPass(
     EffectPC pc{};
     pc.texelX = texelX;
     pc.texelY = texelY;
-    for (size_t i = 0; i < std::min(params.size(), size_t(6)); i++)
+    for (size_t i = 0; i < std::min(params.size(), size_t(8)); i++)
         pc.p[i] = params[i];
     vkCmdPushConstants(cb, it->second.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(EffectPC), &pc);
 
@@ -2520,42 +2560,51 @@ void VC::VulkanWidget::recordEffectPrepasses(VkCommandBuffer cb)
             m_pingImage,
             VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
 
+        // Track which scratch image holds the current result instead of
+        // forcing it back into ping after every effect — running single-pass
+        // effects a second time just to land in ping doubled their GPU cost
+        // and double-applied non-idempotent ones (gamma², 2× sweep intensity).
+        bool inPing = true;
+
         for (const auto& eff : m_meshes[meshIdx].effects) {
             std::string lower = eff.name;
             std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 
-            if (lower == "blur") {
-                // H blur: ping → pong
-                recordEffectKernelPass(cb, m_pongFb, m_pingSrcSet,
-                    eff.name, 1.f / m_swapExtent.width, 0.f, eff.params);
-                effectBarrier2(cb, m_pongImage, m_pingImage);
+            VkFramebuffer   srcFb  = inPing ? m_pingFb : m_pongFb;
+            VkFramebuffer   dstFb  = inPing ? m_pongFb : m_pingFb;
+            VkDescriptorSet srcSet = inPing ? m_pingSrcSet : m_pongSrcSet;
+            VkDescriptorSet dstSet = inPing ? m_pongSrcSet : m_pingSrcSet;
+            VkImage         srcImg = inPing ? m_pingImage : m_pongImage;
+            VkImage         dstImg = inPing ? m_pongImage : m_pingImage;
 
-                // V blur: pong → ping
-                recordEffectKernelPass(cb, m_pingFb, m_pongSrcSet,
+            if (lower == "blur") {
+                // Separable blur: H into dst, V back into src — result stays put.
+                recordEffectKernelPass(cb, dstFb, srcSet,
+                    eff.name, 1.f / m_swapExtent.width, 0.f, eff.params);
+                // RAW on dst + WAR on src (H wrote dst, read src; V reads dst, writes src)
+                effectBarrier2(cb, dstImg, srcImg);
+
+                recordEffectKernelPass(cb, srcFb, dstSet,
                     eff.name, 0.f, 1.f / m_swapExtent.height, eff.params);
+                // RAW: V's write of src → next pass read of src
                 effectBarrier(cb,
                     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                     VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    m_pingImage,
+                    srcImg,
                     VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
             } else {
-                // ping → pong
-                recordEffectKernelPass(cb, m_pongFb, m_pingSrcSet,
+                // Single pass: src → dst, result moves to dst.
+                recordEffectKernelPass(cb, dstFb, srcSet,
                     eff.name, 0.f, 0.f, eff.params);
-                effectBarrier2(cb, m_pongImage, m_pingImage);
-                // pong → ping
-                recordEffectKernelPass(cb, m_pingFb, m_pongSrcSet,
-                    eff.name, 0.f, 0.f, eff.params);
-                effectBarrier(cb,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    m_pingImage,
-                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+                // RAW on dst (next pass reads it) + WAR on src (next pass may write it)
+                effectBarrier2(cb, dstImg, srcImg);
+                inPing = !inPing;
             }
         }
 
-        // Flush the final ping result into this mesh's dedicated result image.
-        recordEffectKernelPass(cb, m_effectResults[slot].framebuffer, m_pingSrcSet,
+        // Flush the final result into this mesh's dedicated result image.
+        recordEffectKernelPass(cb, m_effectResults[slot].framebuffer,
+            inPing ? m_pingSrcSet : m_pongSrcSet,
             "Passthrough", 0.f, 0.f, {});
         effectBarrier(cb,
             VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,

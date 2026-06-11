@@ -34,4 +34,9 @@ struct IFragmentShader
         }
         return out;
     }
+
+    // Params for a specific frame. Most effects are constant over their
+    // duration; time-driven ones (e.g. LightSweep) override this to append
+    // per-frame values such as the animation progress.
+    virtual std::vector<float> paramsAtFrame(size_t /*frame*/) const { return shaderParams(); }
 };

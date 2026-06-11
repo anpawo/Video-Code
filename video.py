@@ -2,23 +2,22 @@
 
 
 from videocode.template.input._inputs import *
-from videocode.template.misc.chess.chessboard import ChessBoard
-from videocode.template.misc.example.marius import *
 from videocode import *
 
 p = Plane()
 
-# t = Text("Bonjour", fillColor=LinearGradient(RED, BLUE), fontSize=1)
-# gradA = LinearGradient(RED, BLUE)
-# gradB = LinearGradient(GREEN, RED)
-# for _ in range(5):
-#     for k in Easing.InOut.range(0, 1, 0.75):
-#         t.fillColor = gradA + (gradB - gradA) * k
-#         t.flush()
-#     for k in Easing.InOut.range(0, 1, 0.75):
-#         t.fillColor = gradB + (gradA - gradB) * k
-#         t.flush()
+# LightSweep showcase — a bright band sweeps across each input's own
+# bounding box over the effect's duration (start/duration like any effect).
 
-r = Rectangle(width=4)
-s = Shadow(r)
-s = Square(3).sendToBack()
+Text("lightSweep(width, intensity, angle)", fontSize=0.5, fillColor=WHITE).position(y=3)
+
+# A "card" with a shine passing over it, twice.
+card = Rectangle(width=6, height=2.5, fillColor=BLUE_C, strokeColor=WHITE, strokeWidth=0.03).position(y=0.8)
+card.apply(lightSweep(), duration=1)
+
+# Continuous sweep across the whole word: the broadcast hands the SAME
+# lightSweep instance to every letter, so they share a sweep group and the
+# band travels across the union of their bounding boxes (metallic-logo style).
+t = Text("SHINE", fontSize=1.2, fillColor=GRAY).position(y=-2)
+t.apply(lightSweep(width=15), start=1, duration=1.5)
+t.apply(lightSweep(width=15), start=3.5, duration=1.5)
