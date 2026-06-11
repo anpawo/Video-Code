@@ -97,6 +97,7 @@ namespace
         {"crop",             "test/visual/scenes/crop.py",             {0}},
         {"layers",           "test/visual/scenes/layers.py",           {0, 31, 61, 91}},
         {"text-gradient",    "test/visual/scenes/text_gradient.py",    {0, 11, 22, 33}},
+        {"video",            "test/visual/scenes/video.py",            {0}},
     };
 
     const std::vector<ReloadCase> kReloadCases = {

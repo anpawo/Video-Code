@@ -16,8 +16,9 @@ class Shadow(Polygon):
     def __init__(
         self,
         shape: Polygon,
-        offset: tuple[wnumber, wnumber] = (0.3, -0.3),
+        offset: tuple[wnumber, wnumber] = (0.25, -0.25),
         color: rgba = BLACK | 0.5,
+        blurStrength: unumber = 4,
     ):
         super().__init__(
             vertices=list(shape.vertices),
@@ -30,6 +31,7 @@ class Shadow(Polygon):
         ox, oy = offset
         self.position(shape.meta.position.x + ox, shape.meta.position.y + oy)
         self.apply(zIndex(shape.meta.zIndex - 1))
+        self.apply(blur(blurStrength))
 
     def generateVertices(self) -> list[point]:
         return self.vertices

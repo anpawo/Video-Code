@@ -8,13 +8,17 @@ from videocode import *
 
 p = Plane()
 
-t = Text("Bonjour", fillColor=LinearGradient(RED, BLUE), fontSize=1)
-gradA = LinearGradient(RED, BLUE)
-gradB = LinearGradient(GREEN, RED)
-for _ in range(5):
-    for k in Easing.InOut.range(0, 1, 0.75):
-        t.fillColor = gradA + (gradB - gradA) * k
-        t.flush()
-    for k in Easing.InOut.range(0, 1, 0.75):
-        t.fillColor = gradB + (gradA - gradB) * k
-        t.flush()
+# t = Text("Bonjour", fillColor=LinearGradient(RED, BLUE), fontSize=1)
+# gradA = LinearGradient(RED, BLUE)
+# gradB = LinearGradient(GREEN, RED)
+# for _ in range(5):
+#     for k in Easing.InOut.range(0, 1, 0.75):
+#         t.fillColor = gradA + (gradB - gradA) * k
+#         t.flush()
+#     for k in Easing.InOut.range(0, 1, 0.75):
+#         t.fillColor = gradB + (gradA - gradB) * k
+#         t.flush()
+
+r = Rectangle(width=4)
+s = Shadow(r)
+s = Square(3).sendToBack()
