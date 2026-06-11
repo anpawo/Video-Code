@@ -16,7 +16,7 @@ class Shadow(Polygon):
     def __init__(
         self,
         shape: Polygon,
-        offset: tuple[wnumber, wnumber] = (-0.15, -0.15),
+        offset: tuple[wnumber, wnumber] = (0.3, -0.3),
         color: rgba = BLACK | 0.5,
     ):
         super().__init__(

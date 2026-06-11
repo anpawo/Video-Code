@@ -29,6 +29,9 @@ class IShader(ABC):
         return self
 
     def resolve(self, start: sec, duration: sec, offset: maybe[frame]) -> tuple[sec, sec, maybe[frame]]:
+        """
+        Use self default values if any else given ones.
+        """
         return (
             Maybe(self.start) | start,
             Maybe(self.duration) | duration,
