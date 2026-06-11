@@ -241,7 +241,6 @@ namespace VC
         bool                      m_geomDirty = false;
 
         // ── Per-frame partitioned mesh indices ────────────────────────────
-        std::vector<size_t> m_normalMeshIndices;
         std::vector<size_t> m_effectMeshIndices;
 
         // ── Effect post-process infrastructure ────────────────────────────
@@ -262,7 +261,6 @@ namespace VC
         VkSampler      m_effectSampler = VK_NULL_HANDLE;
         VkDescriptorSet m_pingSrcSet  = VK_NULL_HANDLE;
         VkDescriptorSet m_pongSrcSet  = VK_NULL_HANDLE;
-        VkDescriptorSet m_pingCompSet = VK_NULL_HANDLE;
 
         // 4× MSAA geometry pipeline for effect ping pass
         VkPipeline m_effectGeomPipeline = VK_NULL_HANDLE;
@@ -278,14 +276,38 @@ namespace VC
         VkBuffer       m_compIdxBuf = VK_NULL_HANDLE;
         VkDeviceMemory m_compIdxMem = VK_NULL_HANDLE;
 
+        // Per-effect-mesh result image (final effect output, sampled by the
+        // composite quad in the main pass). Grow-on-demand pool, never shrinks,
+        // indexed in parallel with m_effectMeshIndices.
+        struct EffectResultSlot {
+            VkImage         image         = VK_NULL_HANDLE;
+            VkDeviceMemory  memory        = VK_NULL_HANDLE;
+            VkImageView     view          = VK_NULL_HANDLE;
+            VkFramebuffer   framebuffer   = VK_NULL_HANDLE;
+            VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+        };
+        std::vector<EffectResultSlot> m_effectResults;
+
         bool createEffectResources();
         bool createEffectPipeline(const std::string& name);
-        void recordEffectGeomPass(VkCommandBuffer cb);
+
+        // Grow m_effectResults (never shrinks) so it has at least `count` slots.
+        bool ensureEffectResultCapacity(size_t count);
+
+        void recordEffectGeomPass(VkCommandBuffer cb, size_t meshIndex);
         void recordEffectKernelPass(VkCommandBuffer cb, VkFramebuffer fb,
                                     VkDescriptorSet srcSet,
                                     const std::string& name,
                                     float texelX, float texelY,
                                     const std::vector<float>& params);
+
+        // Per-mesh effect pre-passes: geometry + effect chain → m_effectResults.
+        void recordEffectPrepasses(VkCommandBuffer cb);
+
+        // Single zIndex-ordered draw loop: normal mesh geometry interleaved
+        // with effect-mesh composite quads. Assumes the render pass, viewport/
+        // scissor, pipeline and set=0 descriptor are already bound.
+        void recordSceneDraws(VkCommandBuffer cb);
 
         // ── Frame callback ────────────────────────────────────────────────
         std::function<std::vector<Mesh>()> m_frameCallback;

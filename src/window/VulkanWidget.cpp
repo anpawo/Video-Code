@@ -163,7 +163,6 @@ void VC::VulkanWidget::setMeshes(const std::vector<Mesh>& meshes)
     m_indices.clear();
     m_meshes = meshes;
     m_meshDrawInfos.clear();
-    m_normalMeshIndices.clear();
     m_effectMeshIndices.clear();
 
     for (size_t mi = 0; mi < meshes.size(); ++mi) {
@@ -180,11 +179,48 @@ void VC::VulkanWidget::setMeshes(const std::vector<Mesh>& meshes)
         m_meshDrawInfos.push_back(info);
 
         if (mesh.effects.empty())
-            m_normalMeshIndices.push_back(mi);
-        else
-            m_effectMeshIndices.push_back(mi);
+            continue;
+        m_effectMeshIndices.push_back(mi);
+
+        // Per-mesh screen-space AABB (NDC → UV), used below to resolve "Crop"
+        // percentages into absolute UV bounds for this mesh's own bounding box.
+        float ndcMinX = 1.f, ndcMinY = 1.f, ndcMaxX = -1.f, ndcMaxY = -1.f;
+        for (const auto& v : mesh.vertices) {
+            ndcMinX = std::min(ndcMinX, v.pos[0]);
+            ndcMaxX = std::max(ndcMaxX, v.pos[0]);
+            ndcMinY = std::min(ndcMinY, v.pos[1]);
+            ndcMaxY = std::max(ndcMaxY, v.pos[1]);
+        }
+        float uMin0 = (ndcMinX + 1.f) / 2.f;
+        float uMax0 = (ndcMaxX + 1.f) / 2.f;
+        float vMin0 = (ndcMinY + 1.f) / 2.f;
+        float vMax0 = (ndcMaxY + 1.f) / 2.f;
+        float w = uMax0 - uMin0;
+        float h = vMax0 - vMin0;
+
+        for (auto& eff : m_meshes[mi].effects) {
+            std::string lower = eff.name;
+            std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+            if (lower != "crop" || eff.params.size() < 4)
+                continue;
+
+            // shaderParams() yields args in alphabetical order: bottom, left, right, top (percent 0-100)
+            float bottom = eff.params[0] / 100.f;
+            float left   = eff.params[1] / 100.f;
+            float right  = eff.params[2] / 100.f;
+            float top    = eff.params[3] / 100.f;
+            eff.params = {
+                uMin0 + left * w,
+                vMin0 + top * h,
+                uMax0 - right * w,
+                vMax0 - bottom * h,
+            };
+        }
     }
     m_geomDirty = true;
+
+    if (!m_effectMeshIndices.empty())
+        ensureEffectResultCapacity(m_effectMeshIndices.size());
 }
 
 void VC::VulkanWidget::setFrameCallback(std::function<std::vector<Mesh>()> cb)
@@ -1529,54 +1565,8 @@ void VC::VulkanWidget::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageInd
     bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     vkBeginCommandBuffer(cb, &bi);
 
-    // ── Effect pre-passes ─────────────────────────────────────────────────
-    bool hasEffects = !m_effectMeshIndices.empty();
-    VkDescriptorSet effectFinalSet = m_pingCompSet;
-    if (hasEffects) {
-        const auto& effects = m_meshes[m_effectMeshIndices[0]].effects;
-
-        // Geometry pass resolves MSAA → ping; subpass dep handles the RAW barrier
-        recordEffectGeomPass(cb);
-
-        for (const auto& eff : effects) {
-            std::string lower = eff.name;
-            std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-            if (lower == "blur") {
-                // Separable: ping → pong (H) → ping (V); result ends in ping
-                effectBarrier(cb,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    m_pingImage,
-                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-                recordEffectKernelPass(cb, m_pongFb, m_pingSrcSet,
-                    eff.name, 1.f / m_swapExtent.width, 0.f, eff.params);
-                effectBarrier2(cb, m_pongImage, m_pingImage);
-                recordEffectKernelPass(cb, m_pingFb, m_pongSrcSet,
-                    eff.name, 0.f, 1.f / m_swapExtent.height, eff.params);
-                effectBarrier(cb,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    m_pingImage,
-                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-                effectFinalSet = m_pingCompSet;
-            } else {
-                // Single-pass: ping → pong; result ends in pong
-                effectBarrier(cb,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    m_pingImage,
-                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-                recordEffectKernelPass(cb, m_pongFb, m_pingSrcSet,
-                    eff.name, 0.f, 0.f, eff.params);
-                effectBarrier(cb,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    m_pongImage,
-                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-                effectFinalSet = m_pongSrcSet;
-            }
-        }
-    }
+    // ── Effect pre-passes (per-mesh, into m_effectResults) ────────────────
+    recordEffectPrepasses(cb);
 
     VkClearValue clearValues[2]{};
     clearValues[0] = {{{0.2f, 0.2f, 0.2f, 1.0f}}}; // MSAA attachment clear # Color
@@ -1599,35 +1589,7 @@ void VC::VulkanWidget::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageInd
     vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
 
-    VkBuffer     buffers[] = {m_vertexBuffer};
-    VkDeviceSize offsets[] = {0};
-
-    // Draw non-effect meshes
-    if (!m_normalMeshIndices.empty()) {
-        vkCmdBindVertexBuffers(cb, 0, 1, buffers, offsets);
-        vkCmdBindIndexBuffer(cb, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-        vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTextureSet, 0, nullptr);
-
-        for (size_t i : m_normalMeshIndices) {
-            const Mesh&         mesh = m_meshes[i];
-            const MeshDrawInfo& info = m_meshDrawInfos[i];
-            if (mesh.hasTexture && mesh.textureDescriptor != VK_NULL_HANDLE) {
-                vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &mesh.textureDescriptor, 0, nullptr);
-            } else {
-                vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTextureSet, 0, nullptr);
-            }
-            vkCmdDrawIndexed(cb, info.indexCount, 1, info.firstIndex, 0, 0);
-        }
-    }
-
-    // Composite effect result as a textured fullscreen quad
-    if (hasEffects && m_compVtxBuf != VK_NULL_HANDLE) {
-        VkDeviceSize zero = 0;
-        vkCmdBindVertexBuffers(cb, 0, 1, &m_compVtxBuf, &zero);
-        vkCmdBindIndexBuffer(cb, m_compIdxBuf, 0, VK_INDEX_TYPE_UINT16);
-        vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &effectFinalSet, 0, nullptr);
-        vkCmdDrawIndexed(cb, 6, 1, 0, 0, 0);
-    }
+    recordSceneDraws(cb);
 
     vkCmdEndRenderPass(cb);
     // Render pass resolved MSAA → swapchain image, leaving it in TRANSFER_SRC_OPTIMAL.
@@ -1701,49 +1663,8 @@ cv::Mat VC::VulkanWidget::readFrame()
     rpi.clearValueCount   = 2;
     rpi.pClearValues      = clearValues;
 
-    // ── Effect pre-passes (readFrame path) ───────────────────────────────
-    bool hasEffectsRF = !m_effectMeshIndices.empty();
-    VkDescriptorSet effectFinalSetRF = m_pingCompSet;
-    if (hasEffectsRF) {
-        recordEffectGeomPass(m_commandBuffer);
-        const auto& effects = m_meshes[m_effectMeshIndices[0]].effects;
-        for (const auto& eff : effects) {
-            std::string lower = eff.name;
-            std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
-            if (lower == "blur") {
-                effectBarrier(m_commandBuffer,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    m_pingImage,
-                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-                recordEffectKernelPass(m_commandBuffer, m_pongFb, m_pingSrcSet,
-                    eff.name, 1.f / m_swapExtent.width, 0.f, eff.params);
-                effectBarrier2(m_commandBuffer, m_pongImage, m_pingImage);
-                recordEffectKernelPass(m_commandBuffer, m_pingFb, m_pongSrcSet,
-                    eff.name, 0.f, 1.f / m_swapExtent.height, eff.params);
-                effectBarrier(m_commandBuffer,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    m_pingImage,
-                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-                effectFinalSetRF = m_pingCompSet;
-            } else {
-                effectBarrier(m_commandBuffer,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    m_pingImage,
-                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-                recordEffectKernelPass(m_commandBuffer, m_pongFb, m_pingSrcSet,
-                    eff.name, 0.f, 0.f, eff.params);
-                effectBarrier(m_commandBuffer,
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
-                    m_pongImage,
-                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
-                effectFinalSetRF = m_pongSrcSet;
-            }
-        }
-    }
+    // ── Effect pre-passes (per-mesh, into m_effectResults) ────────────────
+    recordEffectPrepasses(m_commandBuffer);
 
     vkCmdBeginRenderPass(m_commandBuffer, &rpi, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdSetViewport(m_commandBuffer, 0, 1, &vp);
@@ -1751,33 +1672,7 @@ cv::Mat VC::VulkanWidget::readFrame()
     vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
     vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
 
-    VkBuffer     buffers[] = {m_vertexBuffer};
-    VkDeviceSize offsets[] = {0};
-
-    if (!m_normalMeshIndices.empty()) {
-        vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, buffers, offsets);
-        vkCmdBindIndexBuffer(m_commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-        vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTextureSet, 0, nullptr);
-
-        for (size_t i : m_normalMeshIndices) {
-            const Mesh&         mesh = m_meshes[i];
-            const MeshDrawInfo& info = m_meshDrawInfos[i];
-            if (mesh.hasTexture && mesh.textureDescriptor != VK_NULL_HANDLE) {
-                vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &mesh.textureDescriptor, 0, nullptr);
-            } else {
-                vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTextureSet, 0, nullptr);
-            }
-            vkCmdDrawIndexed(m_commandBuffer, info.indexCount, 1, info.firstIndex, 0, 0);
-        }
-    }
-
-    if (hasEffectsRF && m_compVtxBuf != VK_NULL_HANDLE) {
-        VkDeviceSize zero = 0;
-        vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, &m_compVtxBuf, &zero);
-        vkCmdBindIndexBuffer(m_commandBuffer, m_compIdxBuf, 0, VK_INDEX_TYPE_UINT16);
-        vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &effectFinalSetRF, 0, nullptr);
-        vkCmdDrawIndexed(m_commandBuffer, 6, 1, 0, 0, 0);
-    }
+    recordSceneDraws(m_commandBuffer);
 
     vkCmdEndRenderPass(m_commandBuffer);
     // m_resolveImage is now in TRANSFER_SRC_OPTIMAL (render pass finalLayout).
@@ -2116,7 +2011,6 @@ bool VC::VulkanWidget::createEffectResources()
     };
     if (!allocAndWrite(m_pingView, m_pingSrcSet)) return false;
     if (!allocAndWrite(m_pongView, m_pongSrcSet)) return false;
-    if (!allocAndWrite(m_pingView, m_pingCompSet)) return false;
 
     // 4× MSAA scratch image (transient attachment for effect geometry anti-aliasing)
     {
@@ -2362,6 +2256,80 @@ bool VC::VulkanWidget::createEffectResources()
     return true;
 }
 
+// ===========================================================================
+// ensureEffectResultCapacity — grow the per-effect-mesh result image pool
+// ===========================================================================
+
+bool VC::VulkanWidget::ensureEffectResultCapacity(size_t count)
+{
+    auto fm = [this](uint32_t f, VkMemoryPropertyFlags p) { return findMemoryType(f, p); };
+
+    while (m_effectResults.size() < count) {
+        EffectResultSlot slot{};
+
+        VkImageCreateInfo ici{};
+        ici.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        ici.imageType     = VK_IMAGE_TYPE_2D;
+        ici.format        = m_swapFormat;
+        ici.extent        = {m_swapExtent.width, m_swapExtent.height, 1};
+        ici.mipLevels     = 1;
+        ici.arrayLayers   = 1;
+        ici.samples       = VK_SAMPLE_COUNT_1_BIT;
+        ici.tiling        = VK_IMAGE_TILING_OPTIMAL;
+        ici.usage         = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+        ici.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+        ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        if (vkCreateImage(m_device, &ici, nullptr, &slot.image) != VK_SUCCESS) return false;
+
+        VkMemoryRequirements req;
+        vkGetImageMemoryRequirements(m_device, slot.image, &req);
+        VkMemoryAllocateInfo ai{};
+        ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        ai.allocationSize  = req.size;
+        ai.memoryTypeIndex = fm(req.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        if (vkAllocateMemory(m_device, &ai, nullptr, &slot.memory) != VK_SUCCESS) return false;
+        vkBindImageMemory(m_device, slot.image, slot.memory, 0);
+
+        VkImageViewCreateInfo ivci{};
+        ivci.sType            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+        ivci.image            = slot.image;
+        ivci.viewType         = VK_IMAGE_VIEW_TYPE_2D;
+        ivci.format           = m_swapFormat;
+        ivci.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+        if (vkCreateImageView(m_device, &ivci, nullptr, &slot.view) != VK_SUCCESS) return false;
+
+        VkFramebufferCreateInfo fci{};
+        fci.sType           = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        fci.renderPass      = m_effectPass;
+        fci.attachmentCount = 1;
+        fci.pAttachments    = &slot.view;
+        fci.width           = m_swapExtent.width;
+        fci.height          = m_swapExtent.height;
+        fci.layers          = 1;
+        if (vkCreateFramebuffer(m_device, &fci, nullptr, &slot.framebuffer) != VK_SUCCESS) return false;
+
+        VkDescriptorSetAllocateInfo ai2{};
+        ai2.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        ai2.descriptorPool     = m_texturePool;
+        ai2.descriptorSetCount = 1;
+        ai2.pSetLayouts        = &m_textureSetLayout;
+        if (vkAllocateDescriptorSets(m_device, &ai2, &slot.descriptorSet) != VK_SUCCESS) return false;
+
+        VkDescriptorImageInfo imgInfo{m_effectSampler, slot.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+        VkWriteDescriptorSet  w{};
+        w.sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        w.dstSet          = slot.descriptorSet;
+        w.dstBinding      = 0;
+        w.descriptorCount = 1;
+        w.descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        w.pImageInfo      = &imgInfo;
+        vkUpdateDescriptorSets(m_device, 1, &w, 0, nullptr);
+
+        m_effectResults.push_back(slot);
+    }
+    return true;
+}
+
 bool VC::VulkanWidget::createEffectPipeline(const std::string& name)
 {
     std::string lower = name;
@@ -2450,7 +2418,7 @@ bool VC::VulkanWidget::createEffectPipeline(const std::string& name)
     return true;
 }
 
-void VC::VulkanWidget::recordEffectGeomPass(VkCommandBuffer cb)
+void VC::VulkanWidget::recordEffectGeomPass(VkCommandBuffer cb, size_t meshIndex)
 {
     VkClearValue clears[2] = { {{{0.f, 0.f, 0.f, 0.f}}}, {{{0.f, 0.f, 0.f, 0.f}}} };
     VkViewport   vp{0, 0, (float)m_swapExtent.width, (float)m_swapExtent.height, 0, 1};
@@ -2475,18 +2443,16 @@ void VC::VulkanWidget::recordEffectGeomPass(VkCommandBuffer cb)
     VkDeviceSize zero = 0;
     vkCmdBindVertexBuffers(cb, 0, 1, &m_vertexBuffer, &zero);
     vkCmdBindIndexBuffer(cb, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
-    vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTextureSet, 0, nullptr);
 
-    for (size_t i : m_effectMeshIndices) {
-        const Mesh&         mesh = m_meshes[i];
-        const MeshDrawInfo& info = m_meshDrawInfos[i];
-        if (mesh.hasTexture && mesh.textureDescriptor != VK_NULL_HANDLE) {
-            vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &mesh.textureDescriptor, 0, nullptr);
-        } else {
-            vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTextureSet, 0, nullptr);
-        }
-        vkCmdDrawIndexed(cb, info.indexCount, 1, info.firstIndex, 0, 0);
+    const Mesh&         mesh = m_meshes[meshIndex];
+    const MeshDrawInfo& info = m_meshDrawInfos[meshIndex];
+    if (mesh.hasTexture && mesh.textureDescriptor != VK_NULL_HANDLE) {
+        vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &mesh.textureDescriptor, 0, nullptr);
+    } else {
+        vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTextureSet, 0, nullptr);
     }
+    vkCmdDrawIndexed(cb, info.indexCount, 1, info.firstIndex, 0, 0);
+
     vkCmdEndRenderPass(cb);
 }
 
@@ -2530,6 +2496,114 @@ void VC::VulkanWidget::recordEffectKernelPass(
 
     vkCmdDraw(cb, 6, 1, 0, 0);
     vkCmdEndRenderPass(cb);
+}
+
+// ============================================================================
+// recordEffectPrepasses
+//   Each effect-bearing mesh gets its own geometry pass + effect chain on the
+//   shared ping/pong scratch images, finalized via the "Passthrough" shader
+//   into its own dedicated result image (m_effectResults[slot]). These results
+//   are composited in zIndex order by recordSceneDraws() below, instead of one
+//   global post-process pass that ignores draw order.
+// ============================================================================
+
+void VC::VulkanWidget::recordEffectPrepasses(VkCommandBuffer cb)
+{
+    for (size_t slot = 0; slot < m_effectMeshIndices.size(); ++slot) {
+        size_t meshIdx = m_effectMeshIndices[slot];
+
+        recordEffectGeomPass(cb, meshIdx);
+        // RAW: geom's resolve-write of ping → first effect pass read of ping
+        effectBarrier(cb,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            m_pingImage,
+            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+
+        for (const auto& eff : m_meshes[meshIdx].effects) {
+            std::string lower = eff.name;
+            std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
+
+            if (lower == "blur") {
+                // H blur: ping → pong
+                recordEffectKernelPass(cb, m_pongFb, m_pingSrcSet,
+                    eff.name, 1.f / m_swapExtent.width, 0.f, eff.params);
+                effectBarrier2(cb, m_pongImage, m_pingImage);
+
+                // V blur: pong → ping
+                recordEffectKernelPass(cb, m_pingFb, m_pongSrcSet,
+                    eff.name, 0.f, 1.f / m_swapExtent.height, eff.params);
+                effectBarrier(cb,
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    m_pingImage,
+                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+            } else {
+                // ping → pong
+                recordEffectKernelPass(cb, m_pongFb, m_pingSrcSet,
+                    eff.name, 0.f, 0.f, eff.params);
+                effectBarrier2(cb, m_pongImage, m_pingImage);
+                // pong → ping
+                recordEffectKernelPass(cb, m_pingFb, m_pongSrcSet,
+                    eff.name, 0.f, 0.f, eff.params);
+                effectBarrier(cb,
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+                    m_pingImage,
+                    VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+            }
+        }
+
+        // Flush the final ping result into this mesh's dedicated result image.
+        recordEffectKernelPass(cb, m_effectResults[slot].framebuffer, m_pingSrcSet,
+            "Passthrough", 0.f, 0.f, {});
+        effectBarrier(cb,
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+            VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+            m_effectResults[slot].image,
+            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+    }
+}
+
+// ============================================================================
+// recordSceneDraws
+//   m_meshes is already zIndex/zOrderSeq-sorted (Core::generateMeshes), so a
+//   single ordered pass — interleaving normal-mesh geometry with effect-mesh
+//   composite quads — preserves correct draw order for both.
+// ============================================================================
+
+void VC::VulkanWidget::recordSceneDraws(VkCommandBuffer cb)
+{
+    VkBuffer     vbufs[]   = {m_vertexBuffer};
+    VkDeviceSize offsets[] = {0};
+    VkDeviceSize zero      = 0;
+
+    std::unordered_map<size_t, size_t> effectSlotForMesh;
+    for (size_t s = 0; s < m_effectMeshIndices.size(); ++s)
+        effectSlotForMesh[m_effectMeshIndices[s]] = s;
+
+    for (size_t mi = 0; mi < m_meshes.size(); ++mi) {
+        const Mesh& mesh  = m_meshes[mi];
+        auto        effIt = effectSlotForMesh.find(mi);
+
+        if (effIt == effectSlotForMesh.end()) {
+            const MeshDrawInfo& info = m_meshDrawInfos[mi];
+            vkCmdBindVertexBuffers(cb, 0, 1, vbufs, offsets);
+            vkCmdBindIndexBuffer(cb, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+            if (mesh.hasTexture && mesh.textureDescriptor != VK_NULL_HANDLE) {
+                vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &mesh.textureDescriptor, 0, nullptr);
+            } else {
+                vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTextureSet, 0, nullptr);
+            }
+            vkCmdDrawIndexed(cb, info.indexCount, 1, info.firstIndex, 0, 0);
+        } else {
+            // Composite this mesh's effect result as a full-resolution textured quad.
+            vkCmdBindVertexBuffers(cb, 0, 1, &m_compVtxBuf, &zero);
+            vkCmdBindIndexBuffer(cb, m_compIdxBuf, 0, VK_INDEX_TYPE_UINT16);
+            vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_effectResults[effIt->second].descriptorSet, 0, nullptr);
+            vkCmdDrawIndexed(cb, 6, 1, 0, 0, 0);
+        }
+    }
 }
 
 // ============================================================================
