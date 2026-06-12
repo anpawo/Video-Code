@@ -86,7 +86,8 @@ namespace
 
     const std::vector<GoldenCase> kGoldenCases = {
         {"shapes",    "test/visual/scenes/shapes.py",    {0}},
-        {"text",      "test/visual/scenes/text.py",      {0}},
+        {"text",        "test/visual/scenes/text.py",        {0}},
+        {"text-stroke", "test/visual/scenes/text_stroke.py", {0}},
         {"animation", "test/visual/scenes/animation.py", {0, 10, 25}},
         {"groups",    "test/visual/scenes/groups.py",    {0, 15, 29}},
         {"chess",     "test/visual/scenes/chess.py",     {0, 30, 65, 100, 130}},
@@ -95,6 +96,7 @@ namespace
         {"gradient-conic",   "test/visual/scenes/gradient_conic.py",   {0}},
         {"shadow",           "test/visual/scenes/shadow.py",           {0}},
         {"crop",             "test/visual/scenes/crop.py",             {0}},
+        {"curve",            "test/visual/scenes/curve.py",            {0, 6, 10}},
         {"lightsweep",       "test/visual/scenes/lightsweep.py",       {0, 15, 29}},
         {"lightsweep-group", "test/visual/scenes/lightsweep_group.py", {7, 15, 22}},
         {"layers",           "test/visual/scenes/layers.py",           {0, 31, 61, 91}},

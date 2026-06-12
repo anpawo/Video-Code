@@ -137,20 +137,47 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     auto anyStopVisible = [](const std::vector<GradientStop>& stops) {
         return std::any_of(stops.begin(), stops.end(), [](const GradientStop& s) { return s.color[3] > 0; });
     };
-    bool hasFillNow = (_fillGradType != GradType::None) ? anyStopVisible(_fillStops) : _fillColor[3] > 0;
+    // Open paths never fill — there is no interior to triangulate.
+    bool hasFillNow = _closed && ((_fillGradType != GradType::None) ? anyStopVisible(_fillStops) : _fillColor[3] > 0);
     geomHash = fnvHash(&hasFillNow,     sizeof(bool),  geomHash);
+    if (!_contourSizes.empty())
+        geomHash = fnvHash(_contourSizes.data(), _contourSizes.size() * sizeof(size_t), geomHash);
 
     if (!_geomValid || geomHash != _lastGeomHash) {
-        // Build quadratic bezier segments from the anchor-handle path.
-        size_t                         segCount = n / 2;
-        std::vector<QuadraticBezier2D> curves;
-        curves.reserve(segCount);
-        for (size_t i = 0; i < segCount; ++i) {
-            curves.push_back({
-                _points[2 * i],
-                _points[2 * i + 1],
-                _points[(2 * i + 2) % n],
-            });
+        // Partition _points into contours (default: a single one). Invalid
+        // partitions (bad sum / odd or tiny chunks) fall back to one contour.
+        std::vector<size_t> sizes = _contourSizes;
+        {
+            size_t sum = 0;
+            bool   valid = !sizes.empty();
+            for (size_t s : sizes) {
+                sum += s;
+                if (s < 4 || s % 2 != 0)
+                    valid = false;
+            }
+            if (!valid || sum != n)
+                sizes = {n};
+        }
+
+        // Build quadratic bezier segments per contour from the anchor-handle
+        // pairs. Open paths drop the wrap-around segment (their final handle
+        // is a dummy that only terminates the pair format).
+        std::vector<QuadraticBezier2D>         curves;
+        std::vector<std::pair<size_t, size_t>> contourCurves;
+        curves.reserve(n / 2);
+        size_t base = 0;
+        for (size_t s : sizes) {
+            size_t segs  = _closed ? s / 2 : s / 2 - 1;
+            size_t first = curves.size();
+            for (size_t i = 0; i < segs; ++i) {
+                curves.push_back({
+                    _points[base + 2 * i],
+                    _points[base + 2 * i + 1],
+                    _points[base + (2 * i + 2) % s],
+                });
+            }
+            contourCurves.push_back({first, segs});
+            base += s;
         }
 
         // Bounding box of control points.
@@ -164,41 +191,129 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         }
 
         // Shift all control points so the bounding box starts at (0,0).
-        cv::Vec2f localOffset{-minX, -minY};
-        for (auto& c : curves) {
-            c.p0 += localOffset;
-            c.p1 += localOffset;
-            c.p2 += localOffset;
+        // Open paths skip the shift: their points keep absolute coordinates
+        // so position() acts as a pure translation (Graph curves rely on it),
+        // matching the legacy Curve input. localSize {0,0} also neutralizes
+        // the align pivot, exactly like the legacy MeshFactory({0,0}, …).
+        cv::Vec2f  localOffset{0.f, 0.f};
+        cv::Size2f localSize{0.f, 0.f};
+        if (_closed) {
+            localOffset = {-minX, -minY};
+            localSize   = {maxX - minX, maxY - minY};
+            for (auto& c : curves) {
+                c.p0 += localOffset;
+                c.p1 += localOffset;
+                c.p2 += localOffset;
+            }
         }
-
-        cv::Size2f localSize{maxX - minX, maxY - minY};
 
         // Use a temporary factory just for step calculation (position doesn't
         // affect quadraticStrokeSteps, so meta.position is irrelevant here).
         MeshFactory sampleFactory(localSize, meta, config);
 
-        // Sample the bezier path to a local-space polyline for fill tessellation.
-        std::vector<cv::Vec2f> localPoly;
+        // Sample each contour to its own local-space ring.
+        std::vector<std::vector<cv::Vec2f>> rings(contourCurves.size());
         if (hasFillNow) {
-            for (size_t ci = 0; ci < curves.size(); ++ci) {
-                int steps  = sampleFactory.quadraticStrokeSteps(curves[ci]);
-                int sStart = (ci == 0) ? 0 : 1;
-                int sEnd   = (_closed && ci == curves.size() - 1) ? steps - 1 : steps;
-                for (int s = sStart; s <= sEnd; ++s) {
-                    float t = static_cast<float>(s) / static_cast<float>(steps);
-                    localPoly.push_back(MeshFactory::evalQuadratic(curves[ci], t));
+            for (size_t c = 0; c < contourCurves.size(); ++c) {
+                auto [first, count] = contourCurves[c];
+                for (size_t k = 0; k < count; ++k) {
+                    size_t ci = first + k;
+                    int steps  = sampleFactory.quadraticStrokeSteps(curves[ci]);
+                    int sStart = (k == 0) ? 0 : 1;
+                    int sEnd   = (_closed && k == count - 1) ? steps - 1 : steps;
+                    for (int s = sStart; s <= sEnd; ++s) {
+                        float t = static_cast<float>(s) / static_cast<float>(steps);
+                        rings[c].push_back(MeshFactory::evalQuadratic(curves[ci], t));
+                    }
                 }
             }
         }
 
-        // Fill triangulation — earcut handles non-convex polygons correctly.
-        std::vector<uint16_t> earIndices;
-        if (hasFillNow && localPoly.size() >= 3) {
-            std::vector<std::vector<std::array<float, 2>>> polygon(1);
-            polygon[0].reserve(localPoly.size());
-            for (const auto& p : localPoly)
-                polygon[0].push_back({p[0], p[1]});
-            earIndices = mapbox::earcut<uint16_t>(polygon);
+        // Group rings into outer + holes by winding (letters: 'o' = outline
+        // with a hole, 'i' = two independent outers) and triangulate each
+        // group with earcut's native hole support. localPoly is the groups'
+        // vertices concatenated; earIndices reference it directly, so the
+        // solid/2-stop-linear emission below needs no changes.
+        std::vector<cv::Vec2f> localPoly;
+        std::vector<uint32_t>  earIndices;
+        std::vector<cv::Vec2f> boundaryRing;
+        if (hasFillNow && !rings.empty()) {
+            auto ringArea = [](const std::vector<cv::Vec2f>& r) {
+                double a = 0;
+                for (size_t i = 0; i < r.size(); ++i) {
+                    const auto& p = r[i];
+                    const auto& q = r[(i + 1) % r.size()];
+                    a += static_cast<double>(p[0]) * q[1] - static_cast<double>(q[0]) * p[1];
+                }
+                return a / 2.0;
+            };
+            auto ringContains = [](const std::vector<cv::Vec2f>& ring, const cv::Vec2f& pt) {
+                bool in = false;
+                for (size_t i = 0, j = ring.size() - 1; i < ring.size(); j = i++) {
+                    if ((ring[i][1] > pt[1]) != (ring[j][1] > pt[1]) &&
+                        pt[0] < (ring[j][0] - ring[i][0]) * (pt[1] - ring[i][1]) / (ring[j][1] - ring[i][1]) + ring[i][0])
+                        in = !in;
+                }
+                return in;
+            };
+
+            std::vector<double> areas(rings.size());
+            size_t              biggest = 0;
+            for (size_t i = 0; i < rings.size(); ++i) {
+                areas[i] = ringArea(rings[i]);
+                if (std::abs(areas[i]) > std::abs(areas[biggest]))
+                    biggest = i;
+            }
+            bool outerSign = areas[biggest] >= 0;
+            boundaryRing   = rings[biggest];
+
+            std::vector<size_t> outers;
+            std::vector<size_t> holes;
+            for (size_t i = 0; i < rings.size(); ++i) {
+                if (rings[i].size() < 3)
+                    continue;
+                ((areas[i] >= 0) == outerSign ? outers : holes).push_back(i);
+            }
+
+            // Each hole belongs to the smallest outer that contains it; a hole
+            // contained by no outer degenerates to its own filled region.
+            std::vector<std::vector<size_t>> holesOf(outers.size());
+            for (size_t h : holes) {
+                ssize_t best = -1;
+                for (size_t oi = 0; oi < outers.size(); ++oi) {
+                    if (ringContains(rings[outers[oi]], rings[h][0]) &&
+                        (best < 0 || std::abs(areas[outers[oi]]) < std::abs(areas[outers[best]])))
+                        best = static_cast<ssize_t>(oi);
+                }
+                if (best >= 0) {
+                    holesOf[best].push_back(h);
+                } else {
+                    outers.push_back(h);
+                    holesOf.push_back({});
+                }
+            }
+
+            for (size_t oi = 0; oi < outers.size(); ++oi) {
+                std::vector<std::vector<std::array<float, 2>>> polygon;
+                polygon.reserve(1 + holesOf[oi].size());
+                uint32_t groupBase = static_cast<uint32_t>(localPoly.size());
+
+                auto addRing = [&](const std::vector<cv::Vec2f>& r) {
+                    std::vector<std::array<float, 2>> ring;
+                    ring.reserve(r.size());
+                    for (const auto& p : r) {
+                        ring.push_back({p[0], p[1]});
+                        localPoly.push_back(p);
+                    }
+                    polygon.push_back(std::move(ring));
+                };
+                addRing(rings[outers[oi]]);
+                for (size_t h : holesOf[oi])
+                    addRing(rings[h]);
+
+                for (auto v : mapbox::earcut<uint32_t>(polygon))
+                    earIndices.push_back(static_cast<uint32_t>(groupBase + v));
+            }
         }
 
         // Store in cache.
@@ -207,6 +322,8 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             std::move(earIndices),
             std::move(curves),
             localSize,
+            std::move(contourCurves),
+            std::move(boundaryRing),
         };
         _lastGeomHash = geomHash;
         _geomValid    = true;
@@ -246,11 +363,44 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         return {std::cos(angleRad), -std::sin(angleRad)};
     };
 
-    // Emit fill vertices (applies current transform M to each local point).
+    // Stroke FIRST, fill on top: the stroke band extrudes outward from the
+    // contour, and at joints tighter than the stroke width (letter glyph
+    // junctions) it overshoots through the opposite wall into the interior.
+    // Drawing the fill afterwards clips all overshoot exactly at the contour,
+    // so joints stay crisp. addQuadraticStrokePath samples internally and
+    // uses M — not cached.
     BP_T(t3);
+    if (hasStroke) {
+        // One stroke pass per contour — letter glyphs outline each contour
+        // (outer + holes) independently, with no bridge edges between them.
+        for (const auto& [first, count] : _geomCache.contourCurves) {
+            if (count == 0)
+                continue;
+            std::vector<QuadraticBezier2D> contour(
+                _geomCache.curves.begin() + static_cast<ssize_t>(first),
+                _geomCache.curves.begin() + static_cast<ssize_t>(first + count));
+            if (_strokeGradType != GradType::None) {
+                cv::Vec2f dir = gradientDir(_strokeGradientAngle);
+                factory.addQuadraticStrokePath(
+                    contour, _strokeWidth, strokeStops, dir, _closed, _closed);
+            } else {
+                factory.addQuadraticStrokePath(
+                    contour, _strokeWidth, strokeColor, _closed, _closed);
+            }
+        }
+    }
+
+    // Emit fill vertices (applies current transform M to each local point).
+    BP_T(t4);
     const auto& localPoly = _geomCache.localPoly;
 
-    if (_fillGradType == GradType::Radial && localPoly.size() >= 3 && fillVisible) {
+    // Radial/conic fills and multi-stop linear strips operate on one ring.
+    // Multi-contour shapes use their largest outer ring as that boundary
+    // (holes are covered by these fills — documented simplification; solid
+    // and 2-stop linear fills respect holes exactly via earcut).
+    const auto& boundary = _geomCache.boundaryRing.empty() ? _geomCache.localPoly : _geomCache.boundaryRing;
+
+    if (_fillGradType == GradType::Radial && boundary.size() >= 3 && fillVisible) {
         // --- Radial gradient: star mesh (center fan + concentric ring strips) ---
         //
         // Ring vertices are angle-sampled and clamped to the polygon boundary via
@@ -261,14 +411,14 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         // Clamping the outermost ring to boundaryDist means it sits exactly ON the
         // polygon boundary, but the chord between two adjacent ray samples can still
         // cut inside an actual corner (leaving a black gap there). To fix that without
-        // reintroducing bleed, we additionally splice in any localPoly vertices
+        // reintroducing bleed, we additionally splice in any boundary vertices
         // ("corner extras") that fall outside the chord for that sector — these are
         // real boundary points, so they can't extend past the shape.
 
         cv::Vec2f center{_geomCache.localSize.width * 0.5f, _geomCache.localSize.height * 0.5f};
 
         float maxRadius = 0.f;
-        for (const auto& p : localPoly) {
+        for (const auto& p : boundary) {
             float dx = p[0] - center[0], dy = p[1] - center[1];
             maxRadius = std::max(maxRadius, std::sqrt(dx * dx + dy * dy));
         }
@@ -277,7 +427,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         float pixelRadius = maxRadius * std::max(meta.scale.x, meta.scale.y);
         int   N           = std::max(24, static_cast<int>(2.f * static_cast<float>(M_PI) * pixelRadius / 6.f));
         const float TAU   = 2.f * static_cast<float>(M_PI);
-        const size_t M    = localPoly.size();
+        const size_t M    = boundary.size();
 
         // boundaryDist[j]: distance from center to the polygon boundary along the
         // ray at angle theta_j = TAU*j/N (max intersection with any polygon edge).
@@ -287,8 +437,8 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             cv::Vec2f d{std::cos(theta), std::sin(theta)};
             float best = 0.f;
             for (size_t ei = 0; ei < M; ++ei) {
-                const cv::Vec2f& a = localPoly[ei];
-                const cv::Vec2f& b = localPoly[(ei + 1) % M];
+                const cv::Vec2f& a = boundary[ei];
+                const cv::Vec2f& b = boundary[(ei + 1) % M];
                 cv::Vec2f e = b - a;
                 float denom = d[0] * e[1] - d[1] * e[0];
                 if (std::abs(denom) < 1e-9f) continue;
@@ -321,30 +471,30 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
 
         // Center vertex + ring0 (degenerate to the center point unless the first
         // stop is pinned at a non-zero position).
-        uint16_t centerIdx = factory.vertexCount();
+        uint32_t centerIdx = factory.vertexCount();
         factory.addVertex(center[0], center[1], fillStops.front().color);
 
-        uint16_t ring0Base = factory.vertexCount();
+        uint32_t ring0Base = factory.vertexCount();
         float    ring0R    = fillStops.front().position * maxRadius;
         emitRing(ring0R);
 
         if (ring0R > 1e-6f) {
             for (int j = 0; j < N; ++j) {
                 factory.mesh.indices.push_back(centerIdx);
-                factory.mesh.indices.push_back(static_cast<uint16_t>(ring0Base + j));
-                factory.mesh.indices.push_back(static_cast<uint16_t>(ring0Base + (j + 1) % N));
+                factory.mesh.indices.push_back(static_cast<uint32_t>(ring0Base + j));
+                factory.mesh.indices.push_back(static_cast<uint32_t>(ring0Base + (j + 1) % N));
             }
         }
 
-        // Pre-emit localPoly vertices once — used as "corner extras" when
+        // Pre-emit boundary vertices once — used as "corner extras" when
         // triangulating the outermost ring strip.
-        uint16_t polyBase = factory.vertexCount();
-        for (const auto& p : localPoly)
+        uint32_t polyBase = factory.vertexCount();
+        for (const auto& p : boundary)
             factory.addVertex(p[0], p[1], radialColor(p));
 
         std::vector<float> pAngle(M), pDist(M);
         for (size_t i = 0; i < M; ++i) {
-            float dx = localPoly[i][0] - center[0], dy = localPoly[i][1] - center[1];
+            float dx = boundary[i][0] - center[0], dy = boundary[i][1] - center[1];
             float a  = std::atan2f(dy, dx);
             pAngle[i] = (a < 0.f) ? a + TAU : a;
             pDist[i]  = std::sqrt(dx * dx + dy * dy);
@@ -360,23 +510,23 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
 
         // Ring-to-ring quad strips for each stop interval; the last interval also
         // splices in corner extras.
-        uint16_t prevBase = ring0Base;
+        uint32_t prevBase = ring0Base;
         for (size_t k = 0; k + 1 < fillStops.size(); ++k) {
             float rA = fillStops[k].position * maxRadius;
             float rB = fillStops[k + 1].position * maxRadius;
             if (rB <= rA + 1e-6f) continue;
 
-            uint16_t outerBase = factory.vertexCount();
+            uint32_t outerBase = factory.vertexCount();
             emitRing(rB);
 
             bool isLast = (k + 2 == fillStops.size());
 
             for (int j = 0; j < N; ++j) {
                 int      jn = (j + 1) % N;
-                uint16_t i0 = static_cast<uint16_t>(prevBase + j);
-                uint16_t i1 = static_cast<uint16_t>(prevBase + jn);
-                uint16_t i2 = static_cast<uint16_t>(outerBase + j);
-                uint16_t i3 = static_cast<uint16_t>(outerBase + jn);
+                uint32_t i0 = static_cast<uint32_t>(prevBase + j);
+                uint32_t i1 = static_cast<uint32_t>(prevBase + jn);
+                uint32_t i2 = static_cast<uint32_t>(outerBase + j);
+                uint32_t i3 = static_cast<uint32_t>(outerBase + jn);
 
                 factory.mesh.indices.push_back(i0);
                 factory.mesh.indices.push_back(i1);
@@ -388,14 +538,14 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                     float thresh  = std::max(ringRJ, ringRJn);
 
                     // Fan from i1 through the outer chain (i3, extras…, i2), where
-                    // extras are localPoly vertices in this sector that lie outside
+                    // extras are boundary vertices in this sector that lie outside
                     // the i3–i2 chord.
-                    uint16_t prev = i3;
+                    uint32_t prev = i3;
                     const auto& extras = sectorVerts[j];
                     for (auto it = extras.rbegin(); it != extras.rend(); ++it) {
                         size_t pi = *it;
                         if (pDist[pi] <= thresh + 1e-4f) continue;
-                        uint16_t e = static_cast<uint16_t>(polyBase + pi);
+                        uint32_t e = static_cast<uint32_t>(polyBase + pi);
                         factory.mesh.indices.push_back(i1);
                         factory.mesh.indices.push_back(prev);
                         factory.mesh.indices.push_back(e);
@@ -413,7 +563,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             prevBase = outerBase;
         }
 
-    } else if (_fillGradType == GradType::Conic && localPoly.size() >= 3 && fillVisible) {
+    } else if (_fillGradType == GradType::Conic && boundary.size() >= 3 && fillVisible) {
         // --- Conic gradient: fan from center to the polygon boundary ---
         //
         // Color depends only on the angle around `center`, wrapped to t∈[0,1).
@@ -428,7 +578,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         cv::Vec2f center{_geomCache.localSize.width * 0.5f, _geomCache.localSize.height * 0.5f};
 
         float maxRadius = 0.f;
-        for (const auto& p : localPoly) {
+        for (const auto& p : boundary) {
             float dx = p[0] - center[0], dy = p[1] - center[1];
             maxRadius = std::max(maxRadius, std::sqrt(dx * dx + dy * dy));
         }
@@ -437,15 +587,15 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         float pixelRadius = maxRadius * std::max(meta.scale.x, meta.scale.y);
         int   N           = std::max(24, static_cast<int>(2.f * static_cast<float>(M_PI) * pixelRadius / 6.f));
         const float TAU   = 2.f * static_cast<float>(M_PI);
-        const size_t M    = localPoly.size();
+        const size_t M    = boundary.size();
 
         // Ray-cast from center at local angle `theta` to the polygon boundary.
         auto rayDist = [&](float theta) -> float {
             cv::Vec2f d{std::cos(theta), std::sin(theta)};
             float best = 0.f;
             for (size_t ei = 0; ei < M; ++ei) {
-                const cv::Vec2f& a = localPoly[ei];
-                const cv::Vec2f& b = localPoly[(ei + 1) % M];
+                const cv::Vec2f& a = boundary[ei];
+                const cv::Vec2f& b = boundary[(ei + 1) % M];
                 cv::Vec2f e = b - a;
                 float denom = d[0] * e[1] - d[1] * e[0];
                 if (std::abs(denom) < 1e-9f) continue;
@@ -471,7 +621,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             return wrapToUnit((-localAngle - angleRad) / TAU);
         };
 
-        // Boundary chain: N evenly-spaced ray samples + any localPoly vertices
+        // Boundary chain: N evenly-spaced ray samples + any boundary vertices
         // that stick out beyond their sector's chord (corner extras), sorted by
         // local angle — same corner-coverage idea as the radial gradient's
         // outermost ring.
@@ -486,14 +636,14 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             chain.push_back({center + cv::Vec2f{boundaryDist[j] * std::cos(theta), boundaryDist[j] * std::sin(theta)}, theta});
         }
         for (size_t i = 0; i < M; ++i) {
-            float dx = localPoly[i][0] - center[0], dy = localPoly[i][1] - center[1];
+            float dx = boundary[i][0] - center[0], dy = boundary[i][1] - center[1];
             float a    = std::atan2f(dy, dx);
             if (a < 0.f) a += TAU;
             float dist = std::sqrt(dx * dx + dy * dy);
             int j  = std::clamp(static_cast<int>(a * N / TAU), 0, N - 1);
             int jn = (j + 1) % N;
             if (dist > std::max(boundaryDist[j], boundaryDist[jn]) + 1e-4f)
-                chain.push_back({localPoly[i], a});
+                chain.push_back({boundary[i], a});
         }
         std::sort(chain.begin(), chain.end(), [](const ChainPt& a, const ChainPt& b) { return a.angle < b.angle; });
 
@@ -511,7 +661,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         }
         chain.insert(chain.begin() + static_cast<long>(insertAt), 2, ChainPt{seamPt, la0});
 
-        std::vector<uint16_t> chainIdx(chain.size());
+        std::vector<uint32_t> chainIdx(chain.size());
         std::vector<cv::Vec4b> chainColor(chain.size());
         for (size_t i = 0; i < chain.size(); ++i) {
             if (i == insertAt)          chainColor[i] = lerpGradient(fillStops, 0.f);
@@ -523,7 +673,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
 
         size_t cnt = chain.size();
         for (size_t i = 0; i < cnt; ++i) {
-            uint16_t c = factory.vertexCount();
+            uint32_t c = factory.vertexCount();
             factory.addVertex(center[0], center[1], chainColor[i]);
             factory.mesh.indices.push_back(c);
             factory.mesh.indices.push_back(chainIdx[i]);
@@ -532,7 +682,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
 
     } else if (fillVisible && !_geomCache.earIndices.empty()) {
         // --- Linear gradient or solid fill: earcut-based ---
-        uint16_t firstPolyIdx = factory.vertexCount();
+        uint32_t firstPolyIdx = factory.vertexCount();
 
         if (_fillGradType == GradType::Linear) {
             cv::Vec2f dir = gradientDir(_fillGradientAngle);
@@ -563,7 +713,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                     float projB = minProj + fillStops[k + 1].position * range;
                     if (projA >= projB) continue;
 
-                    auto strip = clipPolyHalfPlane(localPoly, dir, projA, true);
+                    auto strip = clipPolyHalfPlane(boundary, dir, projA, true);
                     strip      = clipPolyHalfPlane(strip,     dir, projB, false);
                     if (strip.size() < 3) continue;
 
@@ -571,9 +721,9 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                     stripPoly[0].reserve(strip.size());
                     for (const auto& p : strip)
                         stripPoly[0].push_back({p[0], p[1]});
-                    auto stripIdx = mapbox::earcut<uint16_t>(stripPoly);
+                    auto stripIdx = mapbox::earcut<uint32_t>(stripPoly);
 
-                    uint16_t stripBase = factory.vertexCount();
+                    uint32_t stripBase = factory.vertexCount();
                     for (const auto& p : strip) {
                         float proj   = p[0] * dir[0] + p[1] * dir[1];
                         float localT = (proj - projA) / (projB - projA);
@@ -593,24 +743,11 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         }
     }
 
-    // Stroke rendered on top of fill, extruded inward so it stays within the boundary.
-    // addQuadraticStrokePath samples internally and uses M — not cached.
-    BP_T(t4);
-    if (hasStroke) {
-        if (_strokeGradType != GradType::None) {
-            cv::Vec2f dir = gradientDir(_strokeGradientAngle);
-            factory.addQuadraticStrokePath(
-                _geomCache.curves, _strokeWidth, strokeStops, dir, _closed, _closed);
-        } else {
-            factory.addQuadraticStrokePath(
-                _geomCache.curves, _strokeWidth, strokeColor, _closed, _closed);
-        }
-    }
     BP_T(t5);
 
     if (BP_US(t0, t5) > 400)
         VC_LOG(std::format(
-            "[bezier] buildPath:{}µs  geom:{}µs  factory:{}µs  fill:{}µs  stroke:{}µs  pts:{}\n",
+            "[bezier] buildPath:{}µs  geom:{}µs  factory:{}µs  stroke:{}µs  fill:{}µs  pts:{}\n",
             BP_US(t0, t1), BP_US(t1, t2), BP_US(t2, t3), BP_US(t3, t4), BP_US(t4, t5), n));
 
     return factory.generateMesh();

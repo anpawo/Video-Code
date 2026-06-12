@@ -607,8 +607,8 @@ bool VC::VulkanHeadlessRenderer::createPipeline()
 bool VC::VulkanHeadlessRenderer::createGeometryBuffers()
 {
     auto fm = [this](uint32_t f, VkMemoryPropertyFlags p) { return findMemoryType(f, p); };
-    return makeBuffer(m_device, sizeof(Vertex) * 65536, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, m_vertexBuffer, m_vertexMemory, fm)
-        && makeBuffer(m_device, sizeof(uint16_t) * 65536, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, m_indexBuffer, m_indexMemory, fm);
+    return makeBuffer(m_device, sizeof(Vertex) * 262144, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, m_vertexBuffer, m_vertexMemory, fm)
+        && makeBuffer(m_device, sizeof(uint32_t) * 262144, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, m_indexBuffer, m_indexMemory, fm);
 }
 
 // ===========================================================================
@@ -867,7 +867,7 @@ void VC::VulkanHeadlessRenderer::setMeshes(const std::vector<Mesh>& meshes)
         info.firstIndex = (uint32_t)m_indices.size();
         info.indexCount = (uint32_t)mesh.indices.size();
 
-        uint16_t offset = (uint16_t)m_vertices.size();
+        uint32_t offset = (uint32_t)m_vertices.size();
         m_vertices.insert(m_vertices.end(), mesh.vertices.begin(), mesh.vertices.end());
         for (auto idx : mesh.indices)
             m_indices.push_back(offset + idx);
@@ -961,7 +961,7 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
         if (!m_vertices.empty())
             upload(m_vertexMemory, m_vertices.data(), sizeof(Vertex) * m_vertices.size());
         if (!m_indices.empty())
-            upload(m_indexMemory, m_indices.data(), sizeof(uint16_t) * m_indices.size());
+            upload(m_indexMemory, m_indices.data(), sizeof(uint32_t) * m_indices.size());
         m_geomDirty = false;
     }
 
@@ -1081,7 +1081,7 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
         if (effIt == effectSlotForMesh.end()) {
             const MeshDrawInfo& info = m_meshDrawInfos[mi];
             vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, vbufs, offsets);
-            vkCmdBindIndexBuffer(m_commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+            vkCmdBindIndexBuffer(m_commandBuffer, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
             if (mesh.hasTexture && mesh.textureDescriptor != VK_NULL_HANDLE) {
                 vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &mesh.textureDescriptor, 0, nullptr);
             } else {
@@ -1092,7 +1092,7 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
             // Composite this mesh's effect result as a full-resolution textured quad.
             // Transparent pixels are invisible; only the processed input is visible.
             vkCmdBindVertexBuffers(m_commandBuffer, 0, 1, &m_compVtxBuf, &zero);
-            vkCmdBindIndexBuffer(m_commandBuffer, m_compIdxBuf, 0, VK_INDEX_TYPE_UINT16);
+            vkCmdBindIndexBuffer(m_commandBuffer, m_compIdxBuf, 0, VK_INDEX_TYPE_UINT32);
             vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_effectResults[effIt->second].descriptorSet, 0, nullptr);
             vkCmdDrawIndexed(m_commandBuffer, 6, 1, 0, 0, 0);
         }
@@ -1342,7 +1342,7 @@ bool VC::VulkanHeadlessRenderer::createEffectResources()
             {{ 1.f,  1.f}, {1.f, 1.f}, {0.f, 0.f, 0.f, 1.f}, {3.f, 0.f, 0.f, 0.f}},
             {{-1.f,  1.f}, {0.f, 1.f}, {0.f, 0.f, 0.f, 1.f}, {3.f, 0.f, 0.f, 0.f}},
         };
-        uint16_t idx[6] = {0, 1, 2, 0, 2, 3};
+        uint32_t idx[6] = {0, 1, 2, 0, 2, 3};
 
         auto uploadStatic = [&](const void* data, VkDeviceSize sz, VkBufferUsageFlags usage,
                                  VkBuffer& buf, VkDeviceMemory& mem) -> bool {
@@ -1533,7 +1533,7 @@ void VC::VulkanHeadlessRenderer::recordEffectGeomPass(VkCommandBuffer cb, VkFram
 
     VkDeviceSize zero = 0;
     vkCmdBindVertexBuffers(cb, 0, 1, &m_vertexBuffer, &zero);
-    vkCmdBindIndexBuffer(cb, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(cb, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
     const Mesh&         mesh = m_meshes[meshIndex];
     const MeshDrawInfo& info = m_meshDrawInfos[meshIndex];

@@ -237,7 +237,7 @@ namespace VC
         std::vector<Mesh>         m_meshes;
         std::vector<MeshDrawInfo> m_meshDrawInfos;
         std::vector<Vertex>       m_vertices;
-        std::vector<uint16_t>     m_indices;
+        std::vector<uint32_t>     m_indices;
         bool                      m_geomDirty = false;
 
         // ── Per-frame partitioned mesh indices ────────────────────────────

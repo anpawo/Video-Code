@@ -187,7 +187,7 @@ void VC::VulkanWidget::setMeshes(const std::vector<Mesh>& meshes)
         info.firstIndex = static_cast<uint32_t>(m_indices.size());
         info.indexCount = static_cast<uint32_t>(mesh.indices.size());
 
-        uint16_t vertexOffset = static_cast<uint16_t>(m_vertices.size());
+        uint32_t vertexOffset = static_cast<uint32_t>(m_vertices.size());
         m_vertices.insert(m_vertices.end(), mesh.vertices.begin(), mesh.vertices.end());
         for (auto idx : mesh.indices)
             m_indices.push_back(vertexOffset + idx);
@@ -1203,8 +1203,8 @@ uint32_t VC::VulkanWidget::findMemoryType(uint32_t filter, VkMemoryPropertyFlags
 //   65536 vertices × 32 bytes = 2 MB; 65536 indices × 2 bytes = 128 KB.
 // ============================================================================
 
-static constexpr VkDeviceSize MAX_VERTEX_BUFFER_SIZE = sizeof(Vertex) * 65536;
-static constexpr VkDeviceSize MAX_INDEX_BUFFER_SIZE = sizeof(uint16_t) * 65536;
+static constexpr VkDeviceSize MAX_VERTEX_BUFFER_SIZE = sizeof(Vertex) * 262144;
+static constexpr VkDeviceSize MAX_INDEX_BUFFER_SIZE = sizeof(uint32_t) * 262144;
 
 static bool createBuffer(
     VkDevice                                                 device,
@@ -1592,7 +1592,7 @@ void VC::VulkanWidget::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageInd
             vkUnmapMemory(m_device, m_vertexMemory);
         }
         if (!m_indices.empty()) {
-            VkDeviceSize iSize = sizeof(uint16_t) * m_indices.size();
+            VkDeviceSize iSize = sizeof(uint32_t) * m_indices.size();
             void*        data;
             vkMapMemory(m_device, m_indexMemory, 0, iSize, 0, &data);
             memcpy(data, m_indices.data(), iSize);
@@ -1674,7 +1674,7 @@ cv::Mat VC::VulkanWidget::readFrame()
             vkUnmapMemory(m_device, m_vertexMemory);
         }
         if (!m_indices.empty()) {
-            VkDeviceSize sz = sizeof(uint16_t) * m_indices.size();
+            VkDeviceSize sz = sizeof(uint32_t) * m_indices.size();
             void* data;
             vkMapMemory(m_device, m_indexMemory, 0, sz, 0, &data);
             memcpy(data, m_indices.data(), sz);
@@ -2261,7 +2261,7 @@ bool VC::VulkanWidget::createEffectResources()
             {{ 1.f,  1.f}, {1.f, 1.f}, {0.f, 0.f, 0.f, 1.f}, {3.f, 0.f, 0.f, 0.f}},
             {{-1.f,  1.f}, {0.f, 1.f}, {0.f, 0.f, 0.f, 1.f}, {3.f, 0.f, 0.f, 0.f}},
         };
-        uint16_t idx[6] = {0, 1, 2, 0, 2, 3};
+        uint32_t idx[6] = {0, 1, 2, 0, 2, 3};
 
         auto upload = [&](const void* data, VkDeviceSize sz, VkBufferUsageFlags usage,
                            VkBuffer& buf, VkDeviceMemory& mem) -> bool {
@@ -2482,7 +2482,7 @@ void VC::VulkanWidget::recordEffectGeomPass(VkCommandBuffer cb, size_t meshIndex
 
     VkDeviceSize zero = 0;
     vkCmdBindVertexBuffers(cb, 0, 1, &m_vertexBuffer, &zero);
-    vkCmdBindIndexBuffer(cb, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(cb, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
     const Mesh&         mesh = m_meshes[meshIndex];
     const MeshDrawInfo& info = m_meshDrawInfos[meshIndex];
@@ -2638,7 +2638,7 @@ void VC::VulkanWidget::recordSceneDraws(VkCommandBuffer cb)
         if (effIt == effectSlotForMesh.end()) {
             const MeshDrawInfo& info = m_meshDrawInfos[mi];
             vkCmdBindVertexBuffers(cb, 0, 1, vbufs, offsets);
-            vkCmdBindIndexBuffer(cb, m_indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+            vkCmdBindIndexBuffer(cb, m_indexBuffer, 0, VK_INDEX_TYPE_UINT32);
             if (mesh.hasTexture && mesh.textureDescriptor != VK_NULL_HANDLE) {
                 vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &mesh.textureDescriptor, 0, nullptr);
             } else {
@@ -2648,7 +2648,7 @@ void VC::VulkanWidget::recordSceneDraws(VkCommandBuffer cb)
         } else {
             // Composite this mesh's effect result as a full-resolution textured quad.
             vkCmdBindVertexBuffers(cb, 0, 1, &m_compVtxBuf, &zero);
-            vkCmdBindIndexBuffer(cb, m_compIdxBuf, 0, VK_INDEX_TYPE_UINT16);
+            vkCmdBindIndexBuffer(cb, m_compIdxBuf, 0, VK_INDEX_TYPE_UINT32);
             vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_effectResults[effIt->second].descriptorSet, 0, nullptr);
             vkCmdDrawIndexed(cb, 6, 1, 0, 0, 0);
         }

@@ -53,7 +53,7 @@ Mesh Image::getMesh(const Metadata& meta, const Config& config)
     MeshFactory factory({w, h}, meta, config);
 
     float opacity = meta.opacity / 255.f;
-    uint16_t base = factory.vertexCount();
+    uint32_t base = factory.vertexCount();
     factory.addVertex(0.f, 0.f, 0.f, 0.f, opacity); // top-left,     UV (0,0)
     factory.addVertex(w, 0.f, 1.f, 0.f, opacity);   // top-right,    UV (1,0)
     factory.addVertex(w, h, 1.f, 1.f, opacity);     // bottom-right, UV (1,1)

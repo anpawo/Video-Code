@@ -138,9 +138,7 @@ set(SOURCES
     # --- Inputs ---
     src/input/AInput.cpp
     src/input/shape/BezierPath.cpp
-    src/input/shape/Curve.cpp
     src/input/shape/Polygon.cpp
-    src/input/shape/Circle.cpp
     src/input/text/Text.cpp
     src/input/media/Image.cpp
     src/input/media/Video.cpp

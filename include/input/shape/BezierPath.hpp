@@ -47,6 +47,12 @@ protected:
         cv::Vec4b& color, std::vector<GradientStop>& stops, GradType& gradType, float& angle);
 
     std::vector<cv::Vec2f> _points; // anchor-handle-anchor-handle ...
+
+    // Point count per contour, partitioning _points. Empty = one contour.
+    // Multi-contour shapes (letter glyphs) are filled as outer/holes groups
+    // (earcut with holes) and stroked one contour at a time.
+    std::vector<size_t> _contourSizes;
+
     bool      _closed      = true;
     float     _strokeWidth = 0.f;
     cv::Vec4b _fillColor   = {0, 0, 0, 0};
@@ -65,10 +71,16 @@ private:
     // Keyed on a FNV-1a hash of _points + scale + rotation.
     // Invalidated when the shape geometry or display scale changes.
     struct GeomCache {
-        std::vector<cv::Vec2f>         localPoly;  // sampled bezier polygon
-        std::vector<uint16_t>          earIndices; // earcut of localPoly (used for solid fills and 2-stop gradients)
-        std::vector<QuadraticBezier2D> curves;     // offset-adjusted bezier segments
+        std::vector<cv::Vec2f>         localPoly;  // sampled fill vertices (outer/holes groups concatenated)
+        std::vector<uint32_t>          earIndices; // earcut of localPoly (used for solid fills and 2-stop gradients)
+        std::vector<QuadraticBezier2D> curves;     // offset-adjusted bezier segments (all contours)
         cv::Size2f                     localSize;  // bounding box dimensions
+
+        // (first curve, curve count) per contour — strokes run one contour at a time.
+        std::vector<std::pair<size_t, size_t>> contourCurves;
+
+        // Largest outer ring of sampled points — boundary for radial/conic fills.
+        std::vector<cv::Vec2f> boundaryRing;
     };
 
     size_t    _lastGeomHash{std::numeric_limits<size_t>::max()};

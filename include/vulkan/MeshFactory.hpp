@@ -140,11 +140,13 @@ struct MeshFactory
         // Cap the miter so spikes at sharp corners never exceed MITER_LIMIT × halfStrokeWidth.
         // Matches the SVG/CSS default miter-limit of 4: angles with interior < ~29° get a
         // small bevel at the tip; everything else is a proper miter join.
-        constexpr float MITER_LIMIT = 4.f;
         float scale = std::min(1.f / cosHalf, MITER_LIMIT);
 
         return bisDir * scale;
     }
+
+    // SVG/CSS default miter limit (stepToCorner's clamp).
+    static constexpr float MITER_LIMIT = 4.f;
 
     int quadraticStrokeSteps(const QuadraticBezier2D &curve) const
     {
@@ -202,7 +204,7 @@ struct MeshFactory
         float r = color[0] / 255.f, g = color[1] / 255.f;
         float b = color[2] / 255.f, a = color[3] / 255.f;
 
-        uint16_t base = vertexCount();
+        uint32_t base = vertexCount();
         mesh.vertices.push_back(Vertex{{nx0, ny0}, {0.0f, 0.0f}, {r, g, b, a}, {1.f, 0.f, 0.f, 0.f}});
         mesh.vertices.push_back(Vertex{{nx1, ny1}, {0.5f, 0.0f}, {r, g, b, a}, {1.f, 0.f, 0.f, 0.f}});
         mesh.vertices.push_back(Vertex{{nx2, ny2}, {1.0f, 1.0f}, {r, g, b, a}, {1.f, 0.f, 0.f, 0.f}});
@@ -300,6 +302,50 @@ private:
 
         float halfW = std::hypot(M(0, 0), M(1, 0)) * localStrokeWidth * 0.5f;
 
+        // Merge adjacent corner samples that sit closer together than the
+        // stroke half-width. Two corners inside one stroke width make their
+        // inner offsets cross, folding the strip into a visible notch (e.g.
+        // the 'B' bowl junction: font data has two ~70° corners 8 font-units
+        // apart). Merged, they form one sharp corner that the bevel join
+        // below covers cleanly. Smooth-curve samples turn only a few degrees
+        // per sample and are never touched.
+        std::vector<bool> mergedCorner(samples.size(), false);
+        if (samples.size() >= 4) {
+            constexpr float   CORNER_COS = 0.94f; // ~20° — anything sharper is a corner
+            size_t            n = samples.size();
+            std::vector<bool> isCorner(n, false);
+            for (size_t idx = 0; idx < n; ++idx) {
+                if (!closed && (idx == 0 || idx + 1 >= n))
+                    continue; // open endpoints have no turn
+                cv::Vec2f in  = normalizeOrZero(samples[idx] - samples[(idx + n - 1) % n]);
+                cv::Vec2f out = normalizeOrZero(samples[(idx + 1) % n] - samples[idx]);
+                isCorner[idx] = dot2d(in, out) < CORNER_COS;
+            }
+
+            size_t w = 0;
+            size_t lastOrig = 0; // original index of samples[w-1]
+            for (size_t rd = 0; rd < n; ++rd) {
+                if (w > 0 && length2d(samples[rd] - samples[w - 1]) < halfW * 0.75f &&
+                    isCorner[lastOrig] && isCorner[rd] && !mergedCorner[w - 1]) {
+                    samples[w - 1]      = (samples[w - 1] + samples[rd]) * 0.5f;
+                    localSamples[w - 1] = (localSamples[w - 1] + localSamples[rd]) * 0.5f;
+                    mergedCorner[w - 1] = true;
+                    continue;
+                }
+                samples[w]      = samples[rd];
+                localSamples[w] = localSamples[rd];
+                mergedCorner[w] = false;
+                lastOrig        = rd;
+                ++w;
+            }
+            samples.resize(w);
+            localSamples.resize(w);
+            mergedCorner.resize(w);
+
+            if (samples.size() < 2)
+                return;
+        }
+
         // Expand geometry slightly so fragment shader pixels exist in the fade zone.
         // Actual fade width is computed per-pixel via fwidth() in the shader.
         constexpr float expand = 1.0f;
@@ -333,8 +379,50 @@ private:
             }
         }
 
-        std::vector<uint16_t> pairBases;
+        std::vector<uint32_t> pairBases;
         pairBases.reserve(samples.size());
+
+        // World-space data per emitted pair — used after the loop to detect
+        // twisted strip quads (offset edges crossing at tight corners) and to
+        // patch them with round-join discs.
+        struct PairInfo {
+            cv::Vec2f point, neg, pos;
+            cv::Vec4f color;
+        };
+        std::vector<PairInfo> pairInfos;
+        pairInfos.reserve(samples.size());
+
+        // Merged-corner join positions — discs are stamped after the strip,
+        // at the corner and at every sample within one stroke radius of it,
+        // so their union forms a smooth capsule along the centerline (the
+        // exact offset boundary near the joint, hiding the strip's folds).
+        std::vector<cv::Vec2f> joinCenters;
+
+        // Full disc of the stroke radius (SVG stroke-linejoin: round): center
+        // vertex solid, rim on the stroke boundary so AA matches the strip.
+        auto emitJoinDisc = [&](const cv::Vec2f &centerW, const cv::Vec4f &c) {
+            constexpr int JOIN_SEGS = 20;
+            if (mesh.vertices.size() + JOIN_SEGS + 2 > 250000)
+                return; // uint16 index budget — degrade gracefully
+
+            cv::Vec2f centerNdc = toNdcPoint(centerW);
+            uint32_t  center    = vertexCount();
+            mesh.vertices.push_back(Vertex{{centerNdc[0], centerNdc[1]}, {0.f, halfW}, {c[0], c[1], c[2], c[3]}, {2.f, 0.f, 0.f, 0.f}});
+
+            uint32_t prevRim = 0;
+            for (int k = 0; k <= JOIN_SEGS; ++k) {
+                float     ang = 2.f * static_cast<float>(M_PI) * static_cast<float>(k) / static_cast<float>(JOIN_SEGS);
+                cv::Vec2f rimNdc = toNdcPoint(centerW + cv::Vec2f{std::cos(ang), std::sin(ang)} * halfW_expanded);
+                uint32_t  rim    = vertexCount();
+                mesh.vertices.push_back(Vertex{{rimNdc[0], rimNdc[1]}, {halfW_expanded, halfW}, {c[0], c[1], c[2], c[3]}, {2.f, 0.f, 0.f, 0.f}});
+                if (k > 0) {
+                    mesh.indices.push_back(center);
+                    mesh.indices.push_back(prevRim);
+                    mesh.indices.push_back(rim);
+                }
+                prevRim = rim;
+            }
+        };
 
         auto sampleAt = [&](int index) -> const cv::Vec2f & {
             int n = static_cast<int>(samples.size());
@@ -363,8 +451,7 @@ private:
                 continue;
             }
 
-            bool      isEndpoint = !closed && (i == 0 || i + 1 == samples.size());
-            cv::Vec2f step = stepToCorner(prevDir, nextDir, isEndpoint);
+            bool isEndpoint = !closed && (i == 0 || i + 1 == samples.size());
 
             float vr = r, vg = g, vb = b, va = a;
             if (gradientDir) {
@@ -372,24 +459,51 @@ private:
                 vr = c[0]; vg = c[1]; vb = c[2]; va = c[3];
             }
 
-            uint16_t base = vertexCount();
-            pairBases.push_back(base);
+            auto emitPair = [&](const cv::Vec2f &step) {
+                uint32_t base = vertexCount();
+                pairBases.push_back(base);
 
-            if (insideOnly) {
-                // Inside stroke: solid strip from the shape boundary inward by strokeWidth.
-                // Outer vertex uv.x = halfW so the fragment shader places it at the clip
-                // threshold, giving AA at the polygon boundary edge. Inner vertex uv.x = 0
-                // (fully inside the stroke, covered by the fill — no fade needed there).
-                cv::Vec2f outerNdc = toNdcPoint(point);
-                cv::Vec2f innerNdc = toNdcPoint(point + step * 2.f * halfW);
-                mesh.vertices.push_back(Vertex{{outerNdc[0], outerNdc[1]}, {halfW, halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
-                mesh.vertices.push_back(Vertex{{innerNdc[0], innerNdc[1]}, {0.f,   halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
+                if (insideOnly) {
+                    // Inside stroke: solid strip from the shape boundary inward by strokeWidth.
+                    // Outer vertex uv.x = halfW so the fragment shader places it at the clip
+                    // threshold, giving AA at the polygon boundary edge. Inner vertex uv.x = 0
+                    // (fully inside the stroke, covered by the fill — no fade needed there).
+                    cv::Vec2f outerW = point;
+                    cv::Vec2f innerW = point + step * 2.f * halfW;
+                    cv::Vec2f outerNdc = toNdcPoint(outerW);
+                    cv::Vec2f innerNdc = toNdcPoint(innerW);
+                    mesh.vertices.push_back(Vertex{{outerNdc[0], outerNdc[1]}, {halfW, halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
+                    mesh.vertices.push_back(Vertex{{innerNdc[0], innerNdc[1]}, {0.f,   halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
+                    pairInfos.push_back({point, outerW, innerW, {vr, vg, vb, va}});
+                } else {
+                    // Centered stroke: ±halfW_expanded around the path centerline
+                    cv::Vec2f negW = point - step * halfW_expanded;
+                    cv::Vec2f posW = point + step * halfW_expanded;
+                    cv::Vec2f negNdc = toNdcPoint(negW);
+                    cv::Vec2f posNdc = toNdcPoint(posW);
+                    mesh.vertices.push_back(Vertex{{negNdc[0], negNdc[1]}, {-halfW_expanded, halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
+                    mesh.vertices.push_back(Vertex{{posNdc[0], posNdc[1]}, {halfW_expanded,  halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
+                    pairInfos.push_back({point, negW, posW, {vr, vg, vb, va}});
+                }
+            };
+
+            if (!isEndpoint && i < mergedCorner.size() && mergedCorner[i]) {
+                // Round join — only at merged corners (two font corners that
+                // sat closer than the stroke width): one pair per adjoining
+                // segment, each offset exactly perpendicular to its own
+                // segment, plus a disc so the two stroke ends flow together
+                // with a rounded tip. Ordinary corners keep the classic
+                // miter, so triangles/arrows render exactly as before.
+                emitPair(leftNormal(prevDir));
+                emitPair(leftNormal(nextDir));
+
+                if (!insideOnly) {
+                    // Centered strokes: round-join disc at the band midline,
+                    // stamped after the strip (with its capsule neighbours).
+                    joinCenters.push_back((pairInfos.back().neg + pairInfos.back().pos) * 0.5f);
+                }
             } else {
-                // Centered stroke: ±halfW_expanded around the path centerline
-                cv::Vec2f negNdc = toNdcPoint(point - step * halfW_expanded);
-                cv::Vec2f posNdc = toNdcPoint(point + step * halfW_expanded);
-                mesh.vertices.push_back(Vertex{{negNdc[0], negNdc[1]}, {-halfW_expanded, halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
-                mesh.vertices.push_back(Vertex{{posNdc[0], posNdc[1]}, {halfW_expanded,  halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
+                emitPair(stepToCorner(prevDir, nextDir, isEndpoint));
             }
         }
 
@@ -397,16 +511,52 @@ private:
             return;
         }
 
+        for (const auto &jc : joinCenters) {
+            emitJoinDisc(jc, pairInfos.empty() ? cv::Vec4f{r, g, b, a} : pairInfos.front().color);
+            for (const auto &pi : pairInfos) {
+                cv::Vec2f mid = (pi.neg + pi.pos) * 0.5f;
+                if (length2d(mid - jc) < halfW_expanded && length2d(mid - jc) > 1e-3f)
+                    emitJoinDisc(mid, pi.color);
+            }
+        }
+
         size_t stripCount = closed ? pairBases.size() : pairBases.size() - 1;
         for (size_t i = 0; i < stripCount; ++i) {
-            uint16_t base0 = pairBases[i];
-            uint16_t base1 = pairBases[(i + 1) % pairBases.size()];
+            size_t   j     = (i + 1) % pairBases.size();
+            uint32_t base0 = pairBases[i];
+            uint32_t base1 = pairBases[j];
             mesh.indices.push_back(base0);
             mesh.indices.push_back(base0 + 1);
             mesh.indices.push_back(base1);
             mesh.indices.push_back(base0 + 1);
             mesh.indices.push_back(base1 + 1);
             mesh.indices.push_back(base1);
+
+            // Twisted quad: at corners tighter than the stroke width the two
+            // offset edges cross (or reverse), leaving uncovered slivers —
+            // visible notches through stroked glyph joints. Patch both ends
+            // with round-join discs; they cover everything the bowtie misses.
+            {
+                const PairInfo &p0 = pairInfos[i];
+                const PairInfo &p1 = pairInfos[j];
+
+                auto orient = [](const cv::Vec2f &p, const cv::Vec2f &q, const cv::Vec2f &r) {
+                    return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0]);
+                };
+                auto edgesCross = [&](const cv::Vec2f &a, const cv::Vec2f &b,
+                                      const cv::Vec2f &c, const cv::Vec2f &d) {
+                    float o1 = orient(a, b, c), o2 = orient(a, b, d);
+                    float o3 = orient(c, d, a), o4 = orient(c, d, b);
+                    return ((o1 > 0.f) != (o2 > 0.f)) && ((o3 > 0.f) != (o4 > 0.f));
+                };
+
+                bool reversed = dot2d(p1.pos - p0.pos, p1.neg - p0.neg) < 0.f;
+                bool crossed  = edgesCross(p0.neg, p1.neg, p0.pos, p1.pos);
+                if (reversed || crossed) {
+                    emitJoinDisc((p0.neg + p0.pos) * 0.5f, p0.color);
+                    emitJoinDisc((p1.neg + p1.pos) * 0.5f, p1.color);
+                }
+            }
         }
     }
 
@@ -475,18 +625,18 @@ public:
         return result;
     }
 
-    uint16_t vertexCount() const
+    uint32_t vertexCount() const
     {
-        return static_cast<uint16_t>(mesh.vertices.size());
+        return static_cast<uint32_t>(mesh.vertices.size());
     }
 
-    MeshFactory &addIndex(uint16_t idx)
+    MeshFactory &addIndex(uint32_t idx)
     {
         mesh.indices.push_back(idx);
         return *this;
     }
 
-    MeshFactory &setIndices(std::vector<uint16_t> indices)
+    MeshFactory &setIndices(std::vector<uint32_t> indices)
     {
         mesh.indices = std::move(indices);
         return *this;

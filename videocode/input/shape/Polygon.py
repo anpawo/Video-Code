@@ -18,6 +18,8 @@ class Polygon(Input):
         "fillColor",
         "strokeColor",
         "strokeWidth",
+        "open",
+        "contourSizes",
     }
 
     @inputCreation
@@ -29,6 +31,7 @@ class Polygon(Input):
         strokeWidth: wufloat,
         cornerRadius: percent = 0,
         sharpCorners: set[int] = set(),
+        open: bool = False,
     ):
         self.vertices = vertices
         self.fillColor = fillColor
@@ -36,10 +39,21 @@ class Polygon(Input):
         self.strokeWidth = strokeWidth
         self.cornerRadius = cornerRadius
         self.sharpCorners = sharpCorners
+        self.open = open
         self.points = self.buildPoints()
 
     @abstractmethod
     def generateVertices(self) -> list[point]: ...
+
+    def generateRawContours(self) -> maybe[list[list[point]]]:
+        """
+        Subclass hook: per-contour anchor-handle control points used verbatim
+        by buildPoints (no corner emission, no reversal). Multiple contours
+        render as one shape — the first ring of each outer/holes group is
+        filled with earcut holes and every contour is stroked separately
+        (Letter glyphs, Circle). None = derive points from self.vertices.
+        """
+        return None
 
     def updatePoints(self):
         self.vertices = self.generateVertices()
@@ -60,12 +74,25 @@ class Polygon(Input):
 
     def buildPoints(self) -> list[point]:
         """
-        Build 4n bezier control points from self.vertices and self.cornerRadius.
+        Build bezier control points (anchor-handle pairs) from self.vertices
+        and self.cornerRadius.
 
         Iterates in reversed vertex order so C++ only needs to negate y (no reversal).
 
-        Each corner produces: arcStart, cornerHandle, arcEnd, connectorMidpoint.
+        Closed (default): each corner produces 4 points —
+        arcStart, cornerHandle, arcEnd, connectorMidpoint — and the path wraps
+        back to the first corner.
+
+        Open: straight segments between consecutive vertices, interior corners
+        rounded by cornerRadius, endpoints always sharp; the final anchor gets
+        a dummy handle (C++ drops the wrap segment when open). No fill is drawn.
         """
+
+        raw = self.generateRawContours()
+        if raw is not None:
+            self.contourSizes = [len(c) for c in raw] if len(raw) > 1 else []
+            return [p for c in raw for p in c]
+        self.contourSizes = []
 
         verts = self.vertices
         n = len(verts)
@@ -74,6 +101,9 @@ class Polygon(Input):
 
         frac = self.cornerRadius / 100.0
         rev = list(reversed(verts))
+
+        if self.open:
+            return self._buildOpenPoints(rev, frac)
 
         # Fast path: no rounded corners — skip all dist/unit work.
         # Output is identical to the general path with r=0 everywhere:
@@ -115,6 +145,54 @@ class Polygon(Input):
             bezier.append(rev[i])
             bezier.append(arcEnd[i])
             bezier.append(mid)
+        return bezier
+
+    def _buildOpenPoints(self, rev: list[point], frac: float) -> list[point]:
+        """
+        Anchor-handle pairs for an open path: a quadratic corner curve per
+        rounded interior vertex (endpoints stay sharp) and a straight segment
+        curve between vertices. With cornerRadius=0 this emits exactly
+        [v0, mid01, v1, mid12, ..., vLast, vLast] — one curve per segment.
+        """
+
+        n = len(rev)
+
+        def dist(a, b):
+            return math.hypot(b[0] - a[0], b[1] - a[1])
+
+        def unit(a, b):
+            d = dist(a, b)
+            return ((b[0] - a[0]) / d, (b[1] - a[1]) / d) if d > 1e-9 else (0.0, 0.0)
+
+        # Sharp endpoints: arcStart = arcEnd = vertex. Interior vertices round
+        # like closed corners (index mapped back to original vertex order for
+        # sharpCorners, matching buildPoints' reversed iteration).
+        arcStart = list(rev)
+        arcEnd = list(rev)
+        if frac > 0:
+            for i in range(1, n - 1):
+                maxR = min(dist(rev[i], rev[i - 1]), dist(rev[i], rev[i + 1])) * 0.5
+                r = 0 if (n - 1 - i) in self.sharpCorners else frac * maxR
+                uIn = unit(rev[i], rev[i - 1])
+                uOut = unit(rev[i], rev[i + 1])
+                arcStart[i] = (rev[i][0] + uIn[0] * r, rev[i][1] + uIn[1] * r)
+                arcEnd[i] = (rev[i][0] + uOut[0] * r, rev[i][1] + uOut[1] * r)
+
+        bezier = []
+        for i in range(n - 1):
+            if arcStart[i] != arcEnd[i]:
+                # Rounded corner: curve from arcStart through the vertex to arcEnd.
+                bezier.append(arcStart[i])
+                bezier.append(rev[i])
+            mid = ((arcEnd[i][0] + arcStart[i + 1][0]) / 2, (arcEnd[i][1] + arcStart[i + 1][1]) / 2)
+            bezier.append(arcEnd[i])
+            bezier.append(mid)
+        if arcStart[n - 1] != arcEnd[n - 1]:
+            bezier.append(arcStart[n - 1])
+            bezier.append(rev[n - 1])
+        # Terminal anchor + dummy handle to keep the even pair format.
+        bezier.append(arcEnd[n - 1])
+        bezier.append(arcEnd[n - 1])
         return bezier
 
     def contains(self, x: wnumber, y: wnumber) -> bool:

@@ -49,7 +49,7 @@ Mesh Text::getMesh(const Metadata &meta, const Config &config)
 
     for (unsigned char c : text) {
         const GlyphMesh &g = cache.get(c);
-        uint16_t         base = factory.vertexCount();
+        uint32_t         base = factory.vertexCount();
 
         for (const auto &v : g.vertices) {
             // v[1] is negative above baseline, positive below — shift by ascender
@@ -59,7 +59,7 @@ Mesh Text::getMesh(const Metadata &meta, const Config &config)
         }
 
         for (auto idx : g.indices) {
-            factory.addIndex(base + static_cast<uint16_t>(idx));
+            factory.addIndex(base + static_cast<uint32_t>(idx));
         }
 
         cursorX += g.advance * fontSize;

@@ -2,9 +2,8 @@
 
 
 from typing import TYPE_CHECKING, Callable, Self
-from videocode.input.input import Input
+from videocode.input.shape.Polygon import Polygon
 from videocode.utils.bezier import Easing
-from videocode.utils.decorators import inputCreation
 from videocode.ty import *
 from videocode.constants import *
 
@@ -13,27 +12,35 @@ if TYPE_CHECKING:
     from videocode.template.input.Graph import Graph
 
 
-class Curve(Input):
-    cppName = "Curve"
-    cppAttrs = {
-        "points",
-        "strokeColor",
-        "strokeWidth",
-    }
+class Curve(Polygon):
+    """
+    An open polyline — a `Polygon` with `open=True`: no fill, the path does
+    not close back to its start, and the points keep absolute (world)
+    coordinates relative to the `Input`'s `position()`.
+    """
 
-    @inputCreation
     def __init__(
         self,
         points: list[point],
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.025,
+        cornerRadius: percent = 0,
     ):
-        self.points = points
-        self.strokeColor = strokeColor
-        self.strokeWidth = strokeWidth
+        super().__init__(
+            vertices=list(points),
+            fillColor=TRANSPARENT,
+            strokeColor=strokeColor,
+            strokeWidth=strokeWidth,
+            cornerRadius=cornerRadius,
+            open=True,
+        )
+
+    def generateVertices(self) -> list[point]:
+        # Curve vertices are user-provided, not derived from parameters.
+        return self.vertices
 
     def animate(self, duration: sec = 0.4, easing=Easing.InOut) -> Self:
-        allPoints = list(self.points)
+        allPoints = list(self.vertices)
         n = int(duration * FRAMERATE)
         lastCount = 0
 
@@ -41,7 +48,8 @@ class Curve(Input):
             t = i / (n - 1)
             count = max(2, round(easing(t) * len(allPoints)))
             if count != lastCount:
-                self.points = allPoints[:count]
+                self.vertices = allPoints[:count]
+                self.points = self.buildPoints()
                 lastCount = count
             self.flush()
 
@@ -90,7 +98,8 @@ class FunctionGraph(Curve):
 
         points = self.generatePoints()
         self.alignOrdinate()
-        self.points = points
+        self.vertices = points
+        self.points = self.buildPoints()
         self.flush()
 
     def alignOrdinate(self):

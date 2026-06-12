@@ -18,7 +18,15 @@ void Polygon::buildPath(const json::object_t& args)
     _strokeWidth = args.at("strokeWidth").get<float>() * config::worldToPixelRatio;
     parseColorOrGradient(args, "fillColor",   _fillColor,   _fillStops,   _fillGradType,   _fillGradientAngle);
     parseColorOrGradient(args, "strokeColor", _strokeColor, _strokeStops, _strokeGradType, _strokeGradientAngle);
-    _closed = true;
+    // Open paths (Curve, …): stroke only, no closing segment, and the points
+    // keep their absolute coordinates (no bbox normalization in getMesh).
+    _closed = !(args.contains("open") && args.at("open").get<bool>());
+
+    // Multi-contour shapes (letter glyphs): point count per contour.
+    _contourSizes.clear();
+    if (args.contains("contourSizes"))
+        for (const auto& s : args.at("contourSizes"))
+            _contourSizes.push_back(s.get<size_t>());
 
     int n = static_cast<int>(raw.size());
     if (n < 4 || n % 2 != 0)

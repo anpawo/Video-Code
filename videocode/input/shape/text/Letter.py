@@ -40,12 +40,17 @@ class Letter(Polygon):
             strokeWidth=strokeWidth,
         )
 
-    def generateVertices(self) -> list[point]:
+    def generateRawContours(self) -> list[list[point]]:
+        # Glyph contours stay separate (outer outlines + holes) — the renderer
+        # fills them via earcut-with-holes and strokes each one on its own.
         path = _helper.fontPath(self.fontFamily, self.bold, self.italic)
         ft, _, _, capH, _ = _helper.loadFaces(path)
         glyph = ft.get_char_index(ord(self.char)) if self.char else 0
         scale = self.fontSize / capH if capH else 0
-        return [(x * scale, y * scale) for x, y in _helper._glyphVerts(path, glyph)]
+        return [[(x * scale, y * scale) for x, y in c] for c in _helper._glyphContours(path, glyph)]
+
+    def generateVertices(self) -> list[point]:
+        return [p for c in self.generateRawContours() for p in c]
 
     @prop(onSet=Polygon.updatePoints)
     def char() -> str: ...

@@ -15,8 +15,6 @@
 #include "input/IInput.hpp"
 #include "input/media/Image.hpp"
 #include "input/media/Video.hpp"
-#include "input/shape/Circle.hpp"
-#include "input/shape/Curve.hpp"
 #include "input/shape/Polygon.hpp"
 #include "input/text/Text.hpp"
 
@@ -38,7 +36,5 @@ namespace Factory
 
         ///< Shape
         input(Polygon),
-        input(Circle),
-        input(Curve),
     };
 };

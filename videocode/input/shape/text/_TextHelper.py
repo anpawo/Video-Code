@@ -74,27 +74,16 @@ def shape(text: str, hb_font: Any, features: dict[str, bool] | None = None) -> t
     return buf.glyph_infos, buf.glyph_positions
 
 
-def signedArea(pts: list[tuple[float, float]]) -> float:
-    n = len(pts)
-    total = 0.0
-    for i in range(n):
-        j = (i + 1) % n
-        total += pts[i][0] * pts[j][1] - pts[j][0] * pts[i][1]
-    return total / 2.0
+def walkContourQuadratics(rawPts: list, tags: list[int]) -> list[tuple[float, float]]:
+    """
+    Closed anchor-handle pairs [a0, h0, a1, h1, …] from one FreeType contour.
 
-
-def bridge(a: list[tuple], b: list[tuple]) -> list[tuple]:
-    best = float("inf")
-    ai = bi = 0
-    for i, ap in enumerate(a):
-        for j, bp in enumerate(b):
-            d = (ap[0] - bp[0]) ** 2 + (ap[1] - bp[1]) ** 2
-            if d < best:
-                best, ai, bi = d, i, j
-    return a[: ai + 1] + b[bi:] + b[: bi + 1] + a[ai:]
-
-
-def walkContour(rawPts: list, tags: list[int]) -> list[tuple[float, float]]:
+    Conic (TrueType quadratic) segments pass through as TRUE quadratics — the
+    renderer tessellates them adaptively to on-screen pixel size, so glyphs
+    stay smooth at any fontSize (fixed-step sampling left visible kinks on big
+    letters). Straight segments get midpoint handles; cubic segments (CFF
+    fonts) are still sampled at _STEPS and emitted as straight pairs.
+    """
     n = len(rawPts)
     if n < 2:
         return []
@@ -102,18 +91,35 @@ def walkContour(rawPts: list, tags: list[int]) -> list[tuple[float, float]]:
     tg = [t & 3 for t in tags]
     ON, CONIC, CUBIC = 1, 0, 2
 
-    start = next((k for k in range(n) if tg[k] == ON), 0)
+    start = next((k for k in range(n) if tg[k] == ON), None)
+    if start is None:
+        # All-off-curve contour (TrueType allows it): the implied on-curve
+        # midpoint between the last and first control points starts the path.
+        pts = [((pts[-1][0] + pts[0][0]) / 2, (pts[-1][1] + pts[0][1]) / 2)] + pts
+        tg = [ON] + tg
+        n += 1
+        start = 0
     pts = pts[start:] + pts[:start]
     tg = tg[start:] + tg[:start]
 
-    result: list[tuple[float, float]] = [pts[0]]
+    pairs: list[tuple[float, float]] = []
+    cur = pts[0]
+
+    def line(to: tuple[float, float]):
+        nonlocal cur
+        if to == cur:
+            return
+        pairs.append(cur)
+        pairs.append(((cur[0] + to[0]) / 2, (cur[1] + to[1]) / 2))
+        cur = to
+
     i = 1
     while i < n:
         if tg[i] == ON:
-            result.append(pts[i])
+            line(pts[i])
             i += 1
         elif tg[i] == CUBIC and i + 2 < n:
-            x0, y0 = result[-1]
+            x0, y0 = cur
             x1, y1 = pts[i]
             x2, y2 = pts[i + 1]
             x3, y3 = (
@@ -127,84 +133,87 @@ def walkContour(rawPts: list, tags: list[int]) -> list[tuple[float, float]]:
             for s in range(1, _STEPS + 1):
                 t = s / _STEPS
                 mt = 1 - t
-                result.append(
+                line(
                     (
                         mt**3 * x0 + 3 * mt**2 * t * x1 + 3 * mt * t**2 * x2 + t**3 * x3,
                         mt**3 * y0 + 3 * mt**2 * t * y1 + 3 * mt * t**2 * y2 + t**3 * y3,
                     )
                 )
             i += 3 if i + 2 < n and tg[i + 2] == ON else 2
-        else:  # CONIC or stray CUBIC
+        else:  # CONIC run (or stray CUBIC tag)
             ctrls: list[tuple[float, float]] = [pts[i]]
             j = i + 1
             while j < n and tg[j] == CONIC:
                 ctrls.append(pts[j])
                 j += 1
-            endPt = (
-                pts[j]
-                if j < n
-                else (
-                    (ctrls[-1][0] + pts[0][0]) / 2,
-                    (ctrls[-1][1] + pts[0][1]) / 2,
-                )
-            )
-            cur = result[-1]
+            # The run ends on the next on-curve point, or closes back to the
+            # contour start when the conic is the trailing segment.
+            endPt = pts[j] if j < n else pts[0]
             for k, ctrl in enumerate(ctrls):
                 nxt = ((ctrl[0] + ctrls[k + 1][0]) / 2, (ctrl[1] + ctrls[k + 1][1]) / 2) if k < len(ctrls) - 1 else endPt
-                x0, y0 = cur
-                x1, y1 = ctrl
-                x2, y2 = nxt
-                for s in range(1, _STEPS + 1):
-                    t = s / _STEPS
-                    mt = 1 - t
-                    result.append((mt**2 * x0 + 2 * mt * t * x1 + t**2 * x2, mt**2 * y0 + 2 * mt * t * y1 + t**2 * y2))
+                pairs.append(cur)
+                pairs.append(ctrl)
                 cur = nxt
             i = j + (1 if j < n and tg[j] == ON else 0)
-    return result
+
+    # Close the path back to the first anchor with a straight segment if the
+    # walk didn't already end there (conic closures end exactly at pts[0]).
+    line(pts[0])
+    return pairs
 
 
 @cache
-def _glyphVerts(path: str, glyphId: int) -> list[tuple[float, float]]:
-    """Unscaled vertices for a glyph: toAnchorHandle(mergeContours(rawContours)) in font units."""
+def _glyphContours(path: str, glyphId: int) -> tuple[tuple[tuple[float, float], ...], ...]:
+    """
+    Unscaled per-contour control points (anchor-handle pairs) in font units.
+
+    Contours stay separate — the renderer fills outer+holes via earcut-with-holes
+    and strokes each contour on its own, so no bridge edges exist to be stroked
+    or to break at partial opacity.
+    """
     ft, *_ = loadFaces(path)
     ft.load_glyph(glyphId, _FT_FLAGS)
     ol = ft.glyph.outline
     if not ol.points:
-        return []
+        return ()
     raw = list(ol.points)
     tags = list(ol.tags)
     ends = list(ol.contours)
-    contours: list[list[tuple[float, float]]] = []
+    contours: list[tuple[tuple[float, float], ...]] = []
     start = 0
     for end in ends:
-        walked = walkContour(raw[start : end + 1], tags[start : end + 1])
-        if len(walked) >= 3:
-            contours.append(walked)
+        pairs = walkContourQuadratics(raw[start : end + 1], tags[start : end + 1])
+        if len(pairs) >= 6:
+            # Reversed to keep the same winding the legacy vertex pathway
+            # produced (it iterated reversed(verts)) — stroke extrusion
+            # direction depends on it.
+            contours.append(tuple(reversePairs(pairs)))
         start = end + 1
-    if not contours:
-        return []
-    return toAnchorHandle(mergeContours(contours))
+    return tuple(contours)
 
 
-def mergeContours(contours: list[list[tuple[float, float]]]) -> list[tuple[float, float]]:
-    outer = max(contours, key=lambda c: abs(signedArea(c)))
-    merged = list(outer)
-    for c in contours:
-        if c is not outer:
-            merged = bridge(merged, c)
-    return merged
+def _glyphVerts(path: str, glyphId: int) -> list[tuple[float, float]]:
+    """Flattened control points across all contours — bbox/min computations only."""
+    return [p for c in _glyphContours(path, glyphId) for p in c]
 
 
-def toAnchorHandle(pts: list[tuple]) -> list[tuple]:
-    n = len(pts)
-    if n < 3:
-        return []
-    result = [pts[0]]
-    for i in range(n - 1):
-        result.append(((pts[i][0] + pts[i + 1][0]) / 2, (pts[i][1] + pts[i + 1][1]) / 2))
-        result.append(pts[i + 1])
-    result.append(((pts[-1][0] + pts[0][0]) / 2, (pts[-1][1] + pts[0][1]) / 2))
-    return result
+def reversePairs(pairs: list[tuple[float, float]]) -> list[tuple[float, float]]:
+    """
+    Reverse the winding of a closed anchor-handle pair list.
+
+    With anchors A0..Am-1 and handles H0..Hm-1 (Hi sits between Ai and Ai+1),
+    the reversed path is [A0, Hm-1, Am-1, Hm-2, …, A1, H0] — same curves,
+    opposite traversal direction.
+    """
+    anchors = pairs[0::2]
+    handles = pairs[1::2]
+    m = len(anchors)
+    out: list[tuple[float, float]] = [anchors[0]]
+    for k in range(1, m):
+        out.append(handles[m - k])
+        out.append(anchors[m - k])
+    out.append(handles[0])
+    return out
 
 
 @cache

@@ -141,7 +141,7 @@ Mesh Video::getMesh(const Metadata& meta, const Config& config)
     MeshFactory factory({w, h}, meta, config);
 
     float    opacity = meta.opacity / 255.f;
-    uint16_t base    = factory.vertexCount();
+    uint32_t base    = factory.vertexCount();
     factory.addVertex(0.f, 0.f, 0.f, 0.f, opacity);
     factory.addVertex(w,   0.f, 1.f, 0.f, opacity);
     factory.addVertex(w,   h,   1.f, 1.f, opacity);
