@@ -151,11 +151,15 @@ int VC::Compiler::generateVideo()
         const auto& meshes = _core.generateMeshes();
         renderer.setMeshes(meshes);
 
+        // readFrame() is one-frame pipeline-delayed: it returns the PREVIOUS
+        // frame's pixels (empty on the first call) while this frame's GPU
+        // work runs asynchronously. The final frame is retrieved via flush()
+        // after the loop.
         cv::Mat frame = renderer.readFrame();
-        if (!frame.isContinuous())
-            frame = frame.clone();
+        if (!frame.empty()) {
+            if (!frame.isContinuous())
+                frame = frame.clone();
 
-        {
             std::unique_lock lock(mtx);
             notFull.wait(lock, [&] { return queue.size() < QUEUE_CAP || writeFailed; });
             if (writeFailed) {
@@ -163,10 +167,26 @@ int VC::Compiler::generateVideo()
                 break;
             }
             queue.push_back(std::move(frame));
+            lock.unlock();
+            notEmpty.notify_one();
         }
-        notEmpty.notify_one();
 
         std::cout << std::format("\rGenerating frame {}/{}...", i + 1, total) << std::flush;
+    }
+
+    {
+        cv::Mat frame = renderer.flush();
+        if (!frame.empty()) {
+            if (!frame.isContinuous())
+                frame = frame.clone();
+
+            std::unique_lock lock(mtx);
+            notFull.wait(lock, [&] { return queue.size() < QUEUE_CAP || writeFailed; });
+            if (!writeFailed)
+                queue.push_back(std::move(frame));
+            lock.unlock();
+            notEmpty.notify_one();
+        }
     }
 
     {
@@ -188,7 +208,10 @@ int VC::Compiler::generateImage(VulkanHeadlessRenderer& renderer)
     const auto& meshes = _core.generateMeshes();
     renderer.setMeshes(meshes);
 
-    cv::Mat frame = renderer.readFrame();
+    // readFrame() returns the previous (nonexistent) frame's pixels — empty —
+    // so the actual frame is retrieved via flush().
+    renderer.readFrame();
+    cv::Mat frame = renderer.flush();
     if (!frame.isContinuous())
         frame = frame.clone();
 

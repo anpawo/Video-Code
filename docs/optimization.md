@@ -107,3 +107,77 @@ contient plus jamais ces tableaux, donc même les clones pour les autres champs
 Vérification : les 19 tests de régression visuelle passent (différence
 moyenne 0,0), y compris `reload-equivalence` qui exerce
 `AInput::resetModifications()`.
+
+## Optimisation suivante (12/06/2026) : chaîne d'appels Python (`apply`)
+
+Benchmark : `VC_PROFILE=1 ./video-code --file test/perf/stress_text.py
+--generate <out>` (profil cProfile intégré à `serialize.py`).
+
+Le profil cumulatif a montré plusieurs petits surcoûts répétés des milliers de
+fois dans `Input.apply()` et `IShader.resolve()` : le monade `Maybe(x) | y`
+(allocation + appel de méthode) pour de simples valeurs par défaut, et
+`copy.copy()` (passe par `__reduce_ex__`/copyregistry) pour dupliquer chaque
+shader appliqué.
+
+Correctifs, tous comportementalement neutres :
+- `IShader.resolve()` et les 3 sites `Maybe(...).orElse(...)` /
+  `Maybe(...) | ...` de `Input.apply()` inlinés en
+  `x if x is not None else y`.
+- `IShader.__copy__()` ajouté : `cls.__new__(cls)` + `__dict__.update()` au
+  lieu du protocole `copy.copy()` générique.
+- `Offset._sync()` met en cache `cos`/`sin` de l'angle au lieu de les
+  recalculer deux fois.
+- `upperFirst()` (`funcutils.py`) décoré `@lru_cache` (ensemble fixe de noms
+  de classes de shaders), et `Input.apply()` réutilise `__end = __start +
+  __duration` au lieu de le recalculer.
+
+| | Avant | Après | Gain |
+|---|---|---|---|
+| `execScene` (stress_text, cProfile) | 0,616 s | 0,371 s | **~40 %** |
+
+Vérification : les 19 tests de régression visuelle passent (différence
+moyenne 0,0), y compris `reload-equivalence`.
+
+Note : `copy.copy()` n'a volontairement pas été supprimé partout — seul le
+chemin rapide `__copy__` a été ajouté. `position.modify()` mute `self`
+(`self.x = i.meta.position.x = self.x if self.x is not None else
+i.meta.position.x`) pour combler les valeurs `None` ; sans la copie, un seul
+shader appliqué à plusieurs enfants verrait le premier enfant résolu corrompre
+les suivants.
+
+## Optimisation suivante (12/06/2026) : recouvrement GPU/CPU dans `readFrame`
+
+`VulkanHeadlessRenderer::readFrame()` se terminait par `vkQueueSubmit` +
+`vkQueueWaitIdle` puis une copie ligne par ligne de l'image de lecture vers un
+`cv::Mat` — entièrement séquentiel (mesuré sur `stress_morph.py` : ~5,4 ms de
+soumission+attente, ~1,4 ms de copie mémoire).
+
+Correctif : image de lecture **doublée** (`m_readbackImages[2]` /
+`m_readbackMemories[2]`) + une **fence** (`m_renderFence`), pipeline décalé
+d'une frame. `readFrame()` : si une soumission précédente est en attente,
+attend sa fence puis copie ses pixels (ce `memcpy` recouvre désormais le rendu
+GPU de la nouvelle frame) — le GPU étant alors inactif, les ressources
+partagées (UBO, buffers de sommets/indices, command buffer) peuvent être
+réécrites sans risque ; soumet ensuite la nouvelle frame dans l'autre
+emplacement de lecture sans attendre. Renvoie un `cv::Mat` vide au premier
+appel. Nouvelle méthode `flush()` pour récupérer la dernière frame en attente
+après la boucle de rendu.
+
+Sites d'appel adaptés : `Compiler::generateImage()` (`readFrame()` puis
+`flush()`), `Compiler::generateVideo()` (la file d'écriture ne reçoit que les
+résultats non vides, `flush()` après la boucle pour la dernière frame),
+`VisualTest::captureFrames()` (décalage d'index `i-1` dans la boucle, `flush()`
+pour la dernière frame demandée).
+
+| | Avant | Après |
+|---|---|---|
+| Rendu (`bench.py`, stress_text) | 7,1 ms/frame | 6,7–6,8 ms/frame |
+
+Vérification : les 19 tests de régression visuelle passent (différence
+moyenne 0,0) ; export vidéo réel (`animation.py`, 36 frames, durée/nombre de
+frames vérifiés via `ffprobe`) et export image unique testés. Le gain est plus
+faible que ce que suggérait le ratio mesuré sur `stress_morph` : `stress_text`
+a une charge GPU plus lourde, donc la copie mémoire masquée représente une
+fraction plus petite du temps par frame. `VulkanWidget` (aperçu temps réel)
+n'a pas été modifié — la même idée ne s'applique que « si l'aperçu se met à
+ramer » (`wherewasi`).

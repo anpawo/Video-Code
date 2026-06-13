@@ -53,17 +53,30 @@ namespace
         size_t               maxFrame = *std::max_element(frames.begin(), frames.end());
         std::vector<cv::Mat> captured(frames.size());
 
+        auto store = [&](size_t frameIdx, cv::Mat mat) {
+            if (!mat.isContinuous())
+                mat = mat.clone();
+            for (size_t j = 0; j < frames.size(); ++j)
+                if (frames[j] == frameIdx)
+                    captured[j] = mat.clone();
+        };
+
+        // readFrame() is one-frame pipeline-delayed: it returns frame (i-1)'s
+        // pixels (empty on the first call). The final submitted frame is
+        // retrieved via flush() after the loop.
         for (size_t i = 0; i <= maxFrame && i < core._nbFrame; ++i) {
             const auto& meshes = core.generateMeshes();
             renderer.setMeshes(meshes);
 
             cv::Mat frame = renderer.readFrame();
-            if (!frame.isContinuous())
-                frame = frame.clone();
+            if (!frame.empty())
+                store(i - 1, frame);
+        }
 
-            for (size_t j = 0; j < frames.size(); ++j)
-                if (frames[j] == i)
-                    captured[j] = frame.clone();
+        if (core._nbFrame > 0) {
+            cv::Mat last = renderer.flush();
+            if (!last.empty())
+                store(std::min(maxFrame, core._nbFrame - 1), last);
         }
 
         return captured;

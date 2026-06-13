@@ -42,9 +42,16 @@ namespace VC
         // Replace the scene geometry for the next readFrame() call.
         void setMeshes(const std::vector<Mesh>& meshes);
 
-        // Render the current scene and return pixels as a BGRA cv::Mat.
-        // Blocks until the GPU is done.
+        // Render the current scene and submit it without waiting for the GPU.
+        // Returns the PREVIOUS call's pixels (BGRA cv::Mat), which the GPU
+        // finished while this call's command buffer was being recorded —
+        // empty on the very first call. Call flush() after the last frame to
+        // retrieve its pixels.
         cv::Mat readFrame();
+
+        // Wait for the most recently submitted readFrame() and return its
+        // pixels. Empty if readFrame() was never called.
+        cv::Mat flush();
 
     private:
 
@@ -66,9 +73,17 @@ namespace VC
         VkDeviceMemory m_ssaaMemory    = VK_NULL_HANDLE;
         VkImageView    m_ssaaImageView = VK_NULL_HANDLE;
 
-        // ── Readback image (linear, host-visible) ─────────────────────────────
-        VkImage        m_readbackImage  = VK_NULL_HANDLE;
-        VkDeviceMemory m_readbackMemory = VK_NULL_HANDLE;
+        // ── Readback images (linear, host-visible, double-buffered) ───────────
+        // While the GPU writes frame N into m_readbackImages[curIdx], the CPU
+        // may still be memcpy'ing frame N-1 out of the other slot — see readFrame().
+        VkImage        m_readbackImages[2]  = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+        VkDeviceMemory m_readbackMemories[2] = {VK_NULL_HANDLE, VK_NULL_HANDLE};
+
+        // ── Pipelining state ───────────────────────────────────────────────────
+        // Signaled when the command buffer submitted for m_pendingIdx finishes.
+        VkFence m_renderFence = VK_NULL_HANDLE;
+        bool    m_hasPending  = false; // true once at least one frame has been submitted
+        size_t  m_pendingIdx  = 0;     // readback slot of the most recently submitted frame
 
         // ── Main render pass / pipeline ───────────────────────────────────────
         VkRenderPass     m_renderPass     = VK_NULL_HANDLE;
@@ -186,6 +201,9 @@ namespace VC
         void           transitionImageLayout(VkImage image, VkImageLayout from, VkImageLayout to);
         void           copyBufferToImage(VkBuffer buf, VkImage image, uint32_t w, uint32_t h);
         void           updateUniforms();
+
+        // Map m_readbackImages[idx]/m_readbackMemories[idx] and copy it into a cv::Mat.
+        cv::Mat        copyReadback(size_t idx);
 
         bool           createEffectPipeline(const std::string& name);
 

@@ -365,29 +365,31 @@ bool VC::VulkanHeadlessRenderer::createSsaaResources()
 
 bool VC::VulkanHeadlessRenderer::createReadbackResources()
 {
-    VkImageCreateInfo ici{};
-    ici.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    ici.imageType     = VK_IMAGE_TYPE_2D;
-    ici.format        = VK_FORMAT_B8G8R8A8_UNORM;
-    ici.extent        = {m_extent.width, m_extent.height, 1};
-    ici.mipLevels     = 1;
-    ici.arrayLayers   = 1;
-    ici.samples       = VK_SAMPLE_COUNT_1_BIT;
-    ici.tiling        = VK_IMAGE_TILING_LINEAR;
-    ici.usage         = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-    ici.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
-    ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    if (vkCreateImage(m_device, &ici, nullptr, &m_readbackImage) != VK_SUCCESS) return false;
+    for (size_t i = 0; i < 2; ++i) {
+        VkImageCreateInfo ici{};
+        ici.sType         = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+        ici.imageType     = VK_IMAGE_TYPE_2D;
+        ici.format        = VK_FORMAT_B8G8R8A8_UNORM;
+        ici.extent        = {m_extent.width, m_extent.height, 1};
+        ici.mipLevels     = 1;
+        ici.arrayLayers   = 1;
+        ici.samples       = VK_SAMPLE_COUNT_1_BIT;
+        ici.tiling        = VK_IMAGE_TILING_LINEAR;
+        ici.usage         = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        ici.sharingMode   = VK_SHARING_MODE_EXCLUSIVE;
+        ici.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        if (vkCreateImage(m_device, &ici, nullptr, &m_readbackImages[i]) != VK_SUCCESS) return false;
 
-    VkMemoryRequirements memReq;
-    vkGetImageMemoryRequirements(m_device, m_readbackImage, &memReq);
-    VkMemoryAllocateInfo ai{};
-    ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    ai.allocationSize  = memReq.size;
-    ai.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    if (vkAllocateMemory(m_device, &ai, nullptr, &m_readbackMemory) != VK_SUCCESS) return false;
-    vkBindImageMemory(m_device, m_readbackImage, m_readbackMemory, 0);
+        VkMemoryRequirements memReq;
+        vkGetImageMemoryRequirements(m_device, m_readbackImages[i], &memReq);
+        VkMemoryAllocateInfo ai{};
+        ai.sType           = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+        ai.allocationSize  = memReq.size;
+        ai.memoryTypeIndex = findMemoryType(memReq.memoryTypeBits,
+            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        if (vkAllocateMemory(m_device, &ai, nullptr, &m_readbackMemories[i]) != VK_SUCCESS) return false;
+        vkBindImageMemory(m_device, m_readbackImages[i], m_readbackMemories[i], 0);
+    }
     return true;
 }
 
@@ -631,7 +633,14 @@ bool VC::VulkanHeadlessRenderer::createCommandBuffer()
     ai.commandPool        = m_commandPool;
     ai.level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     ai.commandBufferCount = 1;
-    return vkAllocateCommandBuffers(m_device, &ai, &m_commandBuffer) == VK_SUCCESS;
+    if (vkAllocateCommandBuffers(m_device, &ai, &m_commandBuffer) != VK_SUCCESS) return false;
+
+    // Signals when the frame submitted in readFrame()/flush() has finished —
+    // lets the next readFrame() overlap this frame's GPU work with the
+    // previous frame's readback memcpy.
+    VkFenceCreateInfo fi{};
+    fi.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    return vkCreateFence(m_device, &fi, nullptr, &m_renderFence) == VK_SUCCESS;
 }
 
 // ===========================================================================
@@ -949,6 +958,19 @@ void VC::VulkanHeadlessRenderer::setMeshes(const std::vector<Mesh>& meshes)
 
 cv::Mat VC::VulkanHeadlessRenderer::readFrame()
 {
+    cv::Mat result;
+
+    // Pipelining: wait for the PREVIOUS submission to finish and copy its
+    // pixels out now — this memcpy overlaps with the GPU work for the new
+    // frame submitted below, instead of happening after a fresh vkQueueWaitIdle.
+    if (m_hasPending) {
+        vkWaitForFences(m_device, 1, &m_renderFence, VK_TRUE, UINT64_MAX);
+        result = copyReadback(m_pendingIdx);
+        vkResetFences(m_device, 1, &m_renderFence);
+    }
+
+    // The GPU is now idle (fence wait above, or this is the first call), so
+    // it's safe to overwrite the shared single-instance resources below.
     updateUniforms();
 
     if (m_geomDirty) {
@@ -964,6 +986,8 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
             upload(m_indexMemory, m_indices.data(), sizeof(uint32_t) * m_indices.size());
         m_geomDirty = false;
     }
+
+    size_t curIdx = m_hasPending ? 1 - m_pendingIdx : 0;
 
     vkResetCommandBuffer(m_commandBuffer, 0);
 
@@ -1110,7 +1134,7 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
     toReadDst.newLayout           = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
     toReadDst.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     toReadDst.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    toReadDst.image               = m_readbackImage;
+    toReadDst.image               = m_readbackImages[curIdx];
     toReadDst.subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
     vkCmdPipelineBarrier(m_commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                          0, 0, nullptr, 0, nullptr, 1, &toReadDst);
@@ -1123,7 +1147,7 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
     blit.dstOffsets[1]  = {(int32_t)m_extent.width,    (int32_t)m_extent.height,    1};
     vkCmdBlitImage(m_commandBuffer,
         m_ssaaImage,    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-        m_readbackImage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        m_readbackImages[curIdx], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
         1, &blit, VK_FILTER_LINEAR);
 
     // ── Transition readback TRANSFER_DST → GENERAL (host read) ───────────
@@ -1135,7 +1159,7 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
     toGeneral.newLayout           = VK_IMAGE_LAYOUT_GENERAL;
     toGeneral.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     toGeneral.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    toGeneral.image               = m_readbackImage;
+    toGeneral.image               = m_readbackImages[curIdx];
     toGeneral.subresourceRange    = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
     vkCmdPipelineBarrier(m_commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT,
                          0, 0, nullptr, 0, nullptr, 1, &toGeneral);
@@ -1146,23 +1170,42 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
     si.sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     si.commandBufferCount = 1;
     si.pCommandBuffers    = &m_commandBuffer;
-    vkQueueSubmit(m_graphicsQueue, 1, &si, VK_NULL_HANDLE);
-    vkQueueWaitIdle(m_graphicsQueue);
+    vkQueueSubmit(m_graphicsQueue, 1, &si, m_renderFence);
 
-    // ── Map and copy to cv::Mat ───────────────────────────────────────────
+    m_pendingIdx = curIdx;
+    m_hasPending = true;
+
+    // result holds the PREVIOUS frame's pixels (or is empty on the first call).
+    return result;
+}
+
+cv::Mat VC::VulkanHeadlessRenderer::flush()
+{
+    if (!m_hasPending)
+        return cv::Mat();
+
+    vkWaitForFences(m_device, 1, &m_renderFence, VK_TRUE, UINT64_MAX);
+    cv::Mat result = copyReadback(m_pendingIdx);
+    vkResetFences(m_device, 1, &m_renderFence);
+    m_hasPending = false;
+    return result;
+}
+
+cv::Mat VC::VulkanHeadlessRenderer::copyReadback(size_t idx)
+{
     VkImageSubresource  subRes{VK_IMAGE_ASPECT_COLOR_BIT, 0, 0};
     VkSubresourceLayout layout{};
-    vkGetImageSubresourceLayout(m_device, m_readbackImage, &subRes, &layout);
+    vkGetImageSubresourceLayout(m_device, m_readbackImages[idx], &subRes, &layout);
 
     void* mapped;
-    vkMapMemory(m_device, m_readbackMemory, 0, VK_WHOLE_SIZE, 0, &mapped);
+    vkMapMemory(m_device, m_readbackMemories[idx], 0, VK_WHOLE_SIZE, 0, &mapped);
 
     cv::Mat    result(m_extent.height, m_extent.width, CV_8UC4);
     uint8_t*   src = static_cast<uint8_t*>(mapped) + layout.offset;
     for (uint32_t row = 0; row < m_extent.height; ++row)
         memcpy(result.ptr(row), src + row * layout.rowPitch, m_extent.width * 4);
 
-    vkUnmapMemory(m_device, m_readbackMemory);
+    vkUnmapMemory(m_device, m_readbackMemories[idx]);
     return result;
 }
 
@@ -1598,14 +1641,17 @@ void VC::VulkanHeadlessRenderer::cleanup()
     if (!m_device) return;
     vkDeviceWaitIdle(m_device);
 
+    if (m_renderFence) vkDestroyFence(m_device, m_renderFence, nullptr);
     vkDestroyCommandPool(m_device, m_commandPool, nullptr);
     vkDestroyFramebuffer(m_device, m_framebuffer, nullptr);
 
     if (m_ssaaImageView) vkDestroyImageView(m_device, m_ssaaImageView, nullptr);
     if (m_ssaaImage)     vkDestroyImage(m_device, m_ssaaImage, nullptr);
     if (m_ssaaMemory)    vkFreeMemory(m_device, m_ssaaMemory, nullptr);
-    if (m_readbackImage)  vkDestroyImage(m_device, m_readbackImage, nullptr);
-    if (m_readbackMemory) vkFreeMemory(m_device, m_readbackMemory, nullptr);
+    for (size_t i = 0; i < 2; ++i) {
+        if (m_readbackImages[i])  vkDestroyImage(m_device, m_readbackImages[i], nullptr);
+        if (m_readbackMemories[i]) vkFreeMemory(m_device, m_readbackMemories[i], nullptr);
+    }
 
     vkDestroyPipeline(m_device, m_pipeline, nullptr);
     vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
