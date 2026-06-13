@@ -34,7 +34,11 @@ public:
 
 protected:
 
-    virtual void buildPath(const Metadata& meta) = 0;
+    // Default: parse strokeWidth/fillColor/strokeColor/open + points/contourSizes
+    // from Metadata — shared by Polygon, Image and Video (which only differ in
+    // getMesh()'s fallback when no usable points are supplied). Override for
+    // shapes (Text) that build their path differently.
+    virtual void buildPath(const Metadata& meta);
 
     // Subclasses (Image, Video) override when their fill should sample a texture
     // instead of solid color/gradient — getMesh() emits bbox-normalized UVs via

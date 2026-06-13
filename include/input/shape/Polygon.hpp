@@ -15,8 +15,4 @@ public:
 
     explicit Polygon(json::object_t&& args);
     ~Polygon() override = default;
-
-protected:
-
-    void buildPath(const Metadata& meta) override;
 };

@@ -27,7 +27,6 @@ public:
 
 protected:
 
-    void buildPath(const Metadata& meta) override;
     bool isTextured() const override { return true; }
     VkDescriptorSet textureDescriptor() const override { return _descriptor; }
 

@@ -107,6 +107,27 @@ void BezierPath::parseColorOrGradient(
     }
 }
 
+void BezierPath::buildPath(const Metadata& meta)
+{
+    const auto& args = meta.args();
+
+    _strokeWidth = args.at("strokeWidth").get<float>() * config::worldToPixelRatio;
+    parseColorOrGradient(args, "fillColor",   _fillColor,   _fillStops,   _fillGradType,   _fillGradientAngle);
+    parseColorOrGradient(args, "strokeColor", _strokeColor, _strokeStops, _strokeGradType, _strokeGradientAngle);
+    // Open paths (Curve, …): stroke only, no closing segment, and the points
+    // keep their absolute coordinates (no bbox normalization in getMesh).
+    _closed = !(args.contains("open") && args.at("open").get<bool>());
+
+    // Multi-contour shapes (letter glyphs): point count per contour.
+    _contourSizes = meta.contourSizesPtr ? *meta.contourSizesPtr : std::vector<size_t>{};
+
+    const auto& points = meta.pointsPtr ? *meta.pointsPtr : std::vector<cv::Vec2f>{};
+    if (points.size() >= 4 && points.size() % 2 == 0)
+        _points = points;
+    // else: leave _points unchanged — Image/Video's getMesh() falls back to
+    // their legacy quad when no usable points are supplied.
+}
+
 Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
 {
     BP_T(t0);
