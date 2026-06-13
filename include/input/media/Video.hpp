@@ -11,14 +11,14 @@
 #include <vulkan/vulkan.h>
 #include <opencv2/videoio.hpp>
 
-#include "input/AInput.hpp"
+#include "input/shape/BezierPath.hpp"
 
-class Video final : public AInput
+class Video final : public BezierPath
 {
 public:
 
     Video(json::object_t&& args);
-    ~Video() = default;
+    ~Video() override = default;
 
     Mesh    getMesh(const Metadata& meta, const Config& config) override;
     cv::Mat getFrameAt(size_t index);
@@ -29,6 +29,12 @@ public:
 
     size_t _nbFrame{0};
     size_t _playbackLength{0}; // _nbFrame minus all cut ranges — what Core sees as this Video's contribution to the timeline
+
+protected:
+
+    void buildPath(const Metadata& meta) override;
+    bool isTextured() const override { return true; }
+    VkDescriptorSet textureDescriptor() const override { return _descriptor; }
 
 private:
 

@@ -117,6 +117,7 @@ namespace
         {"text-gradient",    "test/visual/scenes/text_gradient.py",    {0, 11, 22, 33}},
         {"gradient-holes",   "test/visual/scenes/gradient_holes.py",   {0}},
         {"video",            "test/visual/scenes/video.py",            {0}},
+        {"image-shape",      "test/visual/scenes/image_shape.py",      {0}},
     };
 
     const std::vector<ReloadCase> kReloadCases = {

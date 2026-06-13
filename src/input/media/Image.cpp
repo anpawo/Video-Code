@@ -14,9 +14,24 @@
 #include "vulkan/MeshFactory.hpp"
 
 Image::Image(json::object_t&& args)
-    : AInput(std::move(args))
+    : BezierPath(std::move(args))
 {
     _base = getBaseMatrix(_baseArgs);
+}
+
+void Image::buildPath(const Metadata& meta)
+{
+    const auto& args = meta.args();
+    _strokeWidth = args.at("strokeWidth").get<float>() * config::worldToPixelRatio;
+    parseColorOrGradient(args, "fillColor",   _fillColor,   _fillStops,   _fillGradType,   _fillGradientAngle);
+    parseColorOrGradient(args, "strokeColor", _strokeColor, _strokeStops, _strokeGradType, _strokeGradientAngle);
+    _closed = true;
+    _contourSizes = meta.contourSizesPtr ? *meta.contourSizesPtr : std::vector<size_t>{};
+
+    const auto& points = meta.pointsPtr ? *meta.pointsPtr : std::vector<cv::Vec2f>{};
+    if (points.size() >= 4 && points.size() % 2 == 0)
+        _points = points;
+    // else: leave _points empty — getMesh() falls back to the legacy quad.
 }
 
 cv::Mat Image::getBaseMatrix(const json::object_t& args)
@@ -38,6 +53,10 @@ cv::Mat Image::getBaseMatrix(const json::object_t& args)
 
 Mesh Image::getMesh(const Metadata& meta, const Config& config)
 {
+    bool hasCustomShape = meta.pointsPtr && meta.pointsPtr->size() >= 4 && meta.pointsPtr->size() % 2 == 0;
+    if (hasCustomShape)
+        return BezierPath::getMesh(meta, config);
+
     // Natural size is the image's pixel dimensions.
     // Python can override via width/height args (already in world units).
     float w = static_cast<float>(_base.cols);

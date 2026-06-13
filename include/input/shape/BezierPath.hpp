@@ -36,6 +36,12 @@ protected:
 
     virtual void buildPath(const Metadata& meta) = 0;
 
+    // Subclasses (Image, Video) override when their fill should sample a texture
+    // instead of solid color/gradient — getMesh() emits bbox-normalized UVs via
+    // the textured addVertex(x, y, u, v, opacity) overload in that case.
+    virtual bool isTextured() const { return false; }
+    virtual VkDescriptorSet textureDescriptor() const { return VK_NULL_HANDLE; }
+
     enum class GradType { None, Linear, Radial, Conic };
 
     // Reads `args[key]` — either a solid `[r,g,b,a]` (rgba), a linear gradient

@@ -14,7 +14,7 @@
 #include "vulkan/MeshFactory.hpp"
 
 Video::Video(json::object_t&& args)
-    : AInput(std::move(args))
+    : BezierPath(std::move(args))
 {
     std::string filepath = _baseArgs.at("filepath");
 
@@ -114,6 +114,21 @@ cv::Mat Video::getFrameAt(size_t index)
     return frame;
 }
 
+void Video::buildPath(const Metadata& meta)
+{
+    const auto& args = meta.args();
+    _strokeWidth = args.at("strokeWidth").get<float>() * config::worldToPixelRatio;
+    parseColorOrGradient(args, "fillColor",   _fillColor,   _fillStops,   _fillGradType,   _fillGradientAngle);
+    parseColorOrGradient(args, "strokeColor", _strokeColor, _strokeStops, _strokeGradType, _strokeGradientAngle);
+    _closed = true;
+    _contourSizes = meta.contourSizesPtr ? *meta.contourSizesPtr : std::vector<size_t>{};
+
+    const auto& points = meta.pointsPtr ? *meta.pointsPtr : std::vector<cv::Vec2f>{};
+    if (points.size() >= 4 && points.size() % 2 == 0)
+        _points = points;
+    // else: leave _points empty — getMesh() falls back to the legacy quad.
+}
+
 Mesh Video::getMesh(const Metadata& meta, const Config& config)
 {
     size_t playbackIndex = meta.frameIndex;
@@ -131,6 +146,10 @@ Mesh Video::getMesh(const Metadata& meta, const Config& config)
             _reupload(_currentFrame);
         }
     }
+
+    bool hasCustomShape = meta.pointsPtr && meta.pointsPtr->size() >= 4 && meta.pointsPtr->size() % 2 == 0;
+    if (hasCustomShape)
+        return BezierPath::getMesh(meta, config);
 
     float w = static_cast<float>(_currentFrame.cols);
     float h = static_cast<float>(_currentFrame.rows);

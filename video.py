@@ -19,3 +19,7 @@ Text("abdegopq", **common).position(y=2.7)
 Text("ij!?;:", **common).position(y=0.9)
 Text("BKRXMW&", **common).position(y=-0.9)
 Text("QO08S3s%@", **common).position(y=-2.7)
+
+# "All inputs are polygons" demo — cornerRadius=100 on a square image makes a
+# circle; no width/height needed, natural size is probed from wb.png itself.
+Image("image.png", cornerRadius=100).position(x=6.5, y=3.5)

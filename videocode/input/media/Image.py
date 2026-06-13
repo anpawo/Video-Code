@@ -6,9 +6,10 @@ import os
 import subprocess
 import urllib.parse
 
+from PIL import Image as PILImage
 
-from videocode.utils.decorators import inputCreation
-from videocode.input.input import *
+from videocode.input.shape.Polygon import *
+from videocode.constants import WORLD_TO_SCREEN_RATIO
 
 
 __all__ = [
@@ -17,18 +18,51 @@ __all__ = [
 ]
 
 
-class Image(Input):
+class Image(Polygon):
     cppName = "Image"
-    cppAttrs = {
-        "filepath",
-    }
+    cppAttrs = Polygon.cppAttrs | {"filepath"}
 
-    @inputCreation
     def __init__(
         self,
         filepath: str,
+        width: maybe[wunumber] = None,
+        height: maybe[wunumber] = None,
+        cornerRadius: percent = 0,
+        strokeColor: rgba = TRANSPARENT,
+        strokeWidth: wufloat = 0,
     ):
         self.filepath = filepath
+
+        # Rounding/stroking needs a known shape — if the caller didn't give
+        # one, fall back to the image's natural size (read from its header,
+        # no full decode).
+        if cornerRadius and width is None and height is None:
+            with PILImage.open(filepath) as img:
+                width, height = img.size
+            width /= WORLD_TO_SCREEN_RATIO
+            height /= WORLD_TO_SCREEN_RATIO
+
+        self.width = width
+        self.height = height
+
+        super().__init__(
+            vertices=self.generateVertices(),
+            fillColor=TRANSPARENT,
+            strokeColor=strokeColor,
+            strokeWidth=strokeWidth,
+            cornerRadius=cornerRadius,
+        )
+
+    def generateVertices(self) -> list[point]:
+        if self.width is None or self.height is None:
+            return []
+        return [(0, 0), (self.width, 0), (self.width, self.height), (0, self.height)]
+
+    @prop(onSet=Polygon.updatePoints)
+    def width() -> maybe[wunumber]: ...
+
+    @prop(onSet=Polygon.updatePoints)
+    def height() -> maybe[wunumber]: ...
 
 
 CACHE_DIR = "webimage"

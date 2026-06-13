@@ -2,3 +2,4 @@
 shapely
 freetype-py
 uharfbuzz
+Pillow

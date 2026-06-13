@@ -138,8 +138,10 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     auto anyStopVisible = [](const std::vector<GradientStop>& stops) {
         return std::any_of(stops.begin(), stops.end(), [](const GradientStop& s) { return s.color[3] > 0; });
     };
-    // Open paths never fill — there is no interior to triangulate.
-    bool hasFillNow = _closed && ((_fillGradType != GradType::None) ? anyStopVisible(_fillStops) : _fillColor[3] > 0);
+    // Open paths never fill — there is no interior to triangulate. Textured
+    // shapes (Image/Video) always have fill geometry to sample into, regardless
+    // of _fillColor's alpha.
+    bool hasFillNow = _closed && (isTextured() || ((_fillGradType != GradType::None) ? anyStopVisible(_fillStops) : _fillColor[3] > 0));
     geomHash = fnvHash(&hasFillNow,     sizeof(bool),  geomHash);
     if (!_contourSizes.empty())
         geomHash = fnvHash(_contourSizes.data(), _contourSizes.size() * sizeof(size_t), geomHash);
@@ -390,7 +392,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     std::vector<GradientStop> fillStops   = (_fillGradType   != GradType::None) ? applyOpacity(_fillStops)   : std::vector<GradientStop>{};
     std::vector<GradientStop> strokeStops = (_strokeGradType != GradType::None) ? applyOpacity(_strokeStops) : std::vector<GradientStop>{};
 
-    bool fillVisible   = (_fillGradType   != GradType::None) ? anyStopVisible(fillStops)   : fillColor[3] > 0;
+    bool fillVisible   = isTextured() || ((_fillGradType != GradType::None) ? anyStopVisible(fillStops) : fillColor[3] > 0);
     bool strokeVisible = (_strokeGradType != GradType::None) ? anyStopVisible(strokeStops) : strokeColor[3] > 0;
     bool hasStroke     = (_strokeWidth > 0.f && strokeVisible);
 
@@ -795,6 +797,17 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                     }
                 }
             }
+        } else if (isTextured()) {
+            // Textured fill: stretch the texture to the polygon's local bbox.
+            float w = _geomCache.localSize.width;
+            float h = _geomCache.localSize.height;
+            for (const auto& p : localPoly) {
+                float u = (w > 0.f) ? p[0] / w : 0.f;
+                float v = (h > 0.f) ? p[1] / h : 0.f;
+                factory.addVertex(p[0], p[1], u, v, opacityF);
+            }
+            for (auto idx : _geomCache.earIndices)
+                factory.mesh.indices.push_back(firstPolyIdx + idx);
         } else {
             // Solid fill.
             for (const auto& p : localPoly)
@@ -812,6 +825,11 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             BP_US(t0, t1), BP_US(t1, t2), BP_US(t2, t3), BP_US(t3, t4), BP_US(t4, t5), n));
 
     Mesh result = factory.generateMesh();
+
+    if (isTextured()) {
+        result.hasTexture = true;
+        result.textureDescriptor = textureDescriptor();
+    }
 
     _meshCache         = result;
     _lastMeshHash      = meshHash;
