@@ -144,10 +144,24 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
             break;
         }
         case VertexShader::Args: {
+            std::string name = args.at("name").get<std::string>();
+
+            // "points"/"contourSizes" live in Metadata::pointsPtr/contourSizesPtr, not
+            // argsPtr's json::object_t — swap the typed shared_ptr directly, no JSON
+            // clone (see parsePointsJson/parseContourSizesJson in Metadata.hpp).
+            if (name == "points") {
+                meta.pointsPtr = parsePointsJson(args.at("value"));
+                break;
+            }
+            if (name == "contourSizes") {
+                meta.contourSizesPtr = parseContourSizesJson(args.at("value"));
+                break;
+            }
+
             // Copy-on-write: args is shared between every Metadata that hasn't
             // diverged, so clone it before mutating this frame's version.
             auto mutableArgs = std::make_shared<json::object_t>(meta.args());
-            (*mutableArgs)[args.at("name")] = args.at("value");
+            (*mutableArgs)[name] = args.at("value");
             meta.argsPtr = std::move(mutableArgs);
             break;
         }

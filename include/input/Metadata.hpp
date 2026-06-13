@@ -10,7 +10,9 @@
 #include <cstdint>
 #include <memory>
 #include <nlohmann/json.hpp>
+#include <opencv2/core/matx.hpp>
 #include <ostream>
+#include <vector>
 
 using json = nlohmann::json;
 
@@ -47,6 +49,31 @@ namespace config
     inline v2f   screenOffset{screen.w() / 2.0f, screen.h() / 2.0f};
     inline float worldToPixelRatio = 120.f;
 };
+
+// Parses a "points" JSON value ([[x,y], [x,y], ...]) into pixel-space anchor-handle
+// points (world->pixel ratio + Y-flip applied). Shared by AInput's construction-time
+// extraction and the "Args" VertexShader's points mutation, so json::object_t never
+// carries the (potentially large, ~600 points for letter glyphs) points array — keeping
+// COW clones of Metadata::args() cheap.
+inline std::shared_ptr<const std::vector<cv::Vec2f>> parsePointsJson(const json& value)
+{
+    auto raw    = value.get<std::vector<std::vector<float>>>();
+    auto points = std::make_shared<std::vector<cv::Vec2f>>();
+    points->reserve(raw.size());
+    for (const auto& p : raw)
+        points->push_back({p[0] * config::worldToPixelRatio, -p[1] * config::worldToPixelRatio});
+    return points;
+}
+
+// Parses a "contourSizes" JSON value ([n0, n1, ...]) — see parsePointsJson.
+inline std::shared_ptr<const std::vector<size_t>> parseContourSizesJson(const json& value)
+{
+    auto sizes = std::make_shared<std::vector<size_t>>();
+    sizes->reserve(value.size());
+    for (const auto& s : value)
+        sizes->push_back(s.get<size_t>());
+    return sizes;
+}
 
 struct Metadata
 {
@@ -88,6 +115,14 @@ struct Metadata
     // single biggest CPU cost. Only the "Args" VertexShader clones-then-mutates
     // (see getMetadataFromArgs).
     std::shared_ptr<const json::object_t> argsPtr;
+
+    // Polygon point data (anchor-handle pairs, pixel-space, world->pixel + Y-flip
+    // already applied) and per-contour sizes, kept out of argsPtr's json::object_t for
+    // the same COW reason — letter glyphs carry ~600 points, and text morphing fires
+    // the "points"/"contourSizes" Args VertexShader every frame. Null for non-Polygon
+    // inputs (whose args never had a "points"/"contourSizes" key).
+    std::shared_ptr<const std::vector<cv::Vec2f>> pointsPtr;
+    std::shared_ptr<const std::vector<size_t>>    contourSizesPtr;
 
     const json::object_t& args() const
     {

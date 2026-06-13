@@ -77,3 +77,33 @@ Correctif annexe : `make verbose` (`-DVC_VERBOSE`) est désormais réellement
 câblé dans CMake — il ne définissait rien auparavant — ce qui active le
 chronométrage `[startup]` des phases, utilisé pour mesurer les temps de
 chargement.
+
+## Optimisation suivante (12/06/2026) : morphing de texte
+
+Benchmark : `test/perf/stress_morph.py` (une lettre dont le caractère change
+chaque frame pendant 300 frames — déclenche le vertex shader `Args` sur
+`points`/`contourSizes` à chaque frame).
+
+Le profiling a montré que le clone-on-write de `Metadata::argsPtr` (point 1
+ci-dessus) avait un angle mort : quand le shader `Args` modifie justement
+`points` ou `contourSizes`, il clone quand même tout l'objet JSON avant
+d'écrire la nouvelle valeur dedans — soit, pour un glyphe, un tableau d'environ
+600 points (>1500 nœuds JSON alloués), ~20 % du coût par frame pendant le
+morphing.
+
+Correctif : `points`/`contourSizes` sont sortis de `argsPtr` et stockés dans
+deux nouveaux champs typés copy-on-write de `Metadata`
+(`shared_ptr<const vector<cv::Vec2f>>` / `shared_ptr<const vector<size_t>>`).
+Le cas `Args` du vertex shader (`IVertexShader.hpp`) les détecte par nom et se
+contente d'échanger le pointeur — **aucun clone JSON** — et `argsPtr` ne
+contient plus jamais ces tableaux, donc même les clones pour les autres champs
+(`fillColor`, etc.) restent désormais petits.
+
+| | Avant | Après | Gain |
+|---|---|---|---|
+| `Polygon::buildPath` (par lettre morphée) | 120–165 µs | 27–35 µs | **~4–5×** |
+| Clone JSON `[args-shader] clone+merge` (×~1.8/frame pendant le morphing) | 40–160 µs | 0 (supprimé) | — |
+
+Vérification : les 19 tests de régression visuelle passent (différence
+moyenne 0,0), y compris `reload-equivalence` qui exerce
+`AInput::resetModifications()`.

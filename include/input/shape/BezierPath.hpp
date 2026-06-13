@@ -34,7 +34,7 @@ public:
 
 protected:
 
-    virtual void buildPath(const json::object_t& args) = 0;
+    virtual void buildPath(const Metadata& meta) = 0;
 
     enum class GradType { None, Linear, Radial, Conic };
 

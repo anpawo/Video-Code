@@ -14,8 +14,35 @@
 #include "shader/IVertexShader.hpp"
 #include "shader/ShaderFactory.hpp"
 
+namespace
+{
+    // Pops "points"/"contourSizes" out of the Create() args (mutating in place) so the
+    // canonical json::object_t never carries them — see Metadata::pointsPtr/contourSizesPtr.
+    std::shared_ptr<const std::vector<cv::Vec2f>> extractPoints(json::object_t& args)
+    {
+        auto it = args.find("points");
+        if (it == args.end())
+            return nullptr;
+        auto points = parsePointsJson(it->second);
+        args.erase(it);
+        return points;
+    }
+
+    std::shared_ptr<const std::vector<size_t>> extractContourSizes(json::object_t& args)
+    {
+        auto it = args.find("contourSizes");
+        if (it == args.end())
+            return nullptr;
+        auto sizes = parseContourSizesJson(it->second);
+        args.erase(it);
+        return sizes;
+    }
+}
+
 AInput::AInput(json::object_t&& args)
-    : _baseArgsPtr(std::make_shared<const json::object_t>(std::move(args)))
+    : _initialPoints(extractPoints(args))
+    , _initialContourSizes(extractContourSizes(args))
+    , _baseArgsPtr(std::make_shared<const json::object_t>(std::move(args)))
     , _baseArgs(*_baseArgsPtr)
 {
 }
@@ -25,7 +52,11 @@ void AInput::resetModifications()
     _hasArgsShader = false;
     _effects.clear();
     _effectTimeline.clear();
-    _metas = {Metadata{.argsPtr = _baseArgsPtr}};
+    _metas = {Metadata{
+        .argsPtr         = _baseArgsPtr,
+        .pointsPtr       = _initialPoints,
+        .contourSizesPtr = _initialContourSizes,
+    }};
 }
 
 void AInput::add(const std::string& name, const std::string& type, json::object_t&& args)

@@ -12,9 +12,10 @@ Polygon::Polygon(json::object_t&& args)
 {
 }
 
-void Polygon::buildPath(const json::object_t& args)
+void Polygon::buildPath(const Metadata& meta)
 {
-    auto raw = args.at("points").get<std::vector<std::vector<float>>>();
+    const auto& args = meta.args();
+
     _strokeWidth = args.at("strokeWidth").get<float>() * config::worldToPixelRatio;
     parseColorOrGradient(args, "fillColor",   _fillColor,   _fillStops,   _fillGradType,   _fillGradientAngle);
     parseColorOrGradient(args, "strokeColor", _strokeColor, _strokeStops, _strokeGradType, _strokeGradientAngle);
@@ -23,18 +24,12 @@ void Polygon::buildPath(const json::object_t& args)
     _closed = !(args.contains("open") && args.at("open").get<bool>());
 
     // Multi-contour shapes (letter glyphs): point count per contour.
-    _contourSizes.clear();
-    if (args.contains("contourSizes"))
-        for (const auto& s : args.at("contourSizes"))
-            _contourSizes.push_back(s.get<size_t>());
+    _contourSizes = meta.contourSizesPtr ? *meta.contourSizesPtr : std::vector<size_t>{};
 
-    int n = static_cast<int>(raw.size());
+    const auto& points = meta.pointsPtr ? *meta.pointsPtr : std::vector<cv::Vec2f>{};
+    int n = static_cast<int>(points.size());
     if (n < 4 || n % 2 != 0)
         return;
 
-    for (int i = 0; i < n; ++i)
-        _points.push_back({
-            raw[i][0] * config::worldToPixelRatio,
-            -raw[i][1] * config::worldToPixelRatio,
-        });
+    _points = points;
 }

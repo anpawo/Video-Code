@@ -61,6 +61,13 @@ protected:
         );
     }
 
+    ///< Initial points/contourSizes popped out of the Create() args (see
+    ///< Metadata::pointsPtr/contourSizesPtr) — re-seeded into _metas[0] by
+    ///< resetModifications() on hot-reload. Null when args has no such key
+    ///< (non-Polygon inputs).
+    const std::shared_ptr<const std::vector<cv::Vec2f>> _initialPoints;
+    const std::shared_ptr<const std::vector<size_t>>    _initialContourSizes;
+
     ///< Arguments needed to generate the Input's matrix. The shared_ptr is the
     ///< canonical owner — every Metadata in _metas shares it (copy-on-write);
     ///< _baseArgs is a convenience alias for subclasses.
@@ -77,5 +84,9 @@ protected:
     std::vector<std::vector<size_t>>              _effectTimeline{};
 
     ///< Transformations (Affect the Metadata of the Input)
-    std::vector<Metadata> _metas{Metadata{.argsPtr = _baseArgsPtr}};
+    std::vector<Metadata> _metas{Metadata{
+        .argsPtr         = _baseArgsPtr,
+        .pointsPtr       = _initialPoints,
+        .contourSizesPtr = _initialContourSizes,
+    }};
 };

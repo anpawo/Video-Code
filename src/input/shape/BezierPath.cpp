@@ -116,7 +116,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     // input, so _baseArgs (and therefore _points) can never have changed.
     if (!meta.argsStatic || !_geomValid) {
         _points.clear();
-        buildPath(meta.args());
+        buildPath(meta);
     }
 
     BP_T(t1);

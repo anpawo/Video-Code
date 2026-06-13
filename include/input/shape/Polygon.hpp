@@ -18,5 +18,5 @@ public:
 
 protected:
 
-    void buildPath(const json::object_t& args) override;
+    void buildPath(const Metadata& meta) override;
 };
