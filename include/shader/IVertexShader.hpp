@@ -30,6 +30,7 @@ Transformations affect anything non pixel related in an Input
 enum class VertexShader {
     Align,
     Position,
+    Translate,
     Scale,
     Rotation,
     Opacity,
@@ -44,15 +45,16 @@ enum class VertexShader {
 };
 
 const std::map<std::string, VertexShader> getTransformFromString = {
-    {"Position", VertexShader::Position},
-    {"Scale",    VertexShader::Scale},
-    {"Align",    VertexShader::Align},
-    {"Rotation", VertexShader::Rotation},
-    {"Opacity",  VertexShader::Opacity},
-    {"Hide",     VertexShader::Hide},
-    {"Show",     VertexShader::Show},
-    {"Args",     VertexShader::Args},
-    {"ZIndex",   VertexShader::ZIndex},
+    {"Position",  VertexShader::Position},
+    {"Translate", VertexShader::Translate},
+    {"Scale",     VertexShader::Scale},
+    {"Align",     VertexShader::Align},
+    {"Rotation",  VertexShader::Rotation},
+    {"Opacity",   VertexShader::Opacity},
+    {"Hide",      VertexShader::Hide},
+    {"Show",      VertexShader::Show},
+    {"Args",      VertexShader::Args},
+    {"ZIndex",    VertexShader::ZIndex},
 };
 
 inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size2f& size, const Metadata& meta)
@@ -120,6 +122,13 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
         case VertexShader::Position: {
             meta.position.x = config::screenOffset.x + args.at("x").get<float>() * config::worldToPixelRatio;
             meta.position.y = config::screenOffset.y - args.at("y").get<float>() * config::worldToPixelRatio;
+            break;
+        }
+        case VertexShader::Translate: {
+            // Relative shift, in world units — unlike Position, no screenOffset
+            // (that's an absolute-origin term, meaningless for a delta).
+            meta.position.x += args.at("x").get<float>() * config::worldToPixelRatio;
+            meta.position.y -= args.at("y").get<float>() * config::worldToPixelRatio;
             break;
         }
         case VertexShader::Scale: {

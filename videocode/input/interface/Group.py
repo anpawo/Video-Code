@@ -5,6 +5,7 @@ from copy import copy as _shallow_copy
 from typing import Any, TypeVar
 from videocode.input.input import *
 from videocode.input.interface.Interface import Interface
+from videocode.template.effect.moveTo import groupMoveBy, groupMoveTo
 
 
 _GROUP_T = TypeVar("_GROUP_T", bound=Input, default=Input)
@@ -42,6 +43,12 @@ class Group(Interface, Generic[_GROUP_T]):
             for i in self.inputs:
                 i.apply(s, start=start, duration=duration, offset=offset)
         return self
+
+    def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+        return self.apply(*groupMoveTo(self, x=x, y=y, easing=easing, start=start, duration=duration))
+
+    def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+        return self.apply(*groupMoveBy(x=x, y=y, easing=easing, start=start, duration=duration))
 
     def waitForOthers(self) -> Self:
         frames: list[int] = []
