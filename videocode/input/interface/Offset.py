@@ -51,10 +51,12 @@ class Offset[T: Input](Interface):
 
     def _sync(self, *, start: sec, duration: sec, offset: maybe[frame]):
         angle = math.radians(self.meta.rotation)
+        cosA = math.cos(angle)
+        sinA = math.sin(angle)
         lx = self.xOffset * self.input.meta.scale.x
         ly = -self.yOffset * self.input.meta.scale.y  # negate: user +y = up, trig needs -ly
-        wx = self.meta.position.x + lx * math.cos(angle) - ly * math.sin(angle)
-        wy = self.meta.position.y - lx * math.sin(angle) - ly * math.cos(angle)
+        wx = self.meta.position.x + lx * cosA - ly * sinA
+        wy = self.meta.position.y - lx * sinA - ly * cosA
         self.input.apply(
             position(wx, wy),
             rotation(self.meta.rotation + self.rOffset),

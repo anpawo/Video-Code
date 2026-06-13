@@ -25,7 +25,7 @@ from videocode.shader.vertexShader.opacity import opacity
 from videocode.shader.vertexShader.zIndex import zIndex
 from videocode.utils.bezier import animate, CubicBezier, Easing
 from videocode.utils.logger import *
-from videocode.utils.classutils import At, AttributeNameReference, Maybe
+from videocode.utils.classutils import At, AttributeNameReference
 
 
 class Input(ABC):
@@ -89,21 +89,22 @@ class Input(ABC):
 
         for s in shaders:
             # Pre-callbacks: fire before any modification; return True to skip this shader.
-            if any(cb(s, start, duration, Maybe(offset).orElse(self.meta.transformationOffset)) for cb in self.meta.preCallbacks.get(type(s), [])):
+            if any(cb(s, start, duration, offset if offset is not None else self.meta.transformationOffset) for cb in self.meta.preCallbacks.get(type(s), [])):
                 continue
 
             _s, _d, _o = s.resolve(start, duration, offset)
 
-            __start = int(_s * FRAMERATE) + Maybe(_o).orElse(self.meta.transformationOffset)
+            __start = int(_s * FRAMERATE) + (_o if _o is not None else self.meta.transformationOffset)
             __duration = int(_d * FRAMERATE)
+            __end = __start + __duration
 
             # Update lastEverAffectedFrame
-            if Context.lastEverAffectedFrame < __start + __duration:
-                Context.lastEverAffectedFrame = __start + __duration
+            if Context.lastEverAffectedFrame < __end:
+                Context.lastEverAffectedFrame = __end
 
             # Update our lastAffectedFrame
-            if __start + __duration > self.meta.lastAffectedFrame:
-                self.meta.lastAffectedFrame = __start + __duration
+            if __end > self.meta.lastAffectedFrame:
+                self.meta.lastAffectedFrame = __end
 
             # Transformations affect the Input's Metadata.
             # VertexShader.modify() writes resolved values back to self.* (e.g. position.modify
@@ -126,7 +127,7 @@ class Input(ABC):
 
             # Post-callbacks
             for callback in self.meta.postCallbacks.get(type(s), []):
-                callback(s, start, duration, Maybe(offset).orElse(self.meta.transformationOffset))
+                callback(s, start, duration, offset if offset is not None else self.meta.transformationOffset)
 
         return self
 

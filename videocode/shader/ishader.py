@@ -5,7 +5,6 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Self
 from videocode.constants import *
 from videocode.utils.funcutils import *
-from videocode.utils.classutils import Maybe
 
 if TYPE_CHECKING:
     from videocode.input.input import Input
@@ -33,13 +32,20 @@ class IShader(ABC):
         Use self default values if any else given ones.
         """
         return (
-            Maybe(self.start) | start,
-            Maybe(self.duration) | duration,
-            Maybe(self.offset) | offset,
+            self.start if self.start is not None else start,
+            self.duration if self.duration is not None else duration,
+            self.offset if self.offset is not None else offset,
         )
 
     @abstractmethod
     def __init__(self) -> None: ...
+
+    def __copy__(self) -> Self:
+        # Faster than the default copy.copy(): skips the generic
+        # __reduce_ex__/copyreg machinery for these plain-attribute objects.
+        new = self.__class__.__new__(self.__class__)
+        new.__dict__.update(self.__dict__)
+        return new
 
     def __str__(self) -> str:
         s = f"{self.__class__.__name__}"

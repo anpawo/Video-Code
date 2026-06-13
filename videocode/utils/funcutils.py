@@ -5,10 +5,13 @@
 #
 
 
+from functools import lru_cache
+
 from videocode.constants import *
 from videocode.utils.logger import *
 
 
+@lru_cache(maxsize=None)
 def upperFirst(s: str):
     return s[0].upper() + s[1:]
 
