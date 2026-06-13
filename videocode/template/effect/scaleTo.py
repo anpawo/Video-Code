@@ -37,6 +37,6 @@ def scaleBy(
     easing: easing = Easing.Linear,
 ) -> Generator[scale, Any, None]:
     src = v2(*input.meta.scale)
-    dst = v2(Maybe(x) | 0 + src.x, Maybe(y) | 0 + src.y)
+    dst = v2((Maybe(x) | 0) + src.x, (Maybe(y) | 0) + src.y)
     for s, i in easing.rangeIdx(src, dst, duration):
         yield scale(*s).at(start=start + i * SINGLE_FRAME)
