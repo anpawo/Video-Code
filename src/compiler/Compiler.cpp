@@ -24,6 +24,8 @@ VC::Compiler::Compiler(const argparse::ArgumentParser &parser)
 
           .framerate = parser.get<int>("--framerate"),
 
+          .hwEncode = parser.get<bool>("--hwencode"),
+
           .sourceFile = parser.get("--file"),
           .outputFile = parser.get("--generate"),
       })
@@ -53,6 +55,19 @@ int VC::Compiler::generateVideo()
     if (VC::ImageIO::hasImageExtension(config.outputFile))
         return generateImage(renderer);
 
+    // h264_videotoolbox offloads encoding to the Mac's media engine (lighter on
+    // CPU, frees the ~460MB of libx264 buffers), but it has no CRF mode — use
+    // -q:v instead (0-100 quality scale, ~65 looks comparable to -crf 23).
+    // Quality/bitrate behavior differs from libx264, so it stays opt-in.
+    const std::string codecArgs = config.hwEncode
+        ? " -c:v h264_videotoolbox"
+          " -pix_fmt yuv420p"
+          " -q:v 65"
+        : " -c:v libx264"
+          " -preset veryfast"
+          " -pix_fmt yuv420p"
+          " -crf 23";
+
     FILE* pipe = popen(
         std::format(
             "ffmpeg"
@@ -63,16 +78,14 @@ int VC::Compiler::generateVideo()
             " -framerate {}"
             " -an"
             " -i -"
-            " -c:v libx264"
-            " -preset veryfast"
-            " -pix_fmt yuv420p"
-            " -crf 23"
+            "{}"
             " -movflags +faststart"
             " -loglevel warning"
             " {}",
             (int)config.screenWidth,
             (int)config.screenHeight,
             config.framerate,
+            codecArgs,
             config.outputFile
         ).c_str(),
         "w"

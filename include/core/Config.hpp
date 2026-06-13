@@ -21,6 +21,9 @@ struct Config
 
     int framerate;
 
+    ///< Use the hardware H.264 encoder (h264_videotoolbox) instead of libx264.
+    bool hwEncode = false;
+
     ///< Source & Output file
     std::string sourceFile;
     std::string outputFile;

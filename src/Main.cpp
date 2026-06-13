@@ -75,6 +75,11 @@ void setParserArgument(argparse::ArgumentParser &p)
         .add_argument("--update-golden")
         .flag()
         .help("With --visual-test, (re)write the golden images instead of comparing against them.");
+
+    p
+        .add_argument("--hwencode")
+        .flag()
+        .help("Encode with the hardware H.264 encoder (h264_videotoolbox) instead of libx264. Faster and lighter on CPU, but quality/bitrate behavior differs from CRF.");
 }
 
 int main(int argc, char *argv[])
