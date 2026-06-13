@@ -32,6 +32,7 @@ enum class VertexShader {
     Position,
     Translate,
     Scale,
+    ScaleDelta,
     Rotation,
     Opacity,
     Hide,
@@ -45,16 +46,17 @@ enum class VertexShader {
 };
 
 const std::map<std::string, VertexShader> getTransformFromString = {
-    {"Position",  VertexShader::Position},
-    {"Translate", VertexShader::Translate},
-    {"Scale",     VertexShader::Scale},
-    {"Align",     VertexShader::Align},
-    {"Rotation",  VertexShader::Rotation},
-    {"Opacity",   VertexShader::Opacity},
-    {"Hide",      VertexShader::Hide},
-    {"Show",      VertexShader::Show},
-    {"Args",      VertexShader::Args},
-    {"ZIndex",    VertexShader::ZIndex},
+    {"Position",   VertexShader::Position},
+    {"Translate",  VertexShader::Translate},
+    {"Scale",      VertexShader::Scale},
+    {"ScaleDelta", VertexShader::ScaleDelta},
+    {"Align",      VertexShader::Align},
+    {"Rotation",   VertexShader::Rotation},
+    {"Opacity",    VertexShader::Opacity},
+    {"Hide",       VertexShader::Hide},
+    {"Show",       VertexShader::Show},
+    {"Args",       VertexShader::Args},
+    {"ZIndex",     VertexShader::ZIndex},
 };
 
 inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size2f& size, const Metadata& meta)
@@ -134,6 +136,12 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
         case VertexShader::Scale: {
             meta.scale.x = args.at("x");
             meta.scale.y = args.at("y");
+            break;
+        }
+        case VertexShader::ScaleDelta: {
+            // Relative scale shift — unitless, unlike Translate no ratio applies.
+            meta.scale.x += args.at("x").get<float>();
+            meta.scale.y += args.at("y").get<float>();
             break;
         }
         case VertexShader::Rotation: {
