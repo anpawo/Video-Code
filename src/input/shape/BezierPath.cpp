@@ -123,6 +123,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
 
     size_t n = _points.size();
     if (n < 4 || n % 2 != 0) {
+        _meshCacheValid = false;
         return {};
     }
 
@@ -142,6 +143,36 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     geomHash = fnvHash(&hasFillNow,     sizeof(bool),  geomHash);
     if (!_contourSizes.empty())
         geomHash = fnvHash(_contourSizes.data(), _contourSizes.size() * sizeof(size_t), geomHash);
+
+    // --- Mesh-level cache check --------------------------------------------
+    // Extends geomHash with the remaining fields MeshFactory's output depends
+    // on, besides meta.position/meta.opacity (handled below via a cheap delta).
+    size_t meshHash = geomHash;
+    meshHash = fnvHash(&_fillColor,    sizeof(_fillColor),    meshHash);
+    meshHash = fnvHash(&_strokeColor,  sizeof(_strokeColor),  meshHash);
+    meshHash = fnvHash(&_strokeWidth,  sizeof(_strokeWidth),  meshHash);
+    meshHash = fnvHash(&meta.align.x,  sizeof(float),         meshHash);
+    meshHash = fnvHash(&meta.align.y,  sizeof(float),         meshHash);
+    if (!_fillStops.empty())
+        meshHash = fnvHash(_fillStops.data(),   _fillStops.size()   * sizeof(GradientStop), meshHash);
+    if (!_strokeStops.empty())
+        meshHash = fnvHash(_strokeStops.data(), _strokeStops.size() * sizeof(GradientStop), meshHash);
+
+    if (_meshCacheValid && meshHash == _lastMeshHash && _meshCacheOpacity > 0
+        && _meshCacheScreen.width == config.screenWidth && _meshCacheScreen.height == config.screenHeight) {
+        Mesh  mesh        = _meshCache;
+        float ndcDx       = (meta.position.x - _meshCachePosition[0]) / (config.screenWidth / 2.f);
+        float ndcDy       = (meta.position.y - _meshCachePosition[1]) / (config.screenHeight / 2.f);
+        float opacityRatio = meta.opacity / static_cast<float>(_meshCacheOpacity);
+        if (ndcDx != 0.f || ndcDy != 0.f || opacityRatio != 1.f) {
+            for (auto& v : mesh.vertices) {
+                v.pos[0]  += ndcDx;
+                v.pos[1]  += ndcDy;
+                v.color[3] *= opacityRatio;
+            }
+        }
+        return mesh;
+    }
 
     if (!_geomValid || geomHash != _lastGeomHash) {
         // Partition _points into contours (default: a single one). Invalid
@@ -780,5 +811,14 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             "[bezier] buildPath:{}µs  geom:{}µs  factory:{}µs  stroke:{}µs  fill:{}µs  pts:{}\n",
             BP_US(t0, t1), BP_US(t1, t2), BP_US(t2, t3), BP_US(t3, t4), BP_US(t4, t5), n));
 
-    return factory.generateMesh();
+    Mesh result = factory.generateMesh();
+
+    _meshCache         = result;
+    _lastMeshHash      = meshHash;
+    _meshCacheValid    = true;
+    _meshCachePosition = {meta.position.x, meta.position.y};
+    _meshCacheOpacity  = meta.opacity;
+    _meshCacheScreen   = {config.screenWidth, config.screenHeight};
+
+    return result;
 }

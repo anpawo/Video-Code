@@ -97,4 +97,20 @@ private:
     size_t    _lastGeomHash{std::numeric_limits<size_t>::max()};
     bool      _geomValid{false};
     GeomCache _geomCache;
+
+    // --- Mesh-level cache (position/opacity-only animation) --------------------
+    // MeshFactory still re-emits every vertex (stroke extrusion, fill assembly,
+    // M-transform → NDC) on every call, even when the geometry cache above is
+    // valid. When only meta.position or meta.opacity changed since the last
+    // build, the resulting Mesh differs from the cached one by a uniform NDC
+    // translation and a uniform alpha scale — apply that directly and skip
+    // MeshFactory entirely. Keyed on a hash extending the geometry hash with the
+    // remaining fields that affect vertex colors/positions (fill/stroke colors,
+    // gradients, align).
+    size_t     _lastMeshHash{std::numeric_limits<size_t>::max()};
+    bool       _meshCacheValid{false};
+    Mesh       _meshCache;
+    cv::Vec2f  _meshCachePosition{0.f, 0.f};
+    uint8_t    _meshCacheOpacity{0};
+    cv::Size2f _meshCacheScreen{0.f, 0.f};
 };

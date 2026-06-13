@@ -181,3 +181,49 @@ a une charge GPU plus lourde, donc la copie mémoire masquée représente une
 fraction plus petite du temps par frame. `VulkanWidget` (aperçu temps réel)
 n'a pas été modifié — la même idée ne s'applique que « si l'aperçu se met à
 ramer » (`wherewasi`).
+
+## Optimisation suivante (13/06/2026) : cache de mesh (animation position/opacité)
+
+`BezierPath::getMesh()` reconstruit entièrement le `Mesh` à chaque frame via
+`MeshFactory` — extrusion du contour (stroke), assemblage du remplissage
+(earcut), et application de la matrice de transformation `M` à chaque sommet
+pour produire les coordonnées NDC finales. Pour une animation qui ne fait que
+déplacer ou faire apparaître/disparaître une forme (`moveTo`, fondu
+d'opacité), la géométrie locale, l'échelle, la rotation, les couleurs et les
+dégradés sont identiques d'une frame à l'autre : seule la translation NDC et
+l'alpha de chaque sommet changent, de façon **uniforme**.
+
+Correctif (`BezierPath.hpp`/`.cpp`) : un second cache, au niveau du `Mesh`
+complet (post-`MeshFactory`), garde le dernier mesh généré ainsi que la
+position/opacité utilisées pour le produire. Sa clé étend le hash de
+géométrie existant avec les champs qui influent sur les couleurs/sommets en
+dehors de la position/opacité (couleurs de remplissage/contour, largeur de
+trait, dégradés, alignement). Sur un cache hit :
+
+- translation NDC uniforme : `ndcDx = Δposition.x / windowWidth`,
+  `ndcDy = Δposition.y / windowHeight` ajoutée à `pos` de chaque sommet ;
+- mise à l'échelle de l'alpha : `color[3] *= meta.opacity / opacitéEnCache`.
+
+`MeshFactory` (extrusion de trait + earcut + transformation `M`) est
+entièrement court-circuité dans ce cas. Tout changement d'échelle, rotation,
+alignement, géométrie, couleur ou dégradé invalide le cache et déclenche une
+reconstruction complète — l'extrusion du trait dépend de l'échelle
+(`halfW = |scale.x| * largeurTrait / 2`), donc une translation/alpha-scale
+seule ne serait pas correcte dans ces cas.
+
+Mesure isolée (compteur de temps total passé dans `getMesh` sur le rendu
+complet de `stress_text.py`, 300 frames, 14 100 appels — élimine le bruit du
+GPU/encodage) :
+
+| | Avant | Après | Gain |
+|---|---|---|---|
+| Total `BezierPath::getMesh` (stress_text, 14 100 appels) | 55,0 ms | 39,4 ms | **~28 %** |
+| Par appel | 3,90 µs | 2,80 µs | — |
+
+Vérification : les 19 tests de régression visuelle passent (différence
+moyenne 0,0). Limitation documentée : le gain ne s'applique qu'aux frames où
+seules `position`/`opacity` changent (animations `moveTo`, fondu) ; une
+extension future pourrait pousser la transformation `M` en GPU (push
+constant) pour couvrir aussi l'échelle/rotation, mais l'extrusion de trait
+dépendante de l'échelle rendrait cela nettement plus complexe (cf. issue de
+suivi mentionnée dans `wherewasi`).
