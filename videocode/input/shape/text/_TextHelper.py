@@ -4,9 +4,7 @@
 from __future__ import annotations
 
 import subprocess
-import freetype
 from functools import cache
-from uharfbuzz import Blob as HBBlob, Font as HBFont, Face as HBFace, Buffer as HBBuffer, shape as hb_shape  # type: ignore[import-untyped]
 
 from pathlib import Path
 from videocode.input.interface.Offset import Offset
@@ -14,6 +12,7 @@ from videocode.ty import *
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    import freetype
     from videocode.input.shape.text.Text import Letter
 
 
@@ -48,7 +47,13 @@ def fontPath(family: str, bold: bool, italic: bool) -> str:
 
 
 @cache
-def loadFaces(path: str) -> tuple[freetype.Face, Any, int, float, tuple[float, float]]:
+def loadFaces(path: str) -> tuple["freetype.Face", Any, int, float, tuple[float, float]]:
+    # Imported lazily: freetype (~15ms) and uharfbuzz (~10ms) are only needed
+    # when a scene actually uses Text, but Text is imported unconditionally
+    # by videocode/__init__.py.
+    import freetype
+    from uharfbuzz import Blob as HBBlob, Font as HBFont, Face as HBFace  # type: ignore[import-untyped]
+
     ft = freetype.Face(path)
     upem = ft.units_per_EM
     blob = HBBlob(Path(path).read_bytes())
@@ -67,6 +72,8 @@ def loadFaces(path: str) -> tuple[freetype.Face, Any, int, float, tuple[float, f
 
 
 def shape(text: str, hb_font: Any, features: dict[str, bool] | None = None) -> tuple[list, list]:
+    from uharfbuzz import Buffer as HBBuffer, shape as hb_shape  # type: ignore[import-untyped]
+
     buf = HBBuffer()
     buf.add_str(text)
     buf.guess_segment_properties()

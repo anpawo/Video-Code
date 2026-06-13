@@ -32,6 +32,11 @@ class Circle(Polygon):
         )
 
     def generateRawContours(self) -> list[list[point]]:
+        # These points are already final bezier anchor/handle pairs, so this
+        # bypasses Polygon's default corner-rounding (which expects one plain
+        # vertex per corner and emits 4 bezier points per corner — it would
+        # mangle an already-bezier contour like this one).
+        #
         # Manim's formula: anchors on the circle; handles at the mid-arc angle,
         # scaled outward by 1/cos(segAngle/2) (the tangent-intersection point).
         # Emitted clockwise (negative sin) so the pixel-space winding after the
@@ -50,6 +55,9 @@ class Circle(Polygon):
         return [pts]
 
     def generateVertices(self) -> list[point]:
+        # Required by Polygon (used for width/height/contains-point checks).
+        # Circle has no separate "corner vertex" representation, so this just
+        # reuses the same raw contour points as generateRawContours.
         return list(self.generateRawContours()[0])
 
     @prop(onSet=Polygon.updatePoints)
