@@ -70,6 +70,14 @@ private:
     // Stores the expensive-to-compute local-space results (bezier sample + earcut).
     // Keyed on a FNV-1a hash of _points + scale + rotation.
     // Invalidated when the shape geometry or display scale changes.
+    // One outer ring + its hole rings — mirrors the earcut-with-holes grouping,
+    // kept separate (rather than just concatenated in localPoly) so multi-stop
+    // linear fills can re-clip+re-earcut each group per gradient band.
+    struct FillGroup {
+        std::vector<cv::Vec2f>              outer;
+        std::vector<std::vector<cv::Vec2f>> holes;
+    };
+
     struct GeomCache {
         std::vector<cv::Vec2f>         localPoly;  // sampled fill vertices (outer/holes groups concatenated)
         std::vector<uint32_t>          earIndices; // earcut of localPoly (used for solid fills and 2-stop gradients)
@@ -81,6 +89,9 @@ private:
 
         // Largest outer ring of sampled points — boundary for radial/conic fills.
         std::vector<cv::Vec2f> boundaryRing;
+
+        // Outer+holes groups — used by multi-stop linear fills to respect holes.
+        std::vector<FillGroup> fillGroups;
     };
 
     size_t    _lastGeomHash{std::numeric_limits<size_t>::max()};

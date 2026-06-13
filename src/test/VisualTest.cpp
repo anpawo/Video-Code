@@ -101,6 +101,7 @@ namespace
         {"lightsweep-group", "test/visual/scenes/lightsweep_group.py", {7, 15, 22}},
         {"layers",           "test/visual/scenes/layers.py",           {0, 31, 61, 91}},
         {"text-gradient",    "test/visual/scenes/text_gradient.py",    {0, 11, 22, 33}},
+        {"gradient-holes",   "test/visual/scenes/gradient_holes.py",   {0}},
         {"video",            "test/visual/scenes/video.py",            {0}},
     };
 

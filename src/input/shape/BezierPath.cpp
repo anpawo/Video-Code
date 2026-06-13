@@ -237,6 +237,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         std::vector<cv::Vec2f> localPoly;
         std::vector<uint32_t>  earIndices;
         std::vector<cv::Vec2f> boundaryRing;
+        std::vector<FillGroup> fillGroups;
         if (hasFillNow && !rings.empty()) {
             auto ringArea = [](const std::vector<cv::Vec2f>& r) {
                 double a = 0;
@@ -313,6 +314,13 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
 
                 for (auto v : mapbox::earcut<uint32_t>(polygon))
                     earIndices.push_back(static_cast<uint32_t>(groupBase + v));
+
+                FillGroup group;
+                group.outer = rings[outers[oi]];
+                group.holes.reserve(holesOf[oi].size());
+                for (size_t h : holesOf[oi])
+                    group.holes.push_back(rings[h]);
+                fillGroups.push_back(std::move(group));
             }
         }
 
@@ -324,6 +332,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             localSize,
             std::move(contourCurves),
             std::move(boundaryRing),
+            std::move(fillGroups),
         };
         _lastGeomHash = geomHash;
         _geomValid    = true;
@@ -707,31 +716,52 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                 for (auto idx : _geomCache.earIndices)
                     factory.mesh.indices.push_back(firstPolyIdx + idx);
             } else {
-                // Multi-stop: clip to each stop interval and earcut each strip.
+                // Multi-stop: clip each fill group (outer ring + its holes) to each
+                // stop interval, then earcut-with-holes per clipped strip — so holes
+                // (e.g. the counter of a letter "O") are respected, unlike the
+                // radial/conic fills which still use a single boundary ring.
                 for (size_t k = 0; k + 1 < fillStops.size(); ++k) {
                     float projA = minProj + fillStops[k].position     * range;
                     float projB = minProj + fillStops[k + 1].position * range;
                     if (projA >= projB) continue;
 
-                    auto strip = clipPolyHalfPlane(boundary, dir, projA, true);
-                    strip      = clipPolyHalfPlane(strip,     dir, projB, false);
-                    if (strip.size() < 3) continue;
+                    for (const auto& group : _geomCache.fillGroups) {
+                        auto outerStrip = clipPolyHalfPlane(group.outer, dir, projA, true);
+                        outerStrip      = clipPolyHalfPlane(outerStrip,  dir, projB, false);
+                        if (outerStrip.size() < 3) continue;
 
-                    std::vector<std::vector<std::array<float, 2>>> stripPoly(1);
-                    stripPoly[0].reserve(strip.size());
-                    for (const auto& p : strip)
-                        stripPoly[0].push_back({p[0], p[1]});
-                    auto stripIdx = mapbox::earcut<uint32_t>(stripPoly);
+                        std::vector<std::vector<std::array<float, 2>>> stripPoly;
+                        stripPoly.reserve(1 + group.holes.size());
+                        stripPoly.push_back({});
+                        stripPoly[0].reserve(outerStrip.size());
+                        for (const auto& p : outerStrip)
+                            stripPoly[0].push_back({p[0], p[1]});
 
-                    uint32_t stripBase = factory.vertexCount();
-                    for (const auto& p : strip) {
-                        float proj   = p[0] * dir[0] + p[1] * dir[1];
-                        float localT = (proj - projA) / (projB - projA);
-                        factory.addVertex(p[0], p[1],
-                            lerpColor(fillStops[k].color, fillStops[k + 1].color, localT));
+                        for (const auto& hole : group.holes) {
+                            auto holeStrip = clipPolyHalfPlane(hole, dir, projA, true);
+                            holeStrip      = clipPolyHalfPlane(holeStrip, dir, projB, false);
+                            if (holeStrip.size() < 3) continue;
+                            std::vector<std::array<float, 2>> ring;
+                            ring.reserve(holeStrip.size());
+                            for (const auto& p : holeStrip)
+                                ring.push_back({p[0], p[1]});
+                            stripPoly.push_back(std::move(ring));
+                        }
+
+                        auto stripIdx = mapbox::earcut<uint32_t>(stripPoly);
+
+                        uint32_t stripBase = factory.vertexCount();
+                        for (const auto& ring : stripPoly) {
+                            for (const auto& p : ring) {
+                                float proj   = p[0] * dir[0] + p[1] * dir[1];
+                                float localT = (proj - projA) / (projB - projA);
+                                factory.addVertex(p[0], p[1],
+                                    lerpColor(fillStops[k].color, fillStops[k + 1].color, localT));
+                            }
+                        }
+                        for (auto idx : stripIdx)
+                            factory.mesh.indices.push_back(stripBase + idx);
                     }
-                    for (auto idx : stripIdx)
-                        factory.mesh.indices.push_back(stripBase + idx);
                 }
             }
         } else {
