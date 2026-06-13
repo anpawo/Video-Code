@@ -3,23 +3,25 @@
 
 from videocode.template.input._inputs import *
 from videocode import *
+from videocode.utils.bezier import Easing
+from videocode.utils.classutils import At
 
 p = Plane()
 
-# Stroke stress test — same characteristics as the big B (RED fill, WHITE
-# stroke, strokeWidth=0.2) at a smaller fontSize, with every glyph class
-# that historically broke the stroke renderer:
-#   - counters/holes: a b d e g o p q  /  Q O 0 8
-#   - multiple contours (dots): i j ! ? ; :
-#   - tight junctions like B's bowls: B K R X M W &
-#   - tight curves and S-bends: S 3 s % @
-common = dict(fontSize=1, fillColor=RED, strokeColor=WHITE, strokeWidth=0.05)
+# Animated radial gradient "wave" (#124 follow-up demo) — a bright ring
+# sweeps from each glyph's center out to its edge and repeats. Both "O" and
+# "@" have holes, so the wave is invisible while inside the counter and only
+# appears once it reaches the visible ring — driven every frame by a
+# Bezier-eased range over the gradient's middle stop position.
+oText  = Text("O", fontSize=3, fillColor=RadialGradient(BLUE_B, (WHITE, 0), RED)).position(x=-2.5)
+atText = Text("@", fontSize=3, fillColor=RadialGradient(GREEN_A, (WHITE, 0), RED)).position(x=2.5)
 
-Text("abdegopq", **common).position(y=2.7)
-Text("ij!?;:", **common).position(y=0.9)
-Text("BKRXMW&", **common).position(y=-0.9)
-Text("QO08S3s%@", **common).position(y=-2.7)
+waveDuration  = 1.5  # seconds for one outward sweep
+numWaves      = 4
+framesPerWave = int(waveDuration * FRAMERATE)
 
-# "All inputs are polygons" demo — cornerRadius=100 on a square image makes a
-# circle; no width/height needed, natural size is probed from wb.png itself.
-Image("image.png", cornerRadius=100).position(x=6.5, y=3.5)
+for wave in range(numWaves):
+    for pos, i in Easing.InOut.rangeIdx(0, 100, waveDuration):
+        frame = wave * framesPerWave + i
+        oText.fillColor  = At(start=frame * SF, duration=SF) | RadialGradient(BLUE_B, (WHITE, pos), RED)
+        atText.fillColor = At(start=frame * SF, duration=SF) | RadialGradient(GREEN_A, (WHITE, pos), RED)

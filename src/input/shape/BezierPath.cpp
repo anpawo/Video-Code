@@ -8,7 +8,9 @@
 #include "input/shape/BezierPath.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
+#include <functional>
 #include <mapbox/earcut.hpp>
 
 #include "vulkan/MeshFactory.hpp"
@@ -69,6 +71,99 @@ static std::vector<cv::Vec2f> clipPolyHalfPlane(
         }
     }
     return out;
+}
+
+// Earcuts a FillGroup (outer ring + holes) and returns the resulting triangles
+// as raw point triples, in local space. Used by radial/conic fills to build
+// hole-respecting geometry — earcut-with-holes naturally excludes the hole
+// interiors from the triangulation.
+static std::vector<std::array<cv::Vec2f, 3>> triangulateGroup(const BezierPath::FillGroup& group)
+{
+    std::vector<std::vector<std::array<float, 2>>> polygon;
+    polygon.reserve(1 + group.holes.size());
+
+    auto addRing = [&](const std::vector<cv::Vec2f>& r) {
+        std::vector<std::array<float, 2>> ring;
+        ring.reserve(r.size());
+        for (const auto& p : r)
+            ring.push_back({p[0], p[1]});
+        polygon.push_back(std::move(ring));
+    };
+    addRing(group.outer);
+    for (const auto& hole : group.holes)
+        addRing(hole);
+
+    auto indices = mapbox::earcut<uint32_t>(polygon);
+
+    auto pointAt = [&](uint32_t idx) -> cv::Vec2f {
+        for (const auto& ring : polygon) {
+            if (idx < ring.size())
+                return {ring[idx][0], ring[idx][1]};
+            idx -= static_cast<uint32_t>(ring.size());
+        }
+        return {0.f, 0.f};
+    };
+
+    std::vector<std::array<cv::Vec2f, 3>> triangles;
+    triangles.reserve(indices.size() / 3);
+    for (size_t i = 0; i + 2 < indices.size(); i += 3)
+        triangles.push_back({pointAt(indices[i]), pointAt(indices[i + 1]), pointAt(indices[i + 2])});
+    return triangles;
+}
+
+// Recursively splits triangle (v0,v1,v2) via midpoint subdivision until the
+// gradient value tFn() varies by less than `epsilon` across its vertices (or
+// `maxDepth` is reached), then emits the (possibly subdivided) leaf triangles
+// via `emit(p, color)` — called 3 times per leaf, in winding order.
+//
+// `wrapT` selects wrap-aware delta (conic: t wraps at 1→0, so a triangle
+// straddling the seam has vertices near both 0 and 1 — treated as close).
+// Radial `t` never wraps, so plain |a-b| is used.
+static void subdivideGradientTriangle(
+    cv::Vec2f v0, cv::Vec2f v1, cv::Vec2f v2,
+    const std::function<float(cv::Vec2f)>&            tFn,
+    const std::vector<GradientStop>&                  stops,
+    int depth, int maxDepth, float epsilon, bool wrapT,
+    const std::function<void(cv::Vec2f, cv::Vec4b)>&  emit)
+{
+    float t0 = tFn(v0), t1 = tFn(v1), t2 = tFn(v2);
+
+    auto delta = [wrapT](float a, float b) {
+        float d = std::abs(a - b);
+        return wrapT ? std::min(d, 1.f - d) : d;
+    };
+
+    cv::Vec2f m01 = 0.5f * (v0 + v1);
+    cv::Vec2f m12 = 0.5f * (v1 + v2);
+    cv::Vec2f m20 = 0.5f * (v2 + v0);
+
+    // Vertex-pairwise deltas alone miss "fan" triangles whose 3 vertices sit on
+    // (or near) the same isoline but whose interior bulges toward/away from
+    // center (e.g. an earcut ear spanning a wide arc of the outer ring) — such
+    // a triangle would pass a vertex-only flat check and get painted a single
+    // solid color despite its interior covering a wide range of t. Catch this
+    // by also comparing each edge midpoint's *actual* t against the linear
+    // (vertex-average) estimate: a large mismatch means tFn is curved across
+    // this triangle, so it still needs subdividing.
+    bool flat = std::max({delta(t0, t1), delta(t1, t2), delta(t0, t2)}) < epsilon;
+    if (flat) {
+        float tm01 = tFn(m01), tm12 = tFn(m12), tm20 = tFn(m20);
+        flat = delta(tm01, 0.5f * (t0 + t1)) < epsilon
+            && delta(tm12, 0.5f * (t1 + t2)) < epsilon
+            && delta(tm20, 0.5f * (t2 + t0)) < epsilon;
+    }
+
+    if (depth >= maxDepth || flat) {
+        emit(v0, lerpGradient(stops, t0));
+        emit(v1, lerpGradient(stops, t1));
+        emit(v2, lerpGradient(stops, t2));
+        return;
+    }
+
+    subdivideGradientTriangle(v0, m01, m20, tFn, stops, depth + 1, maxDepth, epsilon, wrapT, emit);
+    subdivideGradientTriangle(m01, v1, m12, tFn, stops, depth + 1, maxDepth, epsilon, wrapT, emit);
+    subdivideGradientTriangle(m20, m12, v2, tFn, stops, depth + 1, maxDepth, epsilon, wrapT, emit);
+    subdivideGradientTriangle(m01, m12, m20, tFn, stops, depth + 1, maxDepth, epsilon, wrapT, emit);
 }
 
 void BezierPath::parseColorOrGradient(
@@ -464,20 +559,6 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     const auto& boundary = _geomCache.boundaryRing.empty() ? _geomCache.localPoly : _geomCache.boundaryRing;
 
     if (_fillGradType == GradType::Radial && boundary.size() >= 3 && fillVisible) {
-        // --- Radial gradient: star mesh (center fan + concentric ring strips) ---
-        //
-        // Ring vertices are angle-sampled and clamped to the polygon boundary via
-        // boundaryDist[j] (ray-cast from center). This keeps every ring — including
-        // the outermost — strictly inside (or on) the polygon, so geometry never
-        // bleeds outside the shape's silhouette.
-        //
-        // Clamping the outermost ring to boundaryDist means it sits exactly ON the
-        // polygon boundary, but the chord between two adjacent ray samples can still
-        // cut inside an actual corner (leaving a black gap there). To fix that without
-        // reintroducing bleed, we additionally splice in any boundary vertices
-        // ("corner extras") that fall outside the chord for that sector — these are
-        // real boundary points, so they can't extend past the shape.
-
         cv::Vec2f center{_geomCache.localSize.width * 0.5f, _geomCache.localSize.height * 0.5f};
 
         float maxRadius = 0.f;
@@ -487,144 +568,187 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         }
         if (maxRadius < 1e-6f) maxRadius = 1e-6f;
 
-        float pixelRadius = maxRadius * std::max(meta.scale.x, meta.scale.y);
-        int   N           = std::max(24, static_cast<int>(2.f * static_cast<float>(M_PI) * pixelRadius / 6.f));
-        const float TAU   = 2.f * static_cast<float>(M_PI);
-        const size_t M    = boundary.size();
+        bool hasHoles = std::any_of(_geomCache.fillGroups.begin(), _geomCache.fillGroups.end(),
+            [](const FillGroup& g) { return !g.holes.empty(); });
 
-        // boundaryDist[j]: distance from center to the polygon boundary along the
-        // ray at angle theta_j = TAU*j/N (max intersection with any polygon edge).
-        std::vector<float> boundaryDist(N);
-        for (int j = 0; j < N; ++j) {
-            float theta = TAU * j / N;
-            cv::Vec2f d{std::cos(theta), std::sin(theta)};
-            float best = 0.f;
-            for (size_t ei = 0; ei < M; ++ei) {
-                const cv::Vec2f& a = boundary[ei];
-                const cv::Vec2f& b = boundary[(ei + 1) % M];
-                cv::Vec2f e = b - a;
-                float denom = d[0] * e[1] - d[1] * e[0];
-                if (std::abs(denom) < 1e-9f) continue;
-                cv::Vec2f ca = a - center;
-                float t = (ca[0] * e[1] - ca[1] * e[0]) / denom;
-                float s = (ca[0] * d[1] - ca[1] * d[0]) / denom;
-                if (t > 1e-6f && s >= -1e-6f && s <= 1.f + 1e-6f)
-                    best = std::max(best, t);
-            }
-            boundaryDist[j] = (best > 0.f) ? best : maxRadius;
-        }
+        if (hasHoles) {
+            // --- Radial gradient on a multi-contour shape with holes (e.g. "O", "g") ---
+            //
+            // The star mesh below assumes `center` lies inside solid fill, which is
+            // false for donut-like glyphs (the gradient center sits in the counter).
+            // Instead, triangulate each FillGroup with earcut-with-holes — this
+            // naturally excludes hole interiors as geometry — and adaptively
+            // subdivide each triangle so its per-vertex color matches
+            // lerpGradient(t) smoothly (t is nonlinear in (x,y), so coarse
+            // triangles would otherwise show visible faceting).
+            auto tFn = [&](cv::Vec2f p) -> float {
+                float dx = p[0] - center[0], dy = p[1] - center[1];
+                return std::sqrt(dx * dx + dy * dy) / maxRadius;
+            };
+            auto emit = [&](cv::Vec2f p, cv::Vec4b color) {
+                uint32_t idx = factory.vertexCount();
+                factory.addVertex(p[0], p[1], color);
+                factory.mesh.indices.push_back(idx);
+            };
+            for (const auto& group : _geomCache.fillGroups)
+                for (const auto& tri : triangulateGroup(group))
+                    subdivideGradientTriangle(tri[0], tri[1], tri[2], tFn, fillStops, 0, 6, 0.04f, false, emit);
+        } else {
 
-        auto ringPt = [&](int j, float r) -> cv::Vec2f {
-            float theta    = TAU * j / N;
-            float clampedR = std::min(r, boundaryDist[j]);
-            return center + cv::Vec2f{clampedR * std::cos(theta), clampedR * std::sin(theta)};
-        };
+            // --- Radial gradient: star mesh (center fan + concentric ring strips) ---
+            //
+            // Ring vertices are angle-sampled and clamped to the polygon boundary via
+            // boundaryDist[j] (ray-cast from center). This keeps every ring — including
+            // the outermost — strictly inside (or on) the polygon, so geometry never
+            // bleeds outside the shape's silhouette.
+            //
+            // Clamping the outermost ring to boundaryDist means it sits exactly ON the
+            // polygon boundary, but the chord between two adjacent ray samples can still
+            // cut inside an actual corner (leaving a black gap there). To fix that without
+            // reintroducing bleed, we additionally splice in any boundary vertices
+            // ("corner extras") that fall outside the chord for that sector — these are
+            // real boundary points, so they can't extend past the shape.
 
-        auto radialColor = [&](cv::Vec2f pt) -> cv::Vec4b {
-            float dx = pt[0] - center[0], dy = pt[1] - center[1];
-            return lerpGradient(fillStops, std::sqrt(dx * dx + dy * dy) / maxRadius);
-        };
+            float pixelRadius = maxRadius * std::max(meta.scale.x, meta.scale.y);
+            int   N           = std::max(24, static_cast<int>(2.f * static_cast<float>(M_PI) * pixelRadius / 6.f));
+            const float TAU   = 2.f * static_cast<float>(M_PI);
+            const size_t M    = boundary.size();
 
-        auto emitRing = [&](float r) {
+            // boundaryDist[j]: distance from center to the polygon boundary along the
+            // ray at angle theta_j = TAU*j/N (max intersection with any polygon edge).
+            std::vector<float> boundaryDist(N);
             for (int j = 0; j < N; ++j) {
-                cv::Vec2f pt = ringPt(j, r);
-                factory.addVertex(pt[0], pt[1], radialColor(pt));
+                float theta = TAU * j / N;
+                cv::Vec2f d{std::cos(theta), std::sin(theta)};
+                float best = 0.f;
+                for (size_t ei = 0; ei < M; ++ei) {
+                    const cv::Vec2f& a = boundary[ei];
+                    const cv::Vec2f& b = boundary[(ei + 1) % M];
+                    cv::Vec2f e = b - a;
+                    float denom = d[0] * e[1] - d[1] * e[0];
+                    if (std::abs(denom) < 1e-9f) continue;
+                    cv::Vec2f ca = a - center;
+                    float t = (ca[0] * e[1] - ca[1] * e[0]) / denom;
+                    float s = (ca[0] * d[1] - ca[1] * d[0]) / denom;
+                    if (t > 1e-6f && s >= -1e-6f && s <= 1.f + 1e-6f)
+                        best = std::max(best, t);
+                }
+                boundaryDist[j] = (best > 0.f) ? best : maxRadius;
             }
-        };
 
-        // Center vertex + ring0 (degenerate to the center point unless the first
-        // stop is pinned at a non-zero position).
-        uint32_t centerIdx = factory.vertexCount();
-        factory.addVertex(center[0], center[1], fillStops.front().color);
+            auto ringPt = [&](int j, float r) -> cv::Vec2f {
+                float theta    = TAU * j / N;
+                float clampedR = std::min(r, boundaryDist[j]);
+                return center + cv::Vec2f{clampedR * std::cos(theta), clampedR * std::sin(theta)};
+            };
 
-        uint32_t ring0Base = factory.vertexCount();
-        float    ring0R    = fillStops.front().position * maxRadius;
-        emitRing(ring0R);
+            auto radialColor = [&](cv::Vec2f pt) -> cv::Vec4b {
+                float dx = pt[0] - center[0], dy = pt[1] - center[1];
+                return lerpGradient(fillStops, std::sqrt(dx * dx + dy * dy) / maxRadius);
+            };
 
-        if (ring0R > 1e-6f) {
-            for (int j = 0; j < N; ++j) {
-                factory.mesh.indices.push_back(centerIdx);
-                factory.mesh.indices.push_back(static_cast<uint32_t>(ring0Base + j));
-                factory.mesh.indices.push_back(static_cast<uint32_t>(ring0Base + (j + 1) % N));
-            }
-        }
+            auto emitRing = [&](float r) {
+                for (int j = 0; j < N; ++j) {
+                    cv::Vec2f pt = ringPt(j, r);
+                    factory.addVertex(pt[0], pt[1], radialColor(pt));
+                }
+            };
 
-        // Pre-emit boundary vertices once — used as "corner extras" when
-        // triangulating the outermost ring strip.
-        uint32_t polyBase = factory.vertexCount();
-        for (const auto& p : boundary)
-            factory.addVertex(p[0], p[1], radialColor(p));
+            // Center vertex + ring0 (degenerate to the center point unless the first
+            // stop is pinned at a non-zero position).
+            uint32_t centerIdx = factory.vertexCount();
+            factory.addVertex(center[0], center[1], fillStops.front().color);
 
-        std::vector<float> pAngle(M), pDist(M);
-        for (size_t i = 0; i < M; ++i) {
-            float dx = boundary[i][0] - center[0], dy = boundary[i][1] - center[1];
-            float a  = std::atan2f(dy, dx);
-            pAngle[i] = (a < 0.f) ? a + TAU : a;
-            pDist[i]  = std::sqrt(dx * dx + dy * dy);
-        }
-        std::vector<std::vector<size_t>> sectorVerts(N);
-        for (size_t i = 0; i < M; ++i) {
-            int sec = static_cast<int>(pAngle[i] * N / TAU);
-            sec = std::clamp(sec, 0, N - 1);
-            sectorVerts[sec].push_back(i);
-        }
-        for (auto& sv : sectorVerts)
-            std::sort(sv.begin(), sv.end(), [&](size_t a, size_t b) { return pAngle[a] < pAngle[b]; });
+            uint32_t ring0Base = factory.vertexCount();
+            float    ring0R    = fillStops.front().position * maxRadius;
+            emitRing(ring0R);
 
-        // Ring-to-ring quad strips for each stop interval; the last interval also
-        // splices in corner extras.
-        uint32_t prevBase = ring0Base;
-        for (size_t k = 0; k + 1 < fillStops.size(); ++k) {
-            float rA = fillStops[k].position * maxRadius;
-            float rB = fillStops[k + 1].position * maxRadius;
-            if (rB <= rA + 1e-6f) continue;
-
-            uint32_t outerBase = factory.vertexCount();
-            emitRing(rB);
-
-            bool isLast = (k + 2 == fillStops.size());
-
-            for (int j = 0; j < N; ++j) {
-                int      jn = (j + 1) % N;
-                uint32_t i0 = static_cast<uint32_t>(prevBase + j);
-                uint32_t i1 = static_cast<uint32_t>(prevBase + jn);
-                uint32_t i2 = static_cast<uint32_t>(outerBase + j);
-                uint32_t i3 = static_cast<uint32_t>(outerBase + jn);
-
-                factory.mesh.indices.push_back(i0);
-                factory.mesh.indices.push_back(i1);
-                factory.mesh.indices.push_back(i2);
-
-                if (isLast) {
-                    float ringRJ  = std::min(rB, boundaryDist[j]);
-                    float ringRJn = std::min(rB, boundaryDist[jn]);
-                    float thresh  = std::max(ringRJ, ringRJn);
-
-                    // Fan from i1 through the outer chain (i3, extras…, i2), where
-                    // extras are boundary vertices in this sector that lie outside
-                    // the i3–i2 chord.
-                    uint32_t prev = i3;
-                    const auto& extras = sectorVerts[j];
-                    for (auto it = extras.rbegin(); it != extras.rend(); ++it) {
-                        size_t pi = *it;
-                        if (pDist[pi] <= thresh + 1e-4f) continue;
-                        uint32_t e = static_cast<uint32_t>(polyBase + pi);
-                        factory.mesh.indices.push_back(i1);
-                        factory.mesh.indices.push_back(prev);
-                        factory.mesh.indices.push_back(e);
-                        prev = e;
-                    }
-                    factory.mesh.indices.push_back(i1);
-                    factory.mesh.indices.push_back(prev);
-                    factory.mesh.indices.push_back(i2);
-                } else {
-                    factory.mesh.indices.push_back(i1);
-                    factory.mesh.indices.push_back(i3);
-                    factory.mesh.indices.push_back(i2);
+            if (ring0R > 1e-6f) {
+                for (int j = 0; j < N; ++j) {
+                    factory.mesh.indices.push_back(centerIdx);
+                    factory.mesh.indices.push_back(static_cast<uint32_t>(ring0Base + j));
+                    factory.mesh.indices.push_back(static_cast<uint32_t>(ring0Base + (j + 1) % N));
                 }
             }
-            prevBase = outerBase;
-        }
+
+            // Pre-emit boundary vertices once — used as "corner extras" when
+            // triangulating the outermost ring strip.
+            uint32_t polyBase = factory.vertexCount();
+            for (const auto& p : boundary)
+                factory.addVertex(p[0], p[1], radialColor(p));
+
+            std::vector<float> pAngle(M), pDist(M);
+            for (size_t i = 0; i < M; ++i) {
+                float dx = boundary[i][0] - center[0], dy = boundary[i][1] - center[1];
+                float a  = std::atan2f(dy, dx);
+                pAngle[i] = (a < 0.f) ? a + TAU : a;
+                pDist[i]  = std::sqrt(dx * dx + dy * dy);
+            }
+            std::vector<std::vector<size_t>> sectorVerts(N);
+            for (size_t i = 0; i < M; ++i) {
+                int sec = static_cast<int>(pAngle[i] * N / TAU);
+                sec = std::clamp(sec, 0, N - 1);
+                sectorVerts[sec].push_back(i);
+            }
+            for (auto& sv : sectorVerts)
+                std::sort(sv.begin(), sv.end(), [&](size_t a, size_t b) { return pAngle[a] < pAngle[b]; });
+
+            // Ring-to-ring quad strips for each stop interval; the last interval also
+            // splices in corner extras.
+            uint32_t prevBase = ring0Base;
+            for (size_t k = 0; k + 1 < fillStops.size(); ++k) {
+                float rA = fillStops[k].position * maxRadius;
+                float rB = fillStops[k + 1].position * maxRadius;
+                if (rB <= rA + 1e-6f) continue;
+
+                uint32_t outerBase = factory.vertexCount();
+                emitRing(rB);
+
+                bool isLast = (k + 2 == fillStops.size());
+
+                for (int j = 0; j < N; ++j) {
+                    int      jn = (j + 1) % N;
+                    uint32_t i0 = static_cast<uint32_t>(prevBase + j);
+                    uint32_t i1 = static_cast<uint32_t>(prevBase + jn);
+                    uint32_t i2 = static_cast<uint32_t>(outerBase + j);
+                    uint32_t i3 = static_cast<uint32_t>(outerBase + jn);
+
+                    factory.mesh.indices.push_back(i0);
+                    factory.mesh.indices.push_back(i1);
+                    factory.mesh.indices.push_back(i2);
+
+                    if (isLast) {
+                        float ringRJ  = std::min(rB, boundaryDist[j]);
+                        float ringRJn = std::min(rB, boundaryDist[jn]);
+                        float thresh  = std::max(ringRJ, ringRJn);
+
+                        // Fan from i1 through the outer chain (i3, extras…, i2), where
+                        // extras are boundary vertices in this sector that lie outside
+                        // the i3–i2 chord.
+                        uint32_t prev = i3;
+                        const auto& extras = sectorVerts[j];
+                        for (auto it = extras.rbegin(); it != extras.rend(); ++it) {
+                            size_t pi = *it;
+                            if (pDist[pi] <= thresh + 1e-4f) continue;
+                            uint32_t e = static_cast<uint32_t>(polyBase + pi);
+                            factory.mesh.indices.push_back(i1);
+                            factory.mesh.indices.push_back(prev);
+                            factory.mesh.indices.push_back(e);
+                            prev = e;
+                        }
+                        factory.mesh.indices.push_back(i1);
+                        factory.mesh.indices.push_back(prev);
+                        factory.mesh.indices.push_back(i2);
+                    } else {
+                        factory.mesh.indices.push_back(i1);
+                        factory.mesh.indices.push_back(i3);
+                        factory.mesh.indices.push_back(i2);
+                    }
+                }
+                prevBase = outerBase;
+            }
+
+        } // end !hasHoles
 
     } else if (_fillGradType == GradType::Conic && boundary.size() >= 3 && fillVisible) {
         // --- Conic gradient: fan from center to the polygon boundary ---
@@ -647,29 +771,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         }
         if (maxRadius < 1e-6f) maxRadius = 1e-6f;
 
-        float pixelRadius = maxRadius * std::max(meta.scale.x, meta.scale.y);
-        int   N           = std::max(24, static_cast<int>(2.f * static_cast<float>(M_PI) * pixelRadius / 6.f));
-        const float TAU   = 2.f * static_cast<float>(M_PI);
-        const size_t M    = boundary.size();
-
-        // Ray-cast from center at local angle `theta` to the polygon boundary.
-        auto rayDist = [&](float theta) -> float {
-            cv::Vec2f d{std::cos(theta), std::sin(theta)};
-            float best = 0.f;
-            for (size_t ei = 0; ei < M; ++ei) {
-                const cv::Vec2f& a = boundary[ei];
-                const cv::Vec2f& b = boundary[(ei + 1) % M];
-                cv::Vec2f e = b - a;
-                float denom = d[0] * e[1] - d[1] * e[0];
-                if (std::abs(denom) < 1e-9f) continue;
-                cv::Vec2f ca = a - center;
-                float t = (ca[0] * e[1] - ca[1] * e[0]) / denom;
-                float s = (ca[0] * d[1] - ca[1] * d[0]) / denom;
-                if (t > 1e-6f && s >= -1e-6f && s <= 1.f + 1e-6f)
-                    best = std::max(best, t);
-            }
-            return (best > 0.f) ? best : maxRadius;
-        };
+        const float TAU = 2.f * static_cast<float>(M_PI);
 
         // World-space sweep angle: 0 = right, 90 = up, CCW (matches LinearGradient's
         // angle convention). Local space Y is flipped relative to world space, so
@@ -684,64 +786,114 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             return wrapToUnit((-localAngle - angleRad) / TAU);
         };
 
-        // Boundary chain: N evenly-spaced ray samples + any boundary vertices
-        // that stick out beyond their sector's chord (corner extras), sorted by
-        // local angle — same corner-coverage idea as the radial gradient's
-        // outermost ring.
-        struct ChainPt { cv::Vec2f pt; float angle; };
-        std::vector<ChainPt> chain;
-        chain.reserve(N + M);
+        bool hasHoles = std::any_of(_geomCache.fillGroups.begin(), _geomCache.fillGroups.end(),
+            [](const FillGroup& g) { return !g.holes.empty(); });
 
-        std::vector<float> boundaryDist(N);
-        for (int j = 0; j < N; ++j) {
-            float theta = TAU * j / N;
-            boundaryDist[j] = rayDist(theta);
-            chain.push_back({center + cv::Vec2f{boundaryDist[j] * std::cos(theta), boundaryDist[j] * std::sin(theta)}, theta});
-        }
-        for (size_t i = 0; i < M; ++i) {
-            float dx = boundary[i][0] - center[0], dy = boundary[i][1] - center[1];
-            float a    = std::atan2f(dy, dx);
-            if (a < 0.f) a += TAU;
-            float dist = std::sqrt(dx * dx + dy * dy);
-            int j  = std::clamp(static_cast<int>(a * N / TAU), 0, N - 1);
-            int jn = (j + 1) % N;
-            if (dist > std::max(boundaryDist[j], boundaryDist[jn]) + 1e-4f)
-                chain.push_back({boundary[i], a});
-        }
-        std::sort(chain.begin(), chain.end(), [](const ChainPt& a, const ChainPt& b) { return a.angle < b.angle; });
+        if (hasHoles) {
+            // --- Conic gradient on a multi-contour shape with holes (e.g. "O", "g") ---
+            //
+            // Same rationale as the radial hasHoles branch: triangulate each
+            // FillGroup with earcut-with-holes (excludes hole interiors), then
+            // adaptively subdivide each triangle so its per-vertex color matches
+            // lerpGradient(conicT(angle)) smoothly. conicT wraps at 1->0, so
+            // subdivision termination uses a wrap-aware delta (wrapT=true).
+            auto tFn = [&](cv::Vec2f p) -> float {
+                float dx = p[0] - center[0], dy = p[1] - center[1];
+                return conicT(std::atan2f(dy, dx));
+            };
+            auto emit = [&](cv::Vec2f p, cv::Vec4b color) {
+                uint32_t idx = factory.vertexCount();
+                factory.addVertex(p[0], p[1], color);
+                factory.mesh.indices.push_back(idx);
+            };
+            for (const auto& group : _geomCache.fillGroups)
+                for (const auto& tri : triangulateGroup(group))
+                    subdivideGradientTriangle(tri[0], tri[1], tri[2], tFn, fillStops, 0, 6, 0.04f, true, emit);
+        } else {
 
-        // Insert a hard seam at the gradient's start angle: two coincident
-        // vertices, t=0 (first stop color) just before, t=1 (last stop color)
-        // just after, in angular order.
-        float la0 = std::fmod(-angleRad, TAU);
-        if (la0 < 0.f) la0 += TAU;
-        float seamR = rayDist(la0);
-        cv::Vec2f seamPt = center + cv::Vec2f{seamR * std::cos(la0), seamR * std::sin(la0)};
+            float pixelRadius = maxRadius * std::max(meta.scale.x, meta.scale.y);
+            int   N           = std::max(24, static_cast<int>(2.f * static_cast<float>(M_PI) * pixelRadius / 6.f));
+            const size_t M    = boundary.size();
 
-        size_t insertAt = chain.size();
-        for (size_t i = 0; i < chain.size(); ++i) {
-            if (chain[i].angle > la0) { insertAt = i; break; }
-        }
-        chain.insert(chain.begin() + static_cast<long>(insertAt), 2, ChainPt{seamPt, la0});
+            // Ray-cast from center at local angle `theta` to the polygon boundary.
+            auto rayDist = [&](float theta) -> float {
+                cv::Vec2f d{std::cos(theta), std::sin(theta)};
+                float best = 0.f;
+                for (size_t ei = 0; ei < M; ++ei) {
+                    const cv::Vec2f& a = boundary[ei];
+                    const cv::Vec2f& b = boundary[(ei + 1) % M];
+                    cv::Vec2f e = b - a;
+                    float denom = d[0] * e[1] - d[1] * e[0];
+                    if (std::abs(denom) < 1e-9f) continue;
+                    cv::Vec2f ca = a - center;
+                    float t = (ca[0] * e[1] - ca[1] * e[0]) / denom;
+                    float s = (ca[0] * d[1] - ca[1] * d[0]) / denom;
+                    if (t > 1e-6f && s >= -1e-6f && s <= 1.f + 1e-6f)
+                        best = std::max(best, t);
+                }
+                return (best > 0.f) ? best : maxRadius;
+            };
 
-        std::vector<uint32_t> chainIdx(chain.size());
-        std::vector<cv::Vec4b> chainColor(chain.size());
-        for (size_t i = 0; i < chain.size(); ++i) {
-            if (i == insertAt)          chainColor[i] = lerpGradient(fillStops, 0.f);
-            else if (i == insertAt + 1) chainColor[i] = lerpGradient(fillStops, 1.f);
-            else                        chainColor[i] = lerpGradient(fillStops, conicT(chain[i].angle));
-            chainIdx[i] = factory.vertexCount();
-            factory.addVertex(chain[i].pt[0], chain[i].pt[1], chainColor[i]);
-        }
+            // Boundary chain: N evenly-spaced ray samples + any boundary vertices
+            // that stick out beyond their sector's chord (corner extras), sorted by
+            // local angle — same corner-coverage idea as the radial gradient's
+            // outermost ring.
+            struct ChainPt { cv::Vec2f pt; float angle; };
+            std::vector<ChainPt> chain;
+            chain.reserve(N + M);
 
-        size_t cnt = chain.size();
-        for (size_t i = 0; i < cnt; ++i) {
-            uint32_t c = factory.vertexCount();
-            factory.addVertex(center[0], center[1], chainColor[i]);
-            factory.mesh.indices.push_back(c);
-            factory.mesh.indices.push_back(chainIdx[i]);
-            factory.mesh.indices.push_back(chainIdx[(i + 1) % cnt]);
-        }
+            std::vector<float> boundaryDist(N);
+            for (int j = 0; j < N; ++j) {
+                float theta = TAU * j / N;
+                boundaryDist[j] = rayDist(theta);
+                chain.push_back({center + cv::Vec2f{boundaryDist[j] * std::cos(theta), boundaryDist[j] * std::sin(theta)}, theta});
+            }
+            for (size_t i = 0; i < M; ++i) {
+                float dx = boundary[i][0] - center[0], dy = boundary[i][1] - center[1];
+                float a    = std::atan2f(dy, dx);
+                if (a < 0.f) a += TAU;
+                float dist = std::sqrt(dx * dx + dy * dy);
+                int j  = std::clamp(static_cast<int>(a * N / TAU), 0, N - 1);
+                int jn = (j + 1) % N;
+                if (dist > std::max(boundaryDist[j], boundaryDist[jn]) + 1e-4f)
+                    chain.push_back({boundary[i], a});
+            }
+            std::sort(chain.begin(), chain.end(), [](const ChainPt& a, const ChainPt& b) { return a.angle < b.angle; });
+
+            // Insert a hard seam at the gradient's start angle: two coincident
+            // vertices, t=0 (first stop color) just before, t=1 (last stop color)
+            // just after, in angular order.
+            float la0 = std::fmod(-angleRad, TAU);
+            if (la0 < 0.f) la0 += TAU;
+            float seamR = rayDist(la0);
+            cv::Vec2f seamPt = center + cv::Vec2f{seamR * std::cos(la0), seamR * std::sin(la0)};
+
+            size_t insertAt = chain.size();
+            for (size_t i = 0; i < chain.size(); ++i) {
+                if (chain[i].angle > la0) { insertAt = i; break; }
+            }
+            chain.insert(chain.begin() + static_cast<long>(insertAt), 2, ChainPt{seamPt, la0});
+
+            std::vector<uint32_t> chainIdx(chain.size());
+            std::vector<cv::Vec4b> chainColor(chain.size());
+            for (size_t i = 0; i < chain.size(); ++i) {
+                if (i == insertAt)          chainColor[i] = lerpGradient(fillStops, 0.f);
+                else if (i == insertAt + 1) chainColor[i] = lerpGradient(fillStops, 1.f);
+                else                        chainColor[i] = lerpGradient(fillStops, conicT(chain[i].angle));
+                chainIdx[i] = factory.vertexCount();
+                factory.addVertex(chain[i].pt[0], chain[i].pt[1], chainColor[i]);
+            }
+
+            size_t cnt = chain.size();
+            for (size_t i = 0; i < cnt; ++i) {
+                uint32_t c = factory.vertexCount();
+                factory.addVertex(center[0], center[1], chainColor[i]);
+                factory.mesh.indices.push_back(c);
+                factory.mesh.indices.push_back(chainIdx[i]);
+                factory.mesh.indices.push_back(chainIdx[(i + 1) % cnt]);
+            }
+
+        } // end !hasHoles
 
     } else if (fillVisible && !_geomCache.earIndices.empty()) {
         // --- Linear gradient or solid fill: earcut-based ---

@@ -32,6 +32,16 @@ public:
 
     Mesh getMesh(const Metadata& meta, const Config& config) override;
 
+    // One outer ring + its hole rings — mirrors the earcut-with-holes grouping,
+    // kept separate (rather than just concatenated in localPoly) so multi-stop
+    // linear fills can re-clip+re-earcut each group per gradient band, and so
+    // radial/conic fills can re-triangulate each group to respect holes.
+    // Public so free helper functions in BezierPath.cpp can name it.
+    struct FillGroup {
+        std::vector<cv::Vec2f>              outer;
+        std::vector<std::vector<cv::Vec2f>> holes;
+    };
+
 protected:
 
     // Default: parse strokeWidth/fillColor/strokeColor/open + points/contourSizes
@@ -80,14 +90,6 @@ private:
     // Stores the expensive-to-compute local-space results (bezier sample + earcut).
     // Keyed on a FNV-1a hash of _points + scale + rotation.
     // Invalidated when the shape geometry or display scale changes.
-    // One outer ring + its hole rings — mirrors the earcut-with-holes grouping,
-    // kept separate (rather than just concatenated in localPoly) so multi-stop
-    // linear fills can re-clip+re-earcut each group per gradient band.
-    struct FillGroup {
-        std::vector<cv::Vec2f>              outer;
-        std::vector<std::vector<cv::Vec2f>> holes;
-    };
-
     struct GeomCache {
         std::vector<cv::Vec2f>         localPoly;  // sampled fill vertices (outer/holes groups concatenated)
         std::vector<uint32_t>          earIndices; // earcut of localPoly (used for solid fills and 2-stop gradients)

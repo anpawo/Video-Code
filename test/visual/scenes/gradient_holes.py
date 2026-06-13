@@ -22,3 +22,20 @@ Text("A", fontSize=2, fillColor=LinearGradient(RED, (rgba(255, 165, 0), 33), (GR
 
 # "g" — one hole, multi-stop gradient at an off-axis angle.
 Text("g", fontSize=2, fillColor=LinearGradient(BLACK, (WHITE, 30), (BLACK, 70), WHITE, angle=120)).position(x=1.2, y=1)
+
+# Radial/conic gradients on letters with counters (#124) — the gradient center
+# sits inside the hole, so these exercise the earcut-with-holes + adaptive
+# subdivision fallback. The Plane() grid background should be visible through
+# every hole, with a smooth (non-faceted) gradient elsewhere.
+
+# "O" — radial gradient, center falls inside the hole.
+Text("O", fontSize=2, fillColor=RadialGradient(RED, (WHITE, 50), BLUE_B)).position(x=-6.5, y=-2)
+
+# "g" — radial gradient on a glyph with an off-center hole.
+Text("g", fontSize=2, fillColor=RadialGradient(GREEN_A, (WHITE, 40), BLUE_B)).position(x=-3.9, y=-2)
+
+# "@" — conic gradient with a hard seam, multiple holes.
+Text("@", fontSize=2, fillColor=ConicGradient(RED, (WHITE, 50), BLUE_B, angle=45)).position(x=-1.4, y=-2)
+
+# "O" — conic gradient, no seam (first/last stops match).
+Text("O", fontSize=2, fillColor=ConicGradient(BLACK, (WHITE, 50), BLACK)).position(x=1.2, y=-2)
