@@ -97,9 +97,11 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
 
     ///< Wire up the frame callback before init so the first render already
     ///< has access to the animation state.
-    ///< The callback throttles animation advancement to config.framerate fps so
-    ///< that Vulkan rendering at display refresh rate doesn't consume frames too fast.
-    const auto frameDuration = std::chrono::duration<double>(1.0 / config.framerate);
+    ///< The callback throttles animation advancement to Config::SCENE_FRAMERATE fps
+    ///< (the rate scene-side durations are authored in — see Config.hpp) so that
+    ///< Vulkan rendering at display refresh rate plays back at the intended speed
+    ///< regardless of --framerate, which only controls the --generate output rate.
+    const auto frameDuration = std::chrono::duration<double>(1.0 / Config::SCENE_FRAMERATE);
     _vulkanWidget->setFrameCallback([this, frameDuration]() -> std::vector<Mesh> {
         auto now = std::chrono::steady_clock::now();
         if (_lastMeshes.empty() || (now - _lastFrameTime) >= frameDuration) {

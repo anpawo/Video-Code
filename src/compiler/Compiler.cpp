@@ -7,6 +7,7 @@
 
 #include "compiler/Compiler.hpp"
 
+#include <cmath>
 #include <condition_variable>
 #include <deque>
 #include <format>
@@ -129,8 +130,24 @@ int VC::Compiler::generateVideo()
         }
     });
 
-    size_t total = _core._nbFrame;
+    // Scenes are authored at Config::SCENE_FRAMERATE (30fps): _nbFrame and all
+    // start/duration values are expressed in that unit. When the requested
+    // output framerate differs, resample by mapping each output frame to the
+    // nearest scene frame — duplicating frames if framerate > SCENE_FRAMERATE,
+    // dropping them if framerate < SCENE_FRAMERATE.
+    size_t sceneFrames = _core._nbFrame;
+    size_t total = (config.framerate == Config::SCENE_FRAMERATE)
+        ? sceneFrames
+        : (size_t)std::llround((double)sceneFrames * config.framerate / Config::SCENE_FRAMERATE);
+
     for (size_t i = 0; i < total; ++i) {
+        size_t sceneIndex = (config.framerate == Config::SCENE_FRAMERATE)
+            ? i
+            : (size_t)std::llround((double)i * Config::SCENE_FRAMERATE / config.framerate);
+        if (sceneIndex >= sceneFrames)
+            sceneIndex = sceneFrames - 1;
+        _core._index = sceneIndex;
+
         const auto& meshes = _core.generateMeshes();
         renderer.setMeshes(meshes);
 
