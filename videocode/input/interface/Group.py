@@ -6,7 +6,6 @@ from typing import Any, TypeVar
 from videocode.input.input import *
 from videocode.input.interface.Interface import Interface
 from videocode.template.effect.moveTo import groupMoveBy, groupMoveTo
-from videocode.template.effect.scaleTo import groupScaleBy, groupScaleTo
 
 
 _GROUP_T = TypeVar("_GROUP_T", bound=Input, default=Input)
@@ -50,18 +49,6 @@ class Group(Interface, Generic[_GROUP_T]):
 
     def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         return self.apply(*groupMoveBy(x=x, y=y, easing=easing, start=start, duration=duration))
-
-    def scaleTo(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        if factor is not None:
-            x = factor
-            y = factor
-        return self.apply(*groupScaleTo(self, x=x, y=y, easing=easing, start=start, duration=duration))
-
-    def scaleBy(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        if factor is not None:
-            x = factor
-            y = factor
-        return self.apply(*groupScaleBy(x=x, y=y, easing=easing, start=start, duration=duration))
 
     def waitForOthers(self) -> Self:
         frames: list[int] = []
