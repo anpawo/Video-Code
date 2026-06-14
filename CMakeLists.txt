@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.21)
-project(video-code VERSION 1.0.0 LANGUAGES CXX OBJCXX)
+project(video-code VERSION 1.0.0 LANGUAGES CXX)
+
+# OBJCXX (Objective-C++, for src/Vulkan/MetalSurface.mm) is only needed on
+# Apple. Probing for it on the project() call breaks Linux CI: g++-13 has no
+# cc1objplus, so the OBJCXX compiler check fails before configure can proceed.
+if(APPLE)
+    enable_language(OBJCXX)
+endif()
 
 # Generate compile_commands.json automatically
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

@@ -44,7 +44,7 @@ class IShader(ABC):
         # Faster than the default copy.copy(): skips the generic
         # __reduce_ex__/copyreg machinery for these plain-attribute objects.
         new = self.__class__.__new__(self.__class__)
-        new.__dict__.update(self.__dict__)
+        vars(new).update(vars(self))
         return new
 
     def __str__(self) -> str:
