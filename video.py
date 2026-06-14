@@ -1,31 +1,13 @@
 #!/usr/bin/env python3
 
 
-from videocode.template.input._inputs import *
 from videocode import *
-from videocode.input.interface.Group import Group
+from videocode.template.input._inputs import *
 
 p = Plane()
 
-# --- Mirror demo: sync-style (top pair) ---
-# rotateBy/scaleBy resolve to an absolute destination *before* apply() runs,
-# so a mirrored target ends up at the SAME resulting rotation/scale as the
-# source — even though it stays at its own (different) position.
-leader = Rectangle(fillColor=BLUE_C | BLACK).position(x=-4, y=2)
-follower = Rectangle(fillColor=RED | BLACK).position(x=4, y=2)
-leader.mirror(follower)
-
-leader.rotateBy(45, duration=1, start=0)
-leader.scaleBy(1.4, duration=1, start=1)
-
-# --- Mirror demo: delta-style via Group.moveBy (bottom pair) ---
-# Group.moveBy uses an additive `translate` shader, so each mirrored target
-# keeps its own position and shifts by the same delta — relative offsets
-# between leader and follower are preserved.
-leaderG = Rectangle(fillColor=GREEN | BLACK).position(x=-4, y=-2.5)
-followerG = Rectangle(fillColor=BLUE_A | BLACK).position(x=4, y=-2.5)
-group = Group(leaderG)
-group.mirror(followerG)
-
-group.moveBy(x=3, duration=1, start=0)
-group.moveBy(x=-6, duration=1, start=1)
+# --- Video trimming demo (#92) ---
+# `startFrame`/`endFrame` restrict playback to source frames [startFrame, endFrame)
+# — here only frames 5..19 of the 24-frame clip play (15 frames), instead of the
+# full clip. Equivalent to cuts=[(0, 5), (20, <end>)].
+v = Video("test.mp4", startFrame=5, endFrame=20)

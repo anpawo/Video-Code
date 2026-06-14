@@ -18,6 +18,8 @@ class Video(Polygon):
         self,
         filepath: str,
         cuts: list[frame | tuple[frame, frame]] = [],
+        startFrame: frame = 0,
+        endFrame: maybe[frame] = None,
         width: maybe[wunumber] = None,
         height: maybe[wunumber] = None,
         cornerRadius: percent = 0,
@@ -28,9 +30,20 @@ class Video(Polygon):
         `cuts` are ranges of source-video frames to skip during playback —
         either a single frame index `n` (shorthand for `(n, n + 1)`) or a
         `(start, end)` pair cutting `[start, end)`.
+
+        `startFrame`/`endFrame` restrict playback to the source frame range
+        `[startFrame, endFrame)` — shorthand for cutting everything outside
+        that range (`endFrame=None` plays to the end of the source).
         """
         self.filepath = filepath
-        self.cuts = [c if isinstance(c, tuple) else (c, c + 1) for c in cuts]
+        cuts = [c if isinstance(c, tuple) else (c, c + 1) for c in cuts]
+        if startFrame:
+            cuts.append((0, startFrame))
+        if endFrame is not None:
+            # the C++ side clamps `end` to the source's actual frame count,
+            # so an over-large sentinel cuts everything past `endFrame`.
+            cuts.append((endFrame, 2**31 - 1))
+        self.cuts = cuts
 
         # Rounding/stroking needs a known shape — if the caller didn't give
         # one, fall back to the video's natural frame size (ffprobe metadata,
