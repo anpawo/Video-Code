@@ -119,6 +119,7 @@ namespace
         {"video",            "test/visual/scenes/video.py",            {0}},
         {"image-shape",      "test/visual/scenes/image_shape.py",      {0}},
         {"mirror",           "test/visual/scenes/mirror.py",           {0, 29, 59}},
+        {"resize",           "test/visual/scenes/resize.py",           {0, 15, 29}},
     };
 
     const std::vector<ReloadCase> kReloadCases = {
