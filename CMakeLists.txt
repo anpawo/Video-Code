@@ -80,6 +80,16 @@ if(CI_BUILD)
         GIT_REPOSITORY https://github.com/nlohmann/json.git
     )
     FetchContent_MakeAvailable(nlohmann_json)
+
+    # earcut-hpp is header-only with no usable CMake target — just populate the
+    # source and add its include dir directly.
+    FetchContent_Declare(
+        earcut
+        GIT_REPOSITORY https://github.com/mapbox/earcut.hpp.git
+        GIT_TAG v2.2.4
+    )
+    FetchContent_Populate(earcut)
+    include_directories(${earcut_SOURCE_DIR}/include)
 endif()
 
 find_package(OpenCV CONFIG REQUIRED)
