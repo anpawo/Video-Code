@@ -8,4 +8,5 @@ from videocode.input.shape.Triangle import *
 from videocode.input.shape.Circle import *
 from videocode.input.shape.Curve import *
 from videocode.input.shape.text.Text import *
+from videocode.input.shape.text.Subtitles import *
 from videocode.input.shape.svg.SVG import *

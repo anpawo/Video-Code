@@ -121,6 +121,7 @@ namespace
         {"mirror",           "test/visual/scenes/mirror.py",           {0, 29, 59}},
         {"resize",           "test/visual/scenes/resize.py",           {0, 15, 29}},
         {"svg",              "test/visual/scenes/svg.py",              {0}},
+        {"subtitles",        "test/visual/scenes/subtitles.py",        {30}},
     };
 
     const std::vector<ReloadCase> kReloadCases = {
