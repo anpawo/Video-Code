@@ -734,7 +734,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             std::vector<float> pAngle(M), pDist(M);
             for (size_t i = 0; i < M; ++i) {
                 float dx = boundary[i][0] - center[0], dy = boundary[i][1] - center[1];
-                float a  = std::atan2f(dy, dx);
+                float a  = std::atan2(dy, dx);
                 pAngle[i] = (a < 0.f) ? a + TAU : a;
                 pDist[i]  = std::sqrt(dx * dx + dy * dy);
             }
@@ -853,7 +853,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             // subdivision termination uses a wrap-aware delta (wrapT=true).
             auto tFn = [&](cv::Vec2f p) -> float {
                 float dx = p[0] - center[0], dy = p[1] - center[1];
-                return conicT(std::atan2f(dy, dx));
+                return conicT(std::atan2(dy, dx));
             };
             auto emit = [&](cv::Vec2f p, cv::Vec4b color) {
                 uint32_t idx = factory.vertexCount();
@@ -904,7 +904,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             }
             for (size_t i = 0; i < M; ++i) {
                 float dx = boundary[i][0] - center[0], dy = boundary[i][1] - center[1];
-                float a    = std::atan2f(dy, dx);
+                float a    = std::atan2(dy, dx);
                 if (a < 0.f) a += TAU;
                 float dist = std::sqrt(dx * dx + dy * dy);
                 int j  = std::clamp(static_cast<int>(a * N / TAU), 0, N - 1);
