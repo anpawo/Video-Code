@@ -24,6 +24,9 @@ jobs:
       - name: Install dependencies
         run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-dev ffmpeg libopencv-dev libcurl4-openssl-dev g++-13 gcc-13
 
+      - name: Install pybind11
+        run: pip install pybind11
+
       - name: Set CXX environment variable
         run: |
           g++-13 --version
@@ -105,11 +108,14 @@ jobs:
             core.exportVariable('ACTIONS_CACHE_URL', process.env.ACTIONS_CACHE_URL || '');
             core.exportVariable('ACTIONS_RUNTIME_TOKEN', process.env.ACTIONS_RUNTIME_TOKEN || '');
 
+      # CMakeLists.txt sets CMAKE_TOOLCHAIN_FILE *after* project(), which is too
+      # late for vcpkg to hook in (must be passed on the command line, same as
+      # the local Makefile's VCPKG_FLAGS).
       - name: Configure CMake
         env:
           VCPKG_ROOT: C:/vcpkg
           VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
-        run: cmake -S . -B build -G Ninja -DCI_BUILD=ON -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic
+        run: cmake -S . -B build -G Ninja -DCI_BUILD=ON -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
 
       - name: Build the project
         env:
