@@ -22,7 +22,7 @@ jobs:
         run: echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-dev ffmpeg libopencv-dev libcurl4-openssl-dev libvulkan-dev libfreetype6-dev glslang-dev g++-13 gcc-13
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-dev ffmpeg libopencv-dev libcurl4-openssl-dev libvulkan-dev libfreetype6-dev glslang-dev glslang-tools g++-13 gcc-13
 
       - name: Install pybind11
         run: pip install pybind11
