@@ -12,3 +12,6 @@ SVG("icon.svg", width=2, height=2).position(x=-1, y=2.5)
 
 # --- Subtitles (#79) ---
 Subtitles("test/test.srt")
+
+# --- Markdown (#76) ---
+Markdown("test/test.md")
