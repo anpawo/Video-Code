@@ -276,20 +276,74 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     if (!_strokeStops.empty())
         meshHash = fnvHash(_strokeStops.data(), _strokeStops.size() * sizeof(GradientStop), meshHash);
 
-    if (_meshCacheValid && meshHash == _lastMeshHash && _meshCacheOpacity > 0
+    // --- Shape-only hash (everything MeshFactory's output depends on *except*
+    // the M-dependent transform fields: scale, rotation, align, position,
+    // opacity). A match means the cached mesh's geometry/colors are still
+    // correct and only need re-placing via the affine delta below.
+    size_t shapeHash = fnvHash(_points.data(), n * sizeof(cv::Vec2f));
+    shapeHash = fnvHash(&hasFillNow, sizeof(bool), shapeHash);
+    if (!_contourSizes.empty())
+        shapeHash = fnvHash(_contourSizes.data(), _contourSizes.size() * sizeof(size_t), shapeHash);
+    shapeHash = fnvHash(&_fillColor,   sizeof(_fillColor),   shapeHash);
+    shapeHash = fnvHash(&_strokeColor, sizeof(_strokeColor), shapeHash);
+    shapeHash = fnvHash(&_strokeWidth, sizeof(_strokeWidth), shapeHash);
+    if (!_fillStops.empty())
+        shapeHash = fnvHash(_fillStops.data(),   _fillStops.size()   * sizeof(GradientStop), shapeHash);
+    if (!_strokeStops.empty())
+        shapeHash = fnvHash(_strokeStops.data(), _strokeStops.size() * sizeof(GradientStop), shapeHash);
+
+    if (_meshCacheValid && shapeHash == _lastShapeHash && _meshCacheOpacity > 0
         && _meshCacheScreen.width == config.screenWidth && _meshCacheScreen.height == config.screenHeight) {
-        Mesh  mesh        = _meshCache;
-        float ndcDx       = (meta.position.x - _meshCachePosition[0]) / (config.screenWidth / 2.f);
-        float ndcDy       = (meta.position.y - _meshCachePosition[1]) / (config.screenHeight / 2.f);
-        float opacityRatio = meta.opacity / static_cast<float>(_meshCacheOpacity);
-        if (ndcDx != 0.f || ndcDy != 0.f || opacityRatio != 1.f) {
-            for (auto& v : mesh.vertices) {
-                v.pos[0]  += ndcDx;
-                v.pos[1]  += ndcDy;
-                v.color[3] *= opacityRatio;
+        bool sameTransform = meta.position.x == _meshCachePosition[0] && meta.position.y == _meshCachePosition[1]
+            && meta.scale.x == _meshCacheScale[0] && meta.scale.y == _meshCacheScale[1]
+            && meta.rotation == _meshCacheRotation
+            && meta.align.x == _meshCacheAlign[0] && meta.align.y == _meshCacheAlign[1];
+        bool uniformOld = _meshCacheScale[0] == _meshCacheScale[1] && _meshCacheScale[0] != 0.f;
+        bool uniformNew = meta.scale.x == meta.scale.y && meta.scale.x != 0.f;
+
+        if (sameTransform || (uniformOld && uniformNew)) {
+            Mesh  mesh         = _meshCache;
+            float opacityRatio = meta.opacity / static_cast<float>(_meshCacheOpacity);
+
+            if (!sameTransform) {
+                // D = T_ndc * M_new * M_old^-1 * T_ndc^-1. For uniform-scale
+                // M_old/M_new, M_new*M_old^-1 is a similarity transform (rotation
+                // + uniform scale) in pixel space, which commutes with stroke
+                // extrusion (halfW and join geometry scale by the same factor as
+                // the centerline). Conjugating into NDC space by the fixed
+                // per-axis NDC scale preserves that, so applying D to the cached
+                // NDC vertices reproduces a full rebuild at meta's transform.
+                Metadata oldMeta = meta;
+                oldMeta.position = {_meshCachePosition[0], _meshCachePosition[1]};
+                oldMeta.scale    = {_meshCacheScale[0], _meshCacheScale[1]};
+                oldMeta.rotation = _meshCacheRotation;
+                oldMeta.align    = {_meshCacheAlign[0], _meshCacheAlign[1]};
+
+                cv::Matx33f Mold = getTransformationMatrixFromMetadata(_geomCache.localSize, oldMeta);
+                cv::Matx33f Mnew = getTransformationMatrixFromMetadata(_geomCache.localSize, meta);
+                float       hw   = config.screenWidth / 2.f;
+                float       hh   = config.screenHeight / 2.f;
+                cv::Matx33f Tndc{
+                    1.f / hw, 0.f,      -1.f,
+                    0.f,      1.f / hh, -1.f,
+                    0.f,      0.f,      1.f,
+                };
+                cv::Matx33f D = Tndc * Mnew * Mold.inv() * Tndc.inv();
+
+                for (auto& v : mesh.vertices) {
+                    cv::Matx31f p = D * cv::Matx31f{v.pos[0], v.pos[1], 1.f};
+                    v.pos[0] = p(0);
+                    v.pos[1] = p(1);
+                }
             }
+            if (opacityRatio != 1.f) {
+                for (auto& v : mesh.vertices)
+                    v.color[3] *= opacityRatio;
+            }
+            return mesh;
         }
-        return mesh;
+        // else: non-uniform scale change on either side — fall through to a
+        // full rebuild (stroke extrusion doesn't commute with D in that case).
     }
 
     if (!_geomValid || geomHash != _lastGeomHash) {
@@ -1006,8 +1060,12 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
 
     _meshCache         = result;
     _lastMeshHash      = meshHash;
+    _lastShapeHash     = shapeHash;
     _meshCacheValid    = true;
     _meshCachePosition = {meta.position.x, meta.position.y};
+    _meshCacheScale    = {meta.scale.x, meta.scale.y};
+    _meshCacheRotation = meta.rotation;
+    _meshCacheAlign    = {meta.align.x, meta.align.y};
     _meshCacheOpacity  = meta.opacity;
     _meshCacheScreen   = {config.screenWidth, config.screenHeight};
 

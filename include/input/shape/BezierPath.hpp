@@ -110,19 +110,26 @@ private:
     bool      _geomValid{false};
     GeomCache _geomCache;
 
-    // --- Mesh-level cache (position/opacity-only animation) --------------------
+    // --- Mesh-level cache (position/opacity/scale/rotation/align animation) ----
     // MeshFactory still re-emits every vertex (stroke extrusion, fill assembly,
     // M-transform → NDC) on every call, even when the geometry cache above is
-    // valid. When only meta.position or meta.opacity changed since the last
-    // build, the resulting Mesh differs from the cached one by a uniform NDC
-    // translation and a uniform alpha scale — apply that directly and skip
-    // MeshFactory entirely. Keyed on a hash extending the geometry hash with the
-    // remaining fields that affect vertex colors/positions (fill/stroke colors,
-    // gradients, align).
+    // valid. When only meta.position/opacity/scale/rotation/align changed since
+    // the last build, the resulting Mesh differs from the cached one by a single
+    // 2D affine transform (NDC delta D = M_new * M_old^-1, conjugated into NDC
+    // space) plus a uniform alpha scale — apply that directly and skip
+    // MeshFactory entirely. For non-uniform scale (scale.x != scale.y), stroke
+    // extrusion (halfW, join geometry) does not commute with D, so that case
+    // falls back to a full rebuild. Keyed on a hash of everything that does NOT
+    // depend on M (points, contours, fill visibility, colors, gradients) — scale/
+    // rotation/align/position/opacity are handled via the affine delta instead.
+    size_t     _lastShapeHash{std::numeric_limits<size_t>::max()};
     size_t     _lastMeshHash{std::numeric_limits<size_t>::max()};
     bool       _meshCacheValid{false};
     Mesh       _meshCache;
     cv::Vec2f  _meshCachePosition{0.f, 0.f};
+    cv::Vec2f  _meshCacheScale{1.f, 1.f};
+    float      _meshCacheRotation{0.f};
+    cv::Vec2f  _meshCacheAlign{0.f, 0.f};
     uint8_t    _meshCacheOpacity{0};
     cv::Size2f _meshCacheScreen{0.f, 0.f};
 };
