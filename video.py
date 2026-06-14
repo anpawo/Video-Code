@@ -17,3 +17,6 @@ r.ease("width", 6, duration=1)
 
 c = Circle(radius=0.5, fillColor=BLUE_C | BLACK).position(x=3, y=0)
 c.ease("radius", 2, duration=1)
+
+# --- SVG input (#75) ---
+SVG("icon.svg", width=2, height=2).position(x=-1, y=2.5)
