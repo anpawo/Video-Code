@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 
 from videocode.input.interface.Group import Group
 from videocode.input.interface.Offset import Offset

@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
+from typing import Generic
+from typing_extensions import TypeVar
 
 from videocode.shader.ishader import *
 from videocode.utils.classutils import Maybe
 
+_T1 = TypeVar("_T1", bound=mnbr, default=number)
+_T2 = TypeVar("_T2", bound=mnbr, default=number)
 
-class position[T1: mnbr = number, T2: mnbr = number](VertexShader):
+
+class position(VertexShader, Generic[_T1, _T2]):
     """
     set the position `x` and `y` of an `Input`.
 
@@ -16,7 +23,7 @@ class position[T1: mnbr = number, T2: mnbr = number](VertexShader):
     For a movement over time, see `moveTo`.
     """
 
-    def __init__(self, x: T1, y: T2) -> None:
+    def __init__(self, x: _T1, y: _T2) -> None:
         self.x = x
         self.y = y
         # since it can be None, some compaapny

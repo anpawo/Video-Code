@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 
 from videocode.input.shape.Polygon import *
 from videocode.input.shape.Rectangle import *

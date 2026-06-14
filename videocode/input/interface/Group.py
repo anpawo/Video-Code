@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 
 from copy import copy as _shallow_copy
-from typing import Any, TypeVar
+from typing import Any
+from typing_extensions import TypeVar
 from videocode.input.input import *
 from videocode.input.interface.Interface import Interface
 from videocode.template.effect.moveTo import groupMoveBy, groupMoveTo

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 
 from videocode.context import Context
 from videocode.shader.ishader import *

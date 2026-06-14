@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 
 import time
 
 
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Callable, Generic, cast, overload
+from typing_extensions import TypeVar
 from videocode.constants import DEBUG, SINGLE_FRAME
 from videocode.ty import frame, maybe
 
