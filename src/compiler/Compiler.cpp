@@ -15,8 +15,62 @@
 #include <mutex>
 #include <thread>
 
+#include "input/media/Sound.hpp"
 #include "utils/ImageIO.hpp"
 #include "vulkan/VulkanHeadlessRenderer.hpp"
+
+namespace
+{
+    // Extra ffmpeg input arguments (one "-ss .. -to .. -i file" per Sound) and
+    // the output arguments that mix/map them onto the encoded video. Empty
+    // when there are no Sound inputs — output keeps its current "-an" behavior.
+    struct AudioArgs
+    {
+        std::string inputs; // appended after the rawvideo "-i -"
+        std::string output; // appended before the output filename
+    };
+
+    AudioArgs buildAudioArgs(const std::vector<std::unique_ptr<IInput>>& inputs)
+    {
+        std::vector<Sound*> sounds;
+        for (const auto& i : inputs)
+            if (auto* s = dynamic_cast<Sound*>(i.get()))
+                sounds.push_back(s);
+
+        if (sounds.empty())
+            return {"", " -an"};
+
+        AudioArgs   result;
+        std::string filterComplex;
+
+        for (size_t i = 0; i < sounds.size(); ++i) {
+            const Sound* s = sounds[i];
+
+            if (s->trimStart() > 0.0)
+                result.inputs += std::format(" -ss {}", s->trimStart());
+            if (s->trimEnd())
+                result.inputs += std::format(" -to {}", *s->trimEnd());
+            result.inputs += std::format(" -i \"{}\"", s->filepath());
+
+            int delayMs = (int)std::llround(s->delay() * 1000.0);
+            filterComplex += std::format("[{}:a]volume={},adelay={}|{}[a{}];", i + 1, s->volume(), delayMs, delayMs, i);
+        }
+
+        std::string outLabel;
+        if (sounds.size() == 1) {
+            filterComplex.pop_back(); // drop trailing ';' — single chain, no amix needed
+            outLabel = "a0";
+        } else {
+            for (size_t i = 0; i < sounds.size(); ++i)
+                filterComplex += std::format("[a{}]", i);
+            filterComplex += std::format("amix=inputs={}:duration=longest:dropout_transition=0[aout]", sounds.size());
+            outLabel = "aout";
+        }
+
+        result.output = std::format(" -filter_complex \"{}\" -map 0:v -map \"[{}]\" -c:a aac", filterComplex, outLabel);
+        return result;
+    }
+}
 
 VC::Compiler::Compiler(const argparse::ArgumentParser &parser)
     : config({
@@ -69,6 +123,8 @@ int VC::Compiler::generateVideo()
           " -pix_fmt yuv420p"
           " -crf 23";
 
+    AudioArgs audio = buildAudioArgs(_core._inputs);
+
     FILE* pipe = popen(
         std::format(
             "ffmpeg"
@@ -77,8 +133,9 @@ int VC::Compiler::generateVideo()
             " -pixel_format bgra"
             " -video_size {}x{}"
             " -framerate {}"
-            " -an"
             " -i -"
+            "{}"
+            "{}"
             "{}"
             " -movflags +faststart"
             " -loglevel warning"
@@ -86,7 +143,9 @@ int VC::Compiler::generateVideo()
             (int)config.screenWidth,
             (int)config.screenHeight,
             config.framerate,
+            audio.inputs,
             codecArgs,
+            audio.output,
             config.outputFile
         ).c_str(),
         "w"

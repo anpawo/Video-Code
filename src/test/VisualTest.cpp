@@ -123,6 +123,7 @@ namespace
         {"svg",              "test/visual/scenes/svg.py",              {0}},
         {"subtitles",        "test/visual/scenes/subtitles.py",        {30}},
         {"markdown",         "test/visual/scenes/markdown.py",         {0}},
+        {"sound",            "test/visual/scenes/sound.py",            {0}},
     };
 
     const std::vector<ReloadCase> kReloadCases = {

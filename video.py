@@ -15,3 +15,6 @@ Subtitles("test/test.srt")
 
 # --- Markdown (#76) ---
 Markdown("test/test.md")
+
+# --- Sound (#78) ---
+Sound("test/test.wav", start=1, volume=0.5)

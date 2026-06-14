@@ -159,6 +159,7 @@ set(SOURCES
     src/input/text/Text.cpp
     src/input/media/Image.cpp
     src/input/media/Video.cpp
+    src/input/media/Sound.cpp
 
     # --- Fragment Shaders (GLSL-based, no C++ impl needed) ---
 )

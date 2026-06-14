@@ -14,6 +14,7 @@
 
 #include "input/IInput.hpp"
 #include "input/media/Image.hpp"
+#include "input/media/Sound.hpp"
 #include "input/media/Video.hpp"
 #include "input/shape/Polygon.hpp"
 #include "input/text/Text.hpp"
@@ -30,6 +31,7 @@ namespace Factory
         ///< Media
         input(Image),
         input(Video),
+        input(Sound),
 
         ///< Text
         input(Text),
