@@ -53,9 +53,13 @@ def _segmentsToContours(segments: list) -> list[list[point]]:
     pairs `[a0, h0, a1, h1, ...]` — same format as `_TextHelper.walkContourQuadratics`.
 
     Line/Close: anchor + midpoint handle. QuadraticBezier: anchor + its
-    control point (already the target format). Cubic/Arc: sampled at
-    `_STEPS` and emitted as straight (midpoint-handle) segments. Each
-    subpath is auto-closed back to its start if it didn't end with `Close`.
+    control point (already the target format). Cubic/Arc: split into
+    `_STEPS` quadratic sub-segments, each fit to pass through the
+    sub-segment's midpoint (solving the quadratic bezier formula for the
+    control point at t=0.5: `control = 2*mid - 0.5*(p0+p2)`) — keeps curves
+    smooth (e.g. circles) instead of faceting them into straight chords.
+    Each subpath is auto-closed back to its start if it didn't end with
+    `Close`.
     """
     contours: list[list[point]] = []
     pairs: list[point] = []
@@ -89,9 +93,17 @@ def _segmentsToContours(segments: list) -> list[list[point]]:
             pairs.append(_pt(seg.control))
             cur = _pt(seg.end)
         elif isinstance(seg, (se.CubicBezier, se.Arc)):
-            for s in range(1, _STEPS + 1):
-                t = s / _STEPS
-                line(_pt(seg.point(t)))
+            p0 = cur
+            for s in range(_STEPS):
+                t1 = (s + 1) / _STEPS
+                tm = (s + 0.5) / _STEPS
+                p2 = _pt(seg.point(t1))
+                mid = _pt(seg.point(tm))
+                control = (2 * mid[0] - 0.5 * (p0[0] + p2[0]), 2 * mid[1] - 0.5 * (p0[1] + p2[1]))
+                pairs.append(p0)
+                pairs.append(control)
+                p0 = p2
+            cur = p0
 
     flush()
     return contours
