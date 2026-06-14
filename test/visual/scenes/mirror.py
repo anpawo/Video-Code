@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 
+# Visual regression scene — Input.mirror()/Group.mirror() replicating shaders
+# onto linked targets.
+#
+# Top pair: rotateBy/scaleBy resolve to an absolute destination before
+# apply() runs, so the mirrored target ends up at the SAME resulting
+# rotation/scale as the source, even though it stays at its own position.
+#
+# Bottom pair: Group.moveBy uses an additive `translate` shader, so the
+# mirrored target keeps its own position and shifts by the same delta —
+# relative offsets between leader and follower are preserved.
 
-from videocode.template.input._inputs import *
 from videocode import *
 from videocode.input.interface.Group import Group
 
 p = Plane()
 
-# --- Mirror demo: sync-style (top pair) ---
-# rotateBy/scaleBy resolve to an absolute destination *before* apply() runs,
-# so a mirrored target ends up at the SAME resulting rotation/scale as the
-# source — even though it stays at its own (different) position.
 leader = Rectangle(fillColor=BLUE_C | BLACK).position(x=-4, y=2)
 follower = Rectangle(fillColor=RED | BLACK).position(x=4, y=2)
 leader.mirror(follower)
@@ -18,10 +23,6 @@ leader.mirror(follower)
 leader.rotateBy(45, duration=1, start=0)
 leader.scaleBy(1.4, duration=1, start=1)
 
-# --- Mirror demo: delta-style via Group.moveBy (bottom pair) ---
-# Group.moveBy uses an additive `translate` shader, so each mirrored target
-# keeps its own position and shifts by the same delta — relative offsets
-# between leader and follower are preserved.
 leaderG = Rectangle(fillColor=GREEN | BLACK).position(x=-4, y=-2.5)
 followerG = Rectangle(fillColor=BLUE_A | BLACK).position(x=4, y=-2.5)
 group = Group(leaderG)

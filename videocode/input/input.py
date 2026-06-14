@@ -76,7 +76,7 @@ class Input(ABC):
     def waitFor(self, i: Input) -> Self:
         return self.waitTo(i.meta.lastAffectedFrame)
 
-    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None, _mirrorAncestors: maybe[frozenset[Input]] = None) -> Self:
         """
         Applies some `Transformations` to the `Input`.
 
@@ -87,7 +87,13 @@ class Input(ABC):
         if Context.waitOffset >= self.meta.transformationOffset:
             self.waitTo(Context.waitOffset)
 
+        # `_mirrorAncestors`: internal — the chain of Inputs this call is being
+        # replicated through (see `mirror`), used to stop mirror cycles.
+        ancestors = _mirrorAncestors if _mirrorAncestors is not None else frozenset((self,))
+
         for s in shaders:
+            original = s
+
             # Pre-callbacks: fire before any modification; return True to skip this shader.
             if any(cb(s, start, duration, offset if offset is not None else self.meta.transformationOffset) for cb in self.meta.preCallbacks.get(type(s), [])):
                 continue
@@ -128,6 +134,18 @@ class Input(ABC):
             # Post-callbacks
             for callback in self.meta.postCallbacks.get(type(s), []):
                 callback(s, start, duration, offset if offset is not None else self.meta.transformationOffset)
+
+            # Mirror: replicate the original (pre-modify) shader onto linked
+            # targets. Each target resolves it against its own state via its
+            # own modify() — so e.g. position(x=None, y=5) keeps each target's
+            # own x, and delta shaders like translate (Group.moveBy) apply the
+            # same delta to each target. Shaders that already carry concrete
+            # absolute values (the common case for moveTo/rotateTo/scaleTo and
+            # their By variants, which resolve against self before apply())
+            # sync targets to that same absolute value.
+            for target in self.meta.mirrorTargets:
+                if target not in ancestors:
+                    target.apply(original, start=start, duration=duration, offset=offset, _mirrorAncestors=ancestors | {target})
 
         return self
 
@@ -173,6 +191,43 @@ class Input(ABC):
         Will be overriden by Interfaces.
         """
         func(self)
+
+    def mirror(self, *targets: Input) -> Self:
+        """
+        Link `targets` to this `Input`: every shader subsequently applied to
+        `self` via `apply()` — including all the moveTo/scaleTo/fadeIn/...
+        templates, which funnel through `apply()` — is also applied to each
+        `target`, with the same `start`/`duration`/`offset`.
+
+        Each target resolves the replicated shader against its own current
+        state via its own `modify()`. Whether that means "same absolute
+        result" or "same relative delta" depends on the shader:
+
+        - `moveTo`/`moveBy`/`rotateTo`/`rotateBy`/`scaleTo`/`scaleBy` on a
+          plain `Input` resolve their destination against `self` *before*
+          `apply()` runs, so the replicated shader already carries a concrete
+          absolute value — targets end up synced to `self`'s resulting
+          position/rotation/scale, not shifted by a relative amount.
+        - `Group.moveBy`/`moveTo` use `translate`, a true delta shader — each
+          target shifts by the same `(dx, dy)`, preserving relative offsets.
+        - A shader constructed with explicit `None`s (e.g.
+          `position(x=None, y=5)`) lets each target keep its own value for
+          the `None` fields.
+
+        Directional: mirroring only propagates `self -> targets`. For a
+        two-way link, call `mirror()` on both sides (cycles are safe either
+        way — a shader is never replicated back to an `Input` already in its
+        own propagation chain).
+        """
+        self.meta.mirrorTargets.extend(t for t in targets if t not in self.meta.mirrorTargets)
+        return self
+
+    def unmirror(self, *targets: Input) -> Self:
+        """Remove a previously-registered `mirror()` link to each target."""
+        for t in targets:
+            if t in self.meta.mirrorTargets:
+                self.meta.mirrorTargets.remove(t)
+        return self
 
     def ease(
         self,

@@ -28,7 +28,9 @@ class Group(Interface, Generic[_GROUP_T]):
         for child in self.inputs:
             child.broadcast(func)
 
-    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None, _mirrorAncestors: maybe[frozenset[Input]] = None) -> Self:
+        ancestors = _mirrorAncestors if _mirrorAncestors is not None else frozenset((self,))
+
         for s in shaders:
             # Keep group.meta current even though groups never push to C++.
             # Subclasses and external code read group.meta.* directly —
@@ -42,6 +44,11 @@ class Group(Interface, Generic[_GROUP_T]):
             # VertexShaders before calling modify(), so passing s directly is safe.
             for i in self.inputs:
                 i.apply(s, start=start, duration=duration, offset=offset)
+
+            # Mirror: see Input.apply — replicate to linked targets, cycle-safe.
+            for target in self.meta.mirrorTargets:
+                if target not in ancestors:
+                    target.apply(s, start=start, duration=duration, offset=offset, _mirrorAncestors=ancestors | {target})
         return self
 
     def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:

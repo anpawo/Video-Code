@@ -8,6 +8,7 @@ from videocode.constants import *
 
 if TYPE_CHECKING:
     from videocode.shader.ishader import IShader
+    from videocode.input.input import Input
 
 
 class Metadata:
@@ -81,6 +82,14 @@ class Metadata:
         # --- Callbacks ---
         self.preCallbacks: dict[type[IShader], list[Callable[[IShader, sec, sec, frame], bool]]] = {}
         self.postCallbacks: dict[type[IShader], list[Callable[[IShader, sec, sec, frame], None]]] = {}
+
+        # --- Mirroring ---
+        self.mirrorTargets: list[Input] = []
+        """
+        Inputs that should receive a copy of every shader applied to this one
+        (see `Input.mirror`). Each target resolves the replicated shader
+        against its own state — directional, self -> targets.
+        """
 
     def __str__(self) -> str:
         s = "\n"
