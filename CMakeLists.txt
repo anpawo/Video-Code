@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.21)
 project(video-code VERSION 1.0.0 LANGUAGES CXX)
 
-# OBJCXX (Objective-C++, for src/Vulkan/MetalSurface.mm) is only needed on
+# OBJCXX (Objective-C++, for src/vulkan/MetalSurface.mm) is only needed on
 # Apple. Probing for it on the project() call breaks Linux CI: g++-13 has no
 # cc1objplus, so the OBJCXX compiler check fails before configure can proceed.
 if(APPLE)
@@ -130,8 +130,8 @@ set(SOURCES
     src/window/VulkanWidget.cpp
 
     # --- Vulkan ---
-    src/Vulkan/ShaderCompiler.cpp
-    src/Vulkan/VulkanHeadlessRenderer.cpp
+    src/vulkan/ShaderCompiler.cpp
+    src/vulkan/VulkanHeadlessRenderer.cpp
 
     # --- Compiler ---
     src/compiler/Compiler.cpp
@@ -154,7 +154,7 @@ set(SOURCES
 )
 
 if(APPLE)
-    list(APPEND SOURCES src/Vulkan/MetalSurface.mm)
+    list(APPEND SOURCES src/vulkan/MetalSurface.mm)
 endif()
 
 add_executable(${PROJECT_NAME} ${SOURCES})
