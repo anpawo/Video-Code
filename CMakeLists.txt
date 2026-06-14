@@ -165,6 +165,8 @@ set(SOURCES
 
 if(APPLE)
     list(APPEND SOURCES src/vulkan/MetalSurface.mm)
+else()
+    list(APPEND SOURCES src/vulkan/MetalSurfaceStub.cpp)
 endif()
 
 add_executable(${PROJECT_NAME} ${SOURCES})

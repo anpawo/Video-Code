@@ -115,10 +115,17 @@ jobs:
         env:
           VCPKG_ROOT: C:/vcpkg
           VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+          # vcpkg builds protobuf:x64-windows (a host-tool dependency for protoc)
+          # with MSVC's rc.exe. MSYS2's bash auto-converts argv entries that look
+          # like POSIX paths (anything starting with "/"), mangling flags like
+          # "/c65001" before rc.exe sees them -> "fatal error RC1107: invalid usage".
+          # MSYS2_ARG_CONV_EXCL=* disables that conversion entirely.
+          MSYS2_ARG_CONV_EXCL: "*"
         run: cmake -S . -B build -G Ninja -DCI_BUILD=ON -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
 
       - name: Build the project
         env:
           VCPKG_ROOT: C:/vcpkg
           VCPKG_BINARY_SOURCES: "clear;x-gha,readwrite"
+          MSYS2_ARG_CONV_EXCL: "*"
         run: cmake --build build
