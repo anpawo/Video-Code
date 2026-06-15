@@ -53,10 +53,10 @@ class Group(Interface, Generic[_GROUP_T]):
                     target.apply(s, start=start, duration=duration, offset=offset, _mirrorAncestors=ancestors | {target})
         return self
 
-    def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+    def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         return self.apply(*groupMoveTo(self, x=x, y=y, easing=easing, start=start, duration=duration))
 
-    def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+    def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         return self.apply(*groupMoveBy(x=x, y=y, easing=easing, start=start, duration=duration))
 
     def waitForOthers(self) -> Self:

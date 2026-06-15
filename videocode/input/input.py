@@ -23,7 +23,7 @@ from videocode.shader.vertexShader.position import position
 from videocode.shader.vertexShader.show import show
 from videocode.shader.vertexShader.opacity import opacity
 from videocode.shader.vertexShader.zIndex import zIndex
-from videocode.utils.bezier import animate, CubicBezier, Easing
+from videocode.utils.bezier import animate, Easing, easing
 from videocode.utils.logger import *
 from videocode.utils.classutils import At, AttributeNameReference
 
@@ -249,7 +249,7 @@ class Input(ABC):
 
     def easeTogether(
         self,
-        *anims: tuple[attrName, Any] | tuple[attrName, Any, CubicBezier],
+        *anims: tuple[attrName, Any] | tuple[attrName, Any, easing],
         easing=Easing.InOut,
         start: sec = 0,
         duration: sec = 0.4,
@@ -393,38 +393,38 @@ class Input(ABC):
 
     ### Template ###
 
-    def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+    def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         return self.apply(*moveTo(self, x=x, y=y, easing=easing, start=start, duration=duration))
 
-    def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+    def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         return self.apply(*moveBy(self, x=x, y=y, easing=easing, start=start, duration=duration))
 
-    def fadeIn(self, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4, from0: maybe[bool] = True) -> Self:
+    def fadeIn(self, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4, from0: maybe[bool] = True) -> Self:
         return self.apply(*fadeTo(self, src=0 if from0 else None, dst=255, easing=easing, start=start, duration=duration))
 
-    def fadeOut(self, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4, hide=False, from255: maybe[bool] = True) -> Self:
+    def fadeOut(self, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4, hide=False, from255: maybe[bool] = True) -> Self:
         self.apply(*fadeTo(self, src=255 if from255 else None, dst=0, easing=easing, start=start, duration=duration))
         if hide:
             return self.hide(start=start + duration)
         return self
 
-    def scaleTo(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+    def scaleTo(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         if factor is not None:
             x = factor
             y = factor
         return self.apply(*scaleTo(self, x=x, y=y, easing=easing, start=start, duration=duration))
 
-    def scaleBy(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+    def scaleBy(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         if factor is not None:
             x = factor
             y = factor
         return self.apply(*scaleBy(self, x=x, y=y, easing=easing, start=start, duration=duration))
 
-    def rotateTo(self, degree: number, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+    def rotateTo(self, degree: number, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         return self.apply(*rotateTo(self, dst=degree, easing=easing, start=start, duration=duration))
 
-    def rotateBy(self, degree: number, *, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+    def rotateBy(self, degree: number, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         return self.apply(*rotateBy(self, dst=degree, easing=easing, start=start, duration=duration))
 
-    def alignTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: CubicBezier = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+    def alignTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         return self.apply(*alignTo(self, x=x, y=y, easing=easing, start=start, duration=duration))

@@ -157,7 +157,7 @@ Every `Input` (shape, text, group, ...) has:
   `sendToBack()`, `bringForward()`, `sendBackward()`, `background()`
 - Visibility: `hide(start)`, `show(start)`
 
-**Eased animations** (`start`, `duration`, `easing: CubicBezier`):
+**Eased animations** (`start`, `duration`, `easing: RateFunc`):
 - `moveTo`/`moveBy`, `scaleTo`/`scaleBy`, `rotateTo`/`rotateBy`,
   `alignTo`, `fadeIn`/`fadeOut`
 - Generic: `ease(attr, to, ...)` / `easeTogether(...)` — animate *any*
@@ -249,8 +249,16 @@ also exposed as `Input` methods (above) but can be used directly:
 | `fadeTo` | `fadeTo.py` | Opacity easing |
 | `click(low, up, start, duration, easing)` | `click.py` | Iterable of `scale` shaders producing a "press down/release" pulse — see `ParticlesRay`/`Button` usage |
 
-Easing curves: `Easing.InOut` etc. (`videocode/utils/bezier.py`,
-`CubicBezier`).
+Easing curves (`videocode/utils/bezier.py`):
+- CSS-style cubic-beziers (`CubicBezier`): `Easing.Linear`, `Easing.In`,
+  `Easing.Out`, `Easing.InOut`
+- Manim-inspired rate functions (`Func`, ported from manim's
+  `rate_functions`): `Easing.Smooth`, `Easing.RushInto`, `Easing.RushFrom`,
+  `Easing.SlowInto`, `Easing.DoubleSmooth`, `Easing.ExponentialDecay` (0→1),
+  and `Easing.ThereAndBack`, `Easing.ThereAndBackWithPause`, `Easing.Wiggle`
+  (animate out and back to the start value — `f(0) == f(1) == 0`)
+- Custom rate functions: `Func(lambda t: ...)` wraps any `t in [0,1] -> m`
+  callable as a `RateFunc`, usable anywhere `easing=` is accepted.
 
 ---
 
