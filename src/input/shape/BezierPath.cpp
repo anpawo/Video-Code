@@ -222,6 +222,16 @@ void BezierPath::buildPath(const Metadata& meta)
         _points = points;
     // else: leave _points unchanged — Image/Video's getMesh() falls back to
     // their legacy quad when no usable points are supplied.
+
+    // Textured fills (Image/Video) — UV mapping mode. Polygon doesn't push
+    // these args, so default to Stretch when absent.
+    if (args.contains("uvMapping")) {
+        const std::string& mode = args.at("uvMapping").get_ref<const std::string&>();
+        _uvMapping = (mode == "radial") ? UVMapping::Radial : (mode == "conic") ? UVMapping::Conic
+                                                                                : UVMapping::Stretch;
+    }
+    if (args.contains("uvAngle"))
+        _uvAngle = args.at("uvAngle").get<float>();
 }
 
 Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
@@ -276,6 +286,10 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         meshHash = fnvHash(_fillStops.data(), _fillStops.size() * sizeof(GradientStop), meshHash);
     if (!_strokeStops.empty())
         meshHash = fnvHash(_strokeStops.data(), _strokeStops.size() * sizeof(GradientStop), meshHash);
+    if (isTextured()) {
+        meshHash = fnvHash(&_uvMapping, sizeof(_uvMapping), meshHash);
+        meshHash = fnvHash(&_uvAngle, sizeof(_uvAngle), meshHash);
+    }
 
     // --- Shape-only hash (everything MeshFactory's output depends on *except*
     // the M-dependent transform fields: scale, rotation, align, position,
@@ -292,6 +306,10 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         shapeHash = fnvHash(_fillStops.data(), _fillStops.size() * sizeof(GradientStop), shapeHash);
     if (!_strokeStops.empty())
         shapeHash = fnvHash(_strokeStops.data(), _strokeStops.size() * sizeof(GradientStop), shapeHash);
+    if (isTextured()) {
+        shapeHash = fnvHash(&_uvMapping, sizeof(_uvMapping), shapeHash);
+        shapeHash = fnvHash(&_uvAngle, sizeof(_uvAngle), shapeHash);
+    }
 
     if (_meshCacheValid && shapeHash == _lastShapeHash && _meshCacheOpacity > 0 && _meshCacheScreen.width == config.screenWidth && _meshCacheScreen.height == config.screenHeight) {
         bool sameTransform = meta.position.x == _meshCachePosition[0] && meta.position.y == _meshCachePosition[1] && meta.scale.x == _meshCacheScale[0] && meta.scale.y == _meshCacheScale[1] && meta.rotation == _meshCacheRotation && meta.align.x == _meshCacheAlign[0] && meta.align.y == _meshCacheAlign[1];
@@ -1039,13 +1057,44 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                 }
             }
         } else if (isTextured()) {
-            // Textured fill: stretch the texture to the polygon's local bbox.
             float w = _geomCache.localSize.width;
             float h = _geomCache.localSize.height;
-            for (const auto& p : localPoly) {
-                float u = (w > 0.f) ? p[0] / w : 0.f;
-                float v = (h > 0.f) ? p[1] / h : 0.f;
-                factory.addVertex(p[0], p[1], u, v, opacityF);
+
+            if (_uvMapping == UVMapping::Stretch || w <= 0.f || h <= 0.f) {
+                // Stretch (default): bbox-normalized UVs.
+                for (const auto& p : localPoly) {
+                    float u = (w > 0.f) ? p[0] / w : 0.f;
+                    float v = (h > 0.f) ? p[1] / h : 0.f;
+                    factory.addVertex(p[0], p[1], u, v, opacityF);
+                }
+            } else {
+                // Radial/conic: polar UVs around the bbox center, matching
+                // GradType::Radial/Conic's center+angle convention (local angle
+                // = -world angle, since local Y is flipped relative to world).
+                cv::Vec2f   center{w * 0.5f, h * 0.5f};
+                float       maxRadius = std::sqrt(center[0] * center[0] + center[1] * center[1]);
+                const float TAU = 2.f * static_cast<float>(M_PI);
+                float       angleRad = _uvAngle * (static_cast<float>(M_PI) / 180.f);
+
+                auto wrapToUnit = [](float x) {
+                    x = std::fmod(x, 1.f);
+                    return (x < 0.f) ? x + 1.f : x;
+                };
+
+                for (const auto& p : localPoly) {
+                    float dx = p[0] - center[0], dy = p[1] - center[1];
+                    float r = std::min(std::sqrt(dx * dx + dy * dy) / maxRadius, 1.f);
+                    float theta = wrapToUnit((-std::atan2(dy, dx) - angleRad) / TAU);
+                    float u, v;
+                    if (_uvMapping == UVMapping::Radial) {
+                        u = r;
+                        v = theta;
+                    } else { // Conic
+                        u = theta;
+                        v = r;
+                    }
+                    factory.addVertex(p[0], p[1], u, v, opacityF);
+                }
             }
             for (auto idx : _geomCache.earIndices)
                 factory.mesh.indices.push_back(firstPolyIdx + idx);

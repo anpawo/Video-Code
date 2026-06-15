@@ -66,12 +66,20 @@ from rounding).
 
 | Class | File | What it is |
 |---|---|---|
-| `Image(filepath, width, height, cornerRadius, strokeColor, strokeWidth)` | `Image.py` | Image file as a (optionally rounded/stroked) textured `Polygon`. No `width`/`height` ⇒ natural size. |
+| `Image(filepath, width, height, cornerRadius, strokeColor, strokeWidth, uvMapping, uvAngle)` | `Image.py` | Image file as a (optionally rounded/stroked) textured `Polygon`. No `width`/`height` ⇒ natural size. |
 | `WebImage(url)` | `Image.py` | Downloads an image (via `curl`) then behaves like `Image` |
-| `Video(filepath, cuts, startFrame, endFrame, width, height, cornerRadius, strokeColor, strokeWidth)` | `Video.py` | Video file as a textured `Polygon`. `cuts`/`startFrame`/`endFrame` trim/skip source frames during playback. |
+| `Video(filepath, cuts, startFrame, endFrame, width, height, cornerRadius, strokeColor, strokeWidth, uvMapping, uvAngle)` | `Video.py` | Video file as a textured `Polygon`. `cuts`/`startFrame`/`endFrame` trim/skip source frames during playback. |
 | `Sound(filepath, start, volume, trimStart, trimEnd)` | `Sound.py` | Purely auditory — no visual geometry. `start` = delay (seconds) before it begins playing in the output, `volume` is a 0-1 multiplier, `trimStart`/`trimEnd` cut the source clip. Multiple `Sound`s get mixed together via ffmpeg `amix`. |
 
-**Examples**: `test/visual/scenes/image_shape.py`, `video.py` (scene),
+`uvMapping` (`Image`/`Video`, default `"stretch"`) controls how the texture is
+wrapped onto the shape: `"stretch"` is bbox-normalized UVs (texture stretched
+to the bounding box); `"radial"`/`"conic"` are polar UVs around the bbox
+center, mirroring `RadialGradient`/`ConicGradient`'s center/angle convention
+(`u=radius,v=angle` vs `u=angle,v=radius`). `uvAngle` (degrees) rotates the
+angular origin for radial/conic mapping.
+
+**Examples**: `test/visual/scenes/image_shape.py`,
+`test/visual/scenes/uv_mapping.py`, `video.py` (scene),
 `test/visual/scenes/sound.py` (uses `test/test.wav`).
 
 ---

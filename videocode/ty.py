@@ -6,7 +6,7 @@ from __future__ import annotations
 # Types
 #
 
-from typing import Any, Generic, Protocol, Self, cast, overload
+from typing import Any, Generic, Literal, Protocol, Self, cast, overload
 
 from videocode.color import ConicGradient, LinearGradient, RadialGradient, rgba
 

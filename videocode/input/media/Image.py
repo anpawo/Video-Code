@@ -21,7 +21,7 @@ __all__ = [
 
 class Image(Polygon):
     cppName = "Image"
-    cppAttrs = Polygon.cppAttrs | {"filepath"}
+    cppAttrs = Polygon.cppAttrs | {"filepath", "uvMapping", "uvAngle"}
 
     def __init__(
         self,
@@ -31,8 +31,21 @@ class Image(Polygon):
         cornerRadius: percent = 0,
         strokeColor: rgba = TRANSPARENT,
         strokeWidth: wufloat = 0,
+        uvMapping: Literal["stretch", "radial", "conic"] = "stretch",
+        uvAngle: wufloat = 0,
     ):
+        """
+        `uvMapping` controls how the texture is wrapped onto the shape:
+
+        - `"stretch"` (default): bbox-normalized UVs — the texture is
+          stretched to the shape's bounding box.
+        - `"radial"`/`"conic"`: polar UVs around the bbox center, mirroring
+          `RadialGradient`/`ConicGradient`'s center/angle convention.
+          `uvAngle` (degrees) rotates the angular origin.
+        """
         self.filepath = filepath
+        self.uvMapping = uvMapping
+        self.uvAngle = uvAngle
 
         # Rounding/stroking needs a known shape — if the caller didn't give
         # one, fall back to the image's natural size (read from its header,

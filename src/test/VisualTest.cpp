@@ -118,6 +118,7 @@ namespace
         {"gradient-holes", "test/visual/scenes/gradient_holes.py", {0}},
         {"video", "test/visual/scenes/video.py", {0}},
         {"image-shape", "test/visual/scenes/image_shape.py", {0}},
+        {"uv-mapping", "test/visual/scenes/uv_mapping.py", {0}},
         {"mirror", "test/visual/scenes/mirror.py", {0, 29, 59}},
         {"resize", "test/visual/scenes/resize.py", {0, 15, 29}},
         {"svg", "test/visual/scenes/svg.py", {0}},

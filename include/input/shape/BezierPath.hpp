@@ -63,6 +63,14 @@ protected:
                           Radial,
                           Conic };
 
+    // UV mapping mode for textured fills (Image/Video — see isTextured()).
+    // Stretch (default): bbox-normalized UVs, texture stretched to the shape's
+    // local bbox. Radial/Conic: polar UVs around the bbox center, mirroring
+    // GradType::Radial/Conic's center-based color mapping.
+    enum class UVMapping { Stretch,
+                           Radial,
+                           Conic };
+
     // Reads `args[key]` — either a solid `[r,g,b,a]` (rgba), a linear gradient
     // `[stops, angle_number]`, a radial gradient `[stops, "radial"]`, or a conic
     // gradient `[stops, ["conic", angle_number]]` — into color/stops/gradType/angle.
@@ -89,6 +97,8 @@ protected:
     GradType                  _strokeGradType = GradType::None;
     float                     _fillGradientAngle = 0.f; // degrees — 0 = left→right, 90 = bottom→top (linear & conic)
     float                     _strokeGradientAngle = 0.f;
+    UVMapping                 _uvMapping = UVMapping::Stretch;
+    float                     _uvAngle = 0.f; // degrees, same convention as _fillGradientAngle
 
 private:
 

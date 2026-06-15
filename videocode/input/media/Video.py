@@ -13,7 +13,7 @@ __all__ = ["Video"]
 
 class Video(Polygon):
     cppName = "Video"
-    cppAttrs = Polygon.cppAttrs | {"filepath", "cuts"}
+    cppAttrs = Polygon.cppAttrs | {"filepath", "cuts", "uvMapping", "uvAngle"}
 
     def __init__(
         self,
@@ -26,6 +26,8 @@ class Video(Polygon):
         cornerRadius: percent = 0,
         strokeColor: rgba = TRANSPARENT,
         strokeWidth: wufloat = 0,
+        uvMapping: Literal["stretch", "radial", "conic"] = "stretch",
+        uvAngle: wufloat = 0,
     ) -> None:
         """
         `cuts` are ranges of source-video frames to skip during playback —
@@ -35,8 +37,18 @@ class Video(Polygon):
         `startFrame`/`endFrame` restrict playback to the source frame range
         `[startFrame, endFrame)` — shorthand for cutting everything outside
         that range (`endFrame=None` plays to the end of the source).
+
+        `uvMapping` controls how the texture is wrapped onto the shape:
+
+        - `"stretch"` (default): bbox-normalized UVs — the texture is
+          stretched to the shape's bounding box.
+        - `"radial"`/`"conic"`: polar UVs around the bbox center, mirroring
+          `RadialGradient`/`ConicGradient`'s center/angle convention.
+          `uvAngle` (degrees) rotates the angular origin.
         """
         self.filepath = filepath
+        self.uvMapping = uvMapping
+        self.uvAngle = uvAngle
         cuts = [c if isinstance(c, tuple) else (c, c + 1) for c in cuts]
         if startFrame:
             cuts.append((0, startFrame))
