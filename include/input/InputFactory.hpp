@@ -17,7 +17,6 @@
 #include "input/media/Sound.hpp"
 #include "input/media/Video.hpp"
 #include "input/shape/Polygon.hpp"
-#include "input/text/Text.hpp"
 
 using json = nlohmann::json;
 
@@ -32,9 +31,6 @@ namespace Factory
         input(Image),
         input(Video),
         input(Sound),
-
-        ///< Text
-        input(Text),
 
         ///< Shape
         input(Polygon),

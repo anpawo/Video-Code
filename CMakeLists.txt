@@ -156,7 +156,6 @@ set(SOURCES
     src/input/AInput.cpp
     src/input/shape/BezierPath.cpp
     src/input/shape/Polygon.cpp
-    src/input/text/Text.cpp
     src/input/media/Image.cpp
     src/input/media/Video.cpp
     src/input/media/Sound.cpp
