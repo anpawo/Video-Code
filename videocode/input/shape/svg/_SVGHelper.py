@@ -162,22 +162,26 @@ def buildOffsets(
 ) -> list[Offset[SVGPath]]:
     """
     Parses `filepath` via `parseSVG` and wraps each shape in an
-    `Offset[SVGPath]` positioned at its bounding-box origin within the SVG
-    canvas. `fillColor`/`strokeColor`/`strokeWidth`, when given, override the
-    per-shape values parsed from the SVG (used by `MathTex`/`Tex` to recolor
-    a uniformly-black `dvisvgm` render).
+    `Offset[SVGPath]` positioned so its bounding box lands at its original
+    place within the SVG canvas. `fillColor`/`strokeColor`/`strokeWidth`, when
+    given, override the per-shape values parsed from the SVG (used by
+    `MathTex`/`Tex` to recolor a uniformly-black `dvisvgm` render).
     """
     offsets: list[Offset[SVGPath]] = []
     for contours, fc, sc, sw in parseSVG(filepath, width, height):
         pts = [p for c in contours for p in c]
-        minX = min(p[0] for p in pts)
-        minY = min(p[1] for p in pts)
+        minX, maxX = min(p[0] for p in pts), max(p[0] for p in pts)
+        minY, maxY = min(p[1] for p in pts), max(p[1] for p in pts)
         path = SVGPath(
             contours,
             fillColor if fillColor is not None else fc,
             strokeColor if strokeColor is not None else sc,
             strokeWidth if strokeWidth is not None else sw,
         )
-        offsets.append(Offset(path, x=minX, y=minY))
+        # The renderer places a shape's bbox *center* at `position` (default
+        # align=(0.5, 0.5)) — offset by the bbox center, not its top-left
+        # corner, so each shape lands back at its original bbox within the
+        # SVG canvas regardless of its own size (#126).
+        offsets.append(Offset(path, x=(minX + maxX) / 2, y=(minY + maxY) / 2))
 
     return offsets
