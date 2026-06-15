@@ -87,6 +87,23 @@ from rounding).
 
 ---
 
+## Inputs — Math (`videocode/input/shape/tex/`)
+
+| Class | File | What it is |
+|---|---|---|
+| `MathTex(tex, fillColor, strokeColor, strokeWidth, width, height)` | `MathTex.py` | Renders a LaTeX math expression (e.g. `r"\frac{1}{2} + \int_0^1 x^2 dx"`) as a `Group[Offset[SVGPath]]`, recolored as one unit — `formula.fillColor = RED_A` recolors every glyph |
+| `Tex(tex, ...)` | `MathTex.py` | Like `MathTex`, but `tex` is inserted verbatim as the document body instead of being wrapped in `$...$` — for plain text or LaTeX constructs (e.g. `align*`) that shouldn't be in math mode |
+| `_TexHelper.texToSVG(tex, mathMode)` | `_TexHelper.py` | Compiles `tex` via `latex` + `dvisvgm --no-fonts` (every glyph becomes an outlined path, no embedded fonts) and caches the result under `.cache/tex/<hash>.svg` |
+
+Requires a LaTeX distribution with `latex` and `dvisvgm` on `PATH` (see
+`docs/SETUP_LINUX.md`). Manim-style, Manim isn't a dependency: the SVG output
+is loaded through the same `_SVGHelper`/`SVGPath`/`Offset`/`Group` pipeline as
+`SVG`.
+
+**Example**: `test/visual/scenes/mathtex.py`.
+
+---
+
 ## Composite / Template Inputs (`videocode/template/input/`)
 
 | Class | File | What it is |

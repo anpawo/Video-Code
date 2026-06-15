@@ -21,6 +21,9 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
+      - name: Install LaTeX (MathTex/Tex)
+        run: sudo apt-get update && sudo apt-get install -y texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm
+
       - name: Run Python unit tests
         run: ./test/run_tests.sh
 
@@ -35,7 +38,7 @@ jobs:
         run: echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-dev ffmpeg libopencv-dev libcurl4-openssl-dev libvulkan-dev libfreetype6-dev glslang-dev glslang-tools g++-13 gcc-13 mesa-vulkan-drivers
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-dev ffmpeg libopencv-dev libcurl4-openssl-dev libvulkan-dev libfreetype6-dev glslang-dev glslang-tools g++-13 gcc-13 mesa-vulkan-drivers texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm
 
       - name: Install Python dependencies
         run: pip install pybind11 -r requirements.txt

@@ -28,6 +28,7 @@ sudo apt-get install -y \
     glslang-dev glslang-tools \
     g++-13 gcc-13 \
     mesa-vulkan-drivers \
+    texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm \
     git curl
 
 echo "==> Setting up vcpkg"

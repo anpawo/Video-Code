@@ -9,12 +9,15 @@ import svgelements as se
 import videocode.input.shape.text._TextHelper as _textHelper
 import videocode.utils.logger as logger
 from videocode.constants import BLACK, TRANSPARENT, WORLD_TO_SCREEN_RATIO
+from videocode.input.interface.Offset import Offset
+from videocode.input.shape.svg.SVGPath import SVGPath
 from videocode.ty import *
 
 
 __all__ = [
     "ShapeData",
     "parseSVG",
+    "buildOffsets",
 ]
 
 
@@ -147,3 +150,34 @@ def parseSVG(filepath: str, width: maybe[wunumber], height: maybe[wunumber]) -> 
         shapes.append((contours, fillColor, strokeColor, strokeWidth))
 
     return shapes
+
+
+def buildOffsets(
+    filepath: str,
+    width: maybe[wunumber],
+    height: maybe[wunumber],
+    fillColor: maybe[rgba] = None,
+    strokeColor: maybe[rgba] = None,
+    strokeWidth: maybe[wufloat] = None,
+) -> list[Offset[SVGPath]]:
+    """
+    Parses `filepath` via `parseSVG` and wraps each shape in an
+    `Offset[SVGPath]` positioned at its bounding-box origin within the SVG
+    canvas. `fillColor`/`strokeColor`/`strokeWidth`, when given, override the
+    per-shape values parsed from the SVG (used by `MathTex`/`Tex` to recolor
+    a uniformly-black `dvisvgm` render).
+    """
+    offsets: list[Offset[SVGPath]] = []
+    for contours, fc, sc, sw in parseSVG(filepath, width, height):
+        pts = [p for c in contours for p in c]
+        minX = min(p[0] for p in pts)
+        minY = min(p[1] for p in pts)
+        path = SVGPath(
+            contours,
+            fillColor if fillColor is not None else fc,
+            strokeColor if strokeColor is not None else sc,
+            strokeWidth if strokeWidth is not None else sw,
+        )
+        offsets.append(Offset(path, x=minX, y=minY))
+
+    return offsets

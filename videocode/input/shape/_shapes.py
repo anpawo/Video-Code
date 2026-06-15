@@ -11,3 +11,4 @@ from videocode.input.shape.text.Text import *
 from videocode.input.shape.text.Subtitles import *
 from videocode.input.shape.text.Markdown import *
 from videocode.input.shape.svg.SVG import *
+from videocode.input.shape.tex.MathTex import *

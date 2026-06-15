@@ -20,7 +20,8 @@ sudo apt-get install -y \
     libvulkan-dev libfreetype6-dev \
     glslang-dev glslang-tools \
     g++-13 gcc-13 \
-    mesa-vulkan-drivers
+    mesa-vulkan-drivers \
+    texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm
 ```
 
 - **g++-13 / gcc-13**: the project requires C++20 and `CMakeLists.txt` hard-fails
@@ -29,6 +30,10 @@ sudo apt-get install -y \
 - **mesa-vulkan-drivers**: provides a software/Mesa Vulkan ICD. If you have a
   real GPU with vendor Vulkan drivers (NVIDIA/AMD/Intel), that's fine too —
   just make sure `vulkaninfo` (from `vulkan-tools`) lists at least one device.
+- **texlive-\* / dvisvgm**: needed by `MathTex`/`Tex`
+  (`videocode/input/shape/tex/`), which compiles LaTeX to SVG via `latex` +
+  `dvisvgm --no-fonts`. Ghostscript is *not* required — it's only needed for
+  PostScript specials (e.g. `tikz`), which `amsmath`/`amssymb` don't use.
 - The Qt preview window needs an X11 (or XWayland) display. If you're on a
   headless box/VM, you'll still be able to use `--generate` and
   `--visual-test` (both run headless via the Vulkan headless renderer), but
