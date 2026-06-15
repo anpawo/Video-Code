@@ -11,6 +11,19 @@ on:
       - 'ga-ignore-**'
 
 jobs:
+  python-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Python unit tests
+        run: ./test/run_tests.sh
+
   build:
     runs-on: ubuntu-latest
 
