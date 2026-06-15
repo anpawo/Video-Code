@@ -21,6 +21,6 @@
 //   change shader source in C++ strings and rebuild without a separate
 //   compilation step.
 std::vector<uint32_t> compileGLSL(
-    const std::string &source,
+    const std::string    &source,
     VkShaderStageFlagBits stage
 );

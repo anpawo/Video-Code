@@ -34,9 +34,9 @@ Video::Video(json::object_t&& args)
     // [start, end) pairs so mapToSourceIndex can walk them in a single forward pass.
     if (_baseArgs.contains("cuts")) {
         for (const auto& raw : _baseArgs.at("cuts")) {
-            auto   pair  = raw.get<std::vector<size_t>>();
+            auto   pair = raw.get<std::vector<size_t>>();
             size_t start = std::min(pair[0], _nbFrame);
-            size_t end   = std::min(pair[1], _nbFrame);
+            size_t end = std::min(pair[1], _nbFrame);
 
             if (end > start) {
                 _cuts.push_back({start, end});
@@ -62,7 +62,7 @@ Video::Video(json::object_t&& args)
     }
     _playbackLength = (totalCut < _nbFrame) ? (_nbFrame - totalCut) : 1;
 
-    _lastIndex    = mapToSourceIndex(0);
+    _lastIndex = mapToSourceIndex(0);
     _currentFrame = getFrameAt(_lastIndex);
 }
 
@@ -126,7 +126,7 @@ Mesh Video::getMesh(const Metadata& meta, const Config& config)
 
     if (index != _lastIndex) {
         _currentFrame = getFrameAt(index);
-        _lastIndex    = index;
+        _lastIndex = index;
         if (_reupload) {
             _reupload(_currentFrame);
         }
@@ -139,17 +139,17 @@ Mesh Video::getMesh(const Metadata& meta, const Config& config)
     float w = static_cast<float>(_currentFrame.cols);
     float h = static_cast<float>(_currentFrame.rows);
 
-    if (meta.args().contains("width"))  w = meta.args().at("width").get<float>();
+    if (meta.args().contains("width")) w = meta.args().at("width").get<float>();
     if (meta.args().contains("height")) h = meta.args().at("height").get<float>();
 
     MeshFactory factory({w, h}, meta, config);
 
     float    opacity = meta.opacity / 255.f;
-    uint32_t base    = factory.vertexCount();
+    uint32_t base = factory.vertexCount();
     factory.addVertex(0.f, 0.f, 0.f, 0.f, opacity);
-    factory.addVertex(w,   0.f, 1.f, 0.f, opacity);
-    factory.addVertex(w,   h,   1.f, 1.f, opacity);
-    factory.addVertex(0.f, h,   0.f, 1.f, opacity);
+    factory.addVertex(w, 0.f, 1.f, 0.f, opacity);
+    factory.addVertex(w, h, 1.f, 1.f, opacity);
+    factory.addVertex(0.f, h, 0.f, 1.f, opacity);
 
     factory.addIndex(base + 0);
     factory.addIndex(base + 1);
@@ -158,8 +158,8 @@ Mesh Video::getMesh(const Metadata& meta, const Config& config)
     factory.addIndex(base + 2);
     factory.addIndex(base + 3);
 
-    Mesh mesh         = factory.generateMesh();
-    mesh.hasTexture   = true;
+    Mesh mesh = factory.generateMesh();
+    mesh.hasTexture = true;
     mesh.textureDescriptor = _descriptor;
     return mesh;
 }

@@ -72,7 +72,7 @@ namespace
     }
 }
 
-VC::Compiler::Compiler(const argparse::ArgumentParser &parser)
+VC::Compiler::Compiler(const argparse::ArgumentParser& parser)
     : config({
           .screenWidth = parser.get<float>("--width"),
           .screenHeight = parser.get<float>("--height"),
@@ -115,13 +115,13 @@ int VC::Compiler::generateVideo()
     // -q:v instead (0-100 quality scale, ~65 looks comparable to -crf 23).
     // Quality/bitrate behavior differs from libx264, so it stays opt-in.
     const std::string codecArgs = config.hwEncode
-        ? " -c:v h264_videotoolbox"
-          " -pix_fmt yuv420p"
-          " -q:v 65"
-        : " -c:v libx264"
-          " -preset veryfast"
-          " -pix_fmt yuv420p"
-          " -crf 23";
+                                      ? " -c:v h264_videotoolbox"
+                                        " -pix_fmt yuv420p"
+                                        " -q:v 65"
+                                      : " -c:v libx264"
+                                        " -preset veryfast"
+                                        " -pix_fmt yuv420p"
+                                        " -crf 23";
 
     AudioArgs audio = buildAudioArgs(_core._inputs);
 
@@ -147,7 +147,8 @@ int VC::Compiler::generateVideo()
             codecArgs,
             audio.output,
             config.outputFile
-        ).c_str(),
+        )
+            .c_str(),
         "w"
     );
     if (!pipe) {
@@ -163,7 +164,7 @@ int VC::Compiler::generateVideo()
     std::mutex              mtx;
     std::condition_variable notFull, notEmpty;
     bool                    producerDone = false;
-    bool                    writeFailed  = false;
+    bool                    writeFailed = false;
 
     std::thread writer([&] {
         while (true) {
@@ -196,13 +197,13 @@ int VC::Compiler::generateVideo()
     // dropping them if framerate < SCENE_FRAMERATE.
     size_t sceneFrames = _core._nbFrame;
     size_t total = (config.framerate == Config::SCENE_FRAMERATE)
-        ? sceneFrames
-        : (size_t)std::llround((double)sceneFrames * config.framerate / Config::SCENE_FRAMERATE);
+                       ? sceneFrames
+                       : (size_t)std::llround((double)sceneFrames * config.framerate / Config::SCENE_FRAMERATE);
 
     for (size_t i = 0; i < total; ++i) {
         size_t sceneIndex = (config.framerate == Config::SCENE_FRAMERATE)
-            ? i
-            : (size_t)std::llround((double)i * Config::SCENE_FRAMERATE / config.framerate);
+                                ? i
+                                : (size_t)std::llround((double)i * Config::SCENE_FRAMERATE / config.framerate);
         if (sceneIndex >= sceneFrames)
             sceneIndex = sceneFrames - 1;
         _core._index = sceneIndex;

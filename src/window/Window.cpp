@@ -6,7 +6,6 @@
 */
 
 #include "window/Window.hpp"
-#include "utils/Logger.hpp"
 
 #include <QGuiApplication>
 #include <QInputDialog>
@@ -20,6 +19,7 @@
 #include <iostream>
 
 #include "utils/ImageIO.hpp"
+#include "utils/Logger.hpp"
 
 // Window startup timer — measures wall time from the first line of the
 // constructor until Vulkan init completes.  Printed once at startup.
@@ -37,10 +37,10 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
           .sourceFile = parser.get("--file"),
           .outputFile = parser.get("--generate"),
       })
-    , _core(parser, config)       // ← reloadSourceFile() runs here (Python + executeStack)
+    , _core(parser, config) // ← reloadSourceFile() runs here (Python + executeStack)
 {
     using Clock = std::chrono::high_resolution_clock;
-    using Ms    = std::chrono::duration<double, std::milli>;
+    using Ms = std::chrono::duration<double, std::milli>;
     [[maybe_unused]] double core_ms = std::chrono::duration_cast<Ms>(Clock::now() - s_windowStart).count();
     VC_SLOG(std::format("[startup] Core ctor (Python load + executeStack): {:.1f}ms\n", core_ms));
     ///< Animation is advanced inside the Vulkan render loop via setFrameCallback(),
@@ -115,16 +115,15 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     ///< window handle is guaranteed to be available.
     QTimer::singleShot(0, _vulkanWidget, [this] {
         using Clock = std::chrono::high_resolution_clock;
-        using Ms    = std::chrono::duration<double, std::milli>;
+        using Ms = std::chrono::duration<double, std::milli>;
         // VulkanWidget::init() already prints per-step timing itself.
         _vulkanWidget->init();
         auto _t_tex = Clock::now();
         _core.uploadTextures(_vulkanWidget);
-        [[maybe_unused]] double tex_ms   = std::chrono::duration_cast<Ms>(Clock::now() - _t_tex).count();
+        [[maybe_unused]] double tex_ms = std::chrono::duration_cast<Ms>(Clock::now() - _t_tex).count();
         [[maybe_unused]] double total_ms = std::chrono::duration_cast<Ms>(Clock::now() - s_windowStart).count();
         VC_SLOG(std::format("[startup] {:35s} {:7.1f}ms\n", "uploadTextures (CPU→GPU)", tex_ms));
-        VC_SLOG(std::format("[startup] === total Window ctor → first-frame-ready: {:.1f}ms ===\n",
-                                 total_ms));
+        VC_SLOG(std::format("[startup] === total Window ctor → first-frame-ready: {:.1f}ms ===\n", total_ms));
     });
 }
 
@@ -161,7 +160,7 @@ void VC::Window::keyPressEvent(QKeyEvent* event)
     } else if (event->key() == Qt::Key_Right) {
         _core.forwardFrame(event->modifiers() & Qt::ControlModifier ? 5 : 1);
     } else if (event->key() == Qt::Key_S && (event->modifiers() & Qt::ControlModifier)) {
-        bool    ok       = false;
+        bool    ok = false;
         QString fileName = QInputDialog::getText(
             this, "Export Frame", "File name:", QLineEdit::Normal, "frame.png", &ok
         );

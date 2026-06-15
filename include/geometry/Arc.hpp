@@ -22,7 +22,7 @@ inline std::vector<cv::Vec2f> arcPoints(float cx, float cy, float r, float start
     std::vector<cv::Vec2f> pts;
     pts.reserve(n + 1);
     for (int i = 0; i <= n; i++) {
-        float t     = static_cast<float>(i) / static_cast<float>(n);
+        float t = static_cast<float>(i) / static_cast<float>(n);
         float angle = start + t * (end - start);
         pts.push_back({cx + r * std::cos(angle), cy + r * std::sin(angle)});
     }

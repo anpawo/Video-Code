@@ -74,8 +74,10 @@ public:
     {
     }
 
-    size_t                start() const override { return _start; }
-    std::string_view      shaderName() const override { return "LightSweep"; }
+    size_t start() const override { return _start; }
+
+    std::string_view shaderName() const override { return "LightSweep"; }
+
     const json::object_t& args() const override { return _args; }
 
     std::vector<float> paramsAtFrame(size_t frame) const override
@@ -105,5 +107,5 @@ private:
 
 const std::map<std::string, std::function<std::unique_ptr<IFragmentShader>(const json::object_t&)>> transformation{
     SHADERS(BIND_SHADERS)
-    BIND_SHADERS(LightSweep)
+        BIND_SHADERS(LightSweep)
 };

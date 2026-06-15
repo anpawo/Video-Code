@@ -25,16 +25,20 @@ public:
     Mesh getMesh(const Metadata& meta, const Config& config) override;
 
     const std::string& filepath() const { return _filepath; }
-    double             volume() const { return _volume; }
-    double             delay() const { return _delay; }
-    double             trimStart() const { return _trimStart; }
+
+    double volume() const { return _volume; }
+
+    double delay() const { return _delay; }
+
+    double trimStart() const { return _trimStart; }
+
     std::optional<double> trimEnd() const { return _trimEnd; }
 
 private:
 
     std::string           _filepath;
-    double                 _volume;
-    double                 _delay;
-    double                 _trimStart;
+    double                _volume;
+    double                _delay;
+    double                _trimStart;
     std::optional<double> _trimEnd;
 };

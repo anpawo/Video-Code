@@ -53,8 +53,8 @@ void AInput::resetModifications()
     _effects.clear();
     _effectTimeline.clear();
     _metas = {Metadata{
-        .argsPtr         = _baseArgsPtr,
-        .pointsPtr       = _initialPoints,
+        .argsPtr = _baseArgsPtr,
+        .pointsPtr = _initialPoints,
         .contourSizesPtr = _initialContourSizes,
     }};
 }

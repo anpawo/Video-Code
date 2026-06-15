@@ -26,8 +26,7 @@ namespace VC::ImageIO
     inline bool hasImageExtension(const std::string& path)
     {
         std::string ext = lowerExtension(path);
-        return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp"
-            || ext == ".tiff" || ext == ".tif" || ext == ".webp";
+        return ext == ".png" || ext == ".jpg" || ext == ".jpeg" || ext == ".bmp" || ext == ".tiff" || ext == ".tif" || ext == ".webp";
     }
 
     // Writes a BGRA frame to `path`. PNG/TIFF/WebP keep the alpha channel;

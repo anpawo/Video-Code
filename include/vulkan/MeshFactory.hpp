@@ -10,9 +10,9 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <optional>
 #include <opencv2/core/matx.hpp>
 #include <opencv2/core/types.hpp>
+#include <optional>
 #include <vector>
 
 #include "core/Config.hpp"
@@ -173,11 +173,7 @@ struct MeshFactory
         mesh.vertices.push_back(Vertex{
             {ndcX, ndcY},
             {0.0f, -1.0f}, // sentinel: solid fill, no Bézier test
-            {color[0] / 255.f,
-             color[1] / 255.f,
-             color[2] / 255.f,
-             color[3] / 255.f
-            },
+            {color[0] / 255.f, color[1] / 255.f, color[2] / 255.f, color[3] / 255.f},
             {0.f, 0.f, 0.f, 0.f},
         });
     }
@@ -281,7 +277,7 @@ private:
         size_t writeIdx = 0;
         for (size_t readIdx = 0; readIdx < samples.size(); ++readIdx) {
             if (writeIdx == 0 || length2d(samples[readIdx] - samples[writeIdx - 1]) >= 1e-4f) {
-                samples[writeIdx]      = samples[readIdx];
+                samples[writeIdx] = samples[readIdx];
                 localSamples[writeIdx] = localSamples[readIdx];
                 ++writeIdx;
             }
@@ -317,7 +313,7 @@ private:
             for (size_t idx = 0; idx < n; ++idx) {
                 if (!closed && (idx == 0 || idx + 1 >= n))
                     continue; // open endpoints have no turn
-                cv::Vec2f in  = normalizeOrZero(samples[idx] - samples[(idx + n - 1) % n]);
+                cv::Vec2f in = normalizeOrZero(samples[idx] - samples[(idx + n - 1) % n]);
                 cv::Vec2f out = normalizeOrZero(samples[(idx + 1) % n] - samples[idx]);
                 isCorner[idx] = dot2d(in, out) < CORNER_COS;
             }
@@ -327,15 +323,15 @@ private:
             for (size_t rd = 0; rd < n; ++rd) {
                 if (w > 0 && length2d(samples[rd] - samples[w - 1]) < halfW * 0.75f &&
                     isCorner[lastOrig] && isCorner[rd] && !mergedCorner[w - 1]) {
-                    samples[w - 1]      = (samples[w - 1] + samples[rd]) * 0.5f;
+                    samples[w - 1] = (samples[w - 1] + samples[rd]) * 0.5f;
                     localSamples[w - 1] = (localSamples[w - 1] + localSamples[rd]) * 0.5f;
                     mergedCorner[w - 1] = true;
                     continue;
                 }
-                samples[w]      = samples[rd];
+                samples[w] = samples[rd];
                 localSamples[w] = localSamples[rd];
                 mergedCorner[w] = false;
-                lastOrig        = rd;
+                lastOrig = rd;
                 ++w;
             }
             samples.resize(w);
@@ -361,8 +357,8 @@ private:
         std::vector<cv::Vec4f> sampleColors;
         if (gradientDir && stops) {
             const cv::Vec2f &dir = *gradientDir;
-            float minProj = std::numeric_limits<float>::max();
-            float maxProj = std::numeric_limits<float>::lowest();
+            float            minProj = std::numeric_limits<float>::max();
+            float            maxProj = std::numeric_limits<float>::lowest();
             for (const auto &p : localSamples) {
                 float proj = p[0] * dir[0] + p[1] * dir[1];
                 minProj = std::min(minProj, proj);
@@ -373,8 +369,8 @@ private:
             sampleColors.reserve(localSamples.size());
             for (const auto &p : localSamples) {
                 float     proj = p[0] * dir[0] + p[1] * dir[1];
-                float     t    = (range > 0.f) ? (proj - minProj) / range : 0.f;
-                cv::Vec4b c    = lerpGradient(*stops, t);
+                float     t = (range > 0.f) ? (proj - minProj) / range : 0.f;
+                cv::Vec4b c = lerpGradient(*stops, t);
                 sampleColors.push_back({c[0] / 255.f, c[1] / 255.f, c[2] / 255.f, c[3] / 255.f});
             }
         }
@@ -385,10 +381,12 @@ private:
         // World-space data per emitted pair — used after the loop to detect
         // twisted strip quads (offset edges crossing at tight corners) and to
         // patch them with round-join discs.
-        struct PairInfo {
+        struct PairInfo
+        {
             cv::Vec2f point, neg, pos;
             cv::Vec4f color;
         };
+
         std::vector<PairInfo> pairInfos;
         pairInfos.reserve(samples.size());
 
@@ -406,14 +404,14 @@ private:
                 return; // uint16 index budget — degrade gracefully
 
             cv::Vec2f centerNdc = toNdcPoint(centerW);
-            uint32_t  center    = vertexCount();
+            uint32_t  center = vertexCount();
             mesh.vertices.push_back(Vertex{{centerNdc[0], centerNdc[1]}, {0.f, halfW}, {c[0], c[1], c[2], c[3]}, {2.f, 0.f, 0.f, 0.f}});
 
             uint32_t prevRim = 0;
             for (int k = 0; k <= JOIN_SEGS; ++k) {
                 float     ang = 2.f * static_cast<float>(M_PI) * static_cast<float>(k) / static_cast<float>(JOIN_SEGS);
                 cv::Vec2f rimNdc = toNdcPoint(centerW + cv::Vec2f{std::cos(ang), std::sin(ang)} * halfW_expanded);
-                uint32_t  rim    = vertexCount();
+                uint32_t  rim = vertexCount();
                 mesh.vertices.push_back(Vertex{{rimNdc[0], rimNdc[1]}, {halfW_expanded, halfW}, {c[0], c[1], c[2], c[3]}, {2.f, 0.f, 0.f, 0.f}});
                 if (k > 0) {
                     mesh.indices.push_back(center);
@@ -456,7 +454,10 @@ private:
             float vr = r, vg = g, vb = b, va = a;
             if (gradientDir) {
                 const cv::Vec4f &c = sampleColors[i];
-                vr = c[0]; vg = c[1]; vb = c[2]; va = c[3];
+                vr = c[0];
+                vg = c[1];
+                vb = c[2];
+                va = c[3];
             }
 
             auto emitPair = [&](const cv::Vec2f &step) {
@@ -473,7 +474,7 @@ private:
                     cv::Vec2f outerNdc = toNdcPoint(outerW);
                     cv::Vec2f innerNdc = toNdcPoint(innerW);
                     mesh.vertices.push_back(Vertex{{outerNdc[0], outerNdc[1]}, {halfW, halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
-                    mesh.vertices.push_back(Vertex{{innerNdc[0], innerNdc[1]}, {0.f,   halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
+                    mesh.vertices.push_back(Vertex{{innerNdc[0], innerNdc[1]}, {0.f, halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
                     pairInfos.push_back({point, outerW, innerW, {vr, vg, vb, va}});
                 } else {
                     // Centered stroke: ±halfW_expanded around the path centerline
@@ -482,7 +483,7 @@ private:
                     cv::Vec2f negNdc = toNdcPoint(negW);
                     cv::Vec2f posNdc = toNdcPoint(posW);
                     mesh.vertices.push_back(Vertex{{negNdc[0], negNdc[1]}, {-halfW_expanded, halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
-                    mesh.vertices.push_back(Vertex{{posNdc[0], posNdc[1]}, {halfW_expanded,  halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
+                    mesh.vertices.push_back(Vertex{{posNdc[0], posNdc[1]}, {halfW_expanded, halfW}, {vr, vg, vb, va}, {2.f, 0.f, 0.f, 0.f}});
                     pairInfos.push_back({point, negW, posW, {vr, vg, vb, va}});
                 }
             };
@@ -522,7 +523,7 @@ private:
 
         size_t stripCount = closed ? pairBases.size() : pairBases.size() - 1;
         for (size_t i = 0; i < stripCount; ++i) {
-            size_t   j     = (i + 1) % pairBases.size();
+            size_t   j = (i + 1) % pairBases.size();
             uint32_t base0 = pairBases[i];
             uint32_t base1 = pairBases[j];
             mesh.indices.push_back(base0);
@@ -551,7 +552,7 @@ private:
                 };
 
                 bool reversed = dot2d(p1.pos - p0.pos, p1.neg - p0.neg) < 0.f;
-                bool crossed  = edgesCross(p0.neg, p1.neg, p0.pos, p1.pos);
+                bool crossed = edgesCross(p0.neg, p1.neg, p0.pos, p1.pos);
                 if (reversed || crossed) {
                     emitJoinDisc((p0.neg + p0.pos) * 0.5f, p0.color);
                     emitJoinDisc((p1.neg + p1.pos) * 0.5f, p1.color);
@@ -561,7 +562,6 @@ private:
     }
 
 public:
-
 
     void addVertex(float localX, float localY, float u, float v, float opacity = 1.f) // textured variant
     {
@@ -574,11 +574,11 @@ public:
             {ndcX, ndcY},
             {u, v},
             {0.f, 0.f, 0.f, opacity},
-            {3.f, 0.f, 0.f, 0.f},     // mode 3 = texture sample
+            {3.f, 0.f, 0.f, 0.f}, // mode 3 = texture sample
         });
     }
 
-    void addWorldVertex(float worldX, float worldY, const cv::Vec4b& color)
+    void addWorldVertex(float worldX, float worldY, const cv::Vec4b &color)
     {
         float ndcX = worldX / windowWidth - 1.f;
         float ndcY = worldY / windowHeight - 1.f;
@@ -593,21 +593,21 @@ public:
     // Inset a closed world-space polyline inward by `amount`.
     // For CW paths (screen y-down), the left-normal points inward.
     static std::vector<cv::Vec2f> insetPolyWorld(
-        const std::vector<cv::Vec2f>& worldPts,
+        const std::vector<cv::Vec2f> &worldPts,
         float                         amount,
         bool                          closed
     )
     {
         std::vector<cv::Vec2f> result;
-        size_t n = worldPts.size();
+        size_t                 n = worldPts.size();
         result.reserve(n);
 
-        auto sampleAt = [&](int idx) -> const cv::Vec2f& {
+        auto sampleAt = [&](int idx) -> const cv::Vec2f & {
             return worldPts[(idx % (int)n + (int)n) % (int)n];
         };
 
         for (size_t i = 0; i < n; ++i) {
-            cv::Vec2f point   = worldPts[i];
+            cv::Vec2f point = worldPts[i];
             cv::Vec2f prevDir = normalizeOrZero(point - sampleAt((int)i - 1));
             cv::Vec2f nextDir = normalizeOrZero(sampleAt((int)i + 1) - point);
 
@@ -619,7 +619,7 @@ public:
             }
 
             bool      isEndpoint = !closed && (i == 0 || i + 1 == n);
-            cv::Vec2f step       = stepToCorner(prevDir, nextDir, isEndpoint);
+            cv::Vec2f step = stepToCorner(prevDir, nextDir, isEndpoint);
             result.push_back(point + step * amount);
         }
         return result;

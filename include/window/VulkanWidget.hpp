@@ -11,11 +11,11 @@
 
 #include <QWidget>
 #include <functional>
+#include <opencv2/core/mat.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
-#include <opencv2/core/mat.hpp>
 #include "vulkan/Mesh.hpp"
 
 namespace VC
@@ -36,7 +36,7 @@ namespace VC
         float time;
         float pad[3];
         float resolution[2];
-        float pixelSize;   // 1.0 / min(screenWidth, screenHeight) — for AA scaling
+        float pixelSize; // 1.0 / min(screenWidth, screenHeight) — for AA scaling
         float pad2[1];
     };
 
@@ -168,46 +168,47 @@ namespace VC
 
         // ── MSAA color attachment (4×, swapchain resolution) ─────────────
         VkExtent2D     m_ssaaExtent{};
-        VkImage        m_ssaaImage     = VK_NULL_HANDLE;
-        VkDeviceMemory m_ssaaMemory    = VK_NULL_HANDLE;
+        VkImage        m_ssaaImage = VK_NULL_HANDLE;
+        VkDeviceMemory m_ssaaMemory = VK_NULL_HANDLE;
         VkImageView    m_ssaaImageView = VK_NULL_HANDLE;
 
         // ── Resolve image (1 sample, used by readFrame framebuffer) ───────
-        VkImage        m_resolveImage     = VK_NULL_HANDLE;
-        VkDeviceMemory m_resolveMemory    = VK_NULL_HANDLE;
+        VkImage        m_resolveImage = VK_NULL_HANDLE;
+        VkDeviceMemory m_resolveMemory = VK_NULL_HANDLE;
         VkImageView    m_resolveImageView = VK_NULL_HANDLE;
 
         // ── Readback image (linear, host-visible, swapchain resolution) ───
-        VkImage        m_readbackImage  = VK_NULL_HANDLE;
+        VkImage        m_readbackImage = VK_NULL_HANDLE;
         VkDeviceMemory m_readbackMemory = VK_NULL_HANDLE;
 
         // ── Render pass & pipeline ────────────────────────────────────────
-        VkRenderPass          m_renderPass = VK_NULL_HANDLE;
+        VkRenderPass m_renderPass = VK_NULL_HANDLE;
 
         // set = 0: UBO
         VkDescriptorSetLayout m_descriptorSetLayout = VK_NULL_HANDLE;
-        VkDescriptorPool      m_descriptorPool      = VK_NULL_HANDLE;
-        VkDescriptorSet       m_descriptorSet       = VK_NULL_HANDLE;
+        VkDescriptorPool      m_descriptorPool = VK_NULL_HANDLE;
+        VkDescriptorSet       m_descriptorSet = VK_NULL_HANDLE;
 
         // set = 1: per-mesh texture (combined image sampler)
-        VkDescriptorSetLayout m_textureSetLayout  = VK_NULL_HANDLE;
-        VkDescriptorPool      m_texturePool       = VK_NULL_HANDLE;
+        VkDescriptorSetLayout m_textureSetLayout = VK_NULL_HANDLE;
+        VkDescriptorPool      m_texturePool = VK_NULL_HANDLE;
         VkDescriptorSet       m_defaultTextureSet = VK_NULL_HANDLE; // 1×1 white, bound for non-textured meshes
 
-        VkPipelineLayout      m_pipelineLayout = VK_NULL_HANDLE;
-        VkPipeline            m_pipeline = VK_NULL_HANDLE;
+        VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
+        VkPipeline       m_pipeline = VK_NULL_HANDLE;
 
         // ── Texture resources ─────────────────────────────────────────────
-        struct TextureResource {
-            VkImage        image   = VK_NULL_HANDLE;
-            VkDeviceMemory memory  = VK_NULL_HANDLE;
-            VkImageView    view    = VK_NULL_HANDLE;
+        struct TextureResource
+        {
+            VkImage        image = VK_NULL_HANDLE;
+            VkDeviceMemory memory = VK_NULL_HANDLE;
+            VkImageView    view = VK_NULL_HANDLE;
             VkSampler      sampler = VK_NULL_HANDLE;
         };
 
-        std::vector<TextureResource>                    m_textures;      // one per uploadTexture() call
-        std::unordered_map<VkDescriptorSet, size_t>    m_textureIndex;  // descriptor → m_textures index
-        TextureResource                                 m_defaultTexture; // the 1×1 white default
+        std::vector<TextureResource>                m_textures;       // one per uploadTexture() call
+        std::unordered_map<VkDescriptorSet, size_t> m_textureIndex;   // descriptor → m_textures index
+        TextureResource                             m_defaultTexture; // the 1×1 white default
 
         // ── Framebuffers & commands ───────────────────────────────────────
         std::vector<VkFramebuffer> m_framebuffers;
@@ -220,18 +221,18 @@ namespace VC
         VkFence     m_inFlightFence = VK_NULL_HANDLE;
 
         // ── Buffers & device memory ───────────────────────────────────────
-        VkBuffer       m_vertexBuffer       = VK_NULL_HANDLE;
-        VkDeviceMemory m_vertexMemory       = VK_NULL_HANDLE;
-        VkBuffer       m_indexBuffer        = VK_NULL_HANDLE;
-        VkDeviceMemory m_indexMemory        = VK_NULL_HANDLE;
-        VkBuffer       m_uniformBuffer      = VK_NULL_HANDLE;
-        VkDeviceMemory m_uniformMemory      = VK_NULL_HANDLE;
+        VkBuffer       m_vertexBuffer = VK_NULL_HANDLE;
+        VkDeviceMemory m_vertexMemory = VK_NULL_HANDLE;
+        VkBuffer       m_indexBuffer = VK_NULL_HANDLE;
+        VkDeviceMemory m_indexMemory = VK_NULL_HANDLE;
+        VkBuffer       m_uniformBuffer = VK_NULL_HANDLE;
+        VkDeviceMemory m_uniformMemory = VK_NULL_HANDLE;
 
         // ── CPU-side geometry ─────────────────────────────────────────────
         struct MeshDrawInfo
         {
-            uint32_t firstIndex;  // offset into the flat index buffer
-            uint32_t indexCount;  // number of indices for this mesh
+            uint32_t firstIndex; // offset into the flat index buffer
+            uint32_t indexCount; // number of indices for this mesh
         };
 
         std::vector<Mesh>         m_meshes;
@@ -244,31 +245,33 @@ namespace VC
         std::vector<size_t> m_effectMeshIndices;
 
         // ── Effect post-process infrastructure ────────────────────────────
-        VkRenderPass   m_effectPass   = VK_NULL_HANDLE;  // 1× kernel pass
-        VkRenderPass   m_effectGeomPass = VK_NULL_HANDLE; // 4× MSAA → resolve to ping
-        VkImage        m_pingImage    = VK_NULL_HANDLE;
-        VkDeviceMemory m_pingMemory   = VK_NULL_HANDLE;
-        VkImageView    m_pingView     = VK_NULL_HANDLE;
-        VkImage        m_pongImage    = VK_NULL_HANDLE;
-        VkDeviceMemory m_pongMemory   = VK_NULL_HANDLE;
-        VkImageView    m_pongView     = VK_NULL_HANDLE;
-        VkFramebuffer  m_pingFb       = VK_NULL_HANDLE;
-        VkFramebuffer  m_pongFb       = VK_NULL_HANDLE;
-        VkFramebuffer  m_effectGeomFb = VK_NULL_HANDLE;  // [msaaView, pingView]
-        VkImage        m_effectMsaaImage  = VK_NULL_HANDLE;
-        VkDeviceMemory m_effectMsaaMemory = VK_NULL_HANDLE;
-        VkImageView    m_effectMsaaView   = VK_NULL_HANDLE;
-        VkSampler      m_effectSampler = VK_NULL_HANDLE;
-        VkDescriptorSet m_pingSrcSet  = VK_NULL_HANDLE;
-        VkDescriptorSet m_pongSrcSet  = VK_NULL_HANDLE;
+        VkRenderPass    m_effectPass = VK_NULL_HANDLE;     // 1× kernel pass
+        VkRenderPass    m_effectGeomPass = VK_NULL_HANDLE; // 4× MSAA → resolve to ping
+        VkImage         m_pingImage = VK_NULL_HANDLE;
+        VkDeviceMemory  m_pingMemory = VK_NULL_HANDLE;
+        VkImageView     m_pingView = VK_NULL_HANDLE;
+        VkImage         m_pongImage = VK_NULL_HANDLE;
+        VkDeviceMemory  m_pongMemory = VK_NULL_HANDLE;
+        VkImageView     m_pongView = VK_NULL_HANDLE;
+        VkFramebuffer   m_pingFb = VK_NULL_HANDLE;
+        VkFramebuffer   m_pongFb = VK_NULL_HANDLE;
+        VkFramebuffer   m_effectGeomFb = VK_NULL_HANDLE; // [msaaView, pingView]
+        VkImage         m_effectMsaaImage = VK_NULL_HANDLE;
+        VkDeviceMemory  m_effectMsaaMemory = VK_NULL_HANDLE;
+        VkImageView     m_effectMsaaView = VK_NULL_HANDLE;
+        VkSampler       m_effectSampler = VK_NULL_HANDLE;
+        VkDescriptorSet m_pingSrcSet = VK_NULL_HANDLE;
+        VkDescriptorSet m_pongSrcSet = VK_NULL_HANDLE;
 
         // 4× MSAA geometry pipeline for effect ping pass
         VkPipeline m_effectGeomPipeline = VK_NULL_HANDLE;
 
-        struct EffectPipeline {
-            VkPipelineLayout layout   = VK_NULL_HANDLE;
+        struct EffectPipeline
+        {
+            VkPipelineLayout layout = VK_NULL_HANDLE;
             VkPipeline       pipeline = VK_NULL_HANDLE;
         };
+
         std::unordered_map<std::string, EffectPipeline> m_effectPipelines;
 
         VkBuffer       m_compVtxBuf = VK_NULL_HANDLE;
@@ -279,13 +282,15 @@ namespace VC
         // Per-effect-mesh result image (final effect output, sampled by the
         // composite quad in the main pass). Grow-on-demand pool, never shrinks,
         // indexed in parallel with m_effectMeshIndices.
-        struct EffectResultSlot {
-            VkImage         image         = VK_NULL_HANDLE;
-            VkDeviceMemory  memory        = VK_NULL_HANDLE;
-            VkImageView     view          = VK_NULL_HANDLE;
-            VkFramebuffer   framebuffer   = VK_NULL_HANDLE;
+        struct EffectResultSlot
+        {
+            VkImage         image = VK_NULL_HANDLE;
+            VkDeviceMemory  memory = VK_NULL_HANDLE;
+            VkImageView     view = VK_NULL_HANDLE;
+            VkFramebuffer   framebuffer = VK_NULL_HANDLE;
             VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
         };
+
         std::vector<EffectResultSlot> m_effectResults;
 
         bool createEffectResources();
@@ -295,11 +300,7 @@ namespace VC
         bool ensureEffectResultCapacity(size_t count);
 
         void recordEffectGeomPass(VkCommandBuffer cb, size_t meshIndex);
-        void recordEffectKernelPass(VkCommandBuffer cb, VkFramebuffer fb,
-                                    VkDescriptorSet srcSet,
-                                    const std::string& name,
-                                    float texelX, float texelY,
-                                    const std::vector<float>& params);
+        void recordEffectKernelPass(VkCommandBuffer cb, VkFramebuffer fb, VkDescriptorSet srcSet, const std::string& name, float texelX, float texelY, const std::vector<float>& params);
 
         // Per-mesh effect pre-passes: geometry + effect chain → m_effectResults.
         void recordEffectPrepasses(VkCommandBuffer cb);

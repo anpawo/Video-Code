@@ -29,8 +29,8 @@ namespace
     std::string statusLabel(bool pass)
     {
         return pass
-            ? std::format("{}PASS{}", VC::Color::GREEN, VC::Color::RESET)
-            : std::format("{}FAIL{}", VC::Color::RED, VC::Color::RESET);
+                   ? std::format("{}PASS{}", VC::Color::GREEN, VC::Color::RESET)
+                   : std::format("{}FAIL{}", VC::Color::RED, VC::Color::RESET);
     }
 
     double meanAbsDiff(const cv::Mat& a, const cv::Mat& b)
@@ -98,33 +98,33 @@ namespace
     };
 
     const std::vector<GoldenCase> kGoldenCases = {
-        {"shapes",    "test/visual/scenes/shapes.py",    {0}},
-        {"text",        "test/visual/scenes/text.py",        {0}},
+        {"shapes", "test/visual/scenes/shapes.py", {0}},
+        {"text", "test/visual/scenes/text.py", {0}},
         {"text-stroke", "test/visual/scenes/text_stroke.py", {0}},
         {"animation", "test/visual/scenes/animation.py", {0, 10, 25}},
-        {"groups",    "test/visual/scenes/groups.py",    {0, 15, 29}},
+        {"groups", "test/visual/scenes/groups.py", {0, 15, 29}},
         {"stateful-group-scale", "test/visual/scenes/stateful_group_scale.py", {0, 15, 29}},
-        {"chess",     "test/visual/scenes/chess.py",     {0, 30, 65, 100, 130}},
-        {"gradient",         "test/visual/scenes/gradient.py",         {0}},
+        {"chess", "test/visual/scenes/chess.py", {0, 30, 65, 100, 130}},
+        {"gradient", "test/visual/scenes/gradient.py", {0}},
         {"gradient-percent", "test/visual/scenes/gradient_percent.py", {0}},
-        {"gradient-conic",   "test/visual/scenes/gradient_conic.py",   {0}},
-        {"shadow",           "test/visual/scenes/shadow.py",           {0}},
-        {"crop",             "test/visual/scenes/crop.py",             {0}},
-        {"curve",            "test/visual/scenes/curve.py",            {0, 6, 10}},
-        {"lightsweep",       "test/visual/scenes/lightsweep.py",       {0, 15, 29}},
+        {"gradient-conic", "test/visual/scenes/gradient_conic.py", {0}},
+        {"shadow", "test/visual/scenes/shadow.py", {0}},
+        {"crop", "test/visual/scenes/crop.py", {0}},
+        {"curve", "test/visual/scenes/curve.py", {0, 6, 10}},
+        {"lightsweep", "test/visual/scenes/lightsweep.py", {0, 15, 29}},
         {"lightsweep-group", "test/visual/scenes/lightsweep_group.py", {7, 15, 22}},
-        {"layers",           "test/visual/scenes/layers.py",           {0, 31, 61, 91}},
-        {"text-gradient",    "test/visual/scenes/text_gradient.py",    {0, 11, 22, 33}},
-        {"gradient-holes",   "test/visual/scenes/gradient_holes.py",   {0}},
-        {"video",            "test/visual/scenes/video.py",            {0}},
-        {"image-shape",      "test/visual/scenes/image_shape.py",      {0}},
-        {"mirror",           "test/visual/scenes/mirror.py",           {0, 29, 59}},
-        {"resize",           "test/visual/scenes/resize.py",           {0, 15, 29}},
-        {"svg",              "test/visual/scenes/svg.py",              {0}},
-        {"mathtex",          "test/visual/scenes/mathtex.py",          {0}},
-        {"subtitles",        "test/visual/scenes/subtitles.py",        {30}},
-        {"markdown",         "test/visual/scenes/markdown.py",         {0}},
-        {"sound",            "test/visual/scenes/sound.py",            {0}},
+        {"layers", "test/visual/scenes/layers.py", {0, 31, 61, 91}},
+        {"text-gradient", "test/visual/scenes/text_gradient.py", {0, 11, 22, 33}},
+        {"gradient-holes", "test/visual/scenes/gradient_holes.py", {0}},
+        {"video", "test/visual/scenes/video.py", {0}},
+        {"image-shape", "test/visual/scenes/image_shape.py", {0}},
+        {"mirror", "test/visual/scenes/mirror.py", {0, 29, 59}},
+        {"resize", "test/visual/scenes/resize.py", {0, 15, 29}},
+        {"svg", "test/visual/scenes/svg.py", {0}},
+        {"mathtex", "test/visual/scenes/mathtex.py", {0}},
+        {"subtitles", "test/visual/scenes/subtitles.py", {30}},
+        {"markdown", "test/visual/scenes/markdown.py", {0}},
+        {"sound", "test/visual/scenes/sound.py", {0}},
     };
 
     const std::vector<ReloadCase> kReloadCases = {
@@ -152,8 +152,8 @@ VC::VisualTest::VisualTest(const argparse::ArgumentParser& parser)
 
 std::vector<cv::Mat> VC::VisualTest::renderFrames(const std::string& scenePath, const std::vector<size_t>& frames)
 {
-    Config config       = _baseConfig;
-    config.sourceFile   = scenePath;
+    Config config = _baseConfig;
+    config.sourceFile = scenePath;
 
     Core core(_parser, config);
 
@@ -170,9 +170,10 @@ std::vector<cv::Mat> VC::VisualTest::renderFrames(const std::string& scenePath, 
 }
 
 std::vector<cv::Mat> VC::VisualTest::renderFramesAfterReload(
-    const std::string& before, const std::string& after, const std::vector<size_t>& frames)
+    const std::string& before, const std::string& after, const std::vector<size_t>& frames
+)
 {
-    Config config     = _baseConfig;
+    Config config = _baseConfig;
     config.sourceFile = before;
 
     Core core(_parser, config);
@@ -181,7 +182,7 @@ std::vector<cv::Mat> VC::VisualTest::renderFramesAfterReload(
     if (!renderer.init())
         throw std::runtime_error("Vulkan headless init failed for " + before);
 
-    auto uploadFn   = [&](const cv::Mat& mat) { return renderer.uploadTexture(mat); };
+    auto uploadFn = [&](const cv::Mat& mat) { return renderer.uploadTexture(mat); };
     auto reuploadFn = [&](VkDescriptorSet desc, const cv::Mat& mat) { renderer.updateTexturePixels(desc, mat); };
 
     core.uploadTextures(uploadFn, reuploadFn);
@@ -225,16 +226,14 @@ int VC::VisualTest::run(bool updateGolden)
 
             cv::Mat golden = cv::imread(goldenPath, cv::IMREAD_UNCHANGED);
             if (golden.empty()) {
-                std::cout << std::format("  [{}] frame {} — {}no golden image at {} (run with --update-golden first){}\n",
-                                         statusLabel(false), c.frames[j], VC::Color::YELLOW, goldenPath, VC::Color::RESET);
+                std::cout << std::format("  [{}] frame {} — {}no golden image at {} (run with --update-golden first){}\n", statusLabel(false), c.frames[j], VC::Color::YELLOW, goldenPath, VC::Color::RESET);
                 failures++;
                 continue;
             }
 
             double diff = meanAbsDiff(golden, frames[j]);
             bool   pass = diff <= kMaxMeanDiff;
-            std::cout << std::format("  [{}] frame {} — mean pixel diff {:.3f} (tolerance {:.1f})\n",
-                                     statusLabel(pass), c.frames[j], diff, kMaxMeanDiff);
+            std::cout << std::format("  [{}] frame {} — mean pixel diff {:.3f} (tolerance {:.1f})\n", statusLabel(pass), c.frames[j], diff, kMaxMeanDiff);
             if (!pass)
                 failures++;
         }
@@ -251,7 +250,7 @@ int VC::VisualTest::run(bool updateGolden)
         std::vector<cv::Mat> expected, actual;
         try {
             expected = renderFrames(c.after, c.frames);
-            actual   = renderFramesAfterReload(c.before, c.after, c.frames);
+            actual = renderFramesAfterReload(c.before, c.after, c.frames);
         } catch (const std::exception& e) {
             std::cout << std::format("  [{}] {} — {}\n", statusLabel(false), c.name, e.what());
             failures++;
@@ -261,17 +260,12 @@ int VC::VisualTest::run(bool updateGolden)
         for (size_t j = 0; j < c.frames.size(); ++j) {
             double diff = meanAbsDiff(expected[j], actual[j]);
             bool   pass = diff <= kMaxMeanDiff;
-            std::cout << std::format("  [{}] frame {} — hot-reload vs fresh-load mean diff {:.3f} (tolerance {:.1f})\n",
-                                     statusLabel(pass), c.frames[j], diff, kMaxMeanDiff);
+            std::cout << std::format("  [{}] frame {} — hot-reload vs fresh-load mean diff {:.3f} (tolerance {:.1f})\n", statusLabel(pass), c.frames[j], diff, kMaxMeanDiff);
             if (!pass)
                 failures++;
         }
     }
 
-    std::cout << std::format("\n{}[visual-test]{} {}\n",
-                             VC::Color::CYAN, VC::Color::RESET,
-                             failures == 0
-                                 ? std::format("{}All checks passed.{}", VC::Color::GREEN, VC::Color::RESET)
-                                 : std::format("{}{} check(s) FAILED.{}", VC::Color::RED, failures, VC::Color::RESET));
+    std::cout << std::format("\n{}[visual-test]{} {}\n", VC::Color::CYAN, VC::Color::RESET, failures == 0 ? std::format("{}All checks passed.{}", VC::Color::GREEN, VC::Color::RESET) : std::format("{}{} check(s) FAILED.{}", VC::Color::RED, failures, VC::Color::RESET));
     return failures;
 }

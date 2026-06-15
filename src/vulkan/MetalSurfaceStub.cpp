@@ -8,10 +8,12 @@
 
 #include "vulkan/MetalSurface.hpp"
 
-void* createMetalLayer(void*) {
+void* createMetalLayer(void*)
+{
     return nullptr;
 }
 
-VkSurfaceKHR createMetalSurface(VkInstance, void*) {
+VkSurfaceKHR createMetalSurface(VkInstance, void*)
+{
     return VK_NULL_HANDLE;
 }

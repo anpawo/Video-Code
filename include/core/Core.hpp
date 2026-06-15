@@ -7,13 +7,13 @@
 
 #pragma once
 
+#include <pybind11/pybind11.h>
 #include <vulkan/vulkan.h>
 
 #include <argparse/argparse.hpp>
 #include <functional>
 #include <memory>
 #include <opencv2/opencv.hpp>
-#include <pybind11/pybind11.h>
 
 #include "core/Config.hpp"
 #include "input/IInput.hpp"
@@ -44,8 +44,9 @@ namespace VC
         ///< uploadFn receives each image's cv::Mat and returns the VkDescriptorSet.
         void uploadTextures(VulkanWidget* widget);
         void uploadTextures(
-            std::function<VkDescriptorSet(const cv::Mat&)>          uploadFn,
-            std::function<void(VkDescriptorSet, const cv::Mat&)>    reuploadFn = {});
+            std::function<VkDescriptorSet(const cv::Mat&)>       uploadFn,
+            std::function<void(VkDescriptorSet, const cv::Mat&)> reuploadFn = {}
+        );
 
         ///< Time control
         void pause();
@@ -112,6 +113,5 @@ namespace VC
 
         ///< Inputs created
         std::vector<std::unique_ptr<IInput>> _inputs{};
-
     };
 };

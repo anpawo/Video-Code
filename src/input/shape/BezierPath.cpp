@@ -13,17 +13,17 @@
 #include <functional>
 #include <mapbox/earcut.hpp>
 
-#include "vulkan/MeshFactory.hpp"
 #include "utils/Color.hpp"
 #include "utils/Logger.hpp"
+#include "vulkan/MeshFactory.hpp"
 
 #ifdef VC_DEBUG_ON
-#  include <chrono>
-#  define BP_T(name)  auto name = std::chrono::high_resolution_clock::now()
-#  define BP_US(a, b) std::chrono::duration_cast<std::chrono::microseconds>((b) - (a)).count()
+    #include <chrono>
+    #define BP_T(name) auto name = std::chrono::high_resolution_clock::now()
+    #define BP_US(a, b) std::chrono::duration_cast<std::chrono::microseconds>((b) - (a)).count()
 #else
-#  define BP_T(name)  [[maybe_unused]] int name = 0
-#  define BP_US(a, b) 0L
+    #define BP_T(name) [[maybe_unused]] int name = 0
+    #define BP_US(a, b) 0L
 #endif
 
 BezierPath::BezierPath(json::object_t&& args)
@@ -35,7 +35,7 @@ BezierPath::BezierPath(json::object_t&& args)
 static size_t fnvHash(const void* data, size_t bytes, size_t h = 0xcbf29ce484222325ULL)
 {
     constexpr size_t PRIME = 0x00000100000001B3ULL;
-    const auto*      p     = static_cast<const uint8_t*>(data);
+    const auto*      p = static_cast<const uint8_t*>(data);
     for (size_t i = 0; i < bytes; ++i)
         h = (h ^ p[i]) * PRIME;
     return h;
@@ -50,15 +50,16 @@ static std::vector<cv::Vec2f> clipPolyHalfPlane(
     const std::vector<cv::Vec2f>& poly,
     const cv::Vec2f&              dir,
     float                         threshold,
-    bool                          insideIsAbove)
+    bool                          insideIsAbove
+)
 {
     if (poly.empty()) return {};
     std::vector<cv::Vec2f> out;
     out.reserve(poly.size() + 1);
     size_t n = poly.size();
     for (size_t i = 0; i < n; ++i) {
-        const cv::Vec2f& a  = poly[i];
-        const cv::Vec2f& b  = poly[(i + 1) % n];
+        const cv::Vec2f& a = poly[i];
+        const cv::Vec2f& b = poly[(i + 1) % n];
         float            pa = a[0] * dir[0] + a[1] * dir[1];
         float            pb = b[0] * dir[0] + b[1] * dir[1];
         bool             ia = insideIsAbove ? (pa >= threshold) : (pa <= threshold);
@@ -121,10 +122,11 @@ static std::vector<std::array<cv::Vec2f, 3>> triangulateGroup(const BezierPath::
 // Radial `t` never wraps, so plain |a-b| is used.
 static void subdivideGradientTriangle(
     cv::Vec2f v0, cv::Vec2f v1, cv::Vec2f v2,
-    const std::function<float(cv::Vec2f)>&            tFn,
-    const std::vector<GradientStop>&                  stops,
+    const std::function<float(cv::Vec2f)>& tFn,
+    const std::vector<GradientStop>&       stops,
     int depth, int maxDepth, float epsilon, bool wrapT,
-    const std::function<void(cv::Vec2f, cv::Vec4b)>&  emit)
+    const std::function<void(cv::Vec2f, cv::Vec4b)>& emit
+)
 {
     float t0 = tFn(v0), t1 = tFn(v1), t2 = tFn(v2);
 
@@ -148,9 +150,7 @@ static void subdivideGradientTriangle(
     bool flat = std::max({delta(t0, t1), delta(t1, t2), delta(t0, t2)}) < epsilon;
     if (flat) {
         float tm01 = tFn(m01), tm12 = tFn(m12), tm20 = tFn(m20);
-        flat = delta(tm01, 0.5f * (t0 + t1)) < epsilon
-            && delta(tm12, 0.5f * (t1 + t2)) < epsilon
-            && delta(tm20, 0.5f * (t2 + t0)) < epsilon;
+        flat = delta(tm01, 0.5f * (t0 + t1)) < epsilon && delta(tm12, 0.5f * (t1 + t2)) < epsilon && delta(tm20, 0.5f * (t2 + t0)) < epsilon;
     }
 
     if (depth >= maxDepth || flat) {
@@ -168,7 +168,8 @@ static void subdivideGradientTriangle(
 
 void BezierPath::parseColorOrGradient(
     const json::object_t& args, const std::string& key,
-    cv::Vec4b& color, std::vector<GradientStop>& stops, GradType& gradType, float& angle)
+    cv::Vec4b& color, std::vector<GradientStop>& stops, GradType& gradType, float& angle
+)
 {
     const auto& colorJson = args.at(key);
 
@@ -190,14 +191,14 @@ void BezierPath::parseColorOrGradient(
         if (colorJson[1].is_string()) {
             gradType = GradType::Radial;
         } else if (colorJson[1].is_array()) {
-            angle    = colorJson[1][1].get<float>();
+            angle = colorJson[1][1].get<float>();
             gradType = GradType::Conic;
         } else {
-            angle    = colorJson[1].get<float>();
+            angle = colorJson[1].get<float>();
             gradType = GradType::Linear;
         }
     } else {
-        color    = colorFromJson(colorJson, 255);
+        color = colorFromJson(colorJson, 255);
         gradType = GradType::None;
     }
 }
@@ -207,7 +208,7 @@ void BezierPath::buildPath(const Metadata& meta)
     const auto& args = meta.args();
 
     _strokeWidth = args.at("strokeWidth").get<float>() * config::worldToPixelRatio;
-    parseColorOrGradient(args, "fillColor",   _fillColor,   _fillStops,   _fillGradType,   _fillGradientAngle);
+    parseColorOrGradient(args, "fillColor", _fillColor, _fillStops, _fillGradType, _fillGradientAngle);
     parseColorOrGradient(args, "strokeColor", _strokeColor, _strokeStops, _strokeGradType, _strokeGradientAngle);
     // Open paths (Curve, …): stroke only, no closing segment, and the points
     // keep their absolute coordinates (no bbox normalization in getMesh).
@@ -248,9 +249,9 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     // Fill sampling (localPoly/earIndices) only runs when fill is non-transparent,
     // so a transparency change must bust the cache.
     size_t geomHash = fnvHash(_points.data(), n * sizeof(cv::Vec2f));
-    geomHash = fnvHash(&meta.scale.x,   sizeof(float), geomHash);
-    geomHash = fnvHash(&meta.scale.y,   sizeof(float), geomHash);
-    geomHash = fnvHash(&meta.rotation,  sizeof(float), geomHash);
+    geomHash = fnvHash(&meta.scale.x, sizeof(float), geomHash);
+    geomHash = fnvHash(&meta.scale.y, sizeof(float), geomHash);
+    geomHash = fnvHash(&meta.rotation, sizeof(float), geomHash);
     auto anyStopVisible = [](const std::vector<GradientStop>& stops) {
         return std::any_of(stops.begin(), stops.end(), [](const GradientStop& s) { return s.color[3] > 0; });
     };
@@ -258,7 +259,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     // shapes (Image/Video) always have fill geometry to sample into, regardless
     // of _fillColor's alpha.
     bool hasFillNow = _closed && (isTextured() || ((_fillGradType != GradType::None) ? anyStopVisible(_fillStops) : _fillColor[3] > 0));
-    geomHash = fnvHash(&hasFillNow,     sizeof(bool),  geomHash);
+    geomHash = fnvHash(&hasFillNow, sizeof(bool), geomHash);
     if (!_contourSizes.empty())
         geomHash = fnvHash(_contourSizes.data(), _contourSizes.size() * sizeof(size_t), geomHash);
 
@@ -266,13 +267,13 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     // Extends geomHash with the remaining fields MeshFactory's output depends
     // on, besides meta.position/meta.opacity (handled below via a cheap delta).
     size_t meshHash = geomHash;
-    meshHash = fnvHash(&_fillColor,    sizeof(_fillColor),    meshHash);
-    meshHash = fnvHash(&_strokeColor,  sizeof(_strokeColor),  meshHash);
-    meshHash = fnvHash(&_strokeWidth,  sizeof(_strokeWidth),  meshHash);
-    meshHash = fnvHash(&meta.align.x,  sizeof(float),         meshHash);
-    meshHash = fnvHash(&meta.align.y,  sizeof(float),         meshHash);
+    meshHash = fnvHash(&_fillColor, sizeof(_fillColor), meshHash);
+    meshHash = fnvHash(&_strokeColor, sizeof(_strokeColor), meshHash);
+    meshHash = fnvHash(&_strokeWidth, sizeof(_strokeWidth), meshHash);
+    meshHash = fnvHash(&meta.align.x, sizeof(float), meshHash);
+    meshHash = fnvHash(&meta.align.y, sizeof(float), meshHash);
     if (!_fillStops.empty())
-        meshHash = fnvHash(_fillStops.data(),   _fillStops.size()   * sizeof(GradientStop), meshHash);
+        meshHash = fnvHash(_fillStops.data(), _fillStops.size() * sizeof(GradientStop), meshHash);
     if (!_strokeStops.empty())
         meshHash = fnvHash(_strokeStops.data(), _strokeStops.size() * sizeof(GradientStop), meshHash);
 
@@ -284,25 +285,21 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     shapeHash = fnvHash(&hasFillNow, sizeof(bool), shapeHash);
     if (!_contourSizes.empty())
         shapeHash = fnvHash(_contourSizes.data(), _contourSizes.size() * sizeof(size_t), shapeHash);
-    shapeHash = fnvHash(&_fillColor,   sizeof(_fillColor),   shapeHash);
+    shapeHash = fnvHash(&_fillColor, sizeof(_fillColor), shapeHash);
     shapeHash = fnvHash(&_strokeColor, sizeof(_strokeColor), shapeHash);
     shapeHash = fnvHash(&_strokeWidth, sizeof(_strokeWidth), shapeHash);
     if (!_fillStops.empty())
-        shapeHash = fnvHash(_fillStops.data(),   _fillStops.size()   * sizeof(GradientStop), shapeHash);
+        shapeHash = fnvHash(_fillStops.data(), _fillStops.size() * sizeof(GradientStop), shapeHash);
     if (!_strokeStops.empty())
         shapeHash = fnvHash(_strokeStops.data(), _strokeStops.size() * sizeof(GradientStop), shapeHash);
 
-    if (_meshCacheValid && shapeHash == _lastShapeHash && _meshCacheOpacity > 0
-        && _meshCacheScreen.width == config.screenWidth && _meshCacheScreen.height == config.screenHeight) {
-        bool sameTransform = meta.position.x == _meshCachePosition[0] && meta.position.y == _meshCachePosition[1]
-            && meta.scale.x == _meshCacheScale[0] && meta.scale.y == _meshCacheScale[1]
-            && meta.rotation == _meshCacheRotation
-            && meta.align.x == _meshCacheAlign[0] && meta.align.y == _meshCacheAlign[1];
+    if (_meshCacheValid && shapeHash == _lastShapeHash && _meshCacheOpacity > 0 && _meshCacheScreen.width == config.screenWidth && _meshCacheScreen.height == config.screenHeight) {
+        bool sameTransform = meta.position.x == _meshCachePosition[0] && meta.position.y == _meshCachePosition[1] && meta.scale.x == _meshCacheScale[0] && meta.scale.y == _meshCacheScale[1] && meta.rotation == _meshCacheRotation && meta.align.x == _meshCacheAlign[0] && meta.align.y == _meshCacheAlign[1];
         bool uniformOld = _meshCacheScale[0] == _meshCacheScale[1] && _meshCacheScale[0] != 0.f;
         bool uniformNew = meta.scale.x == meta.scale.y && meta.scale.x != 0.f;
 
         if (sameTransform || (uniformOld && uniformNew)) {
-            Mesh  mesh         = _meshCache;
+            Mesh  mesh = _meshCache;
             float opacityRatio = meta.opacity / static_cast<float>(_meshCacheOpacity);
 
             if (!sameTransform) {
@@ -315,18 +312,24 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                 // NDC vertices reproduces a full rebuild at meta's transform.
                 Metadata oldMeta = meta;
                 oldMeta.position = {_meshCachePosition[0], _meshCachePosition[1]};
-                oldMeta.scale    = {_meshCacheScale[0], _meshCacheScale[1]};
+                oldMeta.scale = {_meshCacheScale[0], _meshCacheScale[1]};
                 oldMeta.rotation = _meshCacheRotation;
-                oldMeta.align    = {_meshCacheAlign[0], _meshCacheAlign[1]};
+                oldMeta.align = {_meshCacheAlign[0], _meshCacheAlign[1]};
 
                 cv::Matx33f Mold = getTransformationMatrixFromMetadata(_geomCache.localSize, oldMeta);
                 cv::Matx33f Mnew = getTransformationMatrixFromMetadata(_geomCache.localSize, meta);
-                float       hw   = config.screenWidth / 2.f;
-                float       hh   = config.screenHeight / 2.f;
+                float       hw = config.screenWidth / 2.f;
+                float       hh = config.screenHeight / 2.f;
                 cv::Matx33f Tndc{
-                    1.f / hw, 0.f,      -1.f,
-                    0.f,      1.f / hh, -1.f,
-                    0.f,      0.f,      1.f,
+                    1.f / hw,
+                    0.f,
+                    -1.f,
+                    0.f,
+                    1.f / hh,
+                    -1.f,
+                    0.f,
+                    0.f,
+                    1.f,
                 };
                 cv::Matx33f D = Tndc * Mnew * Mold.inv() * Tndc.inv();
 
@@ -370,7 +373,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         curves.reserve(n / 2);
         size_t base = 0;
         for (size_t s : sizes) {
-            size_t segs  = _closed ? s / 2 : s / 2 - 1;
+            size_t segs = _closed ? s / 2 : s / 2 - 1;
             size_t first = curves.size();
             for (size_t i = 0; i < segs; ++i) {
                 curves.push_back({
@@ -402,7 +405,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         cv::Size2f localSize{0.f, 0.f};
         if (_closed) {
             localOffset = {-minX, -minY};
-            localSize   = {maxX - minX, maxY - minY};
+            localSize = {maxX - minX, maxY - minY};
             for (auto& c : curves) {
                 c.p0 += localOffset;
                 c.p1 += localOffset;
@@ -421,9 +424,9 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                 auto [first, count] = contourCurves[c];
                 for (size_t k = 0; k < count; ++k) {
                     size_t ci = first + k;
-                    int steps  = sampleFactory.quadraticStrokeSteps(curves[ci]);
-                    int sStart = (k == 0) ? 0 : 1;
-                    int sEnd   = (_closed && k == count - 1) ? steps - 1 : steps;
+                    int    steps = sampleFactory.quadraticStrokeSteps(curves[ci]);
+                    int    sStart = (k == 0) ? 0 : 1;
+                    int    sEnd = (_closed && k == count - 1) ? steps - 1 : steps;
                     for (int s = sStart; s <= sEnd; ++s) {
                         float t = static_cast<float>(s) / static_cast<float>(steps);
                         rings[c].push_back(MeshFactory::evalQuadratic(curves[ci], t));
@@ -469,7 +472,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                     biggest = i;
             }
             bool outerSign = areas[biggest] >= 0;
-            boundaryRing   = rings[biggest];
+            boundaryRing = rings[biggest];
 
             std::vector<size_t> outers;
             std::vector<size_t> holes;
@@ -538,7 +541,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             std::move(fillGroups),
         };
         _lastGeomHash = geomHash;
-        _geomValid    = true;
+        _geomValid = true;
     }
 
     BP_T(t2);
@@ -547,10 +550,10 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     MeshFactory factory(_geomCache.localSize, meta, config);
 
     // Apply meta.opacity to all colors, including each gradient stop's alpha.
-    float     opacityF    = meta.opacity / 255.f;
-    cv::Vec4b fillColor   = _fillColor;
+    float     opacityF = meta.opacity / 255.f;
+    cv::Vec4b fillColor = _fillColor;
     cv::Vec4b strokeColor = _strokeColor;
-    fillColor[3]   = static_cast<uint8_t>(fillColor[3]   * opacityF);
+    fillColor[3] = static_cast<uint8_t>(fillColor[3] * opacityF);
     strokeColor[3] = static_cast<uint8_t>(strokeColor[3] * opacityF);
 
     auto applyOpacity = [opacityF](const std::vector<GradientStop>& stops) {
@@ -559,12 +562,12 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             stop.color[3] = static_cast<uint8_t>(stop.color[3] * opacityF);
         return result;
     };
-    std::vector<GradientStop> fillStops   = (_fillGradType   != GradType::None) ? applyOpacity(_fillStops)   : std::vector<GradientStop>{};
+    std::vector<GradientStop> fillStops = (_fillGradType != GradType::None) ? applyOpacity(_fillStops) : std::vector<GradientStop>{};
     std::vector<GradientStop> strokeStops = (_strokeGradType != GradType::None) ? applyOpacity(_strokeStops) : std::vector<GradientStop>{};
 
-    bool fillVisible   = isTextured() || ((_fillGradType != GradType::None) ? anyStopVisible(fillStops) : fillColor[3] > 0);
+    bool fillVisible = isTextured() || ((_fillGradType != GradType::None) ? anyStopVisible(fillStops) : fillColor[3] > 0);
     bool strokeVisible = (_strokeGradType != GradType::None) ? anyStopVisible(strokeStops) : strokeColor[3] > 0;
-    bool hasStroke     = (_strokeWidth > 0.f && strokeVisible);
+    bool hasStroke = (_strokeWidth > 0.f && strokeVisible);
 
     // Local mesh-space Y is the negation of world-space Y (world is positive-up,
     // pixel/local space grows downward), so the gradient direction's sine component
@@ -590,14 +593,17 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                 continue;
             std::vector<QuadraticBezier2D> contour(
                 _geomCache.curves.begin() + static_cast<ssize_t>(first),
-                _geomCache.curves.begin() + static_cast<ssize_t>(first + count));
+                _geomCache.curves.begin() + static_cast<ssize_t>(first + count)
+            );
             if (_strokeGradType != GradType::None) {
                 cv::Vec2f dir = gradientDir(_strokeGradientAngle);
                 factory.addQuadraticStrokePath(
-                    contour, _strokeWidth, strokeStops, dir, _closed, _closed);
+                    contour, _strokeWidth, strokeStops, dir, _closed, _closed
+                );
             } else {
                 factory.addQuadraticStrokePath(
-                    contour, _strokeWidth, strokeColor, _closed, _closed);
+                    contour, _strokeWidth, strokeColor, _closed, _closed
+                );
             }
         }
     }
@@ -622,8 +628,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         }
         if (maxRadius < 1e-6f) maxRadius = 1e-6f;
 
-        bool hasHoles = std::any_of(_geomCache.fillGroups.begin(), _geomCache.fillGroups.end(),
-            [](const FillGroup& g) { return !g.holes.empty(); });
+        bool hasHoles = std::any_of(_geomCache.fillGroups.begin(), _geomCache.fillGroups.end(), [](const FillGroup& g) { return !g.holes.empty(); });
 
         if (hasHoles) {
             // --- Radial gradient on a multi-contour shape with holes (e.g. "O", "g") ---
@@ -663,27 +668,27 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             // ("corner extras") that fall outside the chord for that sector — these are
             // real boundary points, so they can't extend past the shape.
 
-            float pixelRadius = maxRadius * std::max(meta.scale.x, meta.scale.y);
-            int   N           = std::max(24, static_cast<int>(2.f * static_cast<float>(M_PI) * pixelRadius / 6.f));
-            const float TAU   = 2.f * static_cast<float>(M_PI);
-            const size_t M    = boundary.size();
+            float        pixelRadius = maxRadius * std::max(meta.scale.x, meta.scale.y);
+            int          N = std::max(24, static_cast<int>(2.f * static_cast<float>(M_PI) * pixelRadius / 6.f));
+            const float  TAU = 2.f * static_cast<float>(M_PI);
+            const size_t M = boundary.size();
 
             // boundaryDist[j]: distance from center to the polygon boundary along the
             // ray at angle theta_j = TAU*j/N (max intersection with any polygon edge).
             std::vector<float> boundaryDist(N);
             for (int j = 0; j < N; ++j) {
-                float theta = TAU * j / N;
+                float     theta = TAU * j / N;
                 cv::Vec2f d{std::cos(theta), std::sin(theta)};
-                float best = 0.f;
+                float     best = 0.f;
                 for (size_t ei = 0; ei < M; ++ei) {
                     const cv::Vec2f& a = boundary[ei];
                     const cv::Vec2f& b = boundary[(ei + 1) % M];
-                    cv::Vec2f e = b - a;
-                    float denom = d[0] * e[1] - d[1] * e[0];
+                    cv::Vec2f        e = b - a;
+                    float            denom = d[0] * e[1] - d[1] * e[0];
                     if (std::abs(denom) < 1e-9f) continue;
                     cv::Vec2f ca = a - center;
-                    float t = (ca[0] * e[1] - ca[1] * e[0]) / denom;
-                    float s = (ca[0] * d[1] - ca[1] * d[0]) / denom;
+                    float     t = (ca[0] * e[1] - ca[1] * e[0]) / denom;
+                    float     s = (ca[0] * d[1] - ca[1] * d[0]) / denom;
                     if (t > 1e-6f && s >= -1e-6f && s <= 1.f + 1e-6f)
                         best = std::max(best, t);
                 }
@@ -691,7 +696,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             }
 
             auto ringPt = [&](int j, float r) -> cv::Vec2f {
-                float theta    = TAU * j / N;
+                float theta = TAU * j / N;
                 float clampedR = std::min(r, boundaryDist[j]);
                 return center + cv::Vec2f{clampedR * std::cos(theta), clampedR * std::sin(theta)};
             };
@@ -714,7 +719,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             factory.addVertex(center[0], center[1], fillStops.front().color);
 
             uint32_t ring0Base = factory.vertexCount();
-            float    ring0R    = fillStops.front().position * maxRadius;
+            float    ring0R = fillStops.front().position * maxRadius;
             emitRing(ring0R);
 
             if (ring0R > 1e-6f) {
@@ -734,9 +739,9 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             std::vector<float> pAngle(M), pDist(M);
             for (size_t i = 0; i < M; ++i) {
                 float dx = boundary[i][0] - center[0], dy = boundary[i][1] - center[1];
-                float a  = std::atan2(dy, dx);
+                float a = std::atan2(dy, dx);
                 pAngle[i] = (a < 0.f) ? a + TAU : a;
-                pDist[i]  = std::sqrt(dx * dx + dy * dy);
+                pDist[i] = std::sqrt(dx * dx + dy * dy);
             }
             std::vector<std::vector<size_t>> sectorVerts(N);
             for (size_t i = 0; i < M; ++i) {
@@ -772,14 +777,14 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                     factory.mesh.indices.push_back(i2);
 
                     if (isLast) {
-                        float ringRJ  = std::min(rB, boundaryDist[j]);
+                        float ringRJ = std::min(rB, boundaryDist[j]);
                         float ringRJn = std::min(rB, boundaryDist[jn]);
-                        float thresh  = std::max(ringRJ, ringRJn);
+                        float thresh = std::max(ringRJ, ringRJn);
 
                         // Fan from i1 through the outer chain (i3, extras…, i2), where
                         // extras are boundary vertices in this sector that lie outside
                         // the i3–i2 chord.
-                        uint32_t prev = i3;
+                        uint32_t    prev = i3;
                         const auto& extras = sectorVerts[j];
                         for (auto it = extras.rbegin(); it != extras.rend(); ++it) {
                             size_t pi = *it;
@@ -840,8 +845,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             return wrapToUnit((-localAngle - angleRad) / TAU);
         };
 
-        bool hasHoles = std::any_of(_geomCache.fillGroups.begin(), _geomCache.fillGroups.end(),
-            [](const FillGroup& g) { return !g.holes.empty(); });
+        bool hasHoles = std::any_of(_geomCache.fillGroups.begin(), _geomCache.fillGroups.end(), [](const FillGroup& g) { return !g.holes.empty(); });
 
         if (hasHoles) {
             // --- Conic gradient on a multi-contour shape with holes (e.g. "O", "g") ---
@@ -865,23 +869,23 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                     subdivideGradientTriangle(tri[0], tri[1], tri[2], tFn, fillStops, 0, 6, 0.04f, true, emit);
         } else {
 
-            float pixelRadius = maxRadius * std::max(meta.scale.x, meta.scale.y);
-            int   N           = std::max(24, static_cast<int>(2.f * static_cast<float>(M_PI) * pixelRadius / 6.f));
-            const size_t M    = boundary.size();
+            float        pixelRadius = maxRadius * std::max(meta.scale.x, meta.scale.y);
+            int          N = std::max(24, static_cast<int>(2.f * static_cast<float>(M_PI) * pixelRadius / 6.f));
+            const size_t M = boundary.size();
 
             // Ray-cast from center at local angle `theta` to the polygon boundary.
             auto rayDist = [&](float theta) -> float {
                 cv::Vec2f d{std::cos(theta), std::sin(theta)};
-                float best = 0.f;
+                float     best = 0.f;
                 for (size_t ei = 0; ei < M; ++ei) {
                     const cv::Vec2f& a = boundary[ei];
                     const cv::Vec2f& b = boundary[(ei + 1) % M];
-                    cv::Vec2f e = b - a;
-                    float denom = d[0] * e[1] - d[1] * e[0];
+                    cv::Vec2f        e = b - a;
+                    float            denom = d[0] * e[1] - d[1] * e[0];
                     if (std::abs(denom) < 1e-9f) continue;
                     cv::Vec2f ca = a - center;
-                    float t = (ca[0] * e[1] - ca[1] * e[0]) / denom;
-                    float s = (ca[0] * d[1] - ca[1] * d[0]) / denom;
+                    float     t = (ca[0] * e[1] - ca[1] * e[0]) / denom;
+                    float     s = (ca[0] * d[1] - ca[1] * d[0]) / denom;
                     if (t > 1e-6f && s >= -1e-6f && s <= 1.f + 1e-6f)
                         best = std::max(best, t);
                 }
@@ -892,7 +896,12 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             // that stick out beyond their sector's chord (corner extras), sorted by
             // local angle — same corner-coverage idea as the radial gradient's
             // outermost ring.
-            struct ChainPt { cv::Vec2f pt; float angle; };
+            struct ChainPt
+            {
+                cv::Vec2f pt;
+                float     angle;
+            };
+
             std::vector<ChainPt> chain;
             chain.reserve(N + M);
 
@@ -904,11 +913,11 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             }
             for (size_t i = 0; i < M; ++i) {
                 float dx = boundary[i][0] - center[0], dy = boundary[i][1] - center[1];
-                float a    = std::atan2(dy, dx);
+                float a = std::atan2(dy, dx);
                 if (a < 0.f) a += TAU;
                 float dist = std::sqrt(dx * dx + dy * dy);
-                int j  = std::clamp(static_cast<int>(a * N / TAU), 0, N - 1);
-                int jn = (j + 1) % N;
+                int   j = std::clamp(static_cast<int>(a * N / TAU), 0, N - 1);
+                int   jn = (j + 1) % N;
                 if (dist > std::max(boundaryDist[j], boundaryDist[jn]) + 1e-4f)
                     chain.push_back({boundary[i], a});
             }
@@ -919,21 +928,27 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             // just after, in angular order.
             float la0 = std::fmod(-angleRad, TAU);
             if (la0 < 0.f) la0 += TAU;
-            float seamR = rayDist(la0);
+            float     seamR = rayDist(la0);
             cv::Vec2f seamPt = center + cv::Vec2f{seamR * std::cos(la0), seamR * std::sin(la0)};
 
             size_t insertAt = chain.size();
             for (size_t i = 0; i < chain.size(); ++i) {
-                if (chain[i].angle > la0) { insertAt = i; break; }
+                if (chain[i].angle > la0) {
+                    insertAt = i;
+                    break;
+                }
             }
             chain.insert(chain.begin() + static_cast<long>(insertAt), 2, ChainPt{seamPt, la0});
 
-            std::vector<uint32_t> chainIdx(chain.size());
+            std::vector<uint32_t>  chainIdx(chain.size());
             std::vector<cv::Vec4b> chainColor(chain.size());
             for (size_t i = 0; i < chain.size(); ++i) {
-                if (i == insertAt)          chainColor[i] = lerpGradient(fillStops, 0.f);
-                else if (i == insertAt + 1) chainColor[i] = lerpGradient(fillStops, 1.f);
-                else                        chainColor[i] = lerpGradient(fillStops, conicT(chain[i].angle));
+                if (i == insertAt)
+                    chainColor[i] = lerpGradient(fillStops, 0.f);
+                else if (i == insertAt + 1)
+                    chainColor[i] = lerpGradient(fillStops, 1.f);
+                else
+                    chainColor[i] = lerpGradient(fillStops, conicT(chain[i].angle));
                 chainIdx[i] = factory.vertexCount();
                 factory.addVertex(chain[i].pt[0], chain[i].pt[1], chainColor[i]);
             }
@@ -970,7 +985,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                 // fan triangulation reproduces it exactly via GPU linear interp.
                 for (const auto& p : localPoly) {
                     float proj = p[0] * dir[0] + p[1] * dir[1];
-                    float t    = (range > 0.f) ? (proj - minProj) / range : 0.f;
+                    float t = (range > 0.f) ? (proj - minProj) / range : 0.f;
                     factory.addVertex(p[0], p[1], lerpGradient(fillStops, t));
                 }
                 for (auto idx : _geomCache.earIndices)
@@ -981,13 +996,13 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                 // (e.g. the counter of a letter "O") are respected, unlike the
                 // radial/conic fills which still use a single boundary ring.
                 for (size_t k = 0; k + 1 < fillStops.size(); ++k) {
-                    float projA = minProj + fillStops[k].position     * range;
+                    float projA = minProj + fillStops[k].position * range;
                     float projB = minProj + fillStops[k + 1].position * range;
                     if (projA >= projB) continue;
 
                     for (const auto& group : _geomCache.fillGroups) {
                         auto outerStrip = clipPolyHalfPlane(group.outer, dir, projA, true);
-                        outerStrip      = clipPolyHalfPlane(outerStrip,  dir, projB, false);
+                        outerStrip = clipPolyHalfPlane(outerStrip, dir, projB, false);
                         if (outerStrip.size() < 3) continue;
 
                         std::vector<std::vector<std::array<float, 2>>> stripPoly;
@@ -999,7 +1014,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
 
                         for (const auto& hole : group.holes) {
                             auto holeStrip = clipPolyHalfPlane(hole, dir, projA, true);
-                            holeStrip      = clipPolyHalfPlane(holeStrip, dir, projB, false);
+                            holeStrip = clipPolyHalfPlane(holeStrip, dir, projB, false);
                             if (holeStrip.size() < 3) continue;
                             std::vector<std::array<float, 2>> ring;
                             ring.reserve(holeStrip.size());
@@ -1013,10 +1028,9 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                         uint32_t stripBase = factory.vertexCount();
                         for (const auto& ring : stripPoly) {
                             for (const auto& p : ring) {
-                                float proj   = p[0] * dir[0] + p[1] * dir[1];
+                                float proj = p[0] * dir[0] + p[1] * dir[1];
                                 float localT = (proj - projA) / (projB - projA);
-                                factory.addVertex(p[0], p[1],
-                                    lerpColor(fillStops[k].color, fillStops[k + 1].color, localT));
+                                factory.addVertex(p[0], p[1], lerpColor(fillStops[k].color, fillStops[k + 1].color, localT));
                             }
                         }
                         for (auto idx : stripIdx)
@@ -1047,9 +1061,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     BP_T(t5);
 
     if (BP_US(t0, t5) > 400)
-        VC_LOG(std::format(
-            "[bezier] buildPath:{}µs  geom:{}µs  factory:{}µs  stroke:{}µs  fill:{}µs  pts:{}\n",
-            BP_US(t0, t1), BP_US(t1, t2), BP_US(t2, t3), BP_US(t3, t4), BP_US(t4, t5), n));
+        VC_LOG(std::format("[bezier] buildPath:{}µs  geom:{}µs  factory:{}µs  stroke:{}µs  fill:{}µs  pts:{}\n", BP_US(t0, t1), BP_US(t1, t2), BP_US(t2, t3), BP_US(t3, t4), BP_US(t4, t5), n));
 
     Mesh result = factory.generateMesh();
 
@@ -1058,16 +1070,16 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         result.textureDescriptor = textureDescriptor();
     }
 
-    _meshCache         = result;
-    _lastMeshHash      = meshHash;
-    _lastShapeHash     = shapeHash;
-    _meshCacheValid    = true;
+    _meshCache = result;
+    _lastMeshHash = meshHash;
+    _lastShapeHash = shapeHash;
+    _meshCacheValid = true;
     _meshCachePosition = {meta.position.x, meta.position.y};
-    _meshCacheScale    = {meta.scale.x, meta.scale.y};
+    _meshCacheScale = {meta.scale.x, meta.scale.y};
     _meshCacheRotation = meta.rotation;
-    _meshCacheAlign    = {meta.align.x, meta.align.y};
-    _meshCacheOpacity  = meta.opacity;
-    _meshCacheScreen   = {config.screenWidth, config.screenHeight};
+    _meshCacheAlign = {meta.align.x, meta.align.y};
+    _meshCacheOpacity = meta.opacity;
+    _meshCacheScreen = {config.screenWidth, config.screenHeight};
 
     return result;
 }

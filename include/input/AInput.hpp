@@ -85,8 +85,8 @@ protected:
 
     ///< Transformations (Affect the Metadata of the Input)
     std::vector<Metadata> _metas{Metadata{
-        .argsPtr         = _baseArgsPtr,
-        .pointsPtr       = _initialPoints,
+        .argsPtr = _baseArgsPtr,
+        .pointsPtr = _initialPoints,
         .contourSizesPtr = _initialContourSizes,
     }};
 };

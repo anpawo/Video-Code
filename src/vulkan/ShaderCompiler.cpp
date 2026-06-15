@@ -11,21 +11,21 @@
 //              glslang ABI change  → bump the "v1" version prefix below.
 
 #include "vulkan/ShaderCompiler.hpp"
-#include "utils/Logger.hpp"
 
 #include <glslang/Public/ResourceLimits.h> // GetDefaultResources()
 #include <glslang/Public/ShaderLang.h>     // glslang::TShader, TProgram
 #include <glslang/SPIRV/GlslangToSpv.h>    // glslang::GlslangToSpv()
 
 #include <QDebug>
-
 #include <chrono>
-#include <cstdlib>   // getenv
+#include <cstdlib> // getenv
 #include <filesystem>
 #include <format>
 #include <fstream>
 #include <iostream>
 #include <mutex>
+
+#include "utils/Logger.hpp"
 
 namespace fs = std::filesystem;
 
@@ -48,9 +48,8 @@ static constexpr const char* CACHE_VERSION = "v1";
 static fs::path cacheDir()
 {
     const char* home = getenv("HOME");
-    fs::path dir = (home ? fs::path(home) : fs::temp_directory_path())
-                   / ".cache" / "video-code" / "spirv" / CACHE_VERSION;
-    fs::create_directories(dir);  // no-op if already exists
+    fs::path    dir = (home ? fs::path(home) : fs::temp_directory_path()) / ".cache" / "video-code" / "spirv" / CACHE_VERSION;
+    fs::create_directories(dir); // no-op if already exists
     return dir;
 }
 
@@ -81,8 +80,7 @@ static std::vector<uint32_t> loadSPIRV(const fs::path& path)
 static void saveSPIRV(const fs::path& path, const std::vector<uint32_t>& spirv)
 {
     std::ofstream f(path, std::ios::binary | std::ios::trunc);
-    f.write(reinterpret_cast<const char*>(spirv.data()),
-            static_cast<std::streamsize>(spirv.size() * 4));
+    f.write(reinterpret_cast<const char*>(spirv.data()), static_cast<std::streamsize>(spirv.size() * 4));
 }
 
 // ─── glslang singleton ───────────────────────────────────────────────────────
@@ -103,10 +101,14 @@ static void ensureGLSLangInit()
 static EShLanguage stageToEsh(VkShaderStageFlagBits stage)
 {
     switch (stage) {
-        case VK_SHADER_STAGE_VERTEX_BIT:   return EShLangVertex;
-        case VK_SHADER_STAGE_FRAGMENT_BIT: return EShLangFragment;
-        case VK_SHADER_STAGE_GEOMETRY_BIT: return EShLangGeometry;
-        default:                           return EShLangVertex;
+        case VK_SHADER_STAGE_VERTEX_BIT:
+            return EShLangVertex;
+        case VK_SHADER_STAGE_FRAGMENT_BIT:
+            return EShLangFragment;
+        case VK_SHADER_STAGE_GEOMETRY_BIT:
+            return EShLangGeometry;
+        default:
+            return EShLangVertex;
     }
 }
 
@@ -118,21 +120,20 @@ static EShLanguage stageToEsh(VkShaderStageFlagBits stage)
 std::vector<uint32_t> compileGLSL(const std::string& source, VkShaderStageFlagBits stage)
 {
     using Clock = std::chrono::high_resolution_clock;
-    using Ms    = std::chrono::duration<double, std::milli>;
-    auto _t0    = Clock::now();
+    using Ms = std::chrono::duration<double, std::milli>;
+    auto _t0 = Clock::now();
 
-    const char* stageName = (stage == VK_SHADER_STAGE_VERTEX_BIT)   ? "vert"
-                          : (stage == VK_SHADER_STAGE_FRAGMENT_BIT) ? "frag"
-                                                                     : "geom";
+    const char* stageName = (stage == VK_SHADER_STAGE_VERTEX_BIT)     ? "vert"
+                            : (stage == VK_SHADER_STAGE_FRAGMENT_BIT) ? "frag"
+                                                                      : "geom";
 
     // ── Cache lookup ──────────────────────────────────────────────────────────
-    uint64_t    hash = fnv1a64(source);
-    fs::path    path = cachePath(hash, stageName);
-    auto        hit  = loadSPIRV(path);
+    uint64_t hash = fnv1a64(source);
+    fs::path path = cachePath(hash, stageName);
+    auto     hit = loadSPIRV(path);
     if (!hit.empty()) {
         [[maybe_unused]] double ms = std::chrono::duration_cast<Ms>(Clock::now() - _t0).count();
-        VC_SLOG(std::format("[startup] compileGLSL({:4s}): {:6.1f}ms  ({} words)  [cache hit]\n",
-                                 stageName, ms, hit.size()));
+        VC_SLOG(std::format("[startup] compileGLSL({:4s}): {:6.1f}ms  ({} words)  [cache hit]\n", stageName, ms, hit.size()));
         return hit;
     }
 
@@ -144,7 +145,7 @@ std::vector<uint32_t> compileGLSL(const std::string& source, VkShaderStageFlagBi
     EShLanguage lang = stageToEsh(stage);
 
     glslang::TShader shader(lang);
-    const char* src = source.c_str();
+    const char*      src = source.c_str();
     shader.setStrings(&src, 1);
 
     shader.setEnvInput(glslang::EShSourceGlsl, lang, glslang::EShClientVulkan, 100);
@@ -172,8 +173,7 @@ std::vector<uint32_t> compileGLSL(const std::string& source, VkShaderStageFlagBi
     saveSPIRV(path, spirv);
 
     [[maybe_unused]] double ms = std::chrono::duration_cast<Ms>(Clock::now() - _t0).count();
-    VC_SLOG(std::format("[startup] compileGLSL({:4s}): {:6.1f}ms  ({} words)  [compiled + cached]\n",
-                             stageName, ms, spirv.size()));
+    VC_SLOG(std::format("[startup] compileGLSL({:4s}): {:6.1f}ms  ({} words)  [compiled + cached]\n", stageName, ms, spirv.size()));
 
     return spirv;
 }

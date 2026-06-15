@@ -21,17 +21,17 @@
 // params = ordered float values from the shader's args (shaderParams())
 struct ActiveEffect
 {
-    std::string         name;
-    std::vector<float>  params;
+    std::string        name;
+    std::vector<float> params;
 };
 
 struct Mesh
 {
-    std::vector<Vertex>      vertices;
-    std::vector<uint32_t>    indices;
-    bool                     hasTexture        = false;
-    VkDescriptorSet          textureDescriptor = nullptr;
+    std::vector<Vertex>       vertices;
+    std::vector<uint32_t>     indices;
+    bool                      hasTexture = false;
+    VkDescriptorSet           textureDescriptor = nullptr;
     std::vector<ActiveEffect> effects;
-    int                      zIndex            = 0; // render order — see Metadata::zIndex
-    int                      zOrderSeq         = 0; // tiebreak for equal zIndex — see Metadata::zOrderSeq
+    int                       zIndex = 0;    // render order — see Metadata::zIndex
+    int                       zOrderSeq = 0; // tiebreak for equal zIndex — see Metadata::zOrderSeq
 };

@@ -55,8 +55,10 @@ void setParserArgument(argparse::ArgumentParser &p)
         .add_argument("--framerate")
         .default_value(30)
         .scan<'i', int>()
-        .help("Output video framerate (fps). Scenes are authored at 30fps regardless "
-              "of this value — frames are duplicated or dropped to resample to it.");
+        .help(
+            "Output video framerate (fps). Scenes are authored at 30fps regardless "
+            "of this value — frames are duplicated or dropped to resample to it."
+        );
 
     p
         .add_argument("--showstack")

@@ -23,7 +23,8 @@ inline cv::Vec4b lerpColor(const cv::Vec4b& a, const cv::Vec4b& b, float t)
 
 // One color "breakpoint" in a multi-stop gradient — `position` is normalized
 // to [0, 1] (CSS percent / 100), and stops are kept sorted by position.
-struct GradientStop {
+struct GradientStop
+{
     cv::Vec4b color;
     float     position;
 };
@@ -41,8 +42,8 @@ inline cv::Vec4b lerpGradient(const std::vector<GradientStop>& stops, float t)
 
     for (size_t i = 1; i < stops.size(); ++i) {
         if (t <= stops[i].position) {
-            float span    = stops[i].position - stops[i - 1].position;
-            float localT  = (span > 0.f) ? (t - stops[i - 1].position) / span : 0.f;
+            float span = stops[i].position - stops[i - 1].position;
+            float localT = (span > 0.f) ? (t - stops[i - 1].position) / span : 0.f;
             return lerpColor(stops[i - 1].color, stops[i].color, localT);
         }
     }

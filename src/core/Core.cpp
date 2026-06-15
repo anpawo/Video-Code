@@ -154,14 +154,14 @@ void VC::Core::rebuildInput(size_t idx, const py::dict& inputData, bool reuseExi
         target->resetModifications();
     } else {
         py::dict create = inputData[py::int_(-1)].cast<py::dict>();
-        auto     type   = create["type"].cast<std::string>();
-        json     args   = pyToJson(create["args"]);
+        auto     type = create["type"].cast<std::string>();
+        json     args = pyToJson(create["args"]);
 
         if (_showstack)
             Debug.logStack({{"action", "Create"}, {"type", type}, {"args", args}});
 
         freshInput = Factory::inputs.at(type)(args);
-        target     = dynamic_cast<AInput*>(freshInput.get());
+        target = dynamic_cast<AInput*>(freshInput.get());
     }
 
     // Replay Apply entries in the dict's natural (insertion / chronological) order —
@@ -228,7 +228,7 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
     }
 
     for (auto [rawIdx, rawInputData] : stack) {
-        int      idx       = rawIdx.cast<int>();
+        int      idx = rawIdx.cast<int>();
         py::dict inputData = rawInputData.cast<py::dict>();
 
         bool known = sameIndexSet && _stackSnapshot.count(idx);
@@ -238,10 +238,7 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
 
         // Reuse the existing object (skip its constructor — e.g. Image/Video file I/O)
         // when only its modifications changed, i.e. its Create entry ("-1") is identical.
-        bool reuseExisting = known
-            && _stackSnapshot[idx].contains("-1")
-            && newSnapshot[idx].contains("-1")
-            && _stackSnapshot[idx]["-1"] == newSnapshot[idx]["-1"];
+        bool reuseExisting = known && _stackSnapshot[idx].contains("-1") && newSnapshot[idx].contains("-1") && _stackSnapshot[idx]["-1"] == newSnapshot[idx]["-1"];
 
         rebuildInput((size_t)idx, inputData, reuseExisting);
     }

@@ -57,7 +57,7 @@ namespace config
 // COW clones of Metadata::args() cheap.
 inline std::shared_ptr<const std::vector<cv::Vec2f>> parsePointsJson(const json& value)
 {
-    auto raw    = value.get<std::vector<std::vector<float>>>();
+    auto raw = value.get<std::vector<std::vector<float>>>();
     auto points = std::make_shared<std::vector<cv::Vec2f>>();
     points->reserve(raw.size());
     for (const auto& p : raw)

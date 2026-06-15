@@ -45,16 +45,16 @@ enum class VertexShader {
 };
 
 const std::map<std::string, VertexShader> getTransformFromString = {
-    {"Position",  VertexShader::Position},
+    {"Position", VertexShader::Position},
     {"Translate", VertexShader::Translate},
-    {"Scale",     VertexShader::Scale},
-    {"Align",     VertexShader::Align},
-    {"Rotation",  VertexShader::Rotation},
-    {"Opacity",   VertexShader::Opacity},
-    {"Hide",      VertexShader::Hide},
-    {"Show",      VertexShader::Show},
-    {"Args",      VertexShader::Args},
-    {"ZIndex",    VertexShader::ZIndex},
+    {"Scale", VertexShader::Scale},
+    {"Align", VertexShader::Align},
+    {"Rotation", VertexShader::Rotation},
+    {"Opacity", VertexShader::Opacity},
+    {"Hide", VertexShader::Hide},
+    {"Show", VertexShader::Show},
+    {"Args", VertexShader::Args},
+    {"ZIndex", VertexShader::ZIndex},
 };
 
 inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size2f& size, const Metadata& meta)

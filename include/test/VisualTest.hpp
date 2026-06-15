@@ -41,7 +41,8 @@ namespace VC
 
         std::vector<cv::Mat> renderFrames(const std::string& scenePath, const std::vector<size_t>& frames);
         std::vector<cv::Mat> renderFramesAfterReload(
-            const std::string& before, const std::string& after, const std::vector<size_t>& frames);
+            const std::string& before, const std::string& after, const std::vector<size_t>& frames
+        );
 
         const argparse::ArgumentParser& _parser;
         Config                          _baseConfig;
