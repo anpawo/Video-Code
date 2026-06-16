@@ -428,3 +428,4 @@ class Input(ABC):
 
     def alignTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         return self.apply(*alignTo(self, x=x, y=y, easing=easing, start=start, duration=duration))
+

@@ -70,6 +70,7 @@ GRAY_10     = rgba(10, 10, 10)
 RED         = rgba(255, 0, 0)
 GREEN       = rgba(0, 255, 0)
 BLUE        = rgba(0, 0, 255)
+YELLOW      = rgba(255, 255, 0)
 
 RED_A       = rgba("#FC6255")
 RED_B       = rgba("#ED7F7B")

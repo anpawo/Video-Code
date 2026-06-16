@@ -123,6 +123,11 @@ is loaded through the same `_SVGHelper`/`SVGPath`/`Offset`/`Group` pipeline as
 | `PositiveGraph`, `GraphPoint` | `Graph.py` | Axes restricted to positive quadrant; a labeled point on a `Graph` |
 | `ParticlesRay(size, nbr)` | `Particles.py` | Ring of small lines radiating outward (e.g. for click/sparkle effects) |
 | `Shadow(shape, offset, color, blurStrength)` | `Shadow.py` | Copy of another `Polygon`'s geometry, solid-filled, offset, rendered behind via `zIndex` |
+| `SurroundingRectangle(shape, buff, color, strokeWidth, cornerRadius)` | `SurroundingRectangle.py` | Rectangle outline around another `Polygon`'s bounding box + `buff`, for highlighting — Manim's `SurroundingRectangle` |
+| `Underline(shape, buff, color, strokeWidth)` | `Underline.py` | Rounded line under another `Polygon`'s bounding box, offset by `buff` — Manim's `Underline` |
+| `Cross(shape, buff, color, strokeWidth)` | `Cross.py` | Two diagonal lines forming an "X" over another `Polygon`'s bounding box + `buff` — Manim's `Cross` |
+| `FocusOn(x, y, color, startRadius, endRadius, duration, easing)` | `FocusOn.py` | Translucent circle that shrinks onto `(x, y)` while fading in — "spotlight converging on a point" — Manim's `FocusOn` |
+| `DashedLine(x1, y1, x2, y2, dashLength, dashedRatio, color, strokeWidth)` | `DashedLine.py` | Straight line rendered as evenly-spaced dashes — Manim's `DashedLine`, for annotation/helper lines |
 | `Arrow(length, bodyLength, bodyWidth, tipLength, tipHeight, bodyInTip, fillColor, strokeColor, strokeWidth, cornerRadius)` | `Arrow.py` | Single-`Polygon` arrow shape |
 | `Cursor()` | `Arrow.py` | Pre-shaped `Arrow` styled as a mouse cursor |
 
@@ -160,6 +165,9 @@ Every `Input` (shape, text, group, ...) has:
 **Eased animations** (`start`, `duration`, `easing: RateFunc`):
 - `moveTo`/`moveBy`, `scaleTo`/`scaleBy`, `rotateTo`/`rotateBy`,
   `alignTo`, `fadeIn`/`fadeOut`
+- `highlight(scaleFactor=1.2, color=YELLOW, ...)` — briefly scale up and
+  flash `fillColor`, both returning via `Easing.ThereAndBack`; requires a
+  `Polygon` input (raises `TypeError` otherwise)
 - Generic: `ease(attr, to, ...)` / `easeTogether(...)` — animate *any*
   `@prop` attribute frame-by-frame (e.g. `Rectangle.ease("width", 5,
   duration=1)`, used for #125's width/height/radius animation)
@@ -247,6 +255,7 @@ also exposed as `Input` methods (above) but can be used directly:
 | `rotateTo`/`rotateBy` | `rotateTo.py` | Rotation easing |
 | `alignTo` | `alignTo.py` | Align easing |
 | `fadeTo` | `fadeTo.py` | Opacity easing |
+| `highlight(scaleFactor, color, ...)` | `highlight.py` | Scale pulse + `fillColor` flash, both `ThereAndBack`; requires a `Polygon` input |
 | `click(low, up, start, duration, easing)` | `click.py` | Iterable of `scale` shaders producing a "press down/release" pulse — see `ParticlesRay`/`Button` usage |
 
 Easing curves (`videocode/utils/bezier.py`):
