@@ -1,53 +1,47 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 #
 # Types
 #
 
-from constants import *
-from typing import Any, get_origin, get_args
+
+from functools import lru_cache
+
+from videocode.constants import *
+from videocode.utils.logger import *
 
 
-def getValueByPriority(c: Any, var: Any, name: str) -> sec:
-    """
-    Priority of arguments
-
-    Transformation's Value > Given Value > Function's Default
-    """
-    if hasattr(c, name) and isinstance(getattr(c, name), int | float):
-        return getattr(c, name)
-    elif isinstance(var, int | float):
-        return var
-    elif hasattr(c, name) and isinstance(getattr(c, name), default):
-        return getattr(c, name).defaultValue
-    elif isinstance(var, default):
-        return var.value
-    else:
-        raise ValueError(var)
-
-
+@lru_cache(maxsize=None)
 def upperFirst(s: str):
     return s[0].upper() + s[1:]
 
 
-def fromWorlToScreen(annotations: dict[str, type], values: dict[str, Any]) -> dict:
-    adapt = [wint, wuint, wfloat, wufloat]
+def floatRange(start: number, end: number, step: number):
 
-    def shouldScale(t) -> bool:
-        if t in adapt:
-            return True
+    def rangeGenerator(start, end, step):
+        n = start
+        while n < end:
+            yield n
+            n += step
 
-        origin = get_origin(t)
-        if origin is None:
-            return False
+    return rangeGenerator(start, end, step)
 
-        for arg in get_args(t):
-            if shouldScale(arg):
-                return True
-        return False
 
-    for k, v in values.items():
-        if shouldScale(annotations[k]):
-            values[k] = v * WORLD_TO_SCREEN_RATIO
+def darken(c: rgba):
+    return c | 0.75 | BLACK | (BLACK | 0.7)
 
-    return values
+
+def lighten(c: rgba):
+    return c | 0.75 | BLACK | GRAY_10
+
+
+def ppDict(d: dict) -> str:
+    """
+    Pretty Print a Dict
+    """
+    s = ""
+    for k, v in d.items():
+        s += f"{k}:\n\t{v}\n"
+    return s

@@ -2,22 +2,24 @@
 ** EPITECH PROJECT, 2025
 ** video-code
 ** File description:
-** QtWindow
+** Window
 */
 
 #pragma once
 
-#include <QBoxLayout>
-#include <QImage>
 #include <QKeyEvent>
-#include <QLabel>
 #include <QMainWindow>
 #include <QTimer>
 #include <argparse/argparse.hpp>
-#include <opencv2/opencv.hpp>
+#include <chrono>
+#include <vector>
 
-#include "TimelineWidget.hpp"
 #include "core/Core.hpp"
+#include "vulkan/Mesh.hpp"
+#include "window/TimelineWidget.hpp"
+#include "window/VulkanWidget.hpp"
+
+class QLabel;
 
 namespace VC
 {
@@ -38,27 +40,27 @@ namespace VC
 
     private:
 
-        ///< Window size
-        const size_t _width;
-        const size_t _height;
-
-        ///< Framerate of the video
-        const size_t _framerate;
+        ///< Config (Window / Framerate / Paths)
+        Config config;
 
         ///< Core handling the images
         Core _core;
 
-        ///< Timer handling the Routine
+        ///< Timer for timeline updates
         QTimer* _timer;
 
-        ///< Image Label
-        QLabel* _imageLabel;
-        ///< Image Layout
-        QVBoxLayout* _imageLayout;
-        ///< Widget containing the layout
-        QWidget* _centralWidget;
+        ///< Vulkan rendering surface (central widget)
+        VulkanWidget* _vulkanWidget;
 
-        ///< Timeline Widget
+        ///< Timeline overlay
         TimelineWidget* _timeline{nullptr};
+
+        ///< Keyboard-shortcut help overlay (toggled by 'H')
+        QLabel* _helpOverlay{nullptr};
+
+        ///< Frame-rate throttle for the Vulkan frame callback
+        std::chrono::steady_clock::time_point _lastFrameTime{};
+        std::vector<Mesh>                     _lastMeshes;
     };
-};
+
+} // namespace VC

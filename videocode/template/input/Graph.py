@@ -1,0 +1,215 @@
+#!/usr/bin/env python3
+
+from __future__ import annotations
+
+from videocode import *
+from videocode.input.interface.Offset import Offset
+from videocode.utils.classutils import Maybe
+
+
+class Graph(Group):
+    def __init__(
+        self,
+        # --
+        xRange: tuple[int, int] = (-7, 7),
+        yRange: tuple[int, int] = (-4, 4),
+        # --
+        xExclude: list[int] = [],
+        yExclude: list[int] = [],
+        # --
+        unitSize: number | tuple[number, number] = 1.0,
+        # --
+        fontSize=0.175,
+        # --
+        color=rgba("#BBBBBB"),
+        # --
+        lineThickness=0.025,
+    ) -> None:
+        self.xRange = xRange
+        self.yRange = yRange
+
+        xExclude.append(0)
+        yExclude.append(0)
+
+        unitSizeX = unitSize[0] if isinstance(unitSize, tuple) else unitSize
+        unitSizeY = unitSize[1] if isinstance(unitSize, tuple) else unitSize
+
+        x = range(xRange[0], xRange[1] + 1)
+        y = range(yRange[0], yRange[1] + 1)
+
+        self.origin = v2(
+            (-(len(x) - 1) / 2 - xRange[0]) * unitSizeX,
+            (-(len(y) - 1) / 2 - yRange[0]) * unitSizeY,
+        )
+
+        self.xAxis = (
+            (
+                r := Rectangle(
+                    width=0,
+                    height=lineThickness,
+                    fillColor=color,
+                    strokeColor=TRANSPARENT,
+                )
+            )
+            .align(x=0)
+            .position(
+                x=-(len(x) - 1) / 2 * unitSizeX,
+                y=(-(len(y) - 1) / 2 - yRange[0]) * unitSizeY,
+            )
+            .ease(r.ref.width, (len(x) - 1) * unitSizeX, easing=Easing.InOut)
+            .flush()
+        )
+        self.yAxis = (
+            (
+                r := Rectangle(
+                    width=lineThickness,
+                    height=0,
+                    fillColor=color,
+                    strokeColor=TRANSPARENT,
+                )
+            )
+            .align(y=0)
+            .position(
+                x=(-(len(x) - 1) / 2 - xRange[0]) * unitSizeX,
+                y=-(len(y) - 1) / 2 * unitSizeY,
+            )
+            .ease(r.ref.height, (len(y) - 1) * unitSizeY, easing=Easing.InOut)
+            .flush()
+        )
+
+        self.numbers: list[Input] = []
+        self.ticks: list[Input] = []
+
+        for n in x:
+            start = 0.3 * (n - xRange[0]) / (xRange[1] - xRange[0])
+            self.ticks.append(
+                (r := Rectangle(width=lineThickness, height=0, fillColor=color, strokeColor=TRANSPARENT))
+                .position(
+                    -(len(x) - 1) / 2 * unitSizeX + n * unitSizeX - xRange[0],
+                    (-(len(y) - 1) / 2 - yRange[0]) * unitSizeY,
+                )
+                .ease(r.ref.height, lineThickness * 5, start=start, duration=0.15)
+                .fadeIn(start=start, duration=0.15)
+            )
+            if n in xExclude:
+                continue
+            self.numbers.append(
+                Text(text=str(n), fontSize=fontSize)
+                .align(x=0.5, y=1.75)
+                .opacity(0)
+                .position(
+                    x=-(len(x) - 1) / 2 * unitSizeX + n * unitSizeX - xRange[0],
+                    y=(-(len(y) - 1) / 2 - yRange[0]) * unitSizeY,
+                )
+                .scale(0)
+                .scaleTo(1, start=start, duration=0.15)
+                .fadeIn(start=start, duration=0.15)
+            )
+
+        for n in y:
+            start = 0.3 * (n - yRange[0]) / (yRange[1] - yRange[0])
+            self.ticks.append(
+                (r := Rectangle(width=0, height=lineThickness, fillColor=color, strokeColor=TRANSPARENT))
+                .position(
+                    (-(len(x) - 1) / 2 - xRange[0]) * unitSizeX,
+                    -(len(y) - 1) / 2 * unitSizeY + n * unitSizeY - yRange[0],
+                )
+                .ease(r.ref.width, lineThickness * 5, start=start, duration=0.15)
+                .fadeIn(start=start, duration=0.15)
+            )
+            if n in yExclude:
+                continue
+            self.numbers.append(
+                Text(text=str(n), fontSize=fontSize)
+                .align(x=2.25, y=0.51)
+                .opacity(0)
+                .position(
+                    x=(-(len(x) - 1) / 2 - xRange[0]) * unitSizeX,
+                    y=-(len(y) - 1) / 2 * unitSizeY + n * unitSizeY - yRange[0],
+                )
+                .scale(0)
+                .scaleTo(1, start=start, duration=0.15)
+                .fadeIn(start=start, duration=0.15)
+            )
+
+        super().__init__(
+            self.xAxis,
+            self.yAxis,
+            *self.numbers,
+            *self.ticks,
+        )
+
+
+class PositiveGraph(Graph):
+    def __init__(
+        self,
+        xRange: tuple[int, int] = (-1, WORLD_WIDTH // 2),
+        yRange: tuple[int, int] = (-1, WORLD_HEIGHT // 2),
+        xExclude: list[int] = [-1],
+        yExclude: list[int] = [-1],
+    ) -> None:
+        super().__init__(xRange, yRange, xExclude, yExclude)
+
+
+class GraphPoint(Group):
+    def __init__(
+        self,
+        curve: FunctionGraph,
+        showTip=True,
+        tipAbove=True,
+    ) -> None:
+        self.curve = curve
+        self.showTip = showTip
+        self.tipAbove = tipAbove
+
+        self.tipAppeared = False
+
+        super().__init__(
+            Circle(0.09, fillColor=WHITE, strokeColor=BLACK, strokeWidth=0.0175),
+        )
+
+        if showTip:
+            self.text = Offset(
+                i=Text(text=str(round(self.curve.f(self.curve.xs[0]), 2)), fillColor=WHITE, fontSize=0.175),
+                x=0,
+                y=0.60 * (1 if self.tipAbove else -1),
+            )
+            self.tip = Offset(
+                i=VerticalLine(length=0.25, strokeWidth=0.025, fillColor=WHITE, rounded=True),
+                x=0,
+                y=0.30 * (1 if self.tipAbove else -1),
+            )
+            self.inputs += [self.text, self.tip]
+
+    def updateTipPosition(self):
+        if self.showTip:
+            self.text.yOffset = 0.60 * (1 if self.tipAbove else -1)
+            self.tip.yOffset = 0.30 * (1 if self.tipAbove else -1)
+            self.position()
+
+    @prop(onSet=updateTipPosition)
+    def tipAbove() -> bool: ...
+
+    def fadeInIfHidden(self):
+        if not self.tipAppeared:
+            self.tipAppeared = True
+            self.fadeIn(duration=0.2)
+
+    def fromTo(self, x1: maybe[float] = None, x2: maybe[float] = None, duration: sec = 2) -> Self:
+        x1 = Maybe(x1) | self.curve.xs[0]
+        x2 = Maybe(x2) | self.curve.xs[-1]
+
+        r = Easing.InOut.range(x1, x2, duration)
+        o = Maybe(self.curve.parentGraph).map(lambda g: g.origin).orElse(v2(0, 0))
+
+        self.position(x=o.x + x1, y=o.y + self.curve.f(x1))
+        self.fadeInIfHidden()
+        self.flush()
+
+        for x in r:
+            y = self.curve.f(x)
+            if self.showTip:
+                self.text.input.text = str(round(y, 2))
+            self.position(x=o.x + x, y=o.y + y).flush()
+
+        return self

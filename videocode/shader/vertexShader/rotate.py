@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
 
-from videocode.constants import *
+from __future__ import annotations
+
 from videocode.shader.ishader import *
 
 
-class rotate(VertexShader):
+class rotation(VertexShader):
     """
-    `Rotate` by degree.
+    `Rotation` is set to degree.
 
-    # TODO: a position where the rotation should take place from.
+    The rotation can take place from another place than the center by using Offset.
     """
 
-    def __init__(
-        self,
-        degree: number,
-    ):
+    def __init__(self, degree: number):
         self.degree = degree
 
-    def modificator(self, i: Input):
+    def autodestroy(self, i: Input) -> bool:
+        return i.meta.rotation == self.degree
+
+    def modify(self, i: Input):
         i.meta.rotation = self.degree

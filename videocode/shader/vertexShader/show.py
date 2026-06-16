@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-from videocode.constants import *
+from __future__ import annotations
+
 from videocode.shader.ishader import *
 
 
@@ -11,5 +12,8 @@ class show(VertexShader):
 
     def __init__(self) -> None: ...
 
-    def modificator(self, i: Input):
+    def autodestroy(self, i: Input) -> bool:
+        return i.meta.hidden == False
+
+    def modify(self, i: Input):
         i.meta.hidden = False

@@ -7,45 +7,64 @@
 
 #include "window/Window.hpp"
 
-#include "qnamespace.h"
+#include <QGuiApplication>
+#include <QInputDialog>
+#include <QLabel>
+#include <QLineEdit>
+#include <QScreen>
+#include <QStatusBar>
+#include <algorithm>
+#include <chrono>
+#include <format>
+#include <iostream>
+
+#include "utils/ImageIO.hpp"
+#include "utils/Logger.hpp"
+
+// Window startup timer — measures wall time from the first line of the
+// constructor until Vulkan init completes.  Printed once at startup.
+static auto s_windowStart = std::chrono::high_resolution_clock::now();
 
 VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     : QMainWindow(parent)
-    , _width(parser.get<int>("--width"))
-    , _height(parser.get<int>("--height"))
-    , _framerate(parser.get<int>("--framerate"))
-    , _core(parser)
+    , config({
+          .screenWidth = parser.get<float>("--width"),
+          .screenHeight = parser.get<float>("--height"),
+          .windowRatio = parser.get<float>("--windowRatio"),
+
+          .framerate = parser.get<int>("--framerate"),
+
+          .sourceFile = parser.get("--file"),
+          .outputFile = parser.get("--generate"),
+      })
+    , _core(parser, config) // ← reloadSourceFile() runs here (Python + executeStack)
 {
-    ///< Routine settings
-    _timer = new QTimer(this);
-    connect(_timer, &QTimer::timeout, this, &Window::mainRoutine);
-    _timer->start(1000 / _framerate);
+    using Clock = std::chrono::high_resolution_clock;
+    using Ms = std::chrono::duration<double, std::milli>;
+    [[maybe_unused]] double core_ms = std::chrono::duration_cast<Ms>(Clock::now() - s_windowStart).count();
+    VC_SLOG(std::format("[startup] Core ctor (Python load + executeStack): {:.1f}ms\n", core_ms));
+    ///< Animation is advanced inside the Vulkan render loop via setFrameCallback(),
+    ///< so no separate QTimer is needed. _timer is kept as nullptr.
+    _timer = nullptr;
 
-    ///< Setup the layout and image
-    _imageLabel = new QLabel(this);
-    _imageLabel->setFixedSize(_width / 2, _height / 2);
-    _imageLayout = new QVBoxLayout();
-    _imageLayout->setContentsMargins(0, 0, 0, 0);
-    _imageLayout->addWidget(_imageLabel);
-    _centralWidget = new QWidget(this);
-    _centralWidget->setLayout(_imageLayout);
-    setCentralWidget(_centralWidget);
+    ///< Vulkan central widget
+    _vulkanWidget = new VulkanWidget(this);
+    setCentralWidget(_vulkanWidget);
 
-    ///< Timeline
-    if (_core._showtimeline) {
-        _timeline = new TimelineWidget(_imageLabel, _core._index, _core._nbFrame, _width / 2);
-        _timeline->setGeometry(
-            0,
-            _imageLabel->height() - _timeline->minimumHeight(),
-            _timeline->minimumWidth(),
-            _timeline->minimumHeight()
-        );
-        _timeline->raise();
-    }
+    /// TODO: fix the timeline
+    ///< Timeline overlay (child of the Vulkan widget so it sits on top)
+    // if (_core._showtimeline) {
+    //     _timeline = new TimelineWidget(_vulkanWidget, _core._index, _core._nbFrame, _width / 2);
+    //     _timeline->setGeometry(
+    //         0,
+    //         _vulkanWidget->height() - _timeline->minimumHeight(),
+    //         _timeline->minimumWidth(),
+    //         _timeline->minimumHeight()
+    //     );
+    //     _timeline->raise();
+    // }
 
-    ///< Window settings
-    setStyleSheet("background-color: black;");
-
+    /// TODO: function for that
     ///< Window name centered
     std::string l = "video-code";
     std::string sep = "  |  ";
@@ -57,9 +76,55 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     }
     setWindowTitle((l + sep + r).c_str());
 
-    move(_width / 2, 0);
-    resize(_width / 2, _height / 2);
+    // Never create a status bar — calling statusBar()->hide() still allocates it
+    // and reserves layout space, shrinking the VulkanWidget by ~22 px and making
+    // the swapchain extent a non-multiple of the video resolution.
+
+    // Pin the central widget to exactly windowWidth × windowHeight so the Vulkan
+    // surface (and swapchain) is a clean multiple of the video resolution.
+    QRect screen = QGuiApplication::primaryScreen()->availableGeometry();
+    float scale = std::min(
+        (float)screen.width() / config.windowWidth,
+        (float)screen.height() / config.windowHeight
+    );
+    scale = std::min(scale, 1.0f);
+    int w = (int)(config.windowWidth * scale);
+    int h = (int)(config.windowHeight * scale);
+    _vulkanWidget->setFixedSize(w, h);
+    adjustSize();
+    move(screen.center().x() - width() / 2, 0);
     show();
+
+    ///< Wire up the frame callback before init so the first render already
+    ///< has access to the animation state.
+    ///< The callback throttles animation advancement to Config::SCENE_FRAMERATE fps
+    ///< (the rate scene-side durations are authored in — see Config.hpp) so that
+    ///< Vulkan rendering at display refresh rate plays back at the intended speed
+    ///< regardless of --framerate, which only controls the --generate output rate.
+    const auto frameDuration = std::chrono::duration<double>(1.0 / Config::SCENE_FRAMERATE);
+    _vulkanWidget->setFrameCallback([this, frameDuration]() -> std::vector<Mesh> {
+        auto now = std::chrono::steady_clock::now();
+        if (_lastMeshes.empty() || (now - _lastFrameTime) >= frameDuration) {
+            _lastFrameTime = now;
+            _lastMeshes = _core.generateMeshes();
+        }
+        return _lastMeshes;
+    });
+
+    ///< Defer Vulkan init until the event loop is running and the native
+    ///< window handle is guaranteed to be available.
+    QTimer::singleShot(0, _vulkanWidget, [this] {
+        using Clock = std::chrono::high_resolution_clock;
+        using Ms = std::chrono::duration<double, std::milli>;
+        // VulkanWidget::init() already prints per-step timing itself.
+        _vulkanWidget->init();
+        auto _t_tex = Clock::now();
+        _core.uploadTextures(_vulkanWidget);
+        [[maybe_unused]] double tex_ms = std::chrono::duration_cast<Ms>(Clock::now() - _t_tex).count();
+        [[maybe_unused]] double total_ms = std::chrono::duration_cast<Ms>(Clock::now() - s_windowStart).count();
+        VC_SLOG(std::format("[startup] {:35s} {:7.1f}ms\n", "uploadTextures (CPU→GPU)", tex_ms));
+        VC_SLOG(std::format("[startup] === total Window ctor → first-frame-ready: {:.1f}ms ===\n", total_ms));
+    });
 }
 
 VC::Window::~Window() = default;
@@ -67,27 +132,88 @@ VC::Window::~Window() = default;
 void VC::Window::keyPressEvent(QKeyEvent* event)
 {
     if (event->key() == Qt::Key_Escape) {
-        close();
+        if (_helpOverlay && _helpOverlay->isVisible()) {
+            _helpOverlay->hide();
+        } else {
+            close();
+        }
     } else if (event->key() == Qt::Key_Space) {
         _core.pause();
     } else if (event->key() == Qt::Key_Down) {
-        _core.goToFirstFrame();
+        if (event->modifiers() & Qt::ControlModifier) {
+            _core.goToPrevTimestamp();
+        } else {
+            _core.goToFirstFrame();
+        }
     } else if (event->key() == Qt::Key_Up) {
-        _core.goToLastFrame();
+        if (event->modifiers() & Qt::ControlModifier) {
+            _core.goToNextTimestamp();
+        } else {
+            _core.goToLastFrame();
+        }
+    } else if (event->key() == Qt::Key_R && (event->modifiers() & Qt::ControlModifier)) {
+        _core.reloadSourceFile();
+        _core.uploadTextures(_vulkanWidget);
+        _lastMeshes.clear(); // force immediate redraw on next frame tick
     } else if (event->key() == Qt::Key_Left) {
-        _core.backward1frame();
+        _core.backwardFrame(event->modifiers() & Qt::ControlModifier ? 5 : 1);
     } else if (event->key() == Qt::Key_Right) {
-        _core.forward1frame();
+        _core.forwardFrame(event->modifiers() & Qt::ControlModifier ? 5 : 1);
+    } else if (event->key() == Qt::Key_S && (event->modifiers() & Qt::ControlModifier)) {
+        bool    ok = false;
+        QString fileName = QInputDialog::getText(
+            this, "Export Frame", "File name:", QLineEdit::Normal, "frame.png", &ok
+        );
+        if (ok && !fileName.isEmpty()) {
+            cv::Mat frame = _vulkanWidget->readFrame();
+            if (VC::ImageIO::write(fileName.toStdString(), frame))
+                std::cout << std::format("Saved frame → {}\n", fileName.toStdString());
+            else
+                std::cerr << std::format("Failed to write image to {}\n", fileName.toStdString());
+        }
+    } else if (event->key() == Qt::Key_H) {
+        if (!_helpOverlay) {
+            _helpOverlay = new QLabel(_vulkanWidget);
+            _helpOverlay->setAttribute(Qt::WA_TransparentForMouseEvents);
+            _helpOverlay->setStyleSheet(
+                "background-color: rgba(30, 30, 30, 230);"
+                "color: white;"
+                "border-radius: 8px;"
+                "padding: 16px;"
+            );
+            _helpOverlay->setText(
+                "<pre>"
+                "Escape           Close window / dismiss this help\n"
+                "Space            Pause / resume\n"
+                "Left / Right     Step backward / forward 1 frame (x5 with Ctrl)\n"
+                "Down / Up        Go to first / last frame\n"
+                "Ctrl+Down/Up     Go to previous / next timestamp\n"
+                "Ctrl+R           Reload source file\n"
+                "Ctrl+S           Export current frame to image\n"
+                "H                Toggle this help"
+                "</pre>"
+            );
+            _helpOverlay->adjustSize();
+            _helpOverlay->move(
+                (_vulkanWidget->width() - _helpOverlay->width()) / 2,
+                (_vulkanWidget->height() - _helpOverlay->height()) / 2
+            );
+        }
+        if (_helpOverlay->isVisible()) {
+            _helpOverlay->hide();
+        } else {
+            _helpOverlay->raise();
+            _helpOverlay->show();
+        }
     } else {
         QMainWindow::keyPressEvent(event);
     }
-    _core.updateFrame(*_imageLabel);
 }
 
 void VC::Window::mainRoutine()
 {
-    _core.updateFrame(*_imageLabel);
-
+    const auto& meshes = _core.generateMeshes();
+    _vulkanWidget->setMeshes(meshes);
     if (_timeline) {
         _timeline->update();
     }

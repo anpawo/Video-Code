@@ -19,6 +19,7 @@ VCPKG_FLAGS		= \
 	-DWITH_FFMPEG=ON
 
 DEBUG_FLAG		=	-DDEBUG=ON
+VERBOSE_FLAG	=	-DVC_VERBOSE=ON
 
 
 # >>> Rules <<<
@@ -29,9 +30,9 @@ all: cmake
 
 .PHONY: cmake
 cmake:
-	cmake -B $(BUILD_DIR) $(VCPKG_FLAGS) $(CMAKE_FLAGS)
+	cmake -B $(BUILD_DIR) -DDEBUG=OFF -DVC_VERBOSE=OFF $(VCPKG_FLAGS) $(CMAKE_FLAGS)
 	cmake --build $(BUILD_DIR)
-	@ cp -f $(BUILD_DIR)/$(BINARY_NAME) .
+	@ cp -f $(BUILD_DIR)/$(BINARY_NAME).app/Contents/MacOS/$(BINARY_NAME) .
 	@ cp -f $(BUILD_DIR)/compile_commands.json .
 
 
@@ -39,7 +40,16 @@ cmake:
 debug:
 	cmake -B $(BUILD_DIR) $(DEBUG_FLAG) $(VCPKG_FLAGS) $(CMAKE_FLAGS)
 	cmake --build $(BUILD_DIR)
-	cp $(BUILD_DIR)/$(BINARY_NAME) .
+	@ cp $(BUILD_DIR)/$(BINARY_NAME).app/Contents/MacOS/$(BINARY_NAME) .
+	@ cp -f $(BUILD_DIR)/compile_commands.json .
+
+
+.PHONY: verbose
+verbose:
+	cmake -B $(BUILD_DIR) -DDEBUG=OFF $(VERBOSE_FLAG) $(VCPKG_FLAGS) $(CMAKE_FLAGS)
+	cmake --build $(BUILD_DIR)
+	@ cp -f $(BUILD_DIR)/$(BINARY_NAME).app/Contents/MacOS/$(BINARY_NAME) .
+	@ cp -f $(BUILD_DIR)/compile_commands.json .
 
 
 .PHONY: clean
@@ -68,6 +78,18 @@ docs: docdoc
 .PHONY: docvid
 docvid:
 	./$(BINARY_NAME) --generate
+
+
+# Visual regression suite — golden-frame + hot-reload equivalence checks.
+.PHONY: test
+test:
+	./$(BINARY_NAME) --visual-test
+
+
+# (Re)write the golden images the suite compares against.
+.PHONY: test-golden
+test-golden:
+	./$(BINARY_NAME) --visual-test --update-golden
 
 
 # 1. Generate the Readme

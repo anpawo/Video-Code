@@ -17,6 +17,10 @@
     "argparse",
     "ffmpeg",
     "protobuf",
-    "curl"
+    "curl",
+    "glslang",
+    "vulkan",
+    "freetype",
+    "earcut-hpp"
   ]
 }

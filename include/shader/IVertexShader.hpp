@@ -27,14 +27,17 @@ Transformations affect anything non pixel related in an Input
 
 */
 
-enum VertexShader {
+enum class VertexShader {
     Align,
     Position,
+    Translate,
     Scale,
-    Rotate,
+    Rotation,
+    Opacity,
     Hide,
     Show,
     Args,
+    ZIndex,
 
     // -
 
@@ -43,21 +46,24 @@ enum VertexShader {
 
 const std::map<std::string, VertexShader> getTransformFromString = {
     {"Position", VertexShader::Position},
+    {"Translate", VertexShader::Translate},
     {"Scale", VertexShader::Scale},
     {"Align", VertexShader::Align},
-    {"Rotate", VertexShader::Rotate},
+    {"Rotation", VertexShader::Rotation},
+    {"Opacity", VertexShader::Opacity},
     {"Hide", VertexShader::Hide},
     {"Show", VertexShader::Show},
     {"Args", VertexShader::Args},
+    {"ZIndex", VertexShader::ZIndex},
 };
 
-inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size& size, const Metadata& meta)
+inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size2f& size, const Metadata& meta)
 {
     float x = meta.position.x;
     float y = meta.position.y;
 
     float px = size.width * meta.align.x;
-    float py = size.height * meta.align.y;
+    float py = size.height * (1.0f - meta.align.y);
 
     float rad = meta.rotation * M_PI / 180.0f;
     float c = std::cos(rad);
@@ -105,38 +111,73 @@ inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size& size, con
 inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Metadata& meta)
 {
     switch (t) {
-        case __End: {
+        case VertexShader::__End: {
             throw Error("Impossible __End Transform.");
         }
-        case Align: {
+        case VertexShader::Align: {
             meta.align.x = args.at("x");
             meta.align.y = args.at("y");
             break;
         }
-        case Position: {
-            meta.position.x = config::screenOffset.x + args.at("x").get<float>();
-            meta.position.y = config::screenOffset.y - args.at("y").get<float>();
+        case VertexShader::Position: {
+            meta.position.x = config::screenOffset.x + args.at("x").get<float>() * config::worldToPixelRatio;
+            meta.position.y = config::screenOffset.y - args.at("y").get<float>() * config::worldToPixelRatio;
             break;
         }
-        case Scale: {
+        case VertexShader::Translate: {
+            // Relative shift, in world units — unlike Position, no screenOffset
+            // (that's an absolute-origin term, meaningless for a delta).
+            meta.position.x += args.at("x").get<float>() * config::worldToPixelRatio;
+            meta.position.y -= args.at("y").get<float>() * config::worldToPixelRatio;
+            break;
+        }
+        case VertexShader::Scale: {
             meta.scale.x = args.at("x");
             meta.scale.y = args.at("y");
             break;
         }
-        case Rotate: {
+        case VertexShader::Rotation: {
             meta.rotation = args.at("degree");
             break;
         }
-        case Hide: {
+        case VertexShader::Opacity: {
+            meta.opacity = args.at("opacity");
+            break;
+        }
+        case VertexShader::Hide: {
             meta.hidden = true;
             break;
         }
-        case Show: {
+        case VertexShader::Show: {
             meta.hidden = false;
             break;
         }
-        case Args: {
-            meta.args[args.at("name")] = args.at("value");
+        case VertexShader::Args: {
+            std::string name = args.at("name").get<std::string>();
+
+            // "points"/"contourSizes" live in Metadata::pointsPtr/contourSizesPtr, not
+            // argsPtr's json::object_t — swap the typed shared_ptr directly, no JSON
+            // clone (see parsePointsJson/parseContourSizesJson in Metadata.hpp).
+            if (name == "points") {
+                meta.pointsPtr = parsePointsJson(args.at("value"));
+                break;
+            }
+            if (name == "contourSizes") {
+                meta.contourSizesPtr = parseContourSizesJson(args.at("value"));
+                break;
+            }
+
+            // Copy-on-write: args is shared between every Metadata that hasn't
+            // diverged, so clone it before mutating this frame's version.
+            auto mutableArgs = std::make_shared<json::object_t>(meta.args());
+            (*mutableArgs)[name] = args.at("value");
+            meta.argsPtr = std::move(mutableArgs);
+            break;
+        }
+        case VertexShader::ZIndex: {
+            meta.zIndex = args.at("zIndex").get<int>();
+            meta.zOrderSeq = args.at("zOrderSeq").get<int>();
+            meta.zIndexExplicit = true;
             break;
         }
     }

@@ -1,16 +1,14 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 
 import math
-import chess.pgn
 
 
-from videocode.constants import SF, WORLD_WIDTH, WORLD_HEIGHT
-from videocode.input.media.WebImage import webImage
-from videocode.input.input import Input
-from videocode.shader.vertexShader.scale import scale
+from videocode.constants import SF
+from videocode.input.media.Image import WebImage
 from videocode.utils.bezier import Easing
-from videocode.globals import wait
+from videocode.context import wait
 
 
 type Color = bool
@@ -33,6 +31,10 @@ BOARD_URL = "https://assets-themes.chess.com/image/9rdwe/200.png"
 
 class ChessBoard:
     def __init__(self, pgn="pgn") -> None:
+        # Imported lazily: python-chess computes its attack tables at import
+        # (~100ms) — scenes that don't build a ChessBoard shouldn't pay for it.
+        import chess.pgn
+
         # GameState
         with open(pgn) as f:
             game = chess.pgn.read_game(f)
@@ -43,13 +45,13 @@ class ChessBoard:
 
         # Pieces Video Position
         self.defaultScaling = 0.7
-        self.ox = 0.3175 * WORLD_WIDTH
-        self.oy = 0.175 * WORLD_HEIGHT
-        self.tileSize = 100.2
+        self.ox = -2.92
+        self.oy = -2.92
+        self.tileSize = 0.835
 
         # Inputs
-        self.boardInput = webImage(BOARD_URL).scale(0.5).flush()
-        self.pieces: dict[Position, tuple[webImage, tuple[Color, Piece]]] = {}
+        self.boardInput = WebImage(BOARD_URL).scale(0.5).flush()
+        self.pieces: dict[Position, tuple[WebImage, tuple[Color, Piece]]] = {}
         self.addInputs()
 
     def addInputs(self):
@@ -74,7 +76,13 @@ class ChessBoard:
             color = WHITE if c.isupper() else BLACK
             piece = c.lower()
             self.pieces[(x, y)] = (
-                webImage(self.getUrl(color, piece)).position(self.ox + x * self.tileSize, self.oy + y * self.tileSize).scale(self.defaultScaling).flush(),
+                WebImage(self.getUrl(color, piece))
+                .position(
+                    self.ox + x * self.tileSize,
+                    self.oy + y * self.tileSize,
+                )
+                .scale(self.defaultScaling)
+                .flush(),
                 (color, piece),
             )
             x += 1
@@ -85,7 +93,9 @@ class ChessBoard:
         """
         return f"https://assets-themes.chess.com/image/ejgfv/150/{'w' if color == WHITE else 'b'}{piece}.png"
 
-    def play(self, nMove: int):
+    def play(self, nMove: int | None = None):
+        import chess  # already loaded by __init__; this is just a name lookup
+
         for move in self.game.mainline_moves():
             sx, sy = move.from_square % 8, 7 - move.from_square // 8
             dx, dy = move.to_square % 8, 7 - move.to_square // 8
@@ -112,21 +122,36 @@ class ChessBoard:
                 raise ValueError("En Passant not yet implemented")
 
             # Normal Move
-            self.pieces[(sx, sy)][0].moveTo(self.ox + dx * self.tileSize, self.oy + dy * self.tileSize, easing=Easing.Linear, duration=duration).flush()
+            mover = self.pieces[(sx, sy)][0]
+            mover.moveTo(self.ox + dx * self.tileSize, self.oy + dy * self.tileSize, easing=Easing.Linear, duration=duration).flush()
+            if (dx, dy) in self.pieces:
+                self.pieces[(dx, dy)][0].waitTo(mover.meta.transformationOffset).hide().flush()
             wait(duration - SF)
-            # TODO: bring back hide
-            # if (dx, dy) in self.pieces:
-            #     self.pieces[(dx, dy)][0].hide()
             self.pieces[(dx, dy)] = self.pieces[(sx, sy)]
             del self.pieces[(sx, sy)]
             if move.promotion:
-                self.pieces[(dx, dy)] = self.pieces[(dx, dy)][0], (self.pieces[(dx, dy)][1][0], chess.PIECE_SYMBOLS[move.promotion])
-                self.pieces[(dx, dy)][0].url = self.getUrl(*self.pieces[(dx, dy)][1])
+                # Image textures are fixed at creation — swap the pawn for a
+                # freshly-created piece image rather than mutating its filepath.
+                color = self.pieces[(dx, dy)][1][0]
+                piece = chess.PIECE_SYMBOLS[move.promotion]
+                target = mover.meta.transformationOffset
+                promoted = (
+                    WebImage(self.getUrl(color, piece))
+                    .position(self.ox + dx * self.tileSize, self.oy + dy * self.tileSize)
+                    .scale(self.defaultScaling)
+                )
+                if target > promoted.meta.transformationOffset:
+                    promoted.hide()
+                    promoted.waitTo(target)
+                    promoted.show().flush()
+                mover.hide().flush()
+                self.pieces[(dx, dy)] = (promoted, (color, piece))
 
             wait(0.1)
-            nMove -= 1
-            if nMove == 0:
-                return
+            if nMove is not None:
+                nMove -= 1
+                if nMove == 0:
+                    return
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 
 from videocode.input.media.Video import *
 from videocode.input.media.Image import *
-from videocode.input.media.WebImage import *
+from videocode.input.media.Sound import *

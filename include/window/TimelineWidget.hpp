@@ -44,8 +44,8 @@ protected:
 
             ///< Gray bar
             double grayBarRadius = _barHeight / 2.0;
-            int gray = 204;
-            int opacity = 96;
+            int    gray = 204;
+            int    opacity = 96;
 
             QRectF grayBarRect(
                 _offsetX,
@@ -82,9 +82,9 @@ protected:
             painter.setPen(Qt::white);
 
             // Prepare the text
-            QString text = QString::fromStdString(std::format("{} / {}", _index + 1, _duration));
+            QString      text = QString::fromStdString(std::format("{} / {}", _index + 1, _duration));
             QFontMetrics fm(painter.font());
-            QSizeF textSize = fm.size(Qt::TextSingleLine, text);
+            QSizeF       textSize = fm.size(Qt::TextSingleLine, text);
 
             // Calculate rectangle with some padding
             const int paddingX = 12; // horizontal padding

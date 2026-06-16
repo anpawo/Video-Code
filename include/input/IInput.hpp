@@ -8,7 +8,10 @@
 #pragma once
 
 #include <nlohmann/json.hpp>
-#include <opencv2/core/mat.hpp>
+
+#include "core/Config.hpp"
+#include "input/Metadata.hpp"
+#include "vulkan/Mesh.hpp"
 
 using json = nlohmann::json;
 
@@ -21,15 +24,15 @@ public:
 
     // -
 
-    virtual cv::Mat getBaseMatrix(const json::object_t& args) = 0;
+    virtual Mesh getMesh(const Metadata& meta, const Config& config) = 0;
 
     // -
 
-    virtual void add(nlohmann::basic_json<>& modification) = 0;
+    ///< Record one timeline modification (a shader application). args is taken
+    ///< by rvalue so the ~13k entries of an animated scene are moved, not copied.
+    virtual void add(const std::string& name, const std::string& type, json::object_t&& args) = 0;
 
     // -
 
-    virtual void overlay(cv::Mat& bg, size_t t) = 0;
-
-    // -
+    virtual Metadata getMetadata(size_t index) = 0;
 };

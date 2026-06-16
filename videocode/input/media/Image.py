@@ -1,15 +1,104 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
 
-from videocode.utils.decorators import inputCreation
-from videocode.input.input import *
+import hashlib
+import os
+import subprocess
+import urllib.parse
+
+from PIL import Image as PILImage
+
+from videocode.input.shape.Polygon import *
+from videocode.constants import WORLD_TO_SCREEN_RATIO
 
 
-class image(Input):
+__all__ = [
+    "Image",
+    "WebImage",
+]
 
-    @inputCreation
+
+class Image(Polygon):
+    cppName = "Image"
+    cppAttrs = Polygon.cppAttrs | {"filepath", "uvMapping", "uvAngle"}
+
     def __init__(
         self,
         filepath: str,
-    ) -> None:
+        width: maybe[wunumber] = None,
+        height: maybe[wunumber] = None,
+        cornerRadius: percent = 0,
+        strokeColor: rgba = TRANSPARENT,
+        strokeWidth: wufloat = 0,
+        uvMapping: Literal["stretch", "radial", "conic"] = "stretch",
+        uvAngle: wufloat = 0,
+    ):
+        """
+        `uvMapping` controls how the texture is wrapped onto the shape:
+
+        - `"stretch"` (default): bbox-normalized UVs — the texture is
+          stretched to the shape's bounding box.
+        - `"radial"`/`"conic"`: polar UVs around the bbox center, mirroring
+          `RadialGradient`/`ConicGradient`'s center/angle convention.
+          `uvAngle` (degrees) rotates the angular origin.
+        """
         self.filepath = filepath
+        self.uvMapping = uvMapping
+        self.uvAngle = uvAngle
+
+        # Rounding/stroking needs a known shape — if the caller didn't give
+        # one, fall back to the image's natural size (read from its header,
+        # no full decode).
+        if cornerRadius and width is None and height is None:
+            with PILImage.open(filepath) as img:
+                width, height = img.size
+            width /= WORLD_TO_SCREEN_RATIO
+            height /= WORLD_TO_SCREEN_RATIO
+
+        self.width = width
+        self.height = height
+
+        super().__init__(
+            vertices=self.generateVertices(),
+            fillColor=TRANSPARENT,
+            strokeColor=strokeColor,
+            strokeWidth=strokeWidth,
+            cornerRadius=cornerRadius,
+        )
+
+    def generateVertices(self) -> list[point]:
+        if self.width is None or self.height is None:
+            return []
+        return [(0, 0), (self.width, 0), (self.width, self.height), (0, self.height)]
+
+    @prop(onSet=Polygon.updatePoints)
+    def width() -> maybe[wunumber]: ...
+
+    @prop(onSet=Polygon.updatePoints)
+    def height() -> maybe[wunumber]: ...
+
+
+CACHE_DIR = "webimage"
+
+
+class WebImage(Image):
+    def __init__(self, url: str):
+        os.makedirs(CACHE_DIR, exist_ok=True)
+
+        parsed = urllib.parse.urlparse(url)
+        ext = os.path.splitext(parsed.path)[1] or ".png"
+        urlHash = hashlib.md5(url.encode()).hexdigest()
+        filepath = os.path.join(CACHE_DIR, urlHash + ext)
+
+        if not os.path.exists(filepath):
+            result = subprocess.run(
+                ["curl", "-L", "--ssl-reqd", "-o", filepath, url],
+                capture_output=True,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"Curl Error: {result.stderr.decode()}")
+
+        super().__init__(
+            filepath=filepath,
+        )

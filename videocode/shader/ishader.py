@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 from videocode.constants import *
 from videocode.utils.funcutils import *
 
@@ -17,15 +17,38 @@ class IShader(ABC):
 
     _type: str
 
-    duration: sec
+    start: maybe[sec] = None
+    duration: maybe[sec] = None
+    offset: maybe[frame] = None
+
+    def at(self, *, start: sec, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+        self.start = start
+        self.duration = duration
+        self.offset = offset
+        return self
+
+    def resolve(self, start: sec, duration: sec, offset: maybe[frame]) -> tuple[sec, sec, maybe[frame]]:
+        """
+        Use self default values if any else given ones.
+        """
+        return (
+            self.start if self.start is not None else start,
+            self.duration if self.duration is not None else duration,
+            self.offset if self.offset is not None else offset,
+        )
 
     @abstractmethod
     def __init__(self) -> None: ...
 
+    def __copy__(self) -> Self:
+        # Faster than the default copy.copy(): skips the generic
+        # __reduce_ex__/copyreg machinery for these plain-attribute objects.
+        new = self.__class__.__new__(self.__class__)
+        vars(new).update(vars(self))
+        return new
+
     def __str__(self) -> str:
-        s = f"\n{self.__class__.__name__}:\n"
-        for i in self.__dict__:
-            s += f"\t{i}='{self.__getattribute__(i)}'\n"
+        s = f"{self.__class__.__name__}"
         return s
 
     def __repr__(self) -> str:
@@ -35,11 +58,6 @@ class IShader(ABC):
 class FragmentShader(IShader):
     """
     An `FragmentShader` modifies the pixels of an `Input`.
-
-    .. code-block:: python
-        def fade() -> Effect: ...
-        def grayscale() -> Effect: ...
-
     """
 
     _type = "FragmentShader"
@@ -47,23 +65,30 @@ class FragmentShader(IShader):
 
 class VertexShader(IShader):
     """
-    A `VertexShader` modifies the geometry (metadata) of an `Input`.
+    A `VertexShader` modifies the metadata of an `Input`.
 
-    .. code-block:: python
-        def position() -> Transformation: ...
-        def scale() -> Transformation: ...
+    ### Geometry
+    - position
+    - align
+    - rotate
+    - scale
 
+    ### Visibility
+    - opacity
+    - hide
+    - show
+
+    ### Default arguments of an Input
+    - args
     """
 
     _type = "VertexShader"
 
-    """
-    affects only one frame
-    """
-    duration = SINGLE_FRAME
+    def autodestroy(self, i: Input) -> bool:
+        return False
 
     @abstractmethod
-    def modificator(self, i: Input):
+    def modify(self, i: Input) -> None:
         """
         Modify the `Input`'s `Metadata`. (may do more)
 

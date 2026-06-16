@@ -1,0 +1,229 @@
+# Rapport d'optimisation
+
+Benchmark reproductible : `python3 test/perf/bench.py` (rend
+`test/perf/stress_text.py` — 47 polygones de lettres animés, 300 frames en
+1080p, ~13 800 entrées de timeline — puis exécute la suite de régression
+visuelle). Machine : Apple Silicon, macOS, build release (`make cmake`).
+
+## Résultats
+
+| | Chargement (lancement → 1ʳᵉ frame) | Rendu | Total | RAM max | Suite de tests |
+|---|---|---|---|---|---|
+| **Avant** (11/06/2026) | 2,06 s | 17,0 ms/frame | 7,17 s | 686 Mo | 5,5 s |
+| **Après** (11/06/2026) | **0,56 s** | **9,5 ms/frame** | **3,42 s** | **461 Mo** | 5,8 s |
+| Gain | **3,7×** | **1,8×** | **2,1×** | −33 % | — |
+
+Détail par phase (build verbose, `make verbose`) : `executeStack` — la passe
+C++ qui ingère la timeline Python — est passée de ~1,9 s à **61 ms (~30×)**.
+Exactitude : les 19 tests de régression visuelle passent, et une frame prise
+au milieu de la vidéo du benchmark est identique au pixel près (différence
+moyenne 0,0) au rendu d'avant optimisation. La RAM restante vient
+essentiellement des buffers de l'encodeur x264 et de l'interpréteur Python
+embarqué, pas de notre code.
+
+## Ce qui était lent (cause racine)
+
+Le profiling (`sample` macOS sur le binaire release + `cProfile` sur la couche
+Python) a montré que le renderer passait l'essentiel de son temps CPU à
+**copier et libérer du JSON**, pas à faire du graphisme :
+
+- La `Metadata` de chaque input transporte ses arguments de création complets
+  sous forme d'objet `nlohmann::json` — pour un glyphe de texte, c'est un
+  contour d'environ 600 points, soit plus de 1500 nœuds JSON alloués sur le
+  tas.
+- Cet objet était **copié en profondeur une fois par frame et par input** au
+  chargement (`AInput::add` remplit `_metas` densément, une `Metadata`
+  complète par frame) et **à nouveau à chaque frame rendue**
+  (`AInput::getMetadata` renvoyait par valeur, et `meta.args["index"] = frame`
+  forçait la mutation/copie).
+- La boucle de frames était entièrement séquentielle : construction des
+  meshes (CPU) → rendu et attente du GPU → copie des pixels → `fwrite`
+  bloquant de 8,3 Mo dans le pipe FFmpeg. Chaque étape restait inactive
+  pendant que les autres travaillaient.
+
+## Optimisations nommées
+
+1. **Copy-on-write des arguments de métadonnées** (`Metadata.hpp`,
+   `AInput.cpp`, `IVertexShader.hpp`) — `Metadata::argsPtr` est un
+   `std::shared_ptr<const json::object_t>` au lieu d'un objet JSON par valeur.
+   Copier une `Metadata` n'est plus qu'une incrémentation de compteur de
+   références ; seul le rare vertex shader `Args` clone l'objet avant de le
+   modifier (copy-on-write classique). Ce seul changement a fait passer le
+   chargement de 2,06 s à 0,61 s et supprimé ~6 ms/frame de brassage JSON
+   dans la boucle de rendu — et il rend la timeline `_metas` dense (une
+   entrée par frame) assez bon marché pour qu'aucune restructuration en
+   keyframes creuses ne soit nécessaire.
+2. **Index de lecture sorti du JSON** (`Metadata::frameIndex`) — l'index de
+   lecture vidéo par frame était stocké *dans* le JSON des arguments
+   (`args["index"] = i`), forçant une copie modifiable de l'objet entier à
+   chaque frame pour chaque input. C'est maintenant un simple champ entier ;
+   seul `Video` le lit.
+3. **Transfert des meshes sans copie** — `Core::generateMeshes()` renvoie une
+   `const std::vector<Mesh>&` vers les meshes en cache au lieu de copier
+   chaque vertex de chaque mesh une fois par frame ; l'ingestion de la
+   timeline (`Core::rebuildInput` → `AInput::add`) déplace (move) le JSON des
+   arguments au lieu de le copier trois fois par entrée.
+4. **Encodage en pipeline** (`Compiler.cpp`) — le `fwrite` des frames brutes
+   dans le pipe FFmpeg s'exécute sur un thread d'écriture dédié derrière une
+   file bornée à 4 frames : la frame N est encodée par x264 pendant que la
+   frame N+1 est construite et rendue (c'était ~21 % de la boucle de frames,
+   entièrement séquentiel).
+5. **Imports Python paresseux** — `shapely` (qui entraîne numpy) n'est
+   importé que lorsque `Polygon.contains()` est appelé, et `python-chess`
+   (~100 ms de calcul de tables d'attaque à l'import) que lorsqu'un
+   `ChessBoard` est construit. `import videocode` : 112 ms → 60 ms.
+
+Correctif annexe : `make verbose` (`-DVC_VERBOSE`) est désormais réellement
+câblé dans CMake — il ne définissait rien auparavant — ce qui active le
+chronométrage `[startup]` des phases, utilisé pour mesurer les temps de
+chargement.
+
+## Optimisation suivante (12/06/2026) : morphing de texte
+
+Benchmark : `test/perf/stress_morph.py` (une lettre dont le caractère change
+chaque frame pendant 300 frames — déclenche le vertex shader `Args` sur
+`points`/`contourSizes` à chaque frame).
+
+Le profiling a montré que le clone-on-write de `Metadata::argsPtr` (point 1
+ci-dessus) avait un angle mort : quand le shader `Args` modifie justement
+`points` ou `contourSizes`, il clone quand même tout l'objet JSON avant
+d'écrire la nouvelle valeur dedans — soit, pour un glyphe, un tableau d'environ
+600 points (>1500 nœuds JSON alloués), ~20 % du coût par frame pendant le
+morphing.
+
+Correctif : `points`/`contourSizes` sont sortis de `argsPtr` et stockés dans
+deux nouveaux champs typés copy-on-write de `Metadata`
+(`shared_ptr<const vector<cv::Vec2f>>` / `shared_ptr<const vector<size_t>>`).
+Le cas `Args` du vertex shader (`IVertexShader.hpp`) les détecte par nom et se
+contente d'échanger le pointeur — **aucun clone JSON** — et `argsPtr` ne
+contient plus jamais ces tableaux, donc même les clones pour les autres champs
+(`fillColor`, etc.) restent désormais petits.
+
+| | Avant | Après | Gain |
+|---|---|---|---|
+| `Polygon::buildPath` (par lettre morphée) | 120–165 µs | 27–35 µs | **~4–5×** |
+| Clone JSON `[args-shader] clone+merge` (×~1.8/frame pendant le morphing) | 40–160 µs | 0 (supprimé) | — |
+
+Vérification : les 19 tests de régression visuelle passent (différence
+moyenne 0,0), y compris `reload-equivalence` qui exerce
+`AInput::resetModifications()`.
+
+## Optimisation suivante (12/06/2026) : chaîne d'appels Python (`apply`)
+
+Benchmark : `VC_PROFILE=1 ./video-code --file test/perf/stress_text.py
+--generate <out>` (profil cProfile intégré à `serialize.py`).
+
+Le profil cumulatif a montré plusieurs petits surcoûts répétés des milliers de
+fois dans `Input.apply()` et `IShader.resolve()` : le monade `Maybe(x) | y`
+(allocation + appel de méthode) pour de simples valeurs par défaut, et
+`copy.copy()` (passe par `__reduce_ex__`/copyregistry) pour dupliquer chaque
+shader appliqué.
+
+Correctifs, tous comportementalement neutres :
+- `IShader.resolve()` et les 3 sites `Maybe(...).orElse(...)` /
+  `Maybe(...) | ...` de `Input.apply()` inlinés en
+  `x if x is not None else y`.
+- `IShader.__copy__()` ajouté : `cls.__new__(cls)` + `__dict__.update()` au
+  lieu du protocole `copy.copy()` générique.
+- `Offset._sync()` met en cache `cos`/`sin` de l'angle au lieu de les
+  recalculer deux fois.
+- `upperFirst()` (`funcutils.py`) décoré `@lru_cache` (ensemble fixe de noms
+  de classes de shaders), et `Input.apply()` réutilise `__end = __start +
+  __duration` au lieu de le recalculer.
+
+| | Avant | Après | Gain |
+|---|---|---|---|
+| `execScene` (stress_text, cProfile) | 0,616 s | 0,371 s | **~40 %** |
+
+Vérification : les 19 tests de régression visuelle passent (différence
+moyenne 0,0), y compris `reload-equivalence`.
+
+Note : `copy.copy()` n'a volontairement pas été supprimé partout — seul le
+chemin rapide `__copy__` a été ajouté. `position.modify()` mute `self`
+(`self.x = i.meta.position.x = self.x if self.x is not None else
+i.meta.position.x`) pour combler les valeurs `None` ; sans la copie, un seul
+shader appliqué à plusieurs enfants verrait le premier enfant résolu corrompre
+les suivants.
+
+## Optimisation suivante (12/06/2026) : recouvrement GPU/CPU dans `readFrame`
+
+`VulkanHeadlessRenderer::readFrame()` se terminait par `vkQueueSubmit` +
+`vkQueueWaitIdle` puis une copie ligne par ligne de l'image de lecture vers un
+`cv::Mat` — entièrement séquentiel (mesuré sur `stress_morph.py` : ~5,4 ms de
+soumission+attente, ~1,4 ms de copie mémoire).
+
+Correctif : image de lecture **doublée** (`m_readbackImages[2]` /
+`m_readbackMemories[2]`) + une **fence** (`m_renderFence`), pipeline décalé
+d'une frame. `readFrame()` : si une soumission précédente est en attente,
+attend sa fence puis copie ses pixels (ce `memcpy` recouvre désormais le rendu
+GPU de la nouvelle frame) — le GPU étant alors inactif, les ressources
+partagées (UBO, buffers de sommets/indices, command buffer) peuvent être
+réécrites sans risque ; soumet ensuite la nouvelle frame dans l'autre
+emplacement de lecture sans attendre. Renvoie un `cv::Mat` vide au premier
+appel. Nouvelle méthode `flush()` pour récupérer la dernière frame en attente
+après la boucle de rendu.
+
+Sites d'appel adaptés : `Compiler::generateImage()` (`readFrame()` puis
+`flush()`), `Compiler::generateVideo()` (la file d'écriture ne reçoit que les
+résultats non vides, `flush()` après la boucle pour la dernière frame),
+`VisualTest::captureFrames()` (décalage d'index `i-1` dans la boucle, `flush()`
+pour la dernière frame demandée).
+
+| | Avant | Après |
+|---|---|---|
+| Rendu (`bench.py`, stress_text) | 7,1 ms/frame | 6,7–6,8 ms/frame |
+
+Vérification : les 19 tests de régression visuelle passent (différence
+moyenne 0,0) ; export vidéo réel (`animation.py`, 36 frames, durée/nombre de
+frames vérifiés via `ffprobe`) et export image unique testés. Le gain est plus
+faible que ce que suggérait le ratio mesuré sur `stress_morph` : `stress_text`
+a une charge GPU plus lourde, donc la copie mémoire masquée représente une
+fraction plus petite du temps par frame. `VulkanWidget` (aperçu temps réel)
+n'a pas été modifié — la même idée ne s'applique que « si l'aperçu se met à
+ramer » (`wherewasi`).
+
+## Optimisation suivante (13/06/2026) : cache de mesh (animation position/opacité)
+
+`BezierPath::getMesh()` reconstruit entièrement le `Mesh` à chaque frame via
+`MeshFactory` — extrusion du contour (stroke), assemblage du remplissage
+(earcut), et application de la matrice de transformation `M` à chaque sommet
+pour produire les coordonnées NDC finales. Pour une animation qui ne fait que
+déplacer ou faire apparaître/disparaître une forme (`moveTo`, fondu
+d'opacité), la géométrie locale, l'échelle, la rotation, les couleurs et les
+dégradés sont identiques d'une frame à l'autre : seule la translation NDC et
+l'alpha de chaque sommet changent, de façon **uniforme**.
+
+Correctif (`BezierPath.hpp`/`.cpp`) : un second cache, au niveau du `Mesh`
+complet (post-`MeshFactory`), garde le dernier mesh généré ainsi que la
+position/opacité utilisées pour le produire. Sa clé étend le hash de
+géométrie existant avec les champs qui influent sur les couleurs/sommets en
+dehors de la position/opacité (couleurs de remplissage/contour, largeur de
+trait, dégradés, alignement). Sur un cache hit :
+
+- translation NDC uniforme : `ndcDx = Δposition.x / windowWidth`,
+  `ndcDy = Δposition.y / windowHeight` ajoutée à `pos` de chaque sommet ;
+- mise à l'échelle de l'alpha : `color[3] *= meta.opacity / opacitéEnCache`.
+
+`MeshFactory` (extrusion de trait + earcut + transformation `M`) est
+entièrement court-circuité dans ce cas. Tout changement d'échelle, rotation,
+alignement, géométrie, couleur ou dégradé invalide le cache et déclenche une
+reconstruction complète — l'extrusion du trait dépend de l'échelle
+(`halfW = |scale.x| * largeurTrait / 2`), donc une translation/alpha-scale
+seule ne serait pas correcte dans ces cas.
+
+Mesure isolée (compteur de temps total passé dans `getMesh` sur le rendu
+complet de `stress_text.py`, 300 frames, 14 100 appels — élimine le bruit du
+GPU/encodage) :
+
+| | Avant | Après | Gain |
+|---|---|---|---|
+| Total `BezierPath::getMesh` (stress_text, 14 100 appels) | 55,0 ms | 39,4 ms | **~28 %** |
+| Par appel | 3,90 µs | 2,80 µs | — |
+
+Vérification : les 19 tests de régression visuelle passent (différence
+moyenne 0,0). Limitation documentée : le gain ne s'applique qu'aux frames où
+seules `position`/`opacity` changent (animations `moveTo`, fondu) ; une
+extension future pourrait pousser la transformation `M` en GPU (push
+constant) pour couvrir aussi l'échelle/rotation, mais l'extrusion de trait
+dépendante de l'échelle rendrait cela nettement plus complexe (cf. issue de
+suivi mentionnée dans `wherewasi`).

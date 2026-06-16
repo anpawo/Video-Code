@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 
-from videocode.constants import *
+from __future__ import annotations
+
 from videocode.shader.ishader import *
+from videocode.utils.classutils import Maybe
 
 
 class align(VertexShader):
@@ -11,18 +13,16 @@ class align(VertexShader):
     can be `None` if you only want to change one of the two.
     """
 
-    def __init__(self, x: number | None = None, y: number | None = None) -> None:
-        self.x: number | None = x
-        self.y: number | None = y
+    def __init__(self, x: maybe[number], y: maybe[number]) -> None:
+        self.x = x
+        self.y = y
 
-    def modificator(self, i: Input):
-        # Update the alignment of the Input
-        if self.x is not None:
-            i.meta.align.x = self.x
-        else:
-            self.x = i.meta.align.x
+    def autodestroy(self, i: Input) -> bool:
+        return (i.meta.align.x is None or i.meta.align.x == self.x) and (i.meta.align.y is None or i.meta.align.y == self.y)
 
-        if self.y is not None:
-            i.meta.align.y = self.y
-        else:
-            self.y = i.meta.align.y
+    def modify(self, i: Input):
+        i.meta.align = v2(
+            Maybe(self.x) | i.meta.align.x,
+            Maybe(self.y) | i.meta.align.y,
+        )
+        self.x, self.y = i.meta.align

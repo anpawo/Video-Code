@@ -7,29 +7,62 @@
 
 #include "input/AInput.hpp"
 
-#include <opencv2/core/hal/interface.h>
-
 #include <cstddef>
-#include <opencv2/core.hpp>
-#include <opencv2/core/mat.hpp>
 
 #include "input/IInput.hpp"
 #include "input/Metadata.hpp"
 #include "shader/IVertexShader.hpp"
 #include "shader/ShaderFactory.hpp"
 
+namespace
+{
+    // Pops "points"/"contourSizes" out of the Create() args (mutating in place) so the
+    // canonical json::object_t never carries them — see Metadata::pointsPtr/contourSizesPtr.
+    std::shared_ptr<const std::vector<cv::Vec2f>> extractPoints(json::object_t& args)
+    {
+        auto it = args.find("points");
+        if (it == args.end())
+            return nullptr;
+        auto points = parsePointsJson(it->second);
+        args.erase(it);
+        return points;
+    }
+
+    std::shared_ptr<const std::vector<size_t>> extractContourSizes(json::object_t& args)
+    {
+        auto it = args.find("contourSizes");
+        if (it == args.end())
+            return nullptr;
+        auto sizes = parseContourSizesJson(it->second);
+        args.erase(it);
+        return sizes;
+    }
+}
+
 AInput::AInput(json::object_t&& args)
-    : _baseArgs(std::move(args))
+    : _initialPoints(extractPoints(args))
+    , _initialContourSizes(extractContourSizes(args))
+    , _baseArgsPtr(std::make_shared<const json::object_t>(std::move(args)))
+    , _baseArgs(*_baseArgsPtr)
 {
 }
 
-void AInput::add(json& modification)
+void AInput::resetModifications()
 {
-    std::string name = modification["name"];
-    json::object_t args = modification["args"];
-    size_t start = modification["args"]["start"];
-    size_t duration = modification["args"]["duration"];
-    std::string type = modification["type"];
+    _hasArgsShader = false;
+    _effects.clear();
+    _effectTimeline.clear();
+    _metas = {Metadata{
+        .argsPtr = _baseArgsPtr,
+        .pointsPtr = _initialPoints,
+        .contourSizesPtr = _initialContourSizes,
+    }};
+}
+
+void AInput::add(const std::string& name, const std::string& type, json::object_t&& args)
+{
+    size_t start = args.at("start");
+    size_t duration = args.at("duration");
 
     if (type == "VertexShader") {
         VertexShader t = getTransformFromString.at(name);
@@ -39,6 +72,8 @@ void AInput::add(json& modification)
             _metas.resize(start + 1, meta);
         }
 
+        if (t == VertexShader::Args)
+            _hasArgsShader = true;
         getMetadataFromArgs(t, args, _metas[start]);
 
     } else if (type == "FragmentShader") {
@@ -59,68 +94,27 @@ void AInput::add(json& modification)
     }
 }
 
+std::vector<ActiveEffect> AInput::getActiveEffectsAtFrame(size_t frame) const
+{
+    if (frame >= _effectTimeline.size())
+        return {};
+
+    std::vector<ActiveEffect> result;
+    for (size_t i : _effectTimeline[frame]) {
+        const IFragmentShader* e = _effects[i].get();
+        result.push_back({std::string(e->shaderName()), e->paramsAtFrame(frame)});
+    }
+    return result;
+}
+
 Metadata AInput::getMetadata(size_t index)
 {
     Metadata meta = index >= _metas.size()
                         ? _metas.back()
                         : _metas[index];
 
-    meta.args["index"] = index;
+    meta.frameIndex = index;
+    meta.argsStatic = !_hasArgsShader;
 
     return meta;
-}
-
-/// TODO: use isContinuous() if it is (opti de fou)
-void AInput::overlay(cv::Mat& bg, size_t index)
-{
-    auto meta = getMetadata(index);
-
-    if (meta.hidden) {
-        return;
-    }
-
-    auto imgMat = getBaseMatrix(meta.args);
-
-    ///< TODO: render needs to keep track of the start index
-    if (index < _effectTimeline.size()) {
-        const auto& vec = _effectTimeline[index];
-
-        for (auto it = vec.begin(); it != vec.end(); it++) {
-            const auto& e = _effects[*it];
-            e->render(imgMat, index - e->start());
-        }
-    }
-
-    auto tsfMat = getTransformationMatrixFromMetadata(imgMat.size(), meta).inv();
-
-    // draw
-    for (int y = 0; y < bg.rows; ++y) {
-        auto* dstRow = bg.ptr<cv::Vec4b>(y);
-        for (int x = 0; x < bg.cols; ++x) {
-
-            cv::Vec3f dstPixel(x, y, 1.0f);
-            cv::Vec3f srcPixel = tsfMat * dstPixel;
-
-            float u = srcPixel[0];
-            float v = srcPixel[1];
-
-            if (u >= 0 && v >= 0 && u < imgMat.cols && v < imgMat.rows) {
-                cv::Vec4b src = imgMat.at<cv::Vec4b>((int)v, (int)u);
-                cv::Vec4b& dst = dstRow[x];
-
-                // source alpha
-                float alpha = src[3] / 255.0f;
-
-                // B, G, R
-                for (int c = 0; c < 3; ++c) {
-                    dst[c] = static_cast<uchar>(
-                        src[c] * alpha + dst[c] * (1.0f - alpha)
-                    );
-                }
-
-                // Optional: update destination alpha
-                dst[3] = src[3];
-            }
-        }
-    }
 }
