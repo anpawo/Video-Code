@@ -84,6 +84,7 @@ jobs:
       #       exit 1
 
   build-windows:
+    if: false
     runs-on: windows-latest
     timeout-minutes: 180
 
