@@ -6,8 +6,6 @@ import math
 
 from abc import abstractmethod
 from videocode.input.input import Input
-from videocode.template.effect.highlight import highlight
-from videocode.utils.bezier import Easing, easing
 from videocode.utils.classutils import Maybe
 from videocode.utils.decorators import inputCreation, prop
 from videocode.ty import *
@@ -224,14 +222,3 @@ class Polygon(Input):
         local_y = dy_r / sy + pivot_y
 
         return geo.Polygon([*self.vertices]).contains(geo.Point(local_x, local_y))
-
-    def highlight(
-        self,
-        *,
-        scaleFactor: number = 1.2,
-        color: maybe[rgba] = YELLOW,
-        start: sec = 0,
-        duration: sec = 1.0,
-        easing: easing = Easing.ThereAndBack,
-    ) -> Self:
-        return self.apply(*highlight(self, scaleFactor=scaleFactor, color=color, start=start, duration=duration, easing=easing))

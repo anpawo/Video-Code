@@ -6,7 +6,7 @@ import math
 
 
 from videocode import *
-from videocode.template.effect.click import click
+from videocode.template.effect.core.click import click
 from videocode.template.input.Button import Button
 from videocode.template.input.Arrow import Arrow, Arrow, Cursor
 from videocode.template.input.Graph import *

@@ -165,9 +165,6 @@ Every `Input` (shape, text, group, ...) has:
 **Eased animations** (`start`, `duration`, `easing: RateFunc`):
 - `moveTo`/`moveBy`, `scaleTo`/`scaleBy`, `rotateTo`/`rotateBy`,
   `alignTo`, `fadeIn`/`fadeOut`
-- `highlight(scaleFactor=1.2, color=YELLOW, ...)` — briefly scale up and
-  flash `fillColor`, both returning via `Easing.ThereAndBack`; requires a
-  `Polygon` input (raises `TypeError` otherwise)
 - Generic: `ease(attr, to, ...)` / `easeTogether(...)` — animate *any*
   `@prop` attribute frame-by-frame (e.g. `Rectangle.ease("width", 5,
   duration=1)`, used for #125's width/height/radius animation)
@@ -245,8 +242,9 @@ Named colors and directional constants live in `videocode/constants.py`:
 
 ## Effects (`videocode/template/effect/`)
 
-Standalone helper functions/classes that build shader sequences — most are
-also exposed as `Input` methods (above) but can be used directly:
+Standalone generator functions that build shader sequences. Call via `input.apply(*effect(input, ...))`.
+
+### Core (`effect/core/`) — the main animation effects, also wired as `Input` methods
 
 | Name | File | What it is |
 |---|---|---|
@@ -255,8 +253,13 @@ also exposed as `Input` methods (above) but can be used directly:
 | `rotateTo`/`rotateBy` | `rotateTo.py` | Rotation easing |
 | `alignTo` | `alignTo.py` | Align easing |
 | `fadeTo` | `fadeTo.py` | Opacity easing |
-| `highlight(scaleFactor, color, ...)` | `highlight.py` | Scale pulse + `fillColor` flash, both `ThereAndBack`; requires a `Polygon` input |
 | `click(low, up, start, duration, easing)` | `click.py` | Iterable of `scale` shaders producing a "press down/release" pulse — see `ParticlesRay`/`Button` usage |
+
+### Other (`effect/other/`) — standalone effects, not exposed as Input methods
+
+| Name | File | What it is |
+|---|---|---|
+| `highlight(input, scaleFactor, color, ...)` | `highlight.py` | Scale pulse + `fillColor` flash via `Easing.ThereAndBack`; `input` must be a `Polygon` |
 
 Easing curves (`videocode/utils/bezier.py`):
 - CSS-style cubic-beziers (`CubicBezier`): `Easing.Linear`, `Easing.In`,
@@ -304,7 +307,7 @@ videocode/
 │   └── fragmentShader/    # pixel post-processing shaders
 ├── template/
 │   ├── input/             # composite inputs (Plane, Box, Button, Graph, ...)
-│   └── effect/            # animation-sequence helper functions
+│   └── effect/            # animation-sequence helper functions (core/, other/)
 ├── color.py               # rgba + gradients
 ├── constants.py           # world-space constants, named colors, directions
 └── serialize.py           # scene -> JSON action stack

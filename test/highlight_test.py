@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 """
-Assertion-based smoke tests for `Polygon.highlight()`
-— `videocode/template/effect/highlight.py`. Briefly scales a `Polygon` up by
+Assertion-based smoke tests for `highlight()`
+— `videocode/template/effect/other/highlight.py`. Briefly scales a `Polygon` up by
 `scaleFactor` and flashes its `fillColor`, both via `Easing.ThereAndBack`
 (`self(0) == self(1) == 0`) so the shape returns to its original size/color.
 Run directly: `python3 test/highlight_test.py`
@@ -13,7 +13,7 @@ import sys
 sys.path.insert(0, ".")
 
 from videocode import Rectangle, Context, Easing, YELLOW, RED
-from videocode.input.interface.Group import Group
+from videocode.template.effect.other.highlight import highlight
 
 failures: list[str] = []
 
@@ -37,7 +37,7 @@ def framesWith(index: int, key: str) -> dict[int, dict]:
 # ── default: scale pulse + YELLOW flash ─────────────────────────────────────
 print("highlight(): default scaleFactor + YELLOW fillColor flash")
 r = Rectangle(fillColor=RED)
-r.highlight(duration=0.2)  # 6 frames
+r.apply(*highlight(r, duration=0.2))
 
 scaleFrames = framesWith(r.meta.index, "Scale")
 check("Scale frames pushed", len(scaleFrames) > 1)
@@ -63,7 +63,7 @@ check("fillColor flashes toward YELLOW mid-animation", midColor.g > firstColor.g
 # ── color=None: scale-only, no fillColor frames ─────────────────────────────
 print("highlight(color=None): scale-only, no fillColor frames")
 r2 = Rectangle(fillColor=RED)
-r2.highlight(color=None, duration=0.2)
+r2.apply(*highlight(r2, color=None, duration=0.2))
 
 check("Scale frames pushed", len(framesWith(r2.meta.index, "Scale")) > 1)
 check("no Args:fillColor frames", len(framesWith(r2.meta.index, "Args:fillColor")) == 0)
@@ -72,7 +72,7 @@ check("no Args:fillColor frames", len(framesWith(r2.meta.index, "Args:fillColor"
 # ── custom scaleFactor + easing ──────────────────────────────────────────────
 print("highlight(scaleFactor=1.5, color=None, easing=Easing.Wiggle)")
 r3 = Rectangle(fillColor=RED)
-r3.highlight(scaleFactor=1.5, color=None, easing=Easing.Wiggle, duration=0.2)
+r3.apply(*highlight(r3, scaleFactor=1.5, color=None, easing=Easing.Wiggle, duration=0.2))
 
 wiggleFrames = framesWith(r3.meta.index, "Scale")
 check("Scale frames pushed", len(wiggleFrames) > 1)

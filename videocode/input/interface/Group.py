@@ -7,7 +7,7 @@ from typing import Any
 from typing_extensions import TypeVar
 from videocode.input.input import *
 from videocode.input.interface.Interface import Interface
-from videocode.template.effect.moveTo import groupMoveBy, groupMoveTo
+from videocode.template.effect.core.moveTo import groupMoveBy, groupMoveTo
 
 
 _GROUP_T = TypeVar("_GROUP_T", bound=Input, default=Input)

@@ -5,11 +5,11 @@ from __future__ import annotations
 from copy import copy as _shallow_copy
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Self, cast
-from videocode.template.effect.alignTo import alignTo
-from videocode.template.effect.fadeTo import fadeTo
-from videocode.template.effect.moveTo import moveTo, moveBy
-from videocode.template.effect.rotateTo import rotateBy, rotateTo
-from videocode.template.effect.scaleTo import scaleBy, scaleTo
+from videocode.template.effect.core.alignTo import alignTo
+from videocode.template.effect.core.fadeTo import fadeTo
+from videocode.template.effect.core.moveTo import moveTo, moveBy
+from videocode.template.effect.core.rotateTo import rotateBy, rotateTo
+from videocode.template.effect.core.scaleTo import scaleBy, scaleTo
 from videocode.shader.ishader import IShader, VertexShader
 from videocode.context import *
 from videocode.constants import *

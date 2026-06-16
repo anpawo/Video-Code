@@ -3,6 +3,7 @@
 
 from videocode import *
 from videocode.template.input._inputs import *
+from videocode.template.effect.other.highlight import highlight
 
 
 SLOT = 4.0  # seconds per demo
@@ -27,7 +28,7 @@ t0 = 0 * SLOT
 
 label("highlight()", t0)
 r1 = Rectangle(width=3, height=1.5, fillColor=BLUE_C | WHITE).position(0, 0)
-r1.highlight(start=t0 + 0.4, duration=2.5)
+r1.apply(*highlight(r1, start=t0 + 0.4, duration=2.5))
 fadeOutAt(r1, t0 + SLOT - 0.5)
 
 
@@ -65,7 +66,8 @@ fadeOutAt(x4, t3 + SLOT - 0.5)
 t4 = 4 * SLOT
 
 label("FocusOn()", t4)
-FocusOn(0, 0, start=t4 + 0.3, duration=2.5)
+f5 = FocusOn(0, 0, start=t4 + 0.3, duration=2.5)
+fadeOutAt(f5, t4 + SLOT - 0.5)
 
 
 # ── 6. DashedLine ────────────────────────────────────────────────────────────
