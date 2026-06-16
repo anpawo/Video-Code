@@ -28,6 +28,7 @@ using json = nlohmann::json;
     X(Grain)       \
     X(Brightness)  \
     X(Contrast)    \
+    X(Sharpen)     \
     X(Crop)
 
 // -------------------------------------------------------------------------
