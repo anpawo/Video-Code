@@ -120,9 +120,11 @@ def _normalizeStops(
         end = i + 1
         while positions[end] is None:
             end += 1
-        span = positions[end] - positions[start]
+        p_start = cast(float, positions[start])
+        p_end = cast(float, positions[end])
+        span = p_end - p_start
         for k in range(start + 1, end):
-            positions[k] = positions[start] + span * (k - start) / (end - start)
+            positions[k] = p_start + span * (k - start) / (end - start)
         i = end + 1
 
     resolved = cast(list[float], positions)

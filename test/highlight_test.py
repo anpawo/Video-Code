@@ -11,31 +11,20 @@ Run directly: `python3 test/highlight_test.py`
 import sys
 
 sys.path.insert(0, ".")
+sys.path.insert(0, "test")
+from helpers import check, section, summary
 
 from videocode import Rectangle, Context, Easing, YELLOW, RED
 from videocode.template.effect.other.highlight import highlight
 
-failures: list[str] = []
-
-
-def check(label: str, condition: bool):
-    if condition:
-        print(f"  ok   {label}")
-    else:
-        print(f"  FAIL {label}")
-        failures.append(label)
-
-
 def approx(a: float, b: float, tol: float = 1e-3) -> bool:
     return abs(a - b) < tol
-
 
 def framesWith(index: int, key: str) -> dict[int, dict]:
     return {f: entry[key] for f, entry in Context.stack[index].items() if f != -1 and key in entry}
 
-
 # ── default: scale pulse + YELLOW flash ─────────────────────────────────────
-print("highlight(): default scaleFactor + YELLOW fillColor flash")
+section("highlight(): default scaleFactor + YELLOW fillColor flash")
 r = Rectangle(fillColor=RED)
 r.apply(*highlight(r, duration=0.2))
 
@@ -59,18 +48,16 @@ midColor = colorFrames[sorted(colorFrames)[len(colorFrames) // 2]]["args"]["valu
 firstColor = colorFrames[min(colorFrames)]["args"]["value"]
 check("fillColor flashes toward YELLOW mid-animation", midColor.g > firstColor.g)
 
-
 # ── color=None: scale-only, no fillColor frames ─────────────────────────────
-print("highlight(color=None): scale-only, no fillColor frames")
+section("highlight(color=None): scale-only, no fillColor frames")
 r2 = Rectangle(fillColor=RED)
 r2.apply(*highlight(r2, color=None, duration=0.2))
 
 check("Scale frames pushed", len(framesWith(r2.meta.index, "Scale")) > 1)
 check("no Args:fillColor frames", len(framesWith(r2.meta.index, "Args:fillColor")) == 0)
 
-
 # ── custom scaleFactor + easing ──────────────────────────────────────────────
-print("highlight(scaleFactor=1.5, color=None, easing=Easing.Wiggle)")
+section("highlight(scaleFactor=1.5, color=None, easing=Easing.Wiggle)")
 r3 = Rectangle(fillColor=RED)
 r3.apply(*highlight(r3, scaleFactor=1.5, color=None, easing=Easing.Wiggle, duration=0.2))
 
@@ -79,13 +66,5 @@ check("Scale frames pushed", len(wiggleFrames) > 1)
 last = wiggleFrames[max(wiggleFrames)]["args"]["x"]
 check("scale returns near 1.0 (wiggle)", approx(last, 1.0, tol=1e-2))
 
-
 # ── summary ──────────────────────────────────────────────────────────────────
-print()
-if failures:
-    print(f"{len(failures)} FAILURE(S):")
-    for f in failures:
-        print(f"  - {f}")
-    sys.exit(1)
-else:
-    print("All checks passed.")
+summary()

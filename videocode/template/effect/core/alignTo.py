@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 def alignTo(
-    input: "Input",
+    input: Input,
     x: maybe[wnumber] = None,
     y: maybe[wnumber] = None,
     *,

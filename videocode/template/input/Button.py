@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from videocode.constants import rgba
 from videocode.input.interface.Group import Group
-from videocode.input.interface.Offset import Offset
 from videocode.input.shape.Rectangle import Rectangle
 from videocode.input.shape.text.Text import Text
 from videocode.constants import *

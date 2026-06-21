@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Protocol
 
-from videocode.ty import rgba
+from videocode.ty import rgba, wnumber, maybe, wnumber
+from typing import Self
 from videocode.utils.decorators import autoProp, propagate
 
 if TYPE_CHECKING:

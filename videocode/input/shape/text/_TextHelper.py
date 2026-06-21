@@ -7,7 +7,6 @@ import subprocess
 from functools import cache
 
 from pathlib import Path
-from videocode.input.interface.Offset import Offset
 from videocode.ty import *
 from typing import TYPE_CHECKING, Any
 
@@ -233,25 +232,32 @@ def buildLetterData(
 ) -> list[tuple[str, float, float]]:
     """
     Returns (char, x_offset, y_offset) for each rendered glyph.
+    Newlines split the text into lines; each subsequent line is offset downward
+    by one line height (ascender − descender, scaled).
     """
     path = fontPath(fontFamily, bold, italic)
-    _, hbFont, _, capH, __ = loadFaces(path)
+    _, hbFont, _, capH, (desc, asc) = loadFaces(path)
     scale = fontSize / capH
+    lineHeight = (asc - desc) * scale
 
-    infos, positions = shape(text, hbFont)
     result: list[tuple[str, float, float]] = []
-    cx = cy = 0.0
 
-    for info, pos in zip(infos, positions):
-        xOff = cx + pos.x_offset * scale
-        yOff = cy + pos.y_offset * scale
-        cached = _glyphVerts(path, info.codepoint)
-        if cached:
-            verts = [(x * scale, y * scale) for x, y in cached]
-            char = text[info.cluster] if info.cluster < len(text) else ""
-            result.append((char, xOff + min(v[0] for v in verts), yOff + min(v[1] for v in verts)))
-        cx += pos.x_advance * scale
-        cy += pos.y_advance * scale
+    for lineIdx, line in enumerate(text.split("\n")):
+        if not line:
+            continue
+        yBase = -lineIdx * lineHeight
+        infos, positions = shape(line, hbFont)
+        cx = 0.0
+
+        for info, pos in zip(infos, positions):
+            xOff = cx + pos.x_offset * scale
+            yOff = yBase + pos.y_offset * scale
+            cached = _glyphVerts(path, info.codepoint)
+            if cached:
+                verts = [(x * scale, y * scale) for x, y in cached]
+                char = line[info.cluster] if info.cluster < len(line) else ""
+                result.append((char, xOff + min(v[0] for v in verts), yOff + min(v[1] for v in verts)))
+            cx += pos.x_advance * scale
 
     return result
 
@@ -273,11 +279,11 @@ def buildLetters(
     fillColor: rgba,
     strokeColor: rgba,
     strokeWidth: float,
-) -> list[Offset[Letter]]:
+) -> list[Letter]:
     from videocode.input.shape.text.Text import Letter
 
-    letters: list[Offset[Letter]] = []
-    for char, x, y in buildLetterData(text, fontSize, fontFamily, bold, italic):
+    letters: list[Letter] = []
+    for char, _x, _y in buildLetterData(text, fontSize, fontFamily, bold, italic):
         letter = Letter(
             char=char,
             fontSize=fontSize,
@@ -288,6 +294,6 @@ def buildLetters(
             strokeColor=strokeColor,
             strokeWidth=strokeWidth,
         )
-        letters.append(Offset(letter, x=x, y=y))
+        letters.append(letter)
 
     return letters

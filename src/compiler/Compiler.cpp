@@ -7,12 +7,14 @@
 
 #include "compiler/Compiler.hpp"
 
+#include <chrono>
 #include <cmath>
 #include <condition_variable>
 #include <deque>
 #include <format>
 #include <iostream>
 #include <mutex>
+#include <string>
 #include <thread>
 
 #include "input/media/Sound.hpp"
@@ -69,6 +71,58 @@ namespace
 
         result.output = std::format(" -filter_complex \"{}\" -map 0:v -map \"[{}]\" -c:a aac", filterComplex, outLabel);
         return result;
+    }
+
+    // ── Progress bar (pip-style) ──────────────────────────────────────────────
+
+    constexpr const char* kReset = "\033[0m";
+    constexpr const char* kGreenB = "\033[1;32m";
+    constexpr const char* kDim = "\033[2m";
+    constexpr const char* kBold = "\033[1m";
+
+    std::string rep(const char* s, int n)
+    {
+        std::string out;
+        out.reserve(std::string(s).size() * (size_t)n);
+        for (int k = 0; k < n; ++k) out += s;
+        return out;
+    }
+
+    // Red (0%) → yellow (50%) → green (100%) via 24-bit ANSI RGB.
+    std::string barColor(double frac)
+    {
+        frac = frac < 0.0 ? 0.0 : frac > 1.0 ? 1.0
+                                             : frac;
+        int r, g;
+        if (frac <= 0.5) {
+            r = 210;
+            g = (int)(frac * 2.0 * 180);
+        } else {
+            r = (int)((1.0 - frac) * 2.0 * 210);
+            g = 180;
+        }
+        return std::format("\033[38;2;{};{};0m", r, g);
+    }
+
+    // Overwrites the current terminal line with the progress bar.
+    void printProgress(size_t done, size_t total, double /*elapsed*/)
+    {
+        constexpr int W = 40;
+        double        frac = total > 0 ? (double)done / (double)total : 0.0;
+        int           filled = std::min(W, (int)(frac * W + 0.5));
+        int           empty = W - filled;
+        int           pct = std::min(100, (int)(frac * 100 + 0.5));
+
+        std::string bar = "   ";
+        bar += barColor(frac);
+        bar += rep("━", filled);
+        if (empty > 0) {
+            bar += kDim;
+            bar += rep("╌", empty);
+        }
+        bar += kReset;
+        bar += std::format("  {:3d}%  {}/{} frames", pct, done, total);
+        std::cout << "\r" << bar << std::flush;
     }
 }
 
@@ -200,6 +254,19 @@ int VC::Compiler::generateVideo()
                        ? sceneFrames
                        : (size_t)std::llround((double)sceneFrames * config.framerate / Config::SCENE_FRAMERATE);
 
+    // Header line — printed once; ETA is appended in-place after the first frame.
+    auto fmtDur = [](double secs) -> std::string {
+        return secs < 60.0
+            ? std::format("{:.1f}s", secs)
+            : std::format("{:d}:{:02d} min", (int)secs / 60, (int)secs % 60);
+    };
+    double      durSecs = config.framerate > 0 ? (double)total / config.framerate : 0.0;
+    std::string headerBase = std::string(kBold) + "Generating" + kReset + "  " + config.outputFile + "   " + kDim + std::format("{}x{} · {} fps · {} · {} frames", (int)config.screenWidth, (int)config.screenHeight, config.framerate, fmtDur(durSecs), total) + kReset;
+    std::cout << headerBase << "\n";
+
+    auto   t0      = std::chrono::steady_clock::now();
+    double etaSecs = -1.0; // set once after the first frame, never updated again
+
     for (size_t i = 0; i < total; ++i) {
         size_t sceneIndex = (config.framerate == Config::SCENE_FRAMERATE)
                                 ? i
@@ -231,7 +298,15 @@ int VC::Compiler::generateVideo()
             notEmpty.notify_one();
         }
 
-        std::cout << std::format("\rGenerating frame {}/{}...", i + 1, total) << std::flush;
+        double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+        if (etaSecs < 0.0 && elapsed > 0.0) {
+            etaSecs = elapsed * (double)total; // first frame time × total
+            // Go up one line and reprint the header with ETA appended.
+            std::cout << "\033[1A\r\033[2K"
+                      << headerBase << kDim << " · eta " << fmtDur(etaSecs)
+                      << kReset << "\n";
+        }
+        printProgress(i + 1, total, elapsed);
     }
 
     {
@@ -259,7 +334,16 @@ int VC::Compiler::generateVideo()
     pclose(pipe);
     if (writeFailed)
         return 1;
-    std::cout << std::format("\nDone → {}\n", config.outputFile);
+
+    double totalElapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+
+    std::string doneBar = std::string(kGreenB) + "✓" + kReset + "  ";
+    doneBar += barColor(1.0);
+    doneBar += rep("━", 40);
+    doneBar += kReset;
+    doneBar += std::format("  100%  {:.1f}s", totalElapsed);
+    doneBar += "                    "; // clear leftover frame-count text
+    std::cout << "\r" << doneBar << "\n";
     return 0;
 }
 
@@ -280,6 +364,6 @@ int VC::Compiler::generateImage(VulkanHeadlessRenderer& renderer)
         return 1;
     }
 
-    std::cout << std::format("Done → {}\n", config.outputFile);
+    std::cout << kGreenB << "✓" << kReset << "  " << config.outputFile << "\n";
     return 0;
 }

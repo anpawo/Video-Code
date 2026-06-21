@@ -4,4 +4,6 @@ freetype-py
 uharfbuzz
 Pillow
 svgelements
+pygments
 typing_extensions
+pyright

@@ -4,8 +4,7 @@ from __future__ import annotations
 
 from videocode.constants import TRANSPARENT, WHITE
 from videocode.input.interface.Group import Group
-from videocode.input.interface.Offset import Offset
-from videocode.input.shape.svg._SVGHelper import buildOffsets
+from videocode.input.shape.svg._SVGHelper import buildPaths
 from videocode.input.shape.svg.SVGPath import SVGPath
 from videocode.input.shape.tex._TexHelper import texToSVG
 from videocode.ty import *
@@ -18,12 +17,12 @@ __all__ = [
 ]
 
 
-class MathTex(Group[Offset[SVGPath]], _hasFillStroke):
+class MathTex(Group[SVGPath], _hasFillStroke):
     """
     Renders a LaTeX math expression (e.g. `r"\\frac{1}{2} + \\int_0^1 x^2 dx"`)
     as a group of vector shapes — compiled via `latex` + `dvisvgm --no-fonts`
     (`_TexHelper.texToSVG`) and loaded through the same SVG pipeline as `SVG`
-    (`_SVGHelper.buildOffsets`).
+    (`_SVGHelper.buildPaths`).
 
     Unlike `SVG`, every shape is recolored to `fillColor`/`strokeColor`/
     `strokeWidth` (dvisvgm always renders solid black) — via `_hasFillStroke`,
@@ -50,7 +49,7 @@ class MathTex(Group[Offset[SVGPath]], _hasFillStroke):
         self.strokeWidth = strokeWidth
 
         svgPath = texToSVG(tex, mathMode=mathMode)
-        super().__init__(*buildOffsets(svgPath, width, height, fillColor, strokeColor, strokeWidth))
+        super().__init__(*buildPaths(svgPath, width, height, fillColor, strokeColor, strokeWidth))
 
 
 class Tex(MathTex):

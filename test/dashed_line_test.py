@@ -12,27 +12,17 @@ import math
 import sys
 
 sys.path.insert(0, ".")
+sys.path.insert(0, "test")
+from helpers import check, section, summary
 
 from videocode import TRANSPARENT, RED, WHITE
 from videocode.template.input._inputs import DashedLine
 
-failures: list[str] = []
-
-
-def check(label: str, condition: bool):
-    if condition:
-        print(f"  ok   {label}")
-    else:
-        print(f"  FAIL {label}")
-        failures.append(label)
-
-
 def approx(a: float, b: float, tol: float = 1e-3) -> bool:
     return abs(a - b) < tol
 
-
 # ── horizontal line: dashes evenly spaced, aligned ───────────────────────────
-print("DashedLine(0,0 -> 3,0): horizontal, default styling")
+section("DashedLine(0,0 -> 3,0): horizontal, default styling")
 d = DashedLine(0, 0, 3, 0)
 
 expectedN = round(3 / 0.16)
@@ -47,9 +37,8 @@ for dash in d.inputs:
 check("first dash near start", d.inputs[0].meta.position.x < d.inputs[-1].meta.position.x)
 check("dashes span from x1 to x2", 0 < d.inputs[0].meta.position.x < 3 and 0 < d.inputs[-1].meta.position.x < 3)
 
-
 # ── diagonal line: dashes rotated to the line's angle ───────────────────────
-print("DashedLine(0,0 -> 1,1): diagonal, custom color/dashedRatio")
+section("DashedLine(0,0 -> 1,1): diagonal, custom color/dashedRatio")
 d2 = DashedLine(0, 0, 1, 1, color=RED, dashedRatio=80)
 
 expectedAngle = math.degrees(math.atan2(1, 1))
@@ -58,13 +47,5 @@ for dash in d2.inputs:
     check("custom color is RED", dash.fillColor == RED)
     check("custom dashedRatio applied", approx(dash.width, 0.16 * 0.8))
 
-
 # ── summary ──────────────────────────────────────────────────────────────────
-print()
-if failures:
-    print(f"{len(failures)} FAILURE(S):")
-    for f in failures:
-        print(f"  - {f}")
-    sys.exit(1)
-else:
-    print("All checks passed.")
+summary()

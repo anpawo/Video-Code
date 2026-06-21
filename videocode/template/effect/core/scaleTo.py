@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 def scaleTo(
-    input: "Input",
+    input: Input,
     x: maybe[wnumber] = None,
     y: maybe[wnumber] = None,
     *,
@@ -29,7 +29,7 @@ def scaleTo(
 
 
 def scaleBy(
-    input: "Input",
+    input: Input,
     x: maybe[wnumber] = None,
     y: maybe[wnumber] = None,
     *,

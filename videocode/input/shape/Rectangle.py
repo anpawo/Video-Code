@@ -15,6 +15,7 @@ class Rectangle(Polygon):
         fillColor: rgba = BLUE_C | BLACK,
         strokeColor: rgba = BLUE_C | WHITE,
         strokeWidth: wunumber = 0.05,
+        strokeInside: bool = False,
         cornerRadius: percent = 0,  # percent 0-100, 100 = circle on a square
     ):
         self.width = width
@@ -26,6 +27,7 @@ class Rectangle(Polygon):
             strokeColor=strokeColor,
             strokeWidth=strokeWidth,
             cornerRadius=cornerRadius,
+            strokeInside=strokeInside,
         )
 
     def generateVertices(self) -> list[point]:

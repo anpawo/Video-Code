@@ -12,27 +12,17 @@ import math
 import sys
 
 sys.path.insert(0, ".")
+sys.path.insert(0, "test")
+from helpers import check, section, summary
 
 from videocode import Rectangle, TRANSPARENT, RED, BLUE
 from videocode.template.input._inputs import Cross
 
-failures: list[str] = []
-
-
-def check(label: str, condition: bool):
-    if condition:
-        print(f"  ok   {label}")
-    else:
-        print(f"  FAIL {label}")
-        failures.append(label)
-
-
 def approx(a: float, b: float, tol: float = 1e-3) -> bool:
     return abs(a - b) < tol
 
-
 # ── default: two diagonal lines spanning the bbox + 2*buff ──────────────────
-print("Cross(Rectangle): default buff/color")
+section("Cross(Rectangle): default buff/color")
 r = Rectangle(width=2, height=1).position(3, 1)
 x = Cross(r)
 
@@ -54,9 +44,8 @@ check("default color is RED", line1.fillColor == RED and line2.fillColor == RED)
 check("strokeColor is transparent", line1.strokeColor == TRANSPARENT)
 check("zIndex is one above shape", line1.meta.zIndex == r.meta.zIndex + 1)
 
-
 # ── custom buff/color, scale and rotation copied ─────────────────────────────
-print("Cross(Rectangle): custom buff/color, scale+rotation copied")
+section("Cross(Rectangle): custom buff/color, scale+rotation copied")
 r2 = Rectangle(width=2, height=1).position(0, 0).scale(2).rotation(45)
 x2 = Cross(r2, buff=0.2, color=BLUE)
 
@@ -70,13 +59,5 @@ expectedAngle2 = math.degrees(math.atan2(height2, width2))
 check("rotation includes shape rotation", approx(line1b.meta.rotation, expectedAngle2 + 45))
 check("mirrored rotation includes shape rotation", approx(line2b.meta.rotation, -expectedAngle2 + 45))
 
-
 # ── summary ──────────────────────────────────────────────────────────────────
-print()
-if failures:
-    print(f"{len(failures)} FAILURE(S):")
-    for f in failures:
-        print(f"  - {f}")
-    sys.exit(1)
-else:
-    print("All checks passed.")
+summary()

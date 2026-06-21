@@ -25,6 +25,14 @@ class Sound(Input):
     cppName = "Sound"
     cppAttrs = {"filepath", "volume", "delay", "trimStart", "trimEnd"}
 
+    @property
+    def width(self) -> wnumber:
+        return 0
+
+    @property
+    def height(self) -> wnumber:
+        return 0
+
     @inputCreation
     def __init__(
         self,

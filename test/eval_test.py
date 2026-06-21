@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
 
-
 # from videocode.VideoCode import *
 
 s = r"""
 
-
 def test():
     z = 0
     print(z, end="\n\n")  # ❌ NameError: z is not defined
-
 
 test()
 """

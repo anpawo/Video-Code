@@ -25,6 +25,7 @@ from videocode.shader.vertexShader.align import *
 from videocode.shader.vertexShader.args import *
 from videocode.shader.vertexShader.hide import *
 from videocode.shader.vertexShader.position import *
+from videocode.shader.vertexShader.translate import *
 from videocode.shader.vertexShader.rotate import *
 from videocode.shader.vertexShader.opacity import *
 from videocode.shader.vertexShader.scale import *

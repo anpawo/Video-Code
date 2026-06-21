@@ -31,6 +31,6 @@ class Interface(Input):
         self.broadcast(lambda i: i.wait(n))
         return self
 
-    def waitFor(self, other: Input) -> Self:
-        self.broadcast(lambda i: i.waitTo(other.meta.lastAffectedFrame))
+    def waitFor(self, i: Input) -> Self:
+        self.broadcast(lambda m: m.waitTo(i.meta.lastAffectedFrame))
         return self

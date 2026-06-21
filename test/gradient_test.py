@@ -10,36 +10,25 @@ preservation, color math). Run directly: `python3 test/gradient_test.py`
 import sys
 
 sys.path.insert(0, ".")
+sys.path.insert(0, "test")
+from helpers import check, section, summary
 
 from videocode import RED, GREEN, BLUE, WHITE, BLACK, RED_A, RED_B, BLUE_B
 from videocode.ty import LinearGradient, RadialGradient, ConicGradient, rgba
 
-failures: list[str] = []
-
-
-def check(label: str, condition: bool):
-    if condition:
-        print(f"  ok   {label}")
-    else:
-        print(f"  FAIL {label}")
-        failures.append(label)
-
-
 def approx(a: float, b: float, eps: float = 1e-6) -> bool:
     return abs(a - b) <= eps
 
-
 # ── LinearGradient: default 2-stop positions ─────────────────────────────────
-print("LinearGradient — 2-stop default positions")
+section("LinearGradient — 2-stop default positions")
 g = LinearGradient(RED, BLUE)
 check("first stop at 0%", approx(g.stops[0][1], 0.0))
 check("last stop at 100%", approx(g.stops[1][1], 100.0))
 check("colors preserved in order", g.stops[0][0] is RED and g.stops[1][0] is BLUE)
 check("angle defaults to 0", g.angle == 0)
 
-
 # ── LinearGradient: pinned stop + auto-spaced neighbors ──────────────────────
-print("LinearGradient — pinned stop with auto-spaced first/last")
+section("LinearGradient — pinned stop with auto-spaced first/last")
 g = LinearGradient(RED, (GREEN, 30), BLUE, angle=90)
 check("3 stops resolved", len(g.stops) == 3)
 check("first auto → 0%", approx(g.stops[0][1], 0.0))
@@ -47,9 +36,8 @@ check("middle pinned → 30%", approx(g.stops[1][1], 30.0))
 check("last auto → 100%", approx(g.stops[2][1], 100.0))
 check("angle stored", g.angle == 90)
 
-
 # ── LinearGradient: auto-distribution ────────────────────────────────────────
-print("LinearGradient — auto-distribution between positioned neighbors")
+section("LinearGradient — auto-distribution between positioned neighbors")
 g = LinearGradient(RED, (GREEN, 50), BLUE, WHITE)
 check("4 stops resolved", len(g.stops) == 4)
 check("RED → 0%", approx(g.stops[0][1], 0.0))
@@ -57,22 +45,20 @@ check("GREEN pinned → 50%", approx(g.stops[1][1], 50.0))
 check("BLUE evenly spaced → 75%", approx(g.stops[2][1], 75.0))
 check("WHITE → 100%", approx(g.stops[3][1], 100.0))
 
-print("LinearGradient — auto-distribution of a run of 3 unpositioned stops")
+section("LinearGradient — auto-distribution of a run of 3 unpositioned stops")
 g = LinearGradient((RED, 0), GREEN, BLUE, WHITE, (BLACK, 100))
 positions = [p for _, p in g.stops]
 check("evenly spaced quarter-steps", all(approx(p, e) for p, e in zip(positions, [0, 25, 50, 75, 100])))
 
-
 # ── Monotonic clamping ────────────────────────────────────────────────────────
-print("LinearGradient — monotonic clamping of out-of-order pins")
+section("LinearGradient — monotonic clamping of out-of-order pins")
 g = LinearGradient((RED, 50), (GREEN, 20), (BLUE, 80))
 positions = [p for _, p in g.stops]
 check("middle clamped up to predecessor", approx(positions[1], 50.0))
 check("non-decreasing overall", all(positions[i] <= positions[i + 1] for i in range(len(positions) - 1)))
 
-
 # ── Validation ────────────────────────────────────────────────────────────────
-print("validation")
+section("validation")
 for cls in (LinearGradient, RadialGradient, ConicGradient):
     name = cls.__name__
     try:
@@ -86,9 +72,8 @@ for cls in (LinearGradient, RadialGradient, ConicGradient):
     except ValueError:
         check(f"{name} rejects zero-stop", True)
 
-
 # ── JSON serialization: LinearGradient ───────────────────────────────────────
-print("LinearGradient — jsonSerialization shape")
+section("LinearGradient — jsonSerialization shape")
 g = LinearGradient(RED, (GREEN, 30), BLUE, angle=90)
 js = g.jsonSerialization()
 check("top-level is (stops, angle) pair", isinstance(js, tuple) and len(js) == 2)
@@ -101,9 +86,8 @@ check("each stop is ((r,g,b,a), percent)", all(
 check("percents in 0-100 range", all(0.0 <= s[1] <= 100.0 for s in stopsJson))
 check("angle serialized as number", angleJson == 90)
 
-
 # ── JSON serialization: RadialGradient ───────────────────────────────────────
-print("RadialGradient — jsonSerialization shape")
+section("RadialGradient — jsonSerialization shape")
 rg = RadialGradient(RED, (WHITE, 40), BLUE)
 js = rg.jsonSerialization()
 check("top-level is (stops, discriminator) pair", isinstance(js, tuple) and len(js) == 2)
@@ -112,18 +96,16 @@ check("stops is a list", isinstance(stopsJson, list) and len(stopsJson) == 3)
 check("discriminator is 'radial' string", disc == "radial")
 check("percents in 0-100 range", all(0.0 <= s[1] <= 100.0 for s in stopsJson))
 
-
 # ── ConicGradient: default 2-stop positions + angle ──────────────────────────
-print("ConicGradient — 2-stop default positions")
+section("ConicGradient — 2-stop default positions")
 g = ConicGradient(RED, BLUE)
 check("first stop at 0%", approx(g.stops[0][1], 0.0))
 check("last stop at 100%", approx(g.stops[1][1], 100.0))
 check("colors preserved in order", g.stops[0][0] is RED and g.stops[1][0] is BLUE)
 check("angle defaults to 0", g.angle == 0)
 
-
 # ── ConicGradient: pinned stop + angle ───────────────────────────────────────
-print("ConicGradient — pinned stop with auto-spaced first/last")
+section("ConicGradient — pinned stop with auto-spaced first/last")
 g = ConicGradient(RED, (GREEN, 30), BLUE, angle=90)
 check("3 stops resolved", len(g.stops) == 3)
 check("first auto → 0%", approx(g.stops[0][1], 0.0))
@@ -131,9 +113,8 @@ check("middle pinned → 30%", approx(g.stops[1][1], 30.0))
 check("last auto → 100%", approx(g.stops[2][1], 100.0))
 check("angle stored", g.angle == 90)
 
-
 # ── JSON serialization: ConicGradient ────────────────────────────────────────
-print("ConicGradient — jsonSerialization shape")
+section("ConicGradient — jsonSerialization shape")
 cg = ConicGradient(RED, (WHITE, 40), BLUE, angle=90)
 js = cg.jsonSerialization()
 check("top-level is (stops, discriminator) pair", isinstance(js, tuple) and len(js) == 2)
@@ -142,9 +123,8 @@ check("stops is a list", isinstance(stopsJson, list) and len(stopsJson) == 3)
 check("discriminator is ('conic', angle) pair", isinstance(disc, tuple) and disc[0] == "conic" and disc[1] == 90)
 check("percents in 0-100 range", all(0.0 <= s[1] <= 100.0 for s in stopsJson))
 
-
 # ── LinearGradient operators ──────────────────────────────────────────────────
-print("LinearGradient — operators preserve angle and operate per-stop")
+section("LinearGradient — operators preserve angle and operate per-stop")
 base = LinearGradient(RED_B, (GREEN, 30), BLUE_B, angle=45)
 
 orResult = base | 0.5
@@ -173,9 +153,8 @@ check("__mul__ applies per-stop", mulResult.stops[0][0].jsonSerialization() == (
 rmulResult = 2 * base
 check("__rmul__ matches __mul__", rmulResult.stops[0][0].jsonSerialization() == mulResult.stops[0][0].jsonSerialization())
 
-
 # ── RadialGradient operators ──────────────────────────────────────────────────
-print("RadialGradient — operators operate per-stop")
+section("RadialGradient — operators operate per-stop")
 rbase = RadialGradient(RED_B, (GREEN, 50), BLUE_B)
 
 orResult = rbase | 0.5
@@ -186,9 +165,8 @@ mulResult = rbase * 2
 check("__mul__ returns RadialGradient", isinstance(mulResult, RadialGradient))
 check("__mul__ applies per-stop", mulResult.stops[0][0].jsonSerialization() == (rbase.stops[0][0] * 2).jsonSerialization())
 
-
 # ── ConicGradient operators ───────────────────────────────────────────────────
-print("ConicGradient — operators preserve angle and operate per-stop")
+section("ConicGradient — operators preserve angle and operate per-stop")
 cbase = ConicGradient(RED_B, (GREEN, 30), BLUE_B, angle=45)
 
 orResult = cbase | 0.5
@@ -210,16 +188,14 @@ check("__mul__ applies per-stop", mulResult.stops[0][0].jsonSerialization() == (
 rmulResult = 2 * cbase
 check("__rmul__ matches __mul__", rmulResult.stops[0][0].jsonSerialization() == mulResult.stops[0][0].jsonSerialization())
 
-
 # ── Both are rgba subclasses ──────────────────────────────────────────────────
-print("rgba subclassing")
+section("rgba subclassing")
 check("LinearGradient is rgba", isinstance(base, rgba))
 check("RadialGradient is rgba", isinstance(rbase, rgba))
 check("ConicGradient is rgba", isinstance(cbase, rgba))
 
-
 # ── __str__ / __repr__ ────────────────────────────────────────────────────────
-print("string representation")
+section("string representation")
 s = str(base)
 check("LinearGradient __str__ mentions angle", "angle=45" in s)
 check("LinearGradient __repr__ matches __str__", repr(base) == s)
@@ -230,12 +206,4 @@ cs = str(cbase)
 check("ConicGradient __str__ mentions angle", "angle=45" in cs)
 check("ConicGradient __repr__ matches __str__", repr(cbase) == cs)
 
-
-print()
-if failures:
-    print(f"{len(failures)} check(s) FAILED:")
-    for f in failures:
-        print(f"  - {f}")
-    sys.exit(1)
-else:
-    print("All checks passed.")
+summary()

@@ -1,0 +1,10 @@
+{
+  "pythonVersion": "3.14",
+  "include": ["videocode"],
+  "exclude": [
+    "videocode/template/misc/league/runes.py",
+    "videocode/template/input/Box.py"
+  ],
+  "reportIncompatibleMethodOverride": "none",
+  "reportIncompatibleVariableOverride": "none"
+}

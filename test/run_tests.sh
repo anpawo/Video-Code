@@ -8,14 +8,35 @@
 set -u
 cd "$(dirname "$0")/.."
 
+_R="\033[0m"
+_BOLD="\033[1m"
+_CYAN="\033[36m"
+_GREEN="\033[32m"
+_RED="\033[31m"
+_DIM="\033[2m"
+
 failed=0
+passed=0
+failed_files=()
 
 for f in test/*_test.py; do
-    echo "=== $f ==="
-    if ! python3 "$f"; then
-        failed=1
+    printf "${_CYAN}${_BOLD}━━━  %s  ━━━${_R}\n" "$f"
+    if python3 "$f"; then
+        passed=$((passed + 1))
+    else
+        failed=$((failed + 1))
+        failed_files+=("$f")
     fi
     echo
 done
 
-exit $failed
+echo
+if [ "$failed" -eq 0 ]; then
+    printf "${_GREEN}${_BOLD}  ✓  All %d test files passed.${_R}\n" "$passed"
+else
+    printf "${_RED}${_BOLD}  ✗  %d of %d test file(s) FAILED:${_R}\n" "$failed" "$((passed + failed))"
+    for f in "${failed_files[@]}"; do
+        printf "     ${_RED}•${_R}  %s\n" "$f"
+    done
+    exit 1
+fi

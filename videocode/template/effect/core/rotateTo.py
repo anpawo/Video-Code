@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 def rotateTo(
-    input: "Input",
+    input: Input,
     dst: unumber,
     *,
     start: sec = 0,
@@ -27,7 +27,7 @@ def rotateTo(
 
 
 def rotateBy(
-    input: "Input",
+    input: Input,
     dst: unumber,
     *,
     start: sec = 0,

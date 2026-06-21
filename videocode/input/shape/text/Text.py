@@ -4,22 +4,22 @@ from __future__ import annotations
 
 import math
 from copy import copy as _shallow_copy
-from videocode.input.interface.Interface import Interface
-from videocode.input.interface.Offset import Offset
 import videocode.input.shape.text._TextHelper as _helper
-
 
 from videocode.input.shape.Polygon import Polygon
 from videocode.input.interface.Group import Group
 from videocode.input.shape.text.Letter import Letter
 from videocode.shader.vertexShader.align import align
 from videocode.shader.vertexShader.hide import hide
+from videocode.shader.vertexShader.position import position
+from videocode.shader.vertexShader.show import show
+from videocode.shader.vertexShader.scale import scale
 from videocode.utils.classutils import At
 from videocode.utils.decorators import prop, propagate
+from videocode.utils.bezier import Easing, easing as _easing
 from videocode.ty import *
 from videocode.constants import *
 from videocode.utils.mixins import _hasFillStroke
-
 
 __all__ = [
     "Letter",
@@ -27,7 +27,7 @@ __all__ = [
 ]
 
 
-class Text(Group[Offset[Letter]], _hasFillStroke):
+class Text(Group[Letter], _hasFillStroke):
     def __init__(
         self,
         text: str,
@@ -67,13 +67,6 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
         self.alignLetters()
 
     def _distributeGradientColor(self, attr: str) -> None:
-        """
-        Assigns `getattr(self, attr)` (`fillColor` or `strokeColor`) to each
-        letter. A plain `rgba` is broadcast as-is, but a `LinearGradient` is
-        sliced per letter so the gradient spans the whole word — like CSS
-        `background-clip: text` — instead of repeating across each letter's
-        own bounding box.
-        """
         letters = self.inputs[: len(self.text)]
         if not letters:
             return
@@ -81,7 +74,7 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
         color = getattr(self, attr)
         if not isinstance(color, LinearGradient):
             for l in letters:
-                setattr(l.input, attr, color)
+                setattr(l, attr, color)
             return
 
         data = _helper.buildLetterData(self.text, self.fontSize, self.fontFamily, self.bold, self.italic)
@@ -93,18 +86,18 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
             projs = (x * dx + y * dy, (x + w) * dx + y * dy, x * dx + (y + h) * dy, (x + w) * dx + (y + h) * dy)
             return min(projs), max(projs)
 
-        ranges = [projRange(x, y, l.input.width, l.input.height) for l, (_, x, y) in zip(letters, data)]
+        ranges = [projRange(x, y, l.width, l.height) for l, (_, x, y) in zip(letters, data)]
         globalMin = min(r[0] for r in ranges)
         globalMax = max(r[1] for r in ranges)
         globalRange = globalMax - globalMin
 
         for l, (letterMin, letterMax) in zip(letters, ranges):
             if globalRange < 1e-9:
-                setattr(l.input, attr, color.colorAt(0))
+                setattr(l, attr, color.colorAt(0))
             else:
                 t0 = (letterMin - globalMin) / globalRange * 100
                 t1 = (letterMax - globalMin) / globalRange * 100
-                setattr(l.input, attr, color.slice(t0, t1))
+                setattr(l, attr, color.slice(t0, t1))
 
     def _distributeFillColor(self) -> None:
         self._distributeGradientColor("fillColor")
@@ -129,31 +122,23 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
             for i in range(l - r):
                 self.inputs[-i - 1].hide()
         elif l < r:
-            target = self.inputs[0].input.meta.transformationOffset if self.inputs else 0
+            target = self.inputs[0].meta.transformationOffset if self.inputs else 0
             for i in range(r - l):
-                newLetter = Offset(Letter(value[l + i], *self.config()))
-                if target > newLetter.input.meta.transformationOffset:
+                newLetter = Letter(value[l + i], *self.config())
+                if target > newLetter.meta.transformationOffset:
                     newLetter.hide()
-                    newLetter.input.waitTo(target)
+                    newLetter.waitTo(target)
                     newLetter.show()
                 self.inputs.append(newLetter)
 
         for i in range(min(l, r)):
             self.inputs[i].show()
-            self.inputs[i].input.char = value[i]
+            self.inputs[i].char = value[i]
 
         self.alignLetters()
 
     def config(self) -> tuple[wnumber, str, rgba, rgba, wnumber, bool, bool]:
-        return (
-            self.fontSize,
-            self.fontFamily,
-            self.fillColor,
-            self.strokeColor,
-            self.strokeWidth,
-            self.bold,
-            self.italic,
-        )
+        return (self.fontSize, self.fontFamily, self.fillColor, self.strokeColor, self.strokeWidth, self.bold, self.italic)
 
     def apply(self, *shaders, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
         for s in shaders:
@@ -179,19 +164,27 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
             italic=self.italic,
         )
 
-        x_min = min(x for _, x, _ in data)
-        x_max = max(x + l.input.width for (_, x, _), l in zip(data, letters))
-        ax = x_min + self.meta.align.x * (x_max - x_min)
+        xMin = min(x for _, x, _ in data)
+        xMax = max(x + l.width for (_, x, _), l in zip(data, letters))
+        ax = xMin + self.meta.align.x * (xMax - xMin)
 
         ay = _helper.lineAnchor(self.fontFamily, self.bold, self.italic, self.fontSize, self.meta.align.y)
 
-        for l, (_, x, y) in zip(letters, data):
-            l.align(x=0, y=0)  # gets canceled out after first iteration
-            l.xOffset = (x - ax) @ At(start, duration, offset)
-            l.yOffset = (y - ay) @ At(start, duration, offset)
+        for letter, (_, x, y) in zip(letters, data):
+            letter.apply(align(0, 0))
+            # Set text-local position directly on meta (no C++ push) so _regroup()
+            # captures group-relative coords; _emitRigid below emits world positions.
+            letter.meta.position = v2(x - ax, y - ay)
 
-        self._distributeFillColor()
-        self._distributeStrokeColor()
+        # Re-snapshot member bases with the new text-local layout positions.
+        self._regroup()
+        # Emit world positions (group transform applied on top of text-local bases).
+        self._emitRigid(start, duration, offset, pos=True)
+
+        if isinstance(self.fillColor, LinearGradient):
+            self._distributeFillColor()
+        if isinstance(self.strokeColor, LinearGradient):
+            self._distributeStrokeColor()
 
     @propagate(after=alignLetters)
     def fontSize() -> wnumber: ...
@@ -204,11 +197,101 @@ class Text(Group[Offset[Letter]], _hasFillStroke):
 
     @property
     def width(self) -> wunumber:
-        return sum(l.input.width for l in self.inputs) if self.inputs else 0
+        return sum(l.width for l in self.inputs) if self.inputs else 0
 
     @property
     def height(self) -> wunumber:
-        return max(l.input.height for l in self.inputs) if self.inputs else 0
+        return max(l.height for l in self.inputs) if self.inputs else 0
+
+    def find(self, pattern: str) -> list[Group[Letter]]:
+        import re
+
+        charToLetter: dict[int, int] = {}
+        letterIdx = 0
+        for charIdx, char in enumerate(self.text):
+            if not char.isspace():
+                charToLetter[charIdx] = letterIdx
+                letterIdx += 1
+        result: list[Group[Letter]] = []
+        for match in re.finditer(pattern, self.text):
+            letters = [self.inputs[charToLetter[i]] for i in range(match.start(), match.end()) if i in charToLetter]
+            if letters:
+                result.append(Group(*letters))
+        return result
+
+    def typeInsert(self, pattern: str, *, start: sec = 0, delay: sec = SINGLE_FRAME) -> Self:
+        """
+        Reveals characters matching `pattern` one by one, shifting everything to
+        their right to make room — as if typed inside existing text.
+        """
+        import re
+
+        charToLetter: dict[int, int] = {}
+        letterIdx = 0
+        for charIdx, char in enumerate(self.text):
+            if not char.isspace():
+                charToLetter[charIdx] = letterIdx
+                letterIdx += 1
+
+        match = re.search(pattern, self.text)
+        if not match:
+            return self
+
+        insertIdxs = [charToLetter[i] for i in range(match.start(), match.end()) if i in charToLetter]
+        pushIdxs = [charToLetter[i] for i in range(match.end(), len(self.text)) if i in charToLetter]
+
+        if not insertIdxs:
+            return self
+
+        data = _helper.buildLetterData(self.text, self.fontSize, self.fontFamily, self.bold, self.italic)
+        xMin = min(x for _, x, _ in data)
+        xMax = max(data[i][1] + self.inputs[i].width for i in range(len(data)))
+        ax = xMin + self.meta.align.x * (xMax - xMin)
+        ay = _helper.lineAnchor(self.fontFamily, self.bold, self.italic, self.fontSize, self.meta.align.y)
+
+        insertXs = [data[li][1] for li in insertIdxs]
+        pushStartX = data[pushIdxs[0]][1] if pushIdxs else (insertXs[-1] + self.inputs[insertIdxs[-1]].width)
+        totalShift = pushStartX - insertXs[0]
+
+        for li in insertIdxs:
+            self.inputs[li].hide()
+        for pli in pushIdxs:
+            px = data[pli][1]
+            py = data[pli][2]
+            self.inputs[pli].apply(position(px - ax - totalShift, py - ay), start=0, duration=SINGLE_FRAME)
+
+        for j, li in enumerate(insertIdxs):
+            t = start + j * delay
+            self.inputs[li].apply(show().at(start=t))
+            nextX = insertXs[j + 1] if j + 1 < len(insertIdxs) else pushStartX
+            partialShift = nextX - insertXs[0]
+            for pli in pushIdxs:
+                px = data[pli][1]
+                py = data[pli][2]
+                self.inputs[pli].apply(position(px - ax - totalShift + partialShift, py - ay), start=t, duration=SINGLE_FRAME)
+
+        return self
+
+    def typeIn(
+        self,
+        *,
+        start: sec = 0,
+        delay: sec = SINGLE_FRAME / 1.3,
+        overshoot: float = 1.4,
+        settle: sec = 3 * SINGLE_FRAME,
+        easing: _easing = Easing.Out,
+    ) -> Self:
+        for i, letter in enumerate(self.inputs):
+            tI = start + i * delay
+            letter.apply(hide(), offset=0)
+            letter.apply(show(), start=tI)
+            if overshoot != 1.0:
+                letter.apply(scale(overshoot, overshoot).at(start=tI))
+                if settle < SINGLE_FRAME:
+                    letter.apply(scale(1.0, 1.0).at(start=tI + SINGLE_FRAME))
+                else:
+                    letter.scaleTo(1.0, start=tI, duration=settle, easing=easing)
+        return self
 
     def __str__(self) -> str:
         return f"Text({self.text})"

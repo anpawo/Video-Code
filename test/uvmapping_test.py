@@ -12,28 +12,19 @@ Run directly: `python3 test/uvmapping_test.py`
 import sys
 
 sys.path.insert(0, ".")
+sys.path.insert(0, "test")
+from helpers import check, section, summary
 
 from videocode import Image, Video
 from videocode.context import Context
 
-failures: list[str] = []
-
-
-def check(label: str, condition: bool):
-    if condition:
-        print(f"  ok   {label}")
-    else:
-        print(f"  FAIL {label}")
-        failures.append(label)
-
-
-print("Image — uvMapping/uvAngle defaults")
+section("Image — uvMapping/uvAngle defaults")
 img = Image("wb.png", width=1, height=1)
 entry = Context.stack[img.meta.index][-1]
 check("default uvMapping is stretch", entry["args"]["uvMapping"] == "stretch")
 check("default uvAngle is 0", entry["args"]["uvAngle"] == 0)
 
-print("Image — uvMapping/uvAngle overrides")
+section("Image — uvMapping/uvAngle overrides")
 img2 = Image("wb.png", width=1, height=1, uvMapping="radial", uvAngle=45)
 entry2 = Context.stack[img2.meta.index][-1]
 check("uvMapping radial", entry2["args"]["uvMapping"] == "radial")
@@ -43,7 +34,7 @@ img3 = Image("wb.png", width=1, height=1, uvMapping="conic")
 entry3 = Context.stack[img3.meta.index][-1]
 check("uvMapping conic", entry3["args"]["uvMapping"] == "conic")
 
-print("Video — uvMapping/uvAngle defaults and overrides")
+section("Video — uvMapping/uvAngle defaults and overrides")
 vid = Video("test.mp4", width=1, height=1)
 ventry = Context.stack[vid.meta.index][-1]
 check("default uvMapping is stretch", ventry["args"]["uvMapping"] == "stretch")
@@ -54,13 +45,5 @@ ventry2 = Context.stack[vid2.meta.index][-1]
 check("uvMapping conic", ventry2["args"]["uvMapping"] == "conic")
 check("uvAngle 90", ventry2["args"]["uvAngle"] == 90)
 
-
 # ── summary ──────────────────────────────────────────────────────────────────
-print()
-if failures:
-    print(f"{len(failures)} FAILURE(S):")
-    for f in failures:
-        print(f"  - {f}")
-    sys.exit(1)
-else:
-    print("All checks passed.")
+summary()

@@ -19,6 +19,7 @@ class Polygon(Input):
         "fillColor",
         "strokeColor",
         "strokeWidth",
+        "strokeInside",
         "open",
         "contourSizes",
     }
@@ -30,6 +31,7 @@ class Polygon(Input):
         fillColor: rgba,
         strokeColor: rgba,
         strokeWidth: wufloat,
+        strokeInside: bool = False,
         cornerRadius: percent = 0,
         sharpCorners: set[int] = set(),
         open: bool = False,
@@ -38,6 +40,7 @@ class Polygon(Input):
         self.fillColor = fillColor
         self.strokeColor = strokeColor
         self.strokeWidth = strokeWidth
+        self.strokeInside = strokeInside
         self.cornerRadius = cornerRadius
         self.sharpCorners = sharpCorners
         self.open = open

@@ -208,6 +208,7 @@ void BezierPath::buildPath(const Metadata& meta)
     const auto& args = meta.args();
 
     _strokeWidth = args.at("strokeWidth").get<float>() * config::worldToPixelRatio;
+    _strokeInside = args.contains("strokeInside") && args.at("strokeInside").get<bool>();
     parseColorOrGradient(args, "fillColor", _fillColor, _fillStops, _fillGradType, _fillGradientAngle);
     parseColorOrGradient(args, "strokeColor", _strokeColor, _strokeStops, _strokeGradType, _strokeGradientAngle);
     // Open paths (Curve, …): stroke only, no closing segment, and the points
@@ -280,6 +281,7 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
     meshHash = fnvHash(&_fillColor, sizeof(_fillColor), meshHash);
     meshHash = fnvHash(&_strokeColor, sizeof(_strokeColor), meshHash);
     meshHash = fnvHash(&_strokeWidth, sizeof(_strokeWidth), meshHash);
+    meshHash = fnvHash(&_strokeInside, sizeof(_strokeInside), meshHash);
     meshHash = fnvHash(&meta.align.x, sizeof(float), meshHash);
     meshHash = fnvHash(&meta.align.y, sizeof(float), meshHash);
     if (!_fillStops.empty())
@@ -596,16 +598,16 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
         return {std::cos(angleRad), -std::sin(angleRad)};
     };
 
-    // Stroke FIRST, fill on top: the stroke band extrudes outward from the
-    // contour, and at joints tighter than the stroke width (letter glyph
-    // junctions) it overshoots through the opposite wall into the interior.
-    // Drawing the fill afterwards clips all overshoot exactly at the contour,
-    // so joints stay crisp. addQuadraticStrokePath samples internally and
-    // uses M — not cached.
-    BP_T(t3);
-    if (hasStroke) {
-        // One stroke pass per contour — letter glyphs outline each contour
-        // (outer + holes) independently, with no bridge edges between them.
+    // strokeInside=false (default): stroke FIRST, fill on top.
+    //   The stroke band extrudes outward from the contour. At joints tighter
+    //   than the stroke width (letter glyph junctions) it overshoots through
+    //   the opposite wall; the fill drawn afterwards clips all overshoot
+    //   exactly at the contour, keeping joints crisp.
+    // strokeInside=true: fill FIRST, stroke on top (insideOnly).
+    //   The stroke band extrudes inward from the contour — no overflow outside
+    //   the shape boundary. Fill is drawn first so the stroke renders on top,
+    //   giving a visible inward border of exactly strokeWidth.
+    auto emitStroke = [&](bool insideOnly) {
         for (const auto& [first, count] : _geomCache.contourCurves) {
             if (count == 0)
                 continue;
@@ -616,15 +618,19 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
             if (_strokeGradType != GradType::None) {
                 cv::Vec2f dir = gradientDir(_strokeGradientAngle);
                 factory.addQuadraticStrokePath(
-                    contour, _strokeWidth, strokeStops, dir, _closed, _closed
+                    contour, _strokeWidth, strokeStops, dir, _closed, insideOnly
                 );
             } else {
                 factory.addQuadraticStrokePath(
-                    contour, _strokeWidth, strokeColor, _closed, _closed
+                    contour, _strokeWidth, strokeColor, _closed, insideOnly
                 );
             }
         }
-    }
+    };
+
+    BP_T(t3);
+    if (hasStroke && !_strokeInside)
+        emitStroke(false);
 
     // Emit fill vertices (applies current transform M to each local point).
     BP_T(t4);
@@ -1106,6 +1112,10 @@ Mesh BezierPath::getMesh(const Metadata& meta, const Config& config)
                 factory.mesh.indices.push_back(firstPolyIdx + idx);
         }
     }
+
+    // strokeInside: stroke drawn after fill so it renders on top, inward only.
+    if (hasStroke && _strokeInside)
+        emitStroke(true);
 
     BP_T(t5);
 

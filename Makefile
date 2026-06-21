@@ -92,6 +92,18 @@ test-golden:
 	./$(BINARY_NAME) --visual-test --update-golden
 
 
+# Python assertion-based unit tests.
+.PHONY: test-unit
+test-unit:
+	./test/run_tests.sh
+
+
+# Static type-checking for the Python API.
+.PHONY: typecheck
+typecheck:
+	python3 -m pyright
+
+
 # 1. Generate the Readme
 # 2. Copies the generated video to example.gif
 .PHONY: docdoc

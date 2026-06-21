@@ -81,16 +81,14 @@ class Metadata:
         """
 
         # --- Callbacks ---
-        self.preCallbacks: dict[type[IShader], list[Callable[[IShader, sec, sec, frame], bool]]] = {}
-        self.postCallbacks: dict[type[IShader], list[Callable[[IShader, sec, sec, frame], None]]] = {}
+        # preCallbacks: called before a shader is applied. Signature: (shader, start, duration, offset) -> bool.
+        #   - Mutate the shader's fields to rewrite its values (e.g. wrap a position modulo a tile size).
+        #   - Return True to drop the shader entirely (it never reaches the stack).
+        #   - Return False to let the (possibly mutated) shader through as normal.
+        # postCallbacks: called after a shader is applied. Signature: (shader, start, duration, offset) -> None.
+        self.preCallbacks: dict[type[IShader], list[Callable[..., bool]]] = {}
+        self.postCallbacks: dict[type[IShader], list[Callable[..., None]]] = {}
 
-        # --- Mirroring ---
-        self.mirrorTargets: list[Input] = []
-        """
-        Inputs that should receive a copy of every shader applied to this one
-        (see `Input.mirror`). Each target resolves the replicated shader
-        against its own state — directional, self -> targets.
-        """
 
     def __str__(self) -> str:
         s = "\n"

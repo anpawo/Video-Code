@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 
 
+from typing import Iterator
+
 from videocode.input.input import *
 from videocode.input.interface.Interface import Interface
 from videocode.shader.vertexShader.position import position
@@ -47,6 +49,14 @@ class Offset[T: Input](Interface):
     @prop(onSet=_syncPending)
     def rOffset() -> wnumber: ...
 
+    @property
+    def width(self) -> wnumber:
+        return self.input.width
+
+    @property
+    def height(self) -> wnumber:
+        return self.input.height
+
     def broadcast(self, func: Callable[[Input], Any]):
         self.input.broadcast(func)
 
@@ -86,6 +96,9 @@ class Offset[T: Input](Interface):
                 self.input.apply(s, start=_s, duration=_d, offset=_o)
 
         return self
+
+    def __iter__(self) -> Iterator[T]:
+        yield self.input
 
     def __str__(self) -> str:
         s = f"{self.__class__.__name__}({self.input}, x={self.xOffset}, y={self.yOffset})"

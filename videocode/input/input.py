@@ -20,6 +20,7 @@ from videocode.shader.vertexShader.hide import hide
 from videocode.shader.vertexShader.rotate import rotation
 from videocode.shader.vertexShader.scale import scale
 from videocode.shader.vertexShader.position import position
+from videocode.shader.vertexShader.translate import translate
 from videocode.shader.vertexShader.show import show
 from videocode.shader.vertexShader.opacity import opacity
 from videocode.shader.vertexShader.zIndex import zIndex
@@ -76,7 +77,7 @@ class Input(ABC):
     def waitFor(self, i: Input) -> Self:
         return self.waitTo(i.meta.lastAffectedFrame)
 
-    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None, _mirrorAncestors: maybe[frozenset[Input]] = None) -> Self:
+    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
         """
         Applies some `Transformations` to the `Input`.
 
@@ -87,21 +88,19 @@ class Input(ABC):
         if Context.waitOffset >= self.meta.transformationOffset:
             self.waitTo(Context.waitOffset)
 
-        # `_mirrorAncestors`: internal — the chain of Inputs this call is being
-        # replicated through (see `mirror`), used to stop mirror cycles.
-        ancestors = _mirrorAncestors if _mirrorAncestors is not None else frozenset((self,))
-
         for s in shaders:
-            original = s
-
-            # Pre-callbacks: fire before any modification; return True to skip this shader.
-            if any(cb(s, start, duration, offset if offset is not None else self.meta.transformationOffset) for cb in self.meta.preCallbacks.get(type(s), [])):
+            # Pre-callbacks: fire before resolve/modify/stack-push. Mutate shader fields to rewrite
+            # values, or return True to drop the shader entirely. Return False to let it through.
+            if any(
+                cb(s, start, duration, offset if offset is not None else self.meta.transformationOffset)
+                for cb in self.meta.preCallbacks.get(type(s), [])
+            ):
                 continue
 
             _s, _d, _o = s.resolve(start, duration, offset)
 
-            __start = int(_s * FRAMERATE) + (_o if _o is not None else self.meta.transformationOffset)
-            __duration = int(_d * FRAMERATE)
+            __start = round(_s * FRAMERATE) + (_o if _o is not None else self.meta.transformationOffset)
+            __duration = round(_d * FRAMERATE)
             __end = __start + __duration
 
             # Update lastEverAffectedFrame
@@ -126,7 +125,7 @@ class Input(ABC):
                 s.modify(self)
 
             # Args w/ Start & Duration
-            args = vars(s) | {"start": __start, "duration": __duration}
+            args = {k: v for k, v in vars(s).items() if k not in ("start", "duration", "offset")} | {"start": __start, "duration": __duration}
 
             # Add step to the stack
             Context.apply(self.meta.index, upperFirst(s.__class__.__name__), s._type, args)
@@ -134,18 +133,6 @@ class Input(ABC):
             # Post-callbacks
             for callback in self.meta.postCallbacks.get(type(s), []):
                 callback(s, start, duration, offset if offset is not None else self.meta.transformationOffset)
-
-            # Mirror: replicate the original (pre-modify) shader onto linked
-            # targets. Each target resolves it against its own state via its
-            # own modify() — so e.g. position(x=None, y=5) keeps each target's
-            # own x, and delta shaders like translate (Group.moveBy) apply the
-            # same delta to each target. Shaders that already carry concrete
-            # absolute values (the common case for moveTo/rotateTo/scaleTo and
-            # their By variants, which resolve against self before apply())
-            # sync targets to that same absolute value.
-            for target in self.meta.mirrorTargets:
-                if target not in ancestors:
-                    target.apply(original, start=start, duration=duration, offset=offset, _mirrorAncestors=ancestors | {target})
 
         return self
 
@@ -191,43 +178,6 @@ class Input(ABC):
         Will be overriden by Interfaces.
         """
         func(self)
-
-    def mirror(self, *targets: Input) -> Self:
-        """
-        Link `targets` to this `Input`: every shader subsequently applied to
-        `self` via `apply()` — including all the moveTo/scaleTo/fadeIn/...
-        templates, which funnel through `apply()` — is also applied to each
-        `target`, with the same `start`/`duration`/`offset`.
-
-        Each target resolves the replicated shader against its own current
-        state via its own `modify()`. Whether that means "same absolute
-        result" or "same relative delta" depends on the shader:
-
-        - `moveTo`/`moveBy`/`rotateTo`/`rotateBy`/`scaleTo`/`scaleBy` on a
-          plain `Input` resolve their destination against `self` *before*
-          `apply()` runs, so the replicated shader already carries a concrete
-          absolute value — targets end up synced to `self`'s resulting
-          position/rotation/scale, not shifted by a relative amount.
-        - `Group.moveBy`/`moveTo` use `translate`, a true delta shader — each
-          target shifts by the same `(dx, dy)`, preserving relative offsets.
-        - A shader constructed with explicit `None`s (e.g.
-          `position(x=None, y=5)`) lets each target keep its own value for
-          the `None` fields.
-
-        Directional: mirroring only propagates `self -> targets`. For a
-        two-way link, call `mirror()` on both sides (cycles are safe either
-        way — a shader is never replicated back to an `Input` already in its
-        own propagation chain).
-        """
-        self.meta.mirrorTargets.extend(t for t in targets if t not in self.meta.mirrorTargets)
-        return self
-
-    def unmirror(self, *targets: Input) -> Self:
-        """Remove a previously-registered `mirror()` link to each target."""
-        for t in targets:
-            if t in self.meta.mirrorTargets:
-                self.meta.mirrorTargets.remove(t)
-        return self
 
     def ease(
         self,
@@ -300,10 +250,24 @@ class Input(ABC):
     def __repr__(self) -> str:
         return self.__str__()
 
+    @property
+    @abstractmethod
+    def width(self) -> wnumber: ...
+
+    @property
+    @abstractmethod
+    def height(self) -> wnumber: ...
+
+    def animateIn(self) -> Self:
+        return self
+
     ### Transformations ###
 
-    def position(self, x: maybe[wnumber] = None, y: maybe[wnumber] = None) -> Self:
-        return self.apply(position(x, y))
+    def position(self, x: maybe[wnumber] = None, y: maybe[wnumber] = None, *, offset: maybe[frame] = None) -> Self:
+        return self.apply(position(x, y), offset=offset)
+
+    def translate(self, x: maybe[number] = None, y: maybe[number] = None, *, offset: maybe[frame] = None) -> Self:
+        return self.apply(translate(x, y), offset=offset)
 
     def align(self, x: maybe[wnumber] = None, y: maybe[wnumber] = None) -> Self:
         return self.apply(align(x, y))
@@ -408,13 +372,31 @@ class Input(ABC):
             return self.hide(start=start + duration)
         return self
 
-    def scaleTo(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+    def scaleTo(
+        self,
+        factor: maybe[number] = None,
+        *,
+        x: maybe[number] = None,
+        y: maybe[number] = None,
+        easing: easing = Easing.InOut,
+        start: sec = 0,
+        duration: sec = 0.4,
+    ) -> Self:
         if factor is not None:
             x = factor
             y = factor
         return self.apply(*scaleTo(self, x=x, y=y, easing=easing, start=start, duration=duration))
 
-    def scaleBy(self, factor: maybe[number] = None, *, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
+    def scaleBy(
+        self,
+        factor: maybe[number] = None,
+        *,
+        x: maybe[number] = None,
+        y: maybe[number] = None,
+        easing: easing = Easing.InOut,
+        start: sec = 0,
+        duration: sec = 0.4,
+    ) -> Self:
         if factor is not None:
             x = factor
             y = factor
@@ -428,4 +410,3 @@ class Input(ABC):
 
     def alignTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         return self.apply(*alignTo(self, x=x, y=y, easing=easing, start=start, duration=duration))
-

@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 
 def fadeTo(
-    input: "Input",
+    input: Input,
     *,
     src: maybe[unumber] = None,
     dst: unumber,

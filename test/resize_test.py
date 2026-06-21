@@ -13,19 +13,10 @@ Run directly: `python3 test/resize_test.py`
 import sys
 
 sys.path.insert(0, ".")
+sys.path.insert(0, "test")
+from helpers import check, section, summary
 
 from videocode import Rectangle, Circle, Context
-
-failures: list[str] = []
-
-
-def check(label: str, condition: bool):
-    if condition:
-        print(f"  ok   {label}")
-    else:
-        print(f"  FAIL {label}")
-        failures.append(label)
-
 
 def pointsFrames(index: int) -> dict[int, list[tuple[float, float]]]:
     return {
@@ -34,13 +25,11 @@ def pointsFrames(index: int) -> dict[int, list[tuple[float, float]]]:
         if f != -1 and "Args:points" in entry
     }
 
-
 def width(points: list[tuple[float, float]]) -> float:
     return max(p[0] for p in points) - min(p[0] for p in points)
 
-
 # ── width animates from 2 to 6 over 6 frames ────────────────────────────────
-print("ease('width', ...) — smooth per-frame geometry animation")
+section("ease('width', ...) — smooth per-frame geometry animation")
 r = Rectangle(width=2, height=2)
 r.ease("width", 6, duration=0.2)  # 6 frames
 
@@ -51,9 +40,8 @@ check("width increases monotonically", all(b > a for a, b in zip(widths, widths[
 check("final width matches target", widths[-1] == 6)
 check("width prop updated", r.width == 6)
 
-
 # ── radius animates from 0.5 to 2 over 6 frames ─────────────────────────────
-print("ease('radius', ...) — same generic mechanism on Circle")
+section("ease('radius', ...) — same generic mechanism on Circle")
 c = Circle(radius=0.5)
 c.ease("radius", 2, duration=0.2)  # 6 frames
 
@@ -63,13 +51,5 @@ widths = [width(frames[f]) for f in sorted(frames)]
 check("circle diameter increases monotonically", all(b > a for a, b in zip(widths, widths[1:])))
 check("final radius matches target", c.radius == 2)
 
-
 # ── summary ──────────────────────────────────────────────────────────────────
-print()
-if failures:
-    print(f"{len(failures)} FAILURE(S):")
-    for f in failures:
-        print(f"  - {f}")
-    sys.exit(1)
-else:
-    print("All checks passed.")
+summary()

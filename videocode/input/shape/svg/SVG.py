@@ -3,8 +3,7 @@
 from __future__ import annotations
 
 from videocode.input.interface.Group import Group
-from videocode.input.interface.Offset import Offset
-from videocode.input.shape.svg._SVGHelper import buildOffsets
+from videocode.input.shape.svg._SVGHelper import buildPaths
 from videocode.input.shape.svg.SVGPath import SVGPath
 from videocode.ty import *
 
@@ -14,7 +13,7 @@ __all__ = [
 ]
 
 
-class SVG(Group[Offset[SVGPath]]):
+class SVG(Group[SVGPath]):
     """
     Renders an SVG file as a group of static `SVGPath` shapes, one per
     top-level shape element (rect/circle/path/...), positioned relative to
@@ -27,4 +26,4 @@ class SVG(Group[Offset[SVGPath]]):
     """
 
     def __init__(self, filepath: str, width: maybe[wunumber] = None, height: maybe[wunumber] = None):
-        super().__init__(*buildOffsets(filepath, width, height))
+        super().__init__(*buildPaths(filepath, width, height))

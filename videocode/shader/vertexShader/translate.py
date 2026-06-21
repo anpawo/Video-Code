@@ -11,9 +11,7 @@ class translate(VertexShader):
     Shift an `Input`'s position by `(x, y)`, relative to its current position.
 
     Unlike `position`, this is additive: applying `translate(1, 0)` twice moves
-    the input by 2 total, regardless of where it started. Used by `Group.moveTo`/
-    `Group.moveBy` so every member shifts by the same delta, preserving their
-    relative layout.
+    the input by 2 total, regardless of where it started.
     """
 
     def __init__(self, x: maybe[number] = None, y: maybe[number] = None):

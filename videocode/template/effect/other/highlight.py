@@ -10,12 +10,8 @@ from videocode.shader.vertexShader.args import args
 from videocode.utils.bezier import *
 
 
-if TYPE_CHECKING:
-    from videocode.input.shape.Polygon import Polygon
-
-
 def highlight(
-    input: "Polygon",
+    input: Input,
     *,
     scaleFactor: number = 1.2,
     color: maybe[rgba] = YELLOW,
@@ -33,7 +29,6 @@ def highlight(
     for s, i in easing.rangeIdx(srcScale, dstScale, duration):
         yield scale(*s).at(start=start + i * SINGLE_FRAME)
 
-    if color is not None:
-        srcColor: rgba = input.fillColor
+    if color is not None and (srcColor := getattr(input, "fillColor", None)) is not None:
         for c, i in easing.rangeIdx(srcColor, color, duration):
             yield args("fillColor", c).at(start=start + i * SINGLE_FRAME)

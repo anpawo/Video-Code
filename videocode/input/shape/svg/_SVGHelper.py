@@ -9,7 +9,6 @@ import svgelements as se
 import videocode.input.shape.text._TextHelper as _textHelper
 import videocode.utils.logger as logger
 from videocode.constants import BLACK, TRANSPARENT, WORLD_TO_SCREEN_RATIO
-from videocode.input.interface.Offset import Offset
 from videocode.input.shape.svg.SVGPath import SVGPath
 from videocode.ty import *
 
@@ -17,7 +16,7 @@ from videocode.ty import *
 __all__ = [
     "ShapeData",
     "parseSVG",
-    "buildOffsets",
+    "buildPaths",
 ]
 
 
@@ -152,22 +151,20 @@ def parseSVG(filepath: str, width: maybe[wunumber], height: maybe[wunumber]) -> 
     return shapes
 
 
-def buildOffsets(
+def buildPaths(
     filepath: str,
     width: maybe[wunumber],
     height: maybe[wunumber],
     fillColor: maybe[rgba] = None,
     strokeColor: maybe[rgba] = None,
     strokeWidth: maybe[wufloat] = None,
-) -> list[Offset[SVGPath]]:
+) -> list[SVGPath]:
     """
-    Parses `filepath` via `parseSVG` and wraps each shape in an
-    `Offset[SVGPath]` positioned so its bounding box lands at its original
-    place within the SVG canvas. `fillColor`/`strokeColor`/`strokeWidth`, when
-    given, override the per-shape values parsed from the SVG (used by
-    `MathTex`/`Tex` to recolor a uniformly-black `dvisvgm` render).
+    Parses `filepath` via `parseSVG` and returns each shape as an `SVGPath`
+    whose position is set to its bbox center within the SVG canvas — so the
+    Group that holds them can apply orbital transforms around the correct pivot.
     """
-    offsets: list[Offset[SVGPath]] = []
+    paths: list[SVGPath] = []
     for contours, fc, sc, sw in parseSVG(filepath, width, height):
         pts = [p for c in contours for p in c]
         minX, maxX = min(p[0] for p in pts), max(p[0] for p in pts)
@@ -178,10 +175,10 @@ def buildOffsets(
             strokeColor if strokeColor is not None else sc,
             strokeWidth if strokeWidth is not None else sw,
         )
-        # The renderer places a shape's bbox *center* at `position` (default
-        # align=(0.5, 0.5)) — offset by the bbox center, not its top-left
-        # corner, so each shape lands back at its original bbox within the
-        # SVG canvas regardless of its own size (#126).
-        offsets.append(Offset(path, x=(minX + maxX) / 2, y=(minY + maxY) / 2))
+        # position = bbox center (align defaults to (0.5, 0.5) in C++)
+        path.position((minX + maxX) / 2, (minY + maxY) / 2)
+        paths.append(path)
 
-    return offsets
+    return paths
+
+

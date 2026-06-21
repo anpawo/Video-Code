@@ -17,3 +17,7 @@ from videocode.template.input.Underline import *
 from videocode.template.input.Cross import *
 from videocode.template.input.FocusOn import *
 from videocode.template.input.DashedLine import *
+from videocode.template.input.YStack import *
+from videocode.template.input.XStack import *
+from videocode.template.input.SplitView import *
+from videocode.template.input.Code import *
