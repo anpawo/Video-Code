@@ -31,10 +31,13 @@ __pycache__/
 # Python virtual environments
 .venv/
 venv/
+videocodevenv/
 
 # CMake
 build/
-vcpkg*
+# vcpkg's generated install tree (but keep the manifest, overlay triplets/ports,
+# and chainload toolchain under version control)
+vcpkg_installed/
 
 # Dependencies
 include/argparse/

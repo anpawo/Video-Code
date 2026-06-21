@@ -11,7 +11,19 @@
 
 #include "window/VulkanWidget.hpp"
 
+#if defined(__APPLE__)
 #include <vulkan/vulkan_metal.h>
+#elif defined(__linux__)
+// Linux presents through an XCB surface. xcb/xcb.h must come before
+// vulkan_xcb.h — it provides the xcb_connection_t / xcb_window_t types the
+// VkXcbSurfaceCreateInfoKHR struct refers to.
+#include <xcb/xcb.h>
+
+#include <vulkan/vulkan_xcb.h>
+
+#include <QGuiApplication>
+#include <QtGui/qguiapplication_platform.h> // QNativeInterface::QX11Application
+#endif
 
 #include <QDebug>
 #include <QResizeEvent>
@@ -27,7 +39,9 @@
 #include <sstream>
 
 #include "utils/Logger.hpp"
-#include "vulkan/MetalSurface.hpp"   // CAMetalLayer bridge (macOS only)
+#if defined(__APPLE__)
+#include "vulkan/MetalSurface.hpp" // CAMetalLayer bridge (macOS only)
+#endif
 #include "vulkan/ShaderCompiler.hpp" // Runtime GLSL → SPIR-V via glslang
 #include "vulkan/Vertex.hpp"
 
@@ -308,10 +322,12 @@ bool VC::VulkanWidget::init()
         return ok;
     };
 
+#if defined(__APPLE__)
     // Attach a CAMetalLayer to the Qt native window (macOS).
     WId handle = winId();
     m_metalLayer = createMetalLayer(reinterpret_cast<void*>(handle));
     _step("createMetalLayer");
+#endif
 
     if (!createInstance()) {
         _step("createInstance", false);
@@ -501,7 +517,11 @@ bool VC::VulkanWidget::createInstance()
 
     std::vector<const char*> extensions = {
         VK_KHR_SURFACE_EXTENSION_NAME,
+#if defined(__APPLE__)
         VK_EXT_METAL_SURFACE_EXTENSION_NAME,
+#elif defined(__linux__)
+        VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+#endif
     };
 
     VkInstanceCreateInfo ci{};
@@ -515,12 +535,40 @@ bool VC::VulkanWidget::createInstance()
 
 // ============================================================================
 // Step 2: createSurface
-//   Delegates to metal_surface.mm which calls vkCreateMetalSurfaceEXT.
+//   macOS: delegates to MetalSurface.mm (vkCreateMetalSurfaceEXT over a
+//          CAMetalLayer).
+//   Linux: builds a VkSurfaceKHR from the Qt widget's native XCB window.
 // ============================================================================
 
 bool VC::VulkanWidget::createSurface()
 {
+#if defined(__APPLE__)
     m_surface = createMetalSurface(m_instance, m_metalLayer);
+#elif defined(__linux__)
+    // Qt's xcb platform plugin owns the X connection; borrow it through the
+    // public native interface. (Under a Wayland session we still land here via
+    // XWayland, because the vcpkg Qt build ships only the xcb platform plugin.)
+    auto* x11 = qApp->nativeInterface<QNativeInterface::QX11Application>();
+    if (!x11) {
+        qWarning("createSurface: XCB native interface unavailable (not on the xcb platform?)");
+        return false;
+    }
+    // vkCreateXcbSurfaceKHR is an extension entry point, not guaranteed to be
+    // exported by the loader at link time — resolve it dynamically (same
+    // approach MetalSurface.mm uses for vkCreateMetalSurfaceEXT).
+    auto createXcbSurface = reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(
+        vkGetInstanceProcAddr(m_instance, "vkCreateXcbSurfaceKHR"));
+    if (!createXcbSurface) {
+        qWarning("createSurface: vkCreateXcbSurfaceKHR unavailable (loader built without XCB WSI?)");
+        return false;
+    }
+    VkXcbSurfaceCreateInfoKHR ci{};
+    ci.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+    ci.connection = x11->connection();
+    ci.window = static_cast<xcb_window_t>(winId()); // WA_NativeWindow realizes it
+    if (createXcbSurface(m_instance, &ci, nullptr, &m_surface) != VK_SUCCESS)
+        m_surface = VK_NULL_HANDLE;
+#endif
     return m_surface != VK_NULL_HANDLE;
 }
 
@@ -560,7 +608,8 @@ bool VC::VulkanWidget::pickPhysicalDevice()
 // ============================================================================
 // Step 4: createDevice
 //   Create the logical VkDevice and retrieve the graphics VkQueue.
-//   VK_KHR_portability_subset is required by MoltenVK on macOS.
+//   VK_KHR_portability_subset must be enabled *iff* the device advertises it
+//   (MoltenVK on macOS does; native Linux/Windows drivers don't).
 // ============================================================================
 
 bool VC::VulkanWidget::createDevice()
@@ -575,8 +624,22 @@ bool VC::VulkanWidget::createDevice()
 
     std::vector<const char*> extensions = {
         VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-        "VK_KHR_portability_subset",
     };
+
+    // Per the Vulkan spec, VK_KHR_portability_subset must be enabled whenever a
+    // physical device exposes it — but requesting it on a device that does not
+    // (every native Linux driver) makes vkCreateDevice fail. So enable it only
+    // when present.
+    uint32_t extCount = 0;
+    vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &extCount, nullptr);
+    std::vector<VkExtensionProperties> available(extCount);
+    vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &extCount, available.data());
+    for (const auto& ext : available) {
+        if (std::strcmp(ext.extensionName, "VK_KHR_portability_subset") == 0) {
+            extensions.push_back("VK_KHR_portability_subset");
+            break;
+        }
+    }
 
     VkDeviceCreateInfo ci{};
     ci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -613,14 +676,28 @@ bool VC::VulkanWidget::createSwapchain()
     vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_surface, &fmtCount, nullptr);
     std::vector<VkSurfaceFormatKHR> formats(fmtCount);
     vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_surface, &fmtCount, formats.data());
-    m_swapFormat = formats[0].format;
+
+    // Prefer B8G8R8A8_UNORM so the swapchain (and the render-pass attachments
+    // that reuse m_swapFormat) match the rest of the pipeline and the headless
+    // renderer, which render sRGB-encoded colors into UNORM targets. Drivers
+    // differ in ordering — some list an _SRGB format first, and presenting into
+    // it re-applies sRGB encoding, washing the colors out. Fall back to the
+    // driver's first format only if UNORM isn't offered.
+    VkSurfaceFormatKHR chosen = formats[0];
+    for (const auto& f : formats) {
+        if (f.format == VK_FORMAT_B8G8R8A8_UNORM) {
+            chosen = f;
+            break;
+        }
+    }
+    m_swapFormat = chosen.format;
 
     VkSwapchainCreateInfoKHR ci{};
     ci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     ci.surface = m_surface;
     ci.minImageCount = 2;
     ci.imageFormat = m_swapFormat;
-    ci.imageColorSpace = formats[0].colorSpace;
+    ci.imageColorSpace = chosen.colorSpace;
     ci.imageExtent = m_swapExtent;
     ci.imageArrayLayers = 1;
     ci.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT;
