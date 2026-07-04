@@ -178,6 +178,14 @@ if(APPLE)
         BUILD_RPATH "${MVK_PREFIX}/lib;${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/lib"
         INSTALL_RPATH "${MVK_PREFIX}/lib;${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/lib"
     )
+elseif(UNIX AND NOT APPLE)
+    # The Vulkan preview window presents through an XCB surface on Linux; the
+    # widget pulls the X connection from Qt's xcb platform plugin.
+    target_compile_definitions(${PROJECT_NAME} PRIVATE VK_USE_PLATFORM_XCB_KHR)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(XCB REQUIRED xcb)
+    target_include_directories(${PROJECT_NAME} PRIVATE ${XCB_INCLUDE_DIRS})
+    target_link_libraries(${PROJECT_NAME} ${XCB_LIBRARIES})
 endif()
 
 target_link_directories(${PROJECT_NAME} PRIVATE
