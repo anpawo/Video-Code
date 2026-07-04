@@ -146,6 +146,38 @@ def _wiggle(t: float) -> float:
     return _thereAndBack(t) * math.sin(2 * math.pi * t)
 
 
+def _backOut(t: float, overshoot: float = 1.70158) -> float:
+    """Standard easeOutBack — overshoots past 1 (~10%) then settles back."""
+    c3 = overshoot + 1
+    return 1 + c3 * (t - 1) ** 3 + overshoot * (t - 1) ** 2
+
+
+def _elasticOut(t: float) -> float:
+    """Standard easeOutElastic — springs past 1 and oscillates into place."""
+    if t <= 0:
+        return 0.0
+    if t >= 1:
+        return 1.0
+    c4 = (2 * math.pi) / 3
+    return math.pow(2, -10 * t) * math.sin((t * 10 - 0.75) * c4) + 1
+
+
+def _bounceOut(t: float) -> float:
+    """Standard easeOutBounce — lands and bounces like a dropped ball."""
+    n1 = 7.5625
+    d1 = 2.75
+    if t < 1 / d1:
+        return n1 * t * t
+    if t < 2 / d1:
+        t -= 1.5 / d1
+        return n1 * t * t + 0.75
+    if t < 2.5 / d1:
+        t -= 2.25 / d1
+        return n1 * t * t + 0.9375
+    t -= 2.625 / d1
+    return n1 * t * t + 0.984375
+
+
 def _exponentialDecay(t: float, halfLife: float = 0.1) -> float:
     return 1 - math.exp(-t / halfLife)
 
@@ -175,6 +207,13 @@ class Easing:
     Wiggle = Func(_wiggle)                                # oscillates positive/negative, ends at 0
     ExponentialDecay = Func(_exponentialDecay)            # jumps instantly then asymptotes to 1 (very good)
     Exponential = Func(_exponential)                      # start slow then boom to 1 (very good)
+
+    # Editor-style overshoot easings (CSS/AE conventions). Back and Elastic
+    # exceed 1 mid-animation — with range(start, end, ...) the value briefly
+    # passes the target before settling; the classic "pop" feel.
+    Back = Func(_backOut)                                 # overshoots ~10% past target, settles back
+    Elastic = Func(_elasticOut)                           # springs past target, oscillates into place
+    Bounce = Func(_bounceOut)                             # lands on target and bounces like a ball
     # fmt: on
 
 

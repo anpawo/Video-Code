@@ -19,6 +19,9 @@ from videocode.shader.fragmentShader.contrast import *
 from videocode.shader.fragmentShader.sharpen import *
 from videocode.shader.fragmentShader.crop import *
 from videocode.shader.fragmentShader.lightSweep import *
+from videocode.shader.fragmentShader.vignette import *
+from videocode.shader.fragmentShader.pixelate import *
+from videocode.shader.fragmentShader.glitch import *
 
 # Transformations
 from videocode.shader.vertexShader.align import *

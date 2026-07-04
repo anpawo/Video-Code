@@ -39,4 +39,22 @@ struct IFragmentShader
     // duration; time-driven ones (e.g. LightSweep) override this to append
     // per-frame values such as the animation progress.
     virtual std::vector<float> paramsAtFrame(size_t /*frame*/) const { return shaderParams(); }
+
+    // Geometry-dependent param resolution — consumed by resolveEffectParams()
+    // (vulkan/EffectResolver.hpp), the single shared pass both renderers run.
+    // Shaders whose GLSL needs to know where the object is on screen declare
+    // it here instead of being name-matched inside the renderers.
+
+    // The mesh's own screen-space bounding box (uMin, vMin, uMax, vMax) is
+    // PREPENDED to the params; the GLSL reads it as p[0..3] and does its own
+    // object-relative math (e.g. Crop percentages, Vignette falloff).
+    virtual bool needsBBox() const { return false; }
+
+    // >= 0 marks params[groupParamIndex()] as a group id: every mesh whose
+    // effect shares the id gets the UNION of their bounding boxes prepended
+    // (and the id itself removed). Needed by effects that must animate
+    // continuously across several meshes as one area (e.g. LightSweep over a
+    // Text's letters) — a plain needsBBox can't express it because the union
+    // isn't known until every mesh of the frame has been seen.
+    virtual int groupParamIndex() const { return -1; }
 };

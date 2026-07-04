@@ -125,6 +125,9 @@ namespace
         {"subtitles", "test/visual/scenes/subtitles.py", {30}},
         {"markdown", "test/visual/scenes/markdown.py", {0}},
         {"sound", "test/visual/scenes/sound.py", {0}},
+        {"effect-shaders", "test/visual/scenes/effect_shaders.py", {0, 15}},
+        {"effect-templates", "test/visual/scenes/effect_templates.py", {0, 7, 15, 29}},
+        {"easings", "test/visual/scenes/easings.py", {8, 15, 29}},
     };
 
     const std::vector<ReloadCase> kReloadCases = {

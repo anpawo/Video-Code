@@ -19,10 +19,15 @@
 // A fragment shader effect active on a mesh at a given frame.
 // name   = shader class name ("Blur", "Grayscale", …)
 // params = ordered float values from the shader's args (shaderParams())
+// needsBBox / groupParamIndex mirror the IFragmentShader declarations —
+// carried here because by the time resolveEffectParams() runs, only this
+// struct (not the shader instance) travels with the mesh.
 struct ActiveEffect
 {
     std::string        name;
     std::vector<float> params;
+    bool               needsBBox = false;
+    int                groupParamIndex = -1;
 };
 
 struct Mesh
