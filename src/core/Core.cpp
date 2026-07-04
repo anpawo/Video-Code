@@ -200,21 +200,19 @@ void VC::Core::rebuildInput(size_t idx, const py::dict& inputData, bool reuseExi
 
 void VC::Core::executeStack(const py::dict& stack, const py::list& events)
 {
-    // Snapshot every input's full subtree (Create + all frame/shader entries) as JSON —
-    // a stable, order-independent value we can diff against the previous reload.
-    std::map<int, json> newSnapshot;
-    for (auto [rawIdx, rawInputData] : stack) {
-        int idx = rawIdx.cast<int>();
-        newSnapshot[idx] = pyToJson(py::reinterpret_borrow<py::object>(rawInputData));
-    }
+    // Read total frame count from Python — avoids iterating all 17k+ stack entries as JSON.
+    _nbFrame = py::module_::import("videocode.context")
+                   .attr("Context")
+                   .attr("lastEverAffectedFrame")
+                   .cast<size_t>();
 
     // Only diff input-by-input when the set of input indices is unchanged — adding/
     // removing an input reshuffles Python's sequential index counter, so positional
     // diffing would silently compare unrelated inputs. Fall back to a full rebuild then.
-    bool sameIndexSet = (_stackSnapshot.size() == newSnapshot.size());
+    bool sameIndexSet = (_pySnapshot.size() == stack.size());
     if (sameIndexSet) {
-        for (const auto& [idx, _] : newSnapshot) {
-            if (!_stackSnapshot.count(idx)) {
+        for (auto [rawIdx, _] : stack) {
+            if (!_pySnapshot.contains(rawIdx)) {
                 sameIndexSet = false;
                 break;
             }
@@ -224,52 +222,59 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
     _pendingTextureUpload.clear();
     if (!sameIndexSet) {
         _inputs.clear();
-        _inputs.resize(newSnapshot.size());
+        _inputs.resize(stack.size());
+        _pySnapshot = py::dict();
     }
 
+    py::dict newPySnapshot;
+
     for (auto [rawIdx, rawInputData] : stack) {
-        int      idx = rawIdx.cast<int>();
-        py::dict inputData = rawInputData.cast<py::dict>();
+        int      idx      = py::reinterpret_borrow<py::object>(rawIdx).cast<int>();
+        py::object inputObj  = py::reinterpret_borrow<py::object>(rawInputData);
+        py::dict   inputData = inputObj.cast<py::dict>();
 
-        bool known = sameIndexSet && _stackSnapshot.count(idx);
+        bool known = sameIndexSet && _pySnapshot.contains(rawIdx);
 
-        if (known && _stackSnapshot[idx] == newSnapshot[idx])
-            continue; // nothing changed at all — keep the existing AInput (and its caches/textures) untouched
+        if (known) {
+            // Python dict equality — far cheaper than pyToJson()+nlohmann::json::operator==
+            // for inputs with many per-frame shaders (e.g. animated Plane elements).
+            py::object prevData = _pySnapshot[rawIdx];
+            if (PyObject_RichCompareBool(prevData.ptr(), inputObj.ptr(), Py_EQ) == 1) {
+                newPySnapshot[rawIdx] = inputObj;
+                continue; // nothing changed — keep existing AInput and its caches
+            }
+        }
 
         // Reuse the existing object (skip its constructor — e.g. Image/Video file I/O)
         // when only its modifications changed, i.e. its Create entry ("-1") is identical.
-        bool reuseExisting = known && _stackSnapshot[idx].contains("-1") && newSnapshot[idx].contains("-1") && _stackSnapshot[idx]["-1"] == newSnapshot[idx]["-1"];
-
-        rebuildInput((size_t)idx, inputData, reuseExisting);
-    }
-
-    _stackSnapshot = std::move(newSnapshot);
-
-    // Recompute _nbFrame from the (now up-to-date) snapshot — cheap pure-JSON scan.
-    _nbFrame = 0;
-    for (const auto& [idx, subtree] : _stackSnapshot) {
-        for (const auto& [frameKey, shaders] : subtree.items()) {
-            if (frameKey == "-1") continue;
-            for (const auto& [shaderKey, entry] : shaders.items()) {
-                size_t start = entry["args"]["start"];
-                size_t duration = entry["args"]["duration"];
-                size_t lastFrame = start + duration;
-                if (lastFrame > _nbFrame)
-                    _nbFrame = lastFrame;
+        bool reuseExisting = false;
+        if (known) {
+            py::object prevData  = _pySnapshot[rawIdx];
+            py::int_   createKey(-1);
+            auto       prevDict  = prevData.cast<py::dict>();
+            if (prevDict.contains(createKey) && inputData.contains(createKey)) {
+                py::object prevCreate = prevDict[createKey];
+                py::object newCreate  = inputData[createKey];
+                reuseExisting = PyObject_RichCompareBool(prevCreate.ptr(), newCreate.ptr(), Py_EQ) == 1;
             }
         }
+
+        rebuildInput((size_t)idx, inputData, reuseExisting);
+        newPySnapshot[rawIdx] = inputObj;
     }
+
+    _pySnapshot = std::move(newPySnapshot);
 
     // Pass 3: Wait and Timestamp events (absolute positions stored by Python).
     _waits.clear();
     _timestamps.clear();
     for (const auto& item : events) {
-        auto obj = py::reinterpret_borrow<py::object>(item);
+        auto obj    = py::reinterpret_borrow<py::object>(item);
         auto action = obj.attr("action").cast<std::string>();
 
         if (action == "Wait") {
             size_t start = obj.attr("start").cast<size_t>();
-            size_t n = obj.attr("n").cast<size_t>();
+            size_t n     = obj.attr("n").cast<size_t>();
             for (size_t i = 0; i < n; i++)
                 _waits[start + i] = start == 0 ? 0 : (start - 1);
             size_t waitEnd = start + n;
@@ -381,10 +386,20 @@ void VC::Core::goToPrevTimestamp()
 
     --it;
 
+    // Skip the frame we just jumped to only on a quick double-press (< 2s).
+    // After 2s the user has settled on that timestamp, so treat it as the new base.
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - _lastJumpTime).count();
+    if (it->first == _lastJumpedFrame && it != _timestamps.begin() && elapsed < 2000) {
+        --it;
+    }
+
     auto index = it->first;
     auto name = it->second;
 
     if (_index < _nbFrame && _index >= 0) {
+        _lastJumpedFrame = index;
+        _lastJumpTime = now;
         _index = index;
         _indexChanged = true;
     }
@@ -404,6 +419,7 @@ void VC::Core::goToNextTimestamp()
     auto name = it->second;
 
     if (_index < _nbFrame && _index >= 0) {
+        _lastJumpedFrame = index;
         _index = index;
         _indexChanged = true;
     }

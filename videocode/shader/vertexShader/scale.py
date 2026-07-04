@@ -7,6 +7,7 @@ from videocode.utils.classutils import Maybe
 
 
 class scale(VertexShader):
+    _rigidKind = 3
     """
     `Scale` up or down an `Input`'s size.
     """

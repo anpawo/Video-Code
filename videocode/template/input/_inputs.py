@@ -7,6 +7,7 @@ from __future__ import annotations
 #
 
 from videocode.template.input.Plane import *
+from videocode.template.input.CompoundPolygon import *
 from videocode.template.input.Arrow import *
 from videocode.template.input.Button import *
 from videocode.template.input.Graph import *
@@ -21,3 +22,6 @@ from videocode.template.input.YStack import *
 from videocode.template.input.XStack import *
 from videocode.template.input.SplitView import *
 from videocode.template.input.Code import *
+from videocode.template.input.RectangleDimensions import *
+from videocode.template.input.XAlign import *
+from videocode.template.input.CardStack import *

@@ -8,6 +8,7 @@ from typing import Any
 from typing_extensions import TypeVar
 from videocode.input.input import *
 from videocode.input.interface.Interface import Interface
+from videocode.shader.ishader import Effect
 
 _GROUP_T = TypeVar("_GROUP_T", bound=Input, default=Input)
 
@@ -45,6 +46,12 @@ class Group(Interface, Generic[_GROUP_T]):
     def _snapshot(self) -> None:
         """Snapshot current member position/rotation/scale as the rigid-body base."""
         self._memberBases: list[tuple[Input, _MemberBase]] = [(m, _MemberBase(m.meta)) for m in self.inputs]
+        # Per-frame rigid state recorded during the current time window, keyed by
+        # relative frame (round(start * FRAMERATE)). Lets concurrent chained rigid
+        # animations (g.scaleTo(...).rotateBy(...)) combine: a later pass computes
+        # member positions with the value the earlier pass had AT that frame, not
+        # the earlier pass's final value (meta follows exec order, not frame order).
+        self._rigidTimeline: dict[int, dict[str, Any]] = {}
 
     def _regroup(self) -> None:
         """Re-snapshot member bases from their current meta (call after layout changes)."""
@@ -89,21 +96,30 @@ class Group(Interface, Generic[_GROUP_T]):
         if not self._memberBases:
             return
 
-        gx, gy = self.meta.position
-        grot_deg = self.meta.rotation
-        gscale = self.meta.scale
+        # Frame-accurate state: components animated by an earlier concurrent pass
+        # were recorded per frame — fall back to meta only for unanimated ones.
+        rec = self._rigidTimeline.get(round(start * FRAMERATE), {})
+        gx, gy = rec.get("pos", self.meta.position)
+        grot_deg = rec.get("rot", self.meta.rotation)
+        gscale = rec.get("scl", self.meta.scale)
 
         C = self._pivot()
-        rad = math.radians(grot_deg)
+        # C++ renders a positive degree as a clockwise spin on screen (the
+        # rotation matrix is applied in pixel space, which is Y-flipped vs
+        # world space) — the orbit must turn the same way or members shear
+        # apart from their own spin.
+        rad = math.radians(-grot_deg)
         cos_r = math.cos(rad)
         sin_r = math.sin(rad)
 
         for m, base in self._memberBases:
             shaders: list[IShader] = []
 
-            if pos:
-                rx = base.position.x - C.x
-                ry = base.position.y - C.y
+            if pos or scl:
+                # Member offsets scale with the group (rigid scaling) and
+                # rotate with it — a scale change moves off-pivot members too.
+                rx = (base.position.x - C.x) * gscale.x
+                ry = (base.position.y - C.y) * gscale.y
                 wx = rx * cos_r - ry * sin_r + C.x + gx
                 wy = rx * sin_r + ry * cos_r + C.y + gy
                 shaders.append(position(wx, wy))
@@ -128,8 +144,16 @@ class Group(Interface, Generic[_GROUP_T]):
         for child in self.inputs:
             child.broadcast(func)
 
-    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+    def apply(self, *shaders: IShader | Effect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
         for s in shaders:
+            if not isinstance(s, IShader):
+                # Member-aware effect: Group dispatches it per-child, letting the
+                # effect read each member's own state (scale, fillColor, …).
+                # e.g. g.apply(highlight(color=YELLOW))
+                for child in self.inputs:
+                    child.apply(*s(child), start=start, duration=duration, offset=offset)
+                continue
+
             # Keep group.meta current even though groups never push to C++.
             # Subclasses and external code read group.meta.* directly —
             # e.g. Text.alignLetters reads self.meta.align.x, or user code
@@ -138,15 +162,20 @@ class Group(Interface, Generic[_GROUP_T]):
             if isinstance(s, VertexShader):
                 _shallow_copy(s).modify(self)
 
-            if isinstance(s, (position, rotation, scale)):
+            k = s._rigidKind
+            if k:
                 # Resolve the shader's own timing (.at(start=t) per animation frame)
                 # before forwarding — each frame in a moveTo animation carries its own t.
                 ts, td, to = s.resolve(start, duration, offset)
-                if isinstance(s, position):
+                rec = self._rigidTimeline.setdefault(round(ts * FRAMERATE), {})
+                if k == 1:
+                    rec["pos"] = v2(*self.meta.position)
                     self._emitRigid(ts, td, to, pos=True)
-                elif isinstance(s, rotation):
+                elif k == 2:
+                    rec["rot"] = self.meta.rotation
                     self._emitRigid(ts, td, to, pos=True, rot=True)
                 else:
+                    rec["scl"] = v2(*self.meta.scale)
                     self._emitRigid(ts, td, to, scl=True)
             else:
                 # All other shaders (color, opacity, args, translate, hide, …) broadcast
@@ -156,6 +185,26 @@ class Group(Interface, Generic[_GROUP_T]):
                     i.apply(s, start=start, duration=duration, offset=offset)
 
         return self
+
+    # Advancing the time window (flush / wait / waitTo / waitFor) invalidates the
+    # rigid timeline: its keys are frames relative to the members' transformation
+    # offset, so a new window would collide with (and wrongly reuse) old entries.
+
+    def flush(self) -> Self:
+        self._rigidTimeline.clear()
+        return super().flush()
+
+    def waitTo(self, n: frame) -> Self:
+        self._rigidTimeline.clear()
+        return super().waitTo(n)
+
+    def wait(self, n: sec) -> Self:
+        self._rigidTimeline.clear()
+        return super().wait(n)
+
+    def waitFor(self, i: Input) -> Self:
+        self._rigidTimeline.clear()
+        return super().waitFor(i)
 
     def waitForOthers(self) -> Self:
         """Advance this group to the latest `lastAffectedFrame` among all members."""

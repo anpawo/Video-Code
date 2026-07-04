@@ -2,15 +2,10 @@
 
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import TYPE_CHECKING, Any, Callable, Protocol
-
-from videocode.ty import rgba, wnumber, maybe, wnumber
+from videocode.ty import rgba, sec, maybe, frame
 from typing import Self
-from videocode.utils.decorators import autoProp, propagate
-
-if TYPE_CHECKING:
-    from videocode.input.input import Input
+from videocode.utils.decorators import propagate
+from videocode.utils.bezier import Easing, easing as _easing
 
 
 class _hasFillColor:
@@ -18,11 +13,17 @@ class _hasFillColor:
     @propagate
     def fillColor() -> rgba: ...
 
+    def fill(self, color: rgba, *, easing: _easing = Easing.InOut, start: sec = 0, duration: sec = 0.4, offset: maybe[frame] = None) -> Self:
+        return self.ease("fillColor", color, easing=easing, start=start, duration=duration, offset=offset)  # type: ignore[attr-defined, return-value]
+
 
 class _hasStrokeColor:
 
     @propagate
     def strokeColor() -> rgba: ...
+
+    def stroke(self, color: rgba, *, easing: _easing = Easing.InOut, start: sec = 0, duration: sec = 0.4, offset: maybe[frame] = None) -> Self:
+        return self.ease("strokeColor", color, easing=easing, start=start, duration=duration, offset=offset)  # type: ignore[attr-defined, return-value]
 
 
 class _hasStrokeWidth:

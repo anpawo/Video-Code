@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from typing import cast, overload
 
-
 type uint8 = int
 type unumber = int | float
 type degree = unumber
@@ -55,20 +54,14 @@ class rgba:
         return rgba(self.r, self.g, self.b, int(self.a * other))
 
     def __add__(self, other: rgba) -> rgba:
-        return rgba(
-            self.r + other.r,
-            self.g + other.g,
-            self.b + other.b,
-            self.a + other.a,
-        )
+        if type(other) is not rgba:
+            return NotImplemented
+        return rgba(self.r + other.r, self.g + other.g, self.b + other.b, self.a + other.a)
 
     def __sub__(self, other: rgba) -> rgba:
-        return rgba(
-            self.r - other.r,
-            self.g - other.g,
-            self.b - other.b,
-            self.a - other.a,
-        )
+        if type(other) is not rgba:
+            return NotImplemented
+        return rgba(self.r - other.r, self.g - other.g, self.b - other.b, self.a - other.a)
 
     def __mul__(self, other: unumber) -> rgba:
         return rgba(
@@ -80,6 +73,14 @@ class rgba:
 
     def __rmul__(self, other: unumber) -> rgba:
         return self.__mul__(other)
+
+    def __eq__(self, other: object) -> bool:
+        if type(self) is not rgba or type(other) is not rgba:
+            return NotImplemented
+        return self.r == other.r and self.g == other.g and self.b == other.b and self.a == other.a
+
+    def __hash__(self) -> int:
+        return hash((self.r, self.g, self.b, self.a))
 
 
 def _normalizeStops(
@@ -97,19 +98,50 @@ def _normalizeStops(
 
     colors: list[rgba] = []
     positions: list[float | None] = []
+    is_explicit: list[bool] = []
     for stop in stops:
         if isinstance(stop, tuple):
             color, position = stop
             colors.append(color)
             positions.append(float(position))
+            is_explicit.append(True)
         else:
             colors.append(stop)
             positions.append(None)
+            is_explicit.append(False)
 
     if positions[0] is None:
         positions[0] = 0.0
     if positions[-1] is None:
-        positions[-1] = 100.0
+        if len(positions) > 1 and all(is_explicit[:-1]):
+            # "Fill the rest" — every preceding stop is pinned; the last bare stop
+            # fills to 100%.  For the 2-stop wipe pattern (one explicit, one fill-rest):
+            #   LinearGradient((RED, p), BLUE)
+            # a fixed BLEND_WIDTH blend zone is inserted so BLUE fills solidly from
+            # (p+BLEND)% onward — otherwise the gradient runs RED→BLUE all the way from
+            # p% to 100%, making RED visually dominant far past p%:
+            #   [RED@0%, RED@p%, BLUE@(p+BLEND)%, BLUE@100%]
+            # At p=0:   [RED@0%, BLUE@BLEND%, BLUE@100%]   — almost all BLUE
+            # At p=50:  [RED@0%, RED@50%, BLUE@70%, BLUE@100%] — clear left/right split
+            # At p=100: [RED@0%, RED@100%, BLUE@100%, BLUE@100%] — all RED
+            positions[-1] = 100.0
+            if len(colors) == 2:
+                _BLEND_WIDTH = 20.0
+                # blend collapses to 0 at p=0 and p=100, peaks at BLEND_WIDTH in the middle
+                blend_zone = min(positions[0], _BLEND_WIDTH, 100.0 - positions[0])
+                blend_half = blend_zone / 2
+                blend_start = max(0.0, positions[0] - blend_half)
+                blend_end = min(100.0, positions[0] + blend_half)
+                positions[0] = blend_start  # center the blend zone on p
+                colors.append(colors[-1])
+                positions.insert(-1, blend_end)
+                is_explicit.insert(-1, True)
+            if positions[0] > 0.0:
+                colors.insert(0, colors[0])
+                positions.insert(0, 0.0)
+                is_explicit.insert(0, True)
+        else:
+            positions[-1] = 100.0
 
     i = 1
     while i < len(positions):
@@ -164,10 +196,26 @@ class LinearGradient(rgba):
         self.angle = angle
 
     def jsonSerialization(self):
+        solid = self._solidColor()
+        if solid is not None:
+            return solid.jsonSerialization()
         return (
             [(color.jsonSerialization(), position) for color, position in self.stops],
             self.angle,
         )
+
+    def _solidColor(self) -> rgba | None:
+        """Returns the single color if the gradient is effectively solid (all non-zero-width strips share one color), else None."""
+        result: rgba | None = None
+        for (c0, p0), (c1, p1) in zip(self.stops, self.stops[1:]):
+            if p1 <= p0:
+                continue
+            if c0 != c1:
+                return None
+            if result is not None and result != c0:
+                return None
+            result = c0
+        return result
 
     def __str__(self) -> str:
         stopsStr = ", ".join(f"{color}@{position:g}%" for color, position in self.stops)
@@ -176,18 +224,37 @@ class LinearGradient(rgba):
     def __repr__(self) -> str:
         return str(self)
 
+    def _promote(self, color: rgba) -> LinearGradient:
+        return LinearGradient(*((color, pos) for _, pos in self.stops), angle=self.angle)
+
     def __or__(self, other: rgba | unumber) -> LinearGradient:
         return LinearGradient(*((color | other, position) for color, position in self.stops), angle=self.angle)
 
-    def __add__(self, other: LinearGradient) -> LinearGradient:
-        if len(self.stops) != len(other.stops):
+    def __add__(self, other: LinearGradient | rgba) -> LinearGradient:
+        if type(other) is rgba:
+            return self.__add__(self._promote(other))
+        g = cast(LinearGradient, other)
+        if len(self.stops) != len(g.stops):
             raise ValueError("LinearGradient addition requires gradients with the same number of stops")
-        return LinearGradient(*((c1 + c2, p1) for (c1, p1), (c2, _) in zip(self.stops, other.stops)), angle=self.angle)
+        return LinearGradient(*((c1 + c2, p1) for (c1, p1), (c2, _) in zip(self.stops, g.stops)), angle=self.angle)
 
-    def __sub__(self, other: LinearGradient) -> LinearGradient:
-        if len(self.stops) != len(other.stops):
+    def __radd__(self, other: rgba) -> LinearGradient:
+        if type(other) is not rgba:
+            return NotImplemented
+        return self._promote(other).__add__(self)
+
+    def __sub__(self, other: LinearGradient | rgba) -> LinearGradient:
+        if type(other) is rgba:
+            return self.__sub__(self._promote(other))
+        g = cast(LinearGradient, other)
+        if len(self.stops) != len(g.stops):
             raise ValueError("LinearGradient subtraction requires gradients with the same number of stops")
-        return LinearGradient(*((c1 - c2, p1) for (c1, p1), (c2, _) in zip(self.stops, other.stops)), angle=self.angle)
+        return LinearGradient(*((c1 - c2, p1) for (c1, p1), (c2, _) in zip(self.stops, g.stops)), angle=self.angle)
+
+    def __rsub__(self, other: rgba) -> LinearGradient:
+        if type(other) is not rgba:
+            return NotImplemented
+        return self._promote(other).__sub__(self)
 
     def __mul__(self, other: unumber) -> LinearGradient:
         return LinearGradient(*((color * other, position) for color, position in self.stops), angle=self.angle)

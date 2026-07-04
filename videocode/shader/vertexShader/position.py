@@ -13,6 +13,7 @@ _T2 = TypeVar("_T2", bound=mnbr, default=number)
 
 
 class position(VertexShader, Generic[_T1, _T2]):
+    _rigidKind = 1
     """
     set the position `x` and `y` of an `Input`.
 

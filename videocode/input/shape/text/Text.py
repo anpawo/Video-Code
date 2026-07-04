@@ -164,7 +164,7 @@ class Text(Group[Letter], _hasFillStroke):
             italic=self.italic,
         )
 
-        xMin = min(x for _, x, _ in data)
+        xMin = min(0.0, min(x for _, x, _ in data))
         xMax = max(x + l.width for (_, x, _), l in zip(data, letters))
         ax = xMin + self.meta.align.x * (xMax - xMin)
 
@@ -203,7 +203,40 @@ class Text(Group[Letter], _hasFillStroke):
     def height(self) -> wunumber:
         return max(l.height for l in self.inputs) if self.inputs else 0
 
-    def find(self, pattern: str) -> list[Group[Letter]]:
+    @classmethod
+    def _fromLetters(cls, letters: list[Letter], src: Text) -> Text:
+        """Wrap existing Letter objects in a Text — no letter rebuild, no alignLetters."""
+        inst = object.__new__(cls)
+        # Copy parent meta so zIndex/opacity/scale/rotation etc. are inherited;
+        # clear index (virtual group, no C++ slot) and callbacks (not inherited).
+        meta = _shallow_copy(src.meta)
+        meta.index = cast(int, None)
+        meta.preCallbacks = {}
+        meta.postCallbacks = {}
+        inst.meta = meta
+        # prop init guard skips onSet on first assignment, so no side effects here
+        inst.text = "".join(l.char for l in letters)
+        inst.fontSize = src.fontSize
+        inst.fontFamily = src.fontFamily
+        inst.fillColor = src.fillColor
+        inst.strokeColor = src.strokeColor
+        inst.strokeWidth = src.strokeWidth
+        inst.bold = src.bold
+        inst.italic = src.italic
+        inst.inputs = letters
+        inst._snapshot()
+        # Anchor group position at the leftmost letter; adjust member bases to stay relative.
+        origin = v2(*letters[0].meta.position)
+        meta.position = origin
+        for _, base in inst._memberBases:
+            base.position = base.position - origin
+        return inst
+
+    def findFirst(self, pattern: str) -> Text:
+        results = self.find(pattern)
+        return results.inputs[0]
+
+    def find(self, pattern: str) -> Group[Text]:
         import re
 
         charToLetter: dict[int, int] = {}
@@ -212,11 +245,11 @@ class Text(Group[Letter], _hasFillStroke):
             if not char.isspace():
                 charToLetter[charIdx] = letterIdx
                 letterIdx += 1
-        result: list[Group[Letter]] = []
+        result: Group[Text] = Group()
         for match in re.finditer(pattern, self.text):
             letters = [self.inputs[charToLetter[i]] for i in range(match.start(), match.end()) if i in charToLetter]
             if letters:
-                result.append(Group(*letters))
+                result.inputs.append(Text._fromLetters(letters, self))
         return result
 
     def typeInsert(self, pattern: str, *, start: sec = 0, delay: sec = SINGLE_FRAME) -> Self:

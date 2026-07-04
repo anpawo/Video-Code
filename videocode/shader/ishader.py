@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Self
+from typing import TYPE_CHECKING, Generator, Protocol, Self, runtime_checkable
 from videocode.constants import *
 from videocode.utils.funcutils import *
 
 if TYPE_CHECKING:
     from videocode.input.input import Input
+
+
+@runtime_checkable
+class Effect(Protocol):
+    """A callable that takes an Input and yields IShader instances."""
+    def __call__(self, input: Input, /) -> Generator[IShader, Any, None]: ...
 
 
 class IShader(ABC):
@@ -16,6 +22,7 @@ class IShader(ABC):
     """
 
     _type: str
+    _rigidKind: int = 0  # 0=none, 1=position, 2=rotation, 3=scale (set by subclasses)
 
     start: maybe[sec] = None
     duration: maybe[sec] = None

@@ -390,18 +390,65 @@ private:
         std::vector<PairInfo> pairInfos;
         pairInfos.reserve(samples.size());
 
-        // Merged-corner join positions — discs are stamped after the strip,
+        // Merged-corner join positions — arcs are stamped after the strip,
         // at the corner and at every sample within one stroke radius of it,
         // so their union forms a smooth capsule along the centerline (the
         // exact offset boundary near the joint, hiding the strip's folds).
-        std::vector<cv::Vec2f> joinCenters;
+        struct JoinInfo
+        {
+            cv::Vec2f center, prevDir, nextDir;
+            cv::Vec4f color;
+        };
+        std::vector<JoinInfo> joinInfos;
 
-        // Full disc of the stroke radius (SVG stroke-linejoin: round): center
-        // vertex solid, rim on the stroke boundary so AA matches the strip.
+        // Partial-disc (arc) join for merged corners: fan of triangles from
+        // the corner point spanning only the exterior gap between the two
+        // adjoining strip normals. Uses atan2(cross, dot) of the normals to
+        // compute the signed sweep, so it naturally covers the outside of the
+        // bend regardless of turn direction. 1 segment per ~7.5° gives 12
+        // segments for a 90° corner — visibly smooth.
+        auto emitJoinArc = [&](const cv::Vec2f &centerW,
+                                const cv::Vec2f &startN,
+                                const cv::Vec2f &endN,
+                                const cv::Vec4f &c) {
+            float dotNE  = dot2d(startN, endN);
+            float crossNE = startN[0] * endN[1] - startN[1] * endN[0];
+            float sweep   = std::atan2(crossNE, dotNE); // signed CCW angle from startN to endN
+
+            if (std::abs(sweep) < 1e-4f)
+                return;
+
+            int segs = std::max(2, static_cast<int>(std::ceil(std::abs(sweep) / (static_cast<float>(M_PI) / 24.f))));
+            if (mesh.vertices.size() + static_cast<size_t>(segs) + 2 > 250000)
+                return;
+
+            float     startAng  = std::atan2(startN[1], startN[0]);
+            cv::Vec2f centerNdc = toNdcPoint(centerW);
+            uint32_t  center    = vertexCount();
+            mesh.vertices.push_back(Vertex{{centerNdc[0], centerNdc[1]}, {0.f, halfW}, {c[0], c[1], c[2], c[3]}, {2.f, 0.f, 0.f, 0.f}});
+
+            uint32_t prevRim = 0;
+            for (int k = 0; k <= segs; ++k) {
+                float     t      = static_cast<float>(k) / static_cast<float>(segs);
+                float     ang    = startAng + sweep * t;
+                cv::Vec2f dir    = {std::cos(ang), std::sin(ang)};
+                cv::Vec2f rimNdc = toNdcPoint(centerW + dir * halfW_expanded);
+                uint32_t  rim    = vertexCount();
+                mesh.vertices.push_back(Vertex{{rimNdc[0], rimNdc[1]}, {halfW_expanded, halfW}, {c[0], c[1], c[2], c[3]}, {2.f, 0.f, 0.f, 0.f}});
+                if (k > 0) {
+                    mesh.indices.push_back(center);
+                    mesh.indices.push_back(prevRim);
+                    mesh.indices.push_back(rim);
+                }
+                prevRim = rim;
+            }
+        };
+
+        // Secondary full disc for adjacent-sample patches (strip-fold cover).
         auto emitJoinDisc = [&](const cv::Vec2f &centerW, const cv::Vec4f &c) {
             constexpr int JOIN_SEGS = 20;
             if (mesh.vertices.size() + JOIN_SEGS + 2 > 250000)
-                return; // uint16 index budget — degrade gracefully
+                return;
 
             cv::Vec2f centerNdc = toNdcPoint(centerW);
             uint32_t  center = vertexCount();
@@ -499,9 +546,13 @@ private:
                 emitPair(leftNormal(nextDir));
 
                 if (!insideOnly) {
-                    // Centered strokes: round-join disc at the band midline,
+                    // Centered strokes: round-join arc at the band midline,
                     // stamped after the strip (with its capsule neighbours).
-                    joinCenters.push_back((pairInfos.back().neg + pairInfos.back().pos) * 0.5f);
+                    joinInfos.push_back({
+                        (pairInfos.back().neg + pairInfos.back().pos) * 0.5f,
+                        prevDir, nextDir,
+                        {vr, vg, vb, va}
+                    });
                 }
             } else {
                 emitPair(stepToCorner(prevDir, nextDir, isEndpoint));
@@ -512,11 +563,11 @@ private:
             return;
         }
 
-        for (const auto &jc : joinCenters) {
-            emitJoinDisc(jc, pairInfos.empty() ? cv::Vec4f{r, g, b, a} : pairInfos.front().color);
+        for (const auto &ji : joinInfos) {
+            emitJoinArc(ji.center, leftNormal(ji.prevDir), leftNormal(ji.nextDir), ji.color);
             for (const auto &pi : pairInfos) {
                 cv::Vec2f mid = (pi.neg + pi.pos) * 0.5f;
-                if (length2d(mid - jc) < halfW_expanded && length2d(mid - jc) > 1e-3f)
+                if (length2d(mid - ji.center) < halfW_expanded && length2d(mid - ji.center) > 1e-3f)
                     emitJoinDisc(mid, pi.color);
             }
         }

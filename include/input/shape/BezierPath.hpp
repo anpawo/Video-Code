@@ -89,7 +89,6 @@ protected:
 
     bool                      _closed = true;
     float                     _strokeWidth = 0.f;
-    bool                      _strokeInside = false;
     cv::Vec4b                 _fillColor = {0, 0, 0, 0};
     cv::Vec4b                 _strokeColor = {0, 0, 0, 255};
     std::vector<GradientStop> _fillStops;

@@ -6,11 +6,11 @@ import time
 
 
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Generic, cast, overload
+from typing import TYPE_CHECKING, Any, Callable, Generic, Self, cast, overload
 from typing_extensions import TypeVar
 from videocode.constants import DEBUG, SINGLE_FRAME
 from videocode.ty import frame, maybe
-
+from videocode.utils.bezier import Easing, easing
 
 if TYPE_CHECKING:
     from videocode.ty import sec
@@ -22,10 +22,38 @@ class AttributeNameReference:
     Prevent Attribute Name Missmatch
     """
 
-    def __init__(self, _: Input): ...
+    def __init__(self): ...
 
     def __getattribute__(self, name: str) -> str:
         return name
+
+
+class EaseAttributeSimplifier[T: Input]:
+    """
+    Ease an attribute without passing its name as a string.
+
+    `rect().fillColor.easeTo(RED_B)` instead of `rect.ease("fillColor", RED_B)`.
+    Returned by `Input.__call__`.
+    """
+
+    def __init__(self, input: T) -> None:
+        self._input = input
+        self._attr: str
+
+    def __getattr__(self, name: str) -> Self:
+        self._attr = name
+        return self
+
+    def easeTo(
+        self,
+        value: Any,
+        *,
+        easing=Easing.InOut,
+        start: sec = 0,
+        duration: sec = 0.4,
+        offset: maybe[frame] = None,
+    ) -> T:
+        return self._input.ease(self._attr, value, easing=easing, start=start, duration=duration, offset=offset)
 
 
 class timeit:
@@ -97,6 +125,36 @@ class Maybe(Generic[_MAYBE_T_VAL]):
 
 
 _AT_T = TypeVar("_AT_T", default=Any)
+
+
+class _Over:
+    """
+    Runtime proxy returned by Input.over(). Pyright sees over() as returning
+    Self, so attribute assignment is type-checked against the real Input subclass
+    and gets full IDE autocomplete — no string references needed.
+
+        rect.over(duration=0.6).fillColor = RED_B
+    """
+
+    __slots__ = ("_input", "_easing", "_start", "_duration", "_offset")
+
+    def __init__(self, input: Input, *, easing: Any, start: float, duration: float, offset: Any) -> None:
+        object.__setattr__(self, "_input", input)
+        object.__setattr__(self, "_easing", easing)
+        object.__setattr__(self, "_start", start)
+        object.__setattr__(self, "_duration", duration)
+        object.__setattr__(self, "_offset", offset)
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        inp: Input = object.__getattribute__(self, "_input")
+        inp.ease(
+            name,
+            value,
+            easing=object.__getattribute__(self, "_easing"),
+            start=object.__getattribute__(self, "_start"),
+            duration=object.__getattribute__(self, "_duration"),
+            offset=object.__getattribute__(self, "_offset"),
+        )
 
 
 class At(Generic[_AT_T]):

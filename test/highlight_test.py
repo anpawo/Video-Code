@@ -26,7 +26,7 @@ def framesWith(index: int, key: str) -> dict[int, dict]:
 # ── default: scale pulse + YELLOW flash ─────────────────────────────────────
 section("highlight(): default scaleFactor + YELLOW fillColor flash")
 r = Rectangle(fillColor=RED)
-r.apply(*highlight(r, duration=0.2))
+r.apply(highlight(duration=0.2))
 
 scaleFrames = framesWith(r.meta.index, "Scale")
 check("Scale frames pushed", len(scaleFrames) > 1)
@@ -51,15 +51,15 @@ check("fillColor flashes toward YELLOW mid-animation", midColor.g > firstColor.g
 # ── color=None: scale-only, no fillColor frames ─────────────────────────────
 section("highlight(color=None): scale-only, no fillColor frames")
 r2 = Rectangle(fillColor=RED)
-r2.apply(*highlight(r2, color=None, duration=0.2))
+r2.apply(highlight(color=None, duration=0.2))
 
 check("Scale frames pushed", len(framesWith(r2.meta.index, "Scale")) > 1)
 check("no Args:fillColor frames", len(framesWith(r2.meta.index, "Args:fillColor")) == 0)
 
 # ── custom scaleFactor + easing ──────────────────────────────────────────────
-section("highlight(scaleFactor=1.5, color=None, easing=Easing.Wiggle)")
+section("highlight(scale=1.5, color=None, easing=Easing.Wiggle)")
 r3 = Rectangle(fillColor=RED)
-r3.apply(*highlight(r3, scaleFactor=1.5, color=None, easing=Easing.Wiggle, duration=0.2))
+r3.apply(highlight(scale=1.5, color=None, easing=Easing.Wiggle, duration=0.2))
 
 wiggleFrames = framesWith(r3.meta.index, "Scale")
 check("Scale frames pushed", len(wiggleFrames) > 1)

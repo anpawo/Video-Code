@@ -11,6 +11,7 @@
 #include <vulkan/vulkan.h>
 
 #include <argparse/argparse.hpp>
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <opencv2/opencv.hpp>
@@ -81,9 +82,10 @@ namespace VC
         ///< e.g. Image/Video file I/O) and only its modification state is reset + replayed.
         void rebuildInput(size_t idx, const py::dict& inputData, bool reuseExisting);
 
-        ///< Per-input snapshot of the stack (as JSON) from the last reload — diffed against
-        ///< the freshly-executed stack so reloadSourceFile() only rebuilds inputs that changed.
-        std::map<int, json> _stackSnapshot{};
+        ///< Per-input snapshot of the Python stack dict from the last reload — diffed against
+        ///< the freshly-executed stack via Python equality so reloadSourceFile() only rebuilds
+        ///< inputs that changed, without paying a full pyToJson pass on every reload.
+        py::dict _pySnapshot{};
 
         ///< Indices of inputs rebuilt during the last executeStack() that need a texture
         ///< (re)upload — consumed and cleared by uploadTextures().
@@ -110,6 +112,11 @@ namespace VC
 
         ///< Timestamps:
         std::map<size_t, std::string> _timestamps{};
+
+        ///< Frame we last jumped to via goToPrevTimestamp/goToNextTimestamp,
+        ///< and when. Used to skip past it only on a quick double-press (< 2s).
+        size_t                                        _lastJumpedFrame{0};
+        std::chrono::steady_clock::time_point         _lastJumpTime{};
 
         ///< Inputs created
         std::vector<std::unique_ptr<IInput>> _inputs{};

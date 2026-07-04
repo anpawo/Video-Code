@@ -6,6 +6,7 @@ from videocode.shader.ishader import *
 
 
 class rotation(VertexShader):
+    _rigidKind = 2
     """
     `Rotation` is set to degree.
 

@@ -11,7 +11,6 @@ from videocode.input.input import *
 from videocode.input.interface.Interface import Interface
 from videocode.shader.vertexShader.position import position
 from videocode.shader.vertexShader.rotate import rotation
-from videocode.shader.vertexShader.scale import scale
 from videocode.utils.decorators import prop
 
 
@@ -80,16 +79,18 @@ class Offset[T: Input](Interface):
         for s in shaders:
             _s, _d, _o = s.resolve(start, duration, offset)
 
-            if isinstance(s, position):
-                if s.x is not None:
-                    self.meta.position.x = s.x
-                if s.y is not None:
-                    self.meta.position.y = s.y
+            k = s._rigidKind
+            if k == 1:
+                p = cast(position, s)
+                if p.x is not None:
+                    self.meta.position.x = p.x
+                if p.y is not None:
+                    self.meta.position.y = p.y
                 self._sync(start=_s, duration=_d, offset=_o)
-            elif isinstance(s, rotation):
-                self.meta.rotation = s.degree
+            elif k == 2:
+                self.meta.rotation = cast(rotation, s).degree
                 self._sync(start=_s, duration=_d, offset=_o)
-            elif isinstance(s, scale):
+            elif k == 3:
                 self.input.apply(s, start=_s, duration=_d, offset=_o)
                 self._sync(start=_s, duration=_d, offset=_o)
             else:

@@ -32,5 +32,7 @@ class Interface(Input):
         return self
 
     def waitFor(self, i: Input) -> Self:
-        self.broadcast(lambda m: m.waitTo(i.meta.lastAffectedFrame))
+        frames: list[frame] = []
+        i.broadcast(lambda m: frames.append(m.meta.lastAffectedFrame))
+        self.broadcast(lambda m: m.waitTo(max(frames)))
         return self

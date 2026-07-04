@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Callable
 from videocode.constants import *
-
 
 if TYPE_CHECKING:
     from videocode.shader.ishader import IShader
@@ -20,7 +20,10 @@ class Metadata:
 
         Groups do not have an index (they are just python wrapper)
         """
-        self.index: int = cast(int, None) if interface else Context.getIndex()
+        noRegister = Context._noRegister
+        noHiding = Context._noHiding
+
+        self.index: int = cast(int, None) if (interface or noRegister) else Context.getIndex()
 
         # --- Position ---
         self.position: v2[wnumber, wnumber] = v2(0, 0)
@@ -49,7 +52,7 @@ class Metadata:
         # one wins (renders on top), regardless of creation order.
         self.zOrderSeq: int = 0
 
-        if not interface:
+        if not interface and not noRegister:
             Context.metas.append(self)
 
         # --- Offset ---
@@ -88,7 +91,6 @@ class Metadata:
         # postCallbacks: called after a shader is applied. Signature: (shader, start, duration, offset) -> None.
         self.preCallbacks: dict[type[IShader], list[Callable[..., bool]]] = {}
         self.postCallbacks: dict[type[IShader], list[Callable[..., None]]] = {}
-
 
     def __str__(self) -> str:
         s = "\n"
@@ -151,6 +153,34 @@ class Context:
     # Every non-interface Metadata ever created — used to resolve relative
     # layer-order operations (bringToFront, sendToBack, bringForward, sendBackward).
     metas: list[Metadata] = []
+
+    # When True, Input.__new__ skips index assignment and @inputCreation skips
+    # Context.create().  Used by MergeGroup to build member geometry without
+    # registering each member as a C++ input.
+    _noRegister: bool = False
+
+    # When True, Input@inputCreation skips the hiding until waitOffset.
+    _noHiding: bool = False
+
+    @staticmethod
+    @contextmanager
+    def noRegister():
+        prev = Context._noRegister
+        Context._noRegister = True
+        try:
+            yield
+        finally:
+            Context._noRegister = prev
+
+    @staticmethod
+    @contextmanager
+    def noHiding():
+        prev = Context._noHiding
+        Context._noHiding = True
+        try:
+            yield
+        finally:
+            Context._noHiding = prev
 
     @staticmethod
     def getIndex() -> int:

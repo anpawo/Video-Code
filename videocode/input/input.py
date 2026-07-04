@@ -10,7 +10,7 @@ from videocode.template.effect.core.fadeTo import fadeTo
 from videocode.template.effect.core.moveTo import moveTo, moveBy
 from videocode.template.effect.core.rotateTo import rotateBy, rotateTo
 from videocode.template.effect.core.scaleTo import scaleBy, scaleTo
-from videocode.shader.ishader import IShader, VertexShader
+from videocode.shader.ishader import Effect, IShader, VertexShader
 from videocode.context import *
 from videocode.constants import *
 from videocode.utils.funcutils import *
@@ -26,7 +26,7 @@ from videocode.shader.vertexShader.opacity import opacity
 from videocode.shader.vertexShader.zIndex import zIndex
 from videocode.utils.bezier import animate, Easing, easing
 from videocode.utils.logger import *
-from videocode.utils.classutils import At, AttributeNameReference
+from videocode.utils.classutils import At, AttributeNameReference, EaseAttributeSimplifier, _Over
 
 
 class Input(ABC):
@@ -75,20 +75,30 @@ class Input(ABC):
         return self.flush()
 
     def waitFor(self, i: Input) -> Self:
-        return self.waitTo(i.meta.lastAffectedFrame)
+        frames: list[frame] = []
+        i.broadcast(lambda m: frames.append(m.meta.lastAffectedFrame))
+        return self.waitTo(max(frames))
 
-    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+    def apply(self, *shaders: IShader | Effect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
         """
         Applies some `Transformations` to the `Input`.
 
         The `duration` is in `seconds`, so it will affect `duration * framerate` frames of the video.
+        Effects (e.g. `highlight()`) are callables — pass them directly: `input.apply(highlight())`.
         """
 
         # If a `wait()` happens, any input should be flushed before applying any new effect.
         if Context.waitOffset >= self.meta.transformationOffset:
             self.waitTo(Context.waitOffset)
 
+        flatten: list[IShader] = []
         for s in shaders:
+            if not isinstance(s, IShader):
+                flatten.extend(s(self))
+            else:
+                flatten.append(s)
+
+        for s in flatten:
             # Pre-callbacks: fire before resolve/modify/stack-push. Mutate shader fields to rewrite
             # values, or return True to drop the shader entirely. Return False to let it through.
             if any(
@@ -103,8 +113,12 @@ class Input(ABC):
             __duration = round(_d * FRAMERATE)
             __end = __start + __duration
 
+            # no-register members (created inside Context.noRegister()) have index=None.
+            # Still run modify() so meta.position etc. get updated, but skip the stack.
+            registered = self.meta.index is not None
+
             # Update lastEverAffectedFrame
-            if Context.lastEverAffectedFrame < __end:
+            if registered and Context.lastEverAffectedFrame < __end:
                 Context.lastEverAffectedFrame = __end
 
             # Update our lastAffectedFrame
@@ -123,6 +137,9 @@ class Input(ABC):
                     continue
                 s = _shallow_copy(s)
                 s.modify(self)
+
+            if not registered:
+                continue
 
             # Args w/ Start & Duration
             args = {k: v for k, v in vars(s).items() if k not in ("start", "duration", "offset")} | {"start": __start, "duration": __duration}
@@ -179,6 +196,9 @@ class Input(ABC):
         """
         func(self)
 
+    def __call__(self) -> EaseAttributeSimplifier[Self]:
+        return EaseAttributeSimplifier(self)
+
     def ease(
         self,
         attr: attrName,
@@ -196,6 +216,26 @@ class Input(ABC):
 
         animate(duration, easing, _apply)
         return self
+
+    def over(
+        self,
+        *,
+        easing: easing = Easing.InOut,
+        start: sec = 0,
+        duration: sec = 0.4,
+        offset: maybe[frame] = None,
+    ) -> Self:
+        """
+        Return a proxy for eased attribute animation via assignment — no strings, full autocomplete.
+
+            rect.over(duration=0.6).fillColor = RED_B
+            rect.over(start=0.2, duration=0.4).strokeColor = WHITE
+
+        Pyright sees this as returning Self so it validates the assigned value
+        against the real property type and provides autocomplete on all attributes.
+        Internally fires ``ease()`` per assignment.
+        """
+        return cast(Self, _Over(self, easing=easing, start=start, duration=duration, offset=offset))
 
     def easeTogether(
         self,
@@ -227,7 +267,7 @@ class Input(ABC):
         """
         Reference to prevent string missmatch
         """
-        return cast(Self, AttributeNameReference(self))
+        return cast(Self, AttributeNameReference())
 
     def addPreCallback[T: IShader](self, shaderType: type[T], callback: Callable[[T, sec, sec, frame], bool]) -> None:
         """
@@ -284,8 +324,8 @@ class Input(ABC):
     def opacity(self, o: number) -> Self:
         return self.apply(opacity(o))
 
-    def zIndex(self, z: int) -> Self:
-        return self.apply(zIndex(z))
+    def zIndex(self, z: int, offset: maybe[frame] = None) -> Self:
+        return self.apply(zIndex(z), offset=offset)
 
     def inFrontOf(self, other: Input) -> Self:
         """
@@ -335,7 +375,7 @@ class Input(ABC):
         # (see BACKGROUND_Z_INDEX / Input.background()).
         return self.zIndex(max(0, below - 1))
 
-    def background(self) -> Self:
+    def background(self, offset: maybe[frame] = None) -> Self:
         """
         Mark this `Input` (and any children) as part of the scene background:
         sets `zIndex` to `BACKGROUND_Z_INDEX` (-1).
@@ -346,7 +386,7 @@ class Input(ABC):
         elements (e.g. Plane's grid lines on top of its backdrop rectangle)
         is preserved by zOrderSeq, since they all tie at -1.
         """
-        self.broadcast(lambda i: i.zIndex(BACKGROUND_Z_INDEX))
+        self.broadcast(lambda i: i.zIndex(BACKGROUND_Z_INDEX, offset=offset))
         return self
 
     def hide(self, start: sec = 0):

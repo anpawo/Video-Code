@@ -15,7 +15,6 @@ from videocode.utils.funcutils import upperFirst
 from videocode.utils.logger import *
 from videocode.shader.vertexShader.hide import hide
 
-
 if TYPE_CHECKING:
     from videocode.input.input import Input
 
@@ -34,12 +33,18 @@ def inputCreation(f: Callable[Concatenate[_T, _P], None]) -> Callable[Concatenat
         # Input's init
         f(self, *args, **kwargs)
 
+        if Context._noRegister:
+            return
+
         # Generate the stack creation
         Context.create(
             inputIndex=self.meta.index,
             inputType=self.cppName,
             inputArgs={k: v for k, v in self.__dict__.items() if k in self.cppAttrs},
         )
+
+        if Context._noHiding:
+            return
 
         # If created mid-timeline (after a flush), hide until the current offset
         if Context.waitOffset > 0:

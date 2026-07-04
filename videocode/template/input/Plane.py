@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-import math
-
-
 from videocode import *
+from videocode.template.input.CompoundPolygon import CompoundPolygon
 
 
 class Plane(Group):
     def __init__(
         self,
-        center=False,
+        # center=False,
         margin: wnumber = 2,
     ) -> None:
         transparent = 0.05
@@ -22,40 +20,43 @@ class Plane(Group):
         h = WORLD_HEIGHT + 2 * margin
         # Background is 1 unit larger on each side so its edge never enters the
         # viewport even at full drift.
-        bg = Rectangle(
-            width=w + 2,
-            height=h + 2,
-            fillColor=BLUE_B,
-            strokeColor=TRANSPARENT,
-        )
 
-        super().__init__(
-            bg,
-            *[
+        fill_color: rgba = WHITE | transparent
+        with Context.noRegister():
+            v_lines = [
                 VerticalLine(
                     length=h + 2,
                     strokeWidth=0.01,
                     rounded=False,
-                    fillColor=WHITE | transparent,
+                    fillColor=fill_color,
                 ).position(x=i, y=0, offset=0)
                 for i in floatRange(w / -2, w / 2 + step, step)
-            ],
-            *[
+            ]
+            h_lines = [
                 HorizontalLine(
                     length=w + 2,
                     strokeWidth=0.01,
                     rounded=False,
-                    fillColor=WHITE | transparent,
+                    fillColor=fill_color,
                 ).position(x=0, y=i, offset=0)
                 for i in floatRange(-h / 2 - step, h / 2 + step, step)
-            ],
-            *([Dot().position(0, 0, offset=0)] if center else []),
-        )
+            ]
+
+        with Context.noHiding():
+            self.bg = Rectangle(width=w + 2, height=h + 2, fillColor=BLUE_B, strokeColor=TRANSPARENT)
+            self.grid = CompoundPolygon(*v_lines, *h_lines)
+            # self.dot = Dot() if center else None
+
+            super().__init__(
+                self.bg,
+                self.grid,
+                # *([self.dot] if center else []),
+            )
 
         # The grid (and its background rectangle) shouldn't be considered
         # part of the layer stack — sendToBack/bringToFront/etc. should treat
         # user shapes as the whole scene, not get pushed behind/in front of it.
-        self.background()
+        self.background(offset=0)
 
     def drift(
         self,
@@ -63,32 +64,5 @@ class Plane(Group):
         dy: wnumber = 0.25,
         duration: maybe[sec] = None,
     ) -> Self:
-        from videocode.shader.vertexShader.position import position as _position
-        from videocode.template.effect.core.moveTo import moveTo as _moveTo
-
-        tile = 1 / 3
-        dur = Context.lastEverAffectedFrame * SINGLE_FRAME if duration is None else duration
-
-        def register(member: Input) -> None:
-            ox = member.meta.position.x
-            oy = member.meta.position.y
-
-            def wrap(s: _position, *_: Any) -> bool:
-                s.x = ox + math.fmod(s.x - ox, tile)
-                s.y = oy + math.fmod(s.y - oy, tile)
-                return False
-
-            member.meta.preCallbacks.setdefault(_position, []).append(wrap)
-            member.apply(
-                *_moveTo(
-                    member,
-                    x=ox + dx * dur * 0.5,
-                    y=oy + dy * dur * 0.5,
-                    easing=Easing.Linear,
-                    duration=dur,
-                ),
-                offset=0,
-            )
-
-        self.broadcast(register)
+        self.grid.drift(dx, dy, duration)
         return self

@@ -6,7 +6,7 @@ import math
 
 from abc import abstractmethod
 from videocode.input.input import Input
-from videocode.utils.classutils import Maybe
+from videocode.utils.bezier import Easing
 from videocode.utils.decorators import inputCreation, prop
 from videocode.ty import *
 from videocode.constants import *
@@ -19,7 +19,6 @@ class Polygon(Input):
         "fillColor",
         "strokeColor",
         "strokeWidth",
-        "strokeInside",
         "open",
         "contourSizes",
     }
@@ -31,7 +30,6 @@ class Polygon(Input):
         fillColor: rgba,
         strokeColor: rgba,
         strokeWidth: wufloat,
-        strokeInside: bool = False,
         cornerRadius: percent = 0,
         sharpCorners: set[int] = set(),
         open: bool = False,
@@ -40,7 +38,6 @@ class Polygon(Input):
         self.fillColor = fillColor
         self.strokeColor = strokeColor
         self.strokeWidth = strokeWidth
-        self.strokeInside = strokeInside
         self.cornerRadius = cornerRadius
         self.sharpCorners = sharpCorners
         self.open = open
@@ -65,6 +62,12 @@ class Polygon(Input):
 
     @prop(onSet=updatePoints)
     def cornerRadius() -> percent: ...
+
+    def fill(self, color: rgba, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4, offset: maybe[frame] = None) -> Self:
+        return self.ease("fillColor", color, easing=easing, start=start, duration=duration, offset=offset)
+
+    def stroke(self, color: rgba, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4, offset: maybe[frame] = None) -> Self:
+        return self.ease("strokeColor", color, easing=easing, start=start, duration=duration, offset=offset)
 
     @property
     def width(self) -> wunumber:

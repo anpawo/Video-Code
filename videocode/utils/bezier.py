@@ -9,7 +9,6 @@ from typing import TYPE_CHECKING, Any, Callable, Generator, overload
 from videocode.constants import FRAMERATE, number
 from videocode.ty import Arithmetic, sec, index
 
-
 if TYPE_CHECKING:
     from videocode.input.input import Input
 
@@ -151,26 +150,32 @@ def _exponentialDecay(t: float, halfLife: float = 0.1) -> float:
     return 1 - math.exp(-t / halfLife)
 
 
-class Easing:
-    Linear = CubicBezier(0.0, 0.0, 1.0, 1.0)
-    In = CubicBezier(0.42, 0.0, 1.0, 1.0)
-    Out = CubicBezier(0.0, 0.0, 0.58, 1.0)
-    InOut = CubicBezier(0.42, 0.0, 0.58, 1.0)
+def _exponential(t: float, halfLife: float = 0.1) -> float:
+    denom = math.exp(1 / halfLife) - 1
+    return (math.exp(t / halfLife) - 1) / denom if denom else t
 
-    # Manim-inspired rate functions (`videocode.utils.bezier`'s ported
-    # equivalents of manim's `rate_functions` module). `ThereAndBack`,
-    # `ThereAndBackWithPause` and `Wiggle` deliberately end back at `t=0`
-    # (not `t=1`) — used with `range`/`rangeIdx`'s `start + (end-start)*self(t)`,
-    # they animate out and back to the start value.
-    Smooth = Func(_smooth)
-    RushInto = Func(_rushInto)
-    RushFrom = Func(_rushFrom)
-    SlowInto = Func(_slowInto)
-    DoubleSmooth = Func(_doubleSmooth)
-    ThereAndBack = Func(_thereAndBack)
-    ThereAndBackWithPause = Func(_thereAndBackWithPause)
-    Wiggle = Func(_wiggle)
-    ExponentialDecay = Func(_exponentialDecay)
+
+class Easing:
+    # fmt: off
+    Linear = CubicBezier(0.0, 0.0, 1.0, 1.0)     # constant speed
+    In = CubicBezier(0.42, 0.0, 1.0, 1.0)        # slow start, fast end
+    Out = CubicBezier(0.0, 0.0, 0.58, 1.0)       # fast start, slow end
+    InOut = CubicBezier(0.42, 0.0, 0.58, 1.0)    # slow start & end, fast middle
+
+    # Manim-inspired rate functions. ThereAndBack, ThereAndBackWithPause and
+    # Wiggle end back at t=0 (not t=1) — in range(0, 100, ...) they animate
+    # out and back to the start value.
+    Smooth = Func(_smooth)                                # sigmoid S-curve — flatter shoulders than InOut
+    RushInto = Func(_rushInto)                            # smooth only first half — decelerates into end
+    RushFrom = Func(_rushFrom)                            # smooth only second half — accelerates from start
+    SlowInto = Func(_slowInto)                            # quarter-circle arc — decelerates at end
+    DoubleSmooth = Func(_doubleSmooth)                    # two S-curves chained — extra smooth
+    ThereAndBack = Func(_thereAndBack)                    # goes to 1 then returns to 0
+    ThereAndBackWithPause = Func(_thereAndBackWithPause)  # goes to 1, holds 1/3, returns to 0
+    Wiggle = Func(_wiggle)                                # oscillates positive/negative, ends at 0
+    ExponentialDecay = Func(_exponentialDecay)            # jumps instantly then asymptotes to 1 (very good)
+    Exponential = Func(_exponential)                      # start slow then boom to 1 (very good)
+    # fmt: on
 
 
 type easing = RateFunc

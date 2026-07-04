@@ -8,7 +8,6 @@ from videocode.utils.bezier import *
 from videocode.shader.vertexShader.position import position
 from videocode.utils.classutils import Maybe
 
-
 if TYPE_CHECKING:
     from videocode.input.input import Input
 
@@ -41,5 +40,3 @@ def moveBy(
     dst = v2(src.x + (Maybe(x) | 0), src.y + (Maybe(y) | 0))
     for p, i in easing.rangeIdx(src, dst, duration):
         yield position(*p).at(start=start + i * SINGLE_FRAME)
-
-

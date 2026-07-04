@@ -22,7 +22,6 @@ class Panel(Group):
         strokeColor: rgba = WHITE,
         strokeWidth: wnumber = 0.025,
         cornerRadius: percent = 10,
-        strokeInside: bool = True,
     ):
         self.w = width
         self.h = height
@@ -37,7 +36,6 @@ class Panel(Group):
             strokeColor=strokeColor,
             strokeWidth=strokeWidth,
             cornerRadius=cornerRadius,
-            strokeInside=strokeInside,
         ).position(x, y)
 
         super().__init__(self.rect)
@@ -94,35 +92,36 @@ class SplitView(Group):
         strokeColor: rgba = WHITE,
         strokeWidth: wnumber = 0.025,
         cornerRadius: percent = 10,
-        strokeInside: bool = True,
+        ratio: float = 2 / 3,  # right panel width as a fraction of left panel width
     ):
-        pW: wnumber = (W - 3 * marginX) / 2
+        total: wnumber = W - 3 * marginX
+        pWa: wnumber = total / (1 + ratio)
+        pWb: wnumber = total - pWa
         pH: wnumber = panelHeight if panelHeight is not None else H - 2 * marginY
-        pX: wnumber = W / 2 - marginX - pW / 2
+        xA: wnumber = -W / 2 + marginX + pWa / 2
+        xB: wnumber = -W / 2 + 2 * marginX + pWa + pWb / 2
 
         self.a = Panel(
-            width=pW,
+            width=pWa,
             height=pH,
-            x=-pX,
+            x=xA,
             y=0,
             padding=padding,
             fillColor=fillColor,
             strokeColor=strokeColor,
             strokeWidth=strokeWidth,
             cornerRadius=cornerRadius,
-            strokeInside=strokeInside,
         )
         self.b = Panel(
-            width=pW,
+            width=pWb,
             height=pH,
-            x=pX,
+            x=xB,
             y=0,
             padding=padding,
             fillColor=fillColor,
             strokeColor=strokeColor,
             strokeWidth=strokeWidth,
             cornerRadius=cornerRadius,
-            strokeInside=strokeInside,
         )
 
         super().__init__(self.a, self.b)
