@@ -4,6 +4,8 @@ on:
   pull_request:
     types:
       - opened
+      - synchronize
+      - reopened
     branches-ignore:
       - 'ga-ignore-**'
   push:
@@ -41,7 +43,10 @@ jobs:
         run: echo "VCPKG_ROOT=$HOME/vcpkg" >> $GITHUB_ENV
 
       - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y build-essential cmake python3-dev ffmpeg libopencv-dev libcurl4-openssl-dev libvulkan-dev libfreetype6-dev glslang-dev glslang-tools g++-13 gcc-13 mesa-vulkan-drivers texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm
+        # pkg-config + libxcb1-dev: required by the Linux XCB-surface branch in
+        # CMakeLists.txt (pkg_check_modules(XCB REQUIRED xcb)) — don't rely on
+        # them shipping preinstalled on the runner image.
+        run: sudo apt-get update && sudo apt-get install -y build-essential cmake pkg-config python3-dev ffmpeg libopencv-dev libcurl4-openssl-dev libvulkan-dev libfreetype6-dev glslang-dev glslang-tools g++-13 gcc-13 mesa-vulkan-drivers libxcb1-dev texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm
 
       - name: Install Python dependencies
         run: pip install pybind11 -r requirements.txt

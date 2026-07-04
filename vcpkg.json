@@ -20,6 +20,11 @@
     "curl",
     "glslang",
     "vulkan",
+    {
+      "name": "vulkan-loader",
+      "features": ["xcb"],
+      "platform": "linux"
+    },
     "freetype",
     "earcut-hpp"
   ]

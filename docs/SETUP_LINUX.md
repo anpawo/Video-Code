@@ -21,8 +21,25 @@ sudo apt-get install -y \
     glslang-dev glslang-tools \
     g++-13 gcc-13 \
     mesa-vulkan-drivers \
-    texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm
+    texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm \
+    autoconf autoconf-archive automake libtool flex bison \
+    libxi-dev libxtst-dev \
+    libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
+    libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev \
+    '^libxcb.*-dev'
 ```
+
+- **autotools + flex/bison**: vcpkg builds some dependencies from source with
+  their own build systems — `autoconf-archive`/`automake`/`libtool` are needed
+  by autotools ports (gperf, libxcrypt), and `flex`/`bison` by libpq
+  (PostgreSQL, pulled in via Qt's `sql-psql`).
+- **X11 / OpenGL / XCB `-dev` packages**: needed to build Qt's `xcb` platform
+  plugin and `opengl`/`egl` features, plus the at-spi2 accessibility libs that
+  OpenCV's GTK highgui pulls in. The `'^libxcb.*-dev'` regex installs all the
+  `libxcb-*` dev packages (icccm, image, keysyms, randr, render-util, shape,
+  sync, xfixes, cursor, util, …) in one go. These ship preinstalled on GitHub's
+  CI runners, which is why CI builds green without listing them — a fresh
+  machine needs them explicitly.
 
 - **g++-13 / gcc-13**: the project requires C++20 and `CMakeLists.txt` hard-fails
   if `CMAKE_CXX_COMPILER_VERSION` isn't > 13. Point CMake at it explicitly
@@ -71,31 +88,76 @@ pip install pybind11 -r requirements.txt
 `requirements.txt` currently includes: `shapely`, `freetype-py`, `uharfbuzz`,
 `Pillow`, `svgelements`, `typing_extensions`.
 
-If `pip install` is externally-managed-environment-blocked on your distro,
-use a venv:
+> **Install into the interpreter the binary *embeds* — not a venv layered on
+> top of it.** `find_package(Python3 ... Development.Embed)` links the *base*
+> `libpython`; a virtualenv has no `libpython` of its own, so at runtime the
+> embedded interpreter reads the **base** interpreter's `site-packages`, never
+> the venv's. A venv therefore satisfies the build (the `python3 -m pybind11`
+> lookup) but at runtime you get `ModuleNotFoundError: No module named 'PIL'`.
+> Install the packages into the actual base interpreter instead.
+
+Two requirements on that interpreter:
+
+1. **Version ≥ 3.12** — `find_package(Python3 3.12 ...)` hard-fails below it.
+2. **It's the one CMake resolves at configure time** — keep it first on `PATH`
+   (or pass `-DPython3_EXECUTABLE=…`) when you run `cmake` in step 4, and
+   install the packages into *that same* interpreter.
+
+With `pyenv`, the clean approach is to use a pyenv-managed ≥ 3.12 version
+directly (pyenv Pythons aren't externally-managed, so `pip` works without a
+venv) and select it for the build:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install pybind11 -r requirements.txt
+pyenv shell 3.13.3            # or any installed >= 3.12
+python3 -m pip install pybind11 -r requirements.txt
+# ... then run the step-4 cmake from this same shell
 ```
 
+On a distro where the system `python3` is ≥ 3.12 but `pip` is
+externally-managed-blocked (PEP 668), install with
+`pip install --break-system-packages pybind11 -r requirements.txt` rather than a
+venv — again so the packages land where the embedded interpreter looks.
+
 (CMake calls `python3 -m pybind11 --cmakedir` to locate pybind11's CMake
-config — make sure that `python3` is the same interpreter/env you installed
+config — `python3` at configure time must be the interpreter you installed
 into.)
 
 ## 4. Build
 
 ```bash
 cmake -S . -B build -G Ninja \
+    -DCMAKE_C_COMPILER=$(which gcc-13) \
     -DCMAKE_CXX_COMPILER=$(which g++-13) \
     -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
+    -DVCPKG_OVERLAY_TRIPLETS=$(pwd)/vcpkg-overlay-triplets \
     -DVCPKG_INSTALLED_DIR=$(pwd)/vcpkg_installed \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 cmake --build build
 cp build/video-code .
 ```
+
+- **`-DVCPKG_OVERLAY_TRIPLETS=$(pwd)/vcpkg-overlay-triplets`** points vcpkg at
+  the in-repo `x64-linux` overlay triplet, which chainloads
+  `cmake/vcpkg-toolchain-gcc13.cmake` so *dependencies* are built with GCC 13
+  too (not just the app). Without it, vcpkg uses the system default compiler;
+  on distros shipping GCC 15+, several old dependency versions fail to compile.
+  The overlay re-includes vcpkg's stock `linux.cmake`, so `-fPIC` and arch
+  detection still apply.
+- **`-DCMAKE_C_COMPILER=$(which gcc-13)`** — the C counterpart to the C++
+  compiler flag; keeps C and C++ dependency objects on the same toolchain.
+- If you hit a vcpkg dependency build failing with *"another vcpkg may be
+  running"* or permission errors under `vcpkg_installed/`, make sure you never
+  ran the build with `sudo` (that leaves root-owned files); fix with
+  `sudo chown -R "$USER:$USER" vcpkg_installed`.
+- On a tight disk, add
+  `-DVCPKG_INSTALL_OPTIONS="--clean-buildtrees-after-build;--clean-packages-after-build"`
+  so vcpkg deletes each port's intermediates as it goes (the cold build
+  otherwise leaves ~15 GB+ in `~/vcpkg/buildtrees`).
+
+The dependency versions are pinned by the baseline in
+`vcpkg-configuration.json`; it was bumped to a 2026 vcpkg commit so the
+dependency set compiles on current toolchains (GCC 15 / glibc 2.43).
 
 This matches what CI does. `make cmake` (the Makefile target) runs the same
 configure+build but its final `cp` step
