@@ -128,6 +128,10 @@ namespace
         {"effect-shaders", "test/visual/scenes/effect_shaders.py", {0, 15}},
         {"effect-templates", "test/visual/scenes/effect_templates.py", {0, 7, 15, 29}},
         {"easings", "test/visual/scenes/easings.py", {8, 15, 29}},
+        {"effect-shaders2", "test/visual/scenes/effect_shaders2.py", {0, 15}},
+        {"effect-templates2", "test/visual/scenes/effect_templates2.py", {0, 7, 15, 29}},
+        {"effect-shaders3", "test/visual/scenes/effect_shaders3.py", {0}},
+        {"effect-templates3", "test/visual/scenes/effect_templates3.py", {0, 7, 15, 29}},
     };
 
     const std::vector<ReloadCase> kReloadCases = {

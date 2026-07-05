@@ -110,6 +110,14 @@ Export it from `videocode/shader/_shaders.py` (star import).
 - **`--visual-test --update-golden` rewrites EVERY golden**, including cases
   that were legitimately failing. After generating goldens for a new scene,
   `git checkout -- test/visual/golden/` then `git add` only the new files.
+- **Colors can't ride push constants.** `shaderParams()` only picks numeric
+  args — an `rgba` attribute is silently skipped. Flatten colors to float
+  attributes in `__init__` (see `duotone.py`: `darkB/darkG/darkR/...`,
+  names chosen so the alphabetical order groups the channels).
+- **A visual scene must outlive its sampled frames.** The video's length is
+  `lastEverAffectedFrame`; if the longest effect ends at frame 27 and the
+  test samples frame 29, `readFrame` returns an empty image and the run
+  aborts inside `imwrite`. Make one effect's duration cover the last frame.
 
 ### 5. Verify
 

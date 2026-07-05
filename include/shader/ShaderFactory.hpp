@@ -30,14 +30,21 @@ using json = nlohmann::json;
     X(Brightness)  \
     X(Contrast)    \
     X(Sharpen)     \
-    X(Pixelate)
+    X(Pixelate)    \
+    X(Duotone)     \
+    X(Sepia)       \
+    X(Invert)      \
+    X(Posterize)   \
+    X(HueRotate)   \
+    X(Halftone)
 
 // Object-relative shaders — resolveEffectParams() prepends the mesh's own
 // screen-space bounding box, so their GLSL reads p[0..3] = (uMin, vMin,
 // uMax, vMax) followed by the regular alphabetical args.
 #define BBOX_SHADERS(X) \
     X(Crop)             \
-    X(Vignette)
+    X(Vignette)         \
+    X(ZoomBlur)
 
 // -------------------------------------------------------------------------
 // Generated class for each registered shader
@@ -162,6 +169,42 @@ private:
     const json::object_t _args;
 };
 
+// Vhs — scanlines + chroma shift + analog noise. Time-driven like Glitch:
+// paramsAtFrame appends the 0..1 progress that re-rolls the noise/jitter.
+class Vhs final : public IFragmentShader
+{
+public:
+
+    Vhs(const json::object_t& args)
+        : _start(args.at("start").get<size_t>())
+        , _duration(args.at("duration").get<size_t>())
+        , _args(args)
+    {
+    }
+
+    size_t start() const override { return _start; }
+
+    std::string_view shaderName() const override { return "Vhs"; }
+
+    const json::object_t& args() const override { return _args; }
+
+    std::vector<float> paramsAtFrame(size_t frame) const override
+    {
+        std::vector<float> out = shaderParams();
+        float progress = _duration <= 1
+                             ? 0.5f
+                             : static_cast<float>(frame - _start) / static_cast<float>(_duration - 1);
+        out.push_back(std::clamp(progress, 0.f, 1.f));
+        return out;
+    }
+
+private:
+
+    const size_t         _start;
+    const size_t         _duration;
+    const json::object_t _args;
+};
+
 // -------------------------------------------------------------------------
 // Factory map: shader name → constructor
 // -------------------------------------------------------------------------
@@ -174,4 +217,5 @@ const std::map<std::string, std::function<std::unique_ptr<IFragmentShader>(const
         BBOX_SHADERS(BIND_SHADERS)
             BIND_SHADERS(LightSweep)
                 BIND_SHADERS(Glitch)
+                    BIND_SHADERS(Vhs)
 };

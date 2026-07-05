@@ -22,6 +22,14 @@ from videocode.shader.fragmentShader.lightSweep import *
 from videocode.shader.fragmentShader.vignette import *
 from videocode.shader.fragmentShader.pixelate import *
 from videocode.shader.fragmentShader.glitch import *
+from videocode.shader.fragmentShader.duotone import *
+from videocode.shader.fragmentShader.vhs import *
+from videocode.shader.fragmentShader.zoomBlur import *
+from videocode.shader.fragmentShader.sepia import *
+from videocode.shader.fragmentShader.invert import *
+from videocode.shader.fragmentShader.posterize import *
+from videocode.shader.fragmentShader.hueRotate import *
+from videocode.shader.fragmentShader.halftone import *
 
 # Transformations
 from videocode.shader.vertexShader.align import *
