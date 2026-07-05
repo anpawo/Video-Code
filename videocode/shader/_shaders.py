@@ -30,6 +30,7 @@ from videocode.shader.fragmentShader.invert import *
 from videocode.shader.fragmentShader.posterize import *
 from videocode.shader.fragmentShader.hueRotate import *
 from videocode.shader.fragmentShader.halftone import *
+from videocode.shader.fragmentShader.chromaKey import *
 
 # Transformations
 from videocode.shader.vertexShader.align import *

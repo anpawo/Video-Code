@@ -1,58 +1,41 @@
 #!/usr/bin/env python3
 
-# One example for every effect in batch 3 of the effects pack.
+# One example for every effect in batch 4 (Tier 1 compositing gap) of the
+# effects pack: chromaKey + the crossfade/push/wipeBetween transitions API.
 # Render with: ./video-code --file feat.py --generate feat.mp4
 
 from videocode import *
-from videocode.template.effect.other.bounceIn import bounceIn
-from videocode.template.effect.other.stamp import stamp
-from videocode.template.effect.other.swing import swing
-from videocode.template.effect.other.tada import tada
-
-START = 0.6
-END = 3.6
+from videocode.template.effect.other.transitions import crossfade, push, wipeBetween
 
 
 def label(text: str, x: wnumber, y: wnumber) -> Text:
     return Text(text, fontSize=0.17, fillColor=WHITE | 0.6).position(x, y)
 
 
-# ── Row 1 (y=2.3): motion templates ──────────────────────────────────────────
+# ── chromaKey(): green background keyed out, red circle behind shows through ─
 
-label("bounceIn()", -5.4, 3.6)
-Circle(radius=0.55, fillColor=BLUE_C, strokeColor=WHITE, strokeWidth=0.04) \
-    .position(-5.4, 1.9).apply(bounceIn(height=2.0, start=START, duration=0.9))
+label("chromaKey()", -6.4, 2.2)
+Circle(radius=1.1, fillColor=RED_B, strokeColor=TRANSPARENT).position(-6.4, 0.6)
+Rectangle(width=2.4, height=2.4, fillColor=GREEN, strokeColor=TRANSPARENT) \
+    .position(-6.4, 0.6).apply(chromaKey(color=GREEN, tolerance=0.35, softness=0.1), duration=3.4)
 
-label("swing()", -1.8, 3.6)
-Rectangle(width=1.8, height=1.2, fillColor=RED_B, strokeColor=WHITE, cornerRadius=15) \
-    .position(-1.8, 2.3).apply(swing(angle=20, start=START, duration=1.0))
+# ── crossfade(): blue dissolves into red ────────────────────────────────────
 
-label("tada()", 1.8, 3.6)
-Rectangle(width=1.5, height=1.5, fillColor=GREEN_A, strokeColor=WHITE, cornerRadius=15) \
-    .position(1.8, 2.3).apply(tada(start=START, duration=1.0))
+label("crossfade()", -2.5, 2.2)
+cfOut = Rectangle(width=1.8, height=1.8, fillColor=BLUE_C, strokeColor=TRANSPARENT).position(-2.5, 0.6)
+cfIn = Rectangle(width=1.8, height=1.8, fillColor=RED_B, strokeColor=TRANSPARENT).position(-2.5, 0.6).opacity(0).hide()
+crossfade(cfOut, cfIn, start=0.6, duration=0.8)
 
-label("stamp()", 5.4, 3.6)
-Text("APPROVED", fontSize=0.42, fillColor=RED_A) \
-    .position(5.4, 2.3).apply(stamp(start=START, duration=0.7))
+# ── push(): green pushed out to the left, yellow enters from the right ─────
 
-# ── Row 2 (y=-1.6): filter shaders ───────────────────────────────────────────
+label('push("left")', 1.4, 2.2)
+pOut = Rectangle(width=1.8, height=1.8, fillColor=GREEN_A, strokeColor=TRANSPARENT).position(1.4, 0.6)
+pIn = Rectangle(width=1.8, height=1.8, fillColor=YELLOW, strokeColor=TRANSPARENT).position(1.4, 0.6).hide()
+push(pOut, pIn, direction="left", distance=2.2, start=0.6, duration=0.7)
 
-label("sepia()", -6.4, -0.4)
-Rectangle(width=2.4, height=1.5, fillColor=LinearGradient(BLUE_C, RED_B), strokeColor=TRANSPARENT) \
-    .position(-6.4, -1.6).apply(sepia(), duration=END)
+# ── wipeBetween(): gradient wiped away to reveal another gradient ──────────
 
-label("invert()", -3.2, -0.4)
-Rectangle(width=2.4, height=1.5, fillColor=LinearGradient(BLUE_C, RED_B), strokeColor=TRANSPARENT) \
-    .position(-3.2, -1.6).apply(invert(), duration=END)
-
-label("hueRotate(120)", 0, -0.4)
-Rectangle(width=2.4, height=1.5, fillColor=LinearGradient(BLUE_C, RED_B), strokeColor=TRANSPARENT) \
-    .position(0, -1.6).apply(hueRotate(120), duration=END)
-
-label("posterize(4)", 3.2, -0.4)
-Rectangle(width=2.4, height=1.5, fillColor=LinearGradient(WHITE, BLACK), strokeColor=TRANSPARENT) \
-    .position(3.2, -1.6).apply(posterize(4), duration=END)
-
-label("halftone()", 6.4, -0.4)
-Rectangle(width=2.4, height=1.5, fillColor=LinearGradient(WHITE, BLACK), strokeColor=TRANSPARENT) \
-    .position(6.4, -1.6).apply(halftone(10), duration=END)
+label('wipeBetween("left")', 5.4, 2.2)
+wOut = Rectangle(width=2.2, height=1.8, fillColor=LinearGradient(RED_B, BLUE_C), strokeColor=TRANSPARENT).position(5.4, 0.6)
+wIn = Rectangle(width=2.2, height=1.8, fillColor=LinearGradient(GREEN_A, YELLOW), strokeColor=TRANSPARENT).position(5.4, 0.6).hide()
+wipeBetween(wOut, wIn, direction="left", start=0.6, duration=0.8)

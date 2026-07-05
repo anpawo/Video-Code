@@ -97,9 +97,19 @@ Export it from `videocode/shader/_shaders.py` (star import).
 
 ### 4. The traps (each one cost a debugging session once)
 
-- **Param order is ALPHABETICAL by Python attribute name.** `shaderParams()`
-  iterates the args as a sorted map — rename an attribute and every GLSL
-  `p[i]` index shifts. Document the layout in the GLSL header comment.
+- **Param order is ALPHABETICAL by Python attribute name — and it is easy to
+  get this wrong even knowing the rule** (chromaKey's first version assumed
+  `tolerance, softness, keyB, keyG, keyR` — its `__init__` assignment order —
+  and silently read garbage; the real order is `keyB, keyG, keyR, softness,
+  tolerance`). `shaderParams()` iterates the args as a `std::map` after
+  C++ conversion (alphabetical), NOT Python's dict insertion order — so
+  printing `Context.stack` from Python and eyeballing the key order **does
+  not** tell you the true order; a 3-attribute name like `amount`/`slices`/
+  `seed` looks insertion-ordered in Python but arrives as `[amount, seed,
+  slices]` in GLSL (see `Glitch`). To get it right: alphabetize the
+  attribute names in `__init__` BY HAND before writing the GLSL comment, or
+  render a test scene where each param has a visually distinct effect and
+  confirm the picture matches, not just that the shader "does something."
 - **`texelX`/`texelY` are the real texel size only in single-pass effects.**
   Blur's two passes overload them as the step direction — don't copy blur's
   GLSL as a starting point for a non-separable effect.
