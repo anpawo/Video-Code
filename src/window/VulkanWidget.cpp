@@ -1131,22 +1131,16 @@ bool VC::VulkanWidget::createPipeline()
     ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     ms.rasterizationSamples = VK_SAMPLE_COUNT_4_BIT;
 
-    VkPipelineColorBlendAttachmentState blendAttach{};
-    blendAttach.blendEnable = VK_TRUE;
-    blendAttach.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    blendAttach.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    blendAttach.colorBlendOp = VK_BLEND_OP_ADD;
-    blendAttach.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    blendAttach.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    blendAttach.alphaBlendOp = VK_BLEND_OP_ADD;
-    blendAttach.colorWriteMask =
-        VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-        VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-
-    VkPipelineColorBlendStateCreateInfo blend{};
-    blend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    blend.attachmentCount = 1;
-    blend.pAttachments = &blendAttach;
+    // One color-blend attachment (and one full create-info) per blend mode —
+    // only pColorBlendState varies between the variants. See BlendModes.hpp.
+    VkPipelineColorBlendAttachmentState blendAttach[kBlendModeCount];
+    VkPipelineColorBlendStateCreateInfo blendState[kBlendModeCount]{};
+    for (int m = 0; m < kBlendModeCount; ++m) {
+        blendAttach[m] = blendAttachmentFor(m);
+        blendState[m].sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        blendState[m].attachmentCount = 1;
+        blendState[m].pAttachments = &blendAttach[m];
+    }
 
     VkDescriptorSetLayout setLayouts[] = {m_descriptorSetLayout, m_textureSetLayout};
 
@@ -1156,22 +1150,24 @@ bool VC::VulkanWidget::createPipeline()
     layoutCI.pSetLayouts = setLayouts;
     vkCreatePipelineLayout(m_device, &layoutCI, nullptr, &m_pipelineLayout);
 
-    VkGraphicsPipelineCreateInfo ci{};
-    ci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    ci.stageCount = 2;
-    ci.pStages = stages;
-    ci.pVertexInputState = &vi;
-    ci.pInputAssemblyState = &ia;
-    ci.pViewportState = &vs;
-    ci.pRasterizationState = &rs;
-    ci.pMultisampleState = &ms;
-    ci.pColorBlendState = &blend;
-    ci.pDynamicState = &dyn;
-    ci.layout = m_pipelineLayout;
-    ci.renderPass = m_renderPass;
+    VkGraphicsPipelineCreateInfo cis[kBlendModeCount]{};
+    for (int m = 0; m < kBlendModeCount; ++m) {
+        cis[m].sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        cis[m].stageCount = 2;
+        cis[m].pStages = stages;
+        cis[m].pVertexInputState = &vi;
+        cis[m].pInputAssemblyState = &ia;
+        cis[m].pViewportState = &vs;
+        cis[m].pRasterizationState = &rs;
+        cis[m].pMultisampleState = &ms;
+        cis[m].pColorBlendState = &blendState[m];
+        cis[m].pDynamicState = &dyn;
+        cis[m].layout = m_pipelineLayout;
+        cis[m].renderPass = m_renderPass;
+    }
 
     bool ok = vkCreateGraphicsPipelines(
-                  m_device, VK_NULL_HANDLE, 1, &ci, nullptr, &m_pipeline
+                  m_device, VK_NULL_HANDLE, kBlendModeCount, cis, nullptr, m_pipelines
               ) == VK_SUCCESS;
 
     // Shader modules are only needed during pipeline creation.
@@ -1623,7 +1619,9 @@ void VC::VulkanWidget::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageInd
     vkCmdBeginRenderPass(cb, &rpi, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdSetViewport(cb, 0, 1, &vp);
     vkCmdSetScissor(cb, 0, 1, &sc);
-    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+    // Normal pipeline as a baseline; recordSceneDraws rebinds per mesh by blend
+    // mode. set=0 persists across those rebinds (shared m_pipelineLayout).
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelines[0]);
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
 
     recordSceneDraws(cb);
@@ -1703,7 +1701,7 @@ cv::Mat VC::VulkanWidget::readFrame()
     vkCmdBeginRenderPass(m_commandBuffer, &rpi, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdSetViewport(m_commandBuffer, 0, 1, &vp);
     vkCmdSetScissor(m_commandBuffer, 0, 1, &sc);
-    vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+    vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelines[0]);
     vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
 
     recordSceneDraws(m_commandBuffer);
@@ -2613,9 +2611,20 @@ void VC::VulkanWidget::recordSceneDraws(VkCommandBuffer cb)
     for (size_t s = 0; s < m_effectMeshIndices.size(); ++s)
         effectSlotForMesh[m_effectMeshIndices[s]] = s;
 
+    // Rebind the pipeline only when the blend mode changes from the previously
+    // bound one (rare per frame). Normal-only scenes keep a single bind, so
+    // existing goldens are unaffected. set=0 (bound by the caller) persists.
+    int boundBlend = -1;
     for (size_t mi = 0; mi < m_meshes.size(); ++mi) {
         const Mesh& mesh = m_meshes[mi];
         auto        effIt = effectSlotForMesh.find(mi);
+
+        int bm = mesh.blendMode;
+        if (bm < 0 || bm >= kBlendModeCount) bm = 0;
+        if (bm != boundBlend) {
+            boundBlend = bm;
+            vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelines[bm]);
+        }
 
         if (effIt == effectSlotForMesh.end()) {
             const MeshDrawInfo& info = m_meshDrawInfos[mi];
@@ -2662,7 +2671,9 @@ void VC::VulkanWidget::cleanup()
     destroySsaaResources();
     destroyReadbackResources();
 
-    vkDestroyPipeline(m_device, m_pipeline, nullptr);
+    for (VkPipeline& p : m_pipelines) {
+        if (p != VK_NULL_HANDLE) vkDestroyPipeline(m_device, p, nullptr);
+    }
     if (m_effectGeomPipeline) vkDestroyPipeline(m_device, m_effectGeomPipeline, nullptr);
     for (auto& [name, ep] : m_effectPipelines) {
         vkDestroyPipeline(m_device, ep.pipeline, nullptr);

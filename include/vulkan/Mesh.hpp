@@ -39,4 +39,5 @@ struct Mesh
     std::vector<ActiveEffect> effects;
     int                       zIndex = 0;    // render order — see Metadata::zIndex
     int                       zOrderSeq = 0; // tiebreak for equal zIndex — see Metadata::zOrderSeq
+    int                       blendMode = 0; // compositing mode — see Metadata::blendMode / BlendModes.hpp
 };

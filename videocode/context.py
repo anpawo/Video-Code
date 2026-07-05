@@ -52,6 +52,11 @@ class Metadata:
         # one wins (renders on top), regardless of creation order.
         self.zOrderSeq: int = 0
 
+        # --- Blend mode ---
+        # Compositing mode index (see shader/vertexShader/blendMode.py):
+        # 0=normal, 1=multiply, 2=screen, 3=add. Default is normal.
+        self.blendMode: int = 0
+
         if not interface and not noRegister:
             Context.metas.append(self)
 

@@ -24,6 +24,7 @@ from videocode.shader.vertexShader.translate import translate
 from videocode.shader.vertexShader.show import show
 from videocode.shader.vertexShader.opacity import opacity
 from videocode.shader.vertexShader.zIndex import zIndex
+from videocode.shader.vertexShader.blendMode import blendMode as _blendModeShader, blendModeName
 from videocode.utils.bezier import animate, Easing, easing
 from videocode.utils.logger import *
 from videocode.utils.classutils import At, AttributeNameReference, EaseAttributeSimplifier, _Over
@@ -326,6 +327,16 @@ class Input(ABC):
 
     def zIndex(self, z: int, offset: maybe[frame] = None) -> Self:
         return self.apply(zIndex(z), offset=offset)
+
+    def blendMode(self, mode: blendModeName, offset: maybe[frame] = None) -> Self:
+        """
+        Set how this `Input` composites over what is drawn behind it:
+        `"normal"` (default), `"multiply"` (darken), `"screen"` (lighten) or
+        `"add"` (linear dodge, clips toward white).
+
+            Rectangle(...).blendMode("multiply")
+        """
+        return self.apply(_blendModeShader(mode), offset=offset)
 
     def inFrontOf(self, other: Input) -> Self:
         """

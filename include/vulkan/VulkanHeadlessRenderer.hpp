@@ -14,6 +14,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "vulkan/BlendModes.hpp"
 #include "vulkan/Mesh.hpp"
 
 namespace VC
@@ -90,7 +91,10 @@ namespace VC
         VkRenderPass     m_renderPass = VK_NULL_HANDLE;
         VkFramebuffer    m_framebuffer = VK_NULL_HANDLE;
         VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
-        VkPipeline       m_pipeline = VK_NULL_HANDLE;
+        // One pipeline per blend mode (index = Mesh::blendMode). All share
+        // m_pipelineLayout and every other state — only pColorBlendState differs.
+        // m_pipelines[0] (Normal) is also reused for the effect isolated-layer pass.
+        VkPipeline       m_pipelines[kBlendModeCount] = {};
 
         // ── set=0 UBO ─────────────────────────────────────────────────────────
         VkDescriptorSetLayout m_uboLayout = VK_NULL_HANDLE;

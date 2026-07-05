@@ -128,6 +128,24 @@ Export it from `videocode/shader/_shaders.py` (star import).
   `lastEverAffectedFrame`; if the longest effect ends at frame 27 and the
   test samples frame 29, `readFrame` returns an empty image and the run
   aborts inside `imwrite`. Make one effect's duration cover the last frame.
+- **Blend modes are NOT fragment-shader effects.** A `frag.glsl` effect
+  post-processes a single input's *isolated* layer (transparent everywhere
+  else) — it can never see what's behind the input, so it cannot express
+  compositing (multiply/screen/…). Blend modes are pipeline color-blend
+  *state* selected per mesh: `Metadata.blendMode → Mesh::blendMode →
+  m_pipelines[mode]`, one pipeline variant per mode, bound in the main draw
+  loop. The recipe lives once in `include/vulkan/BlendModes.hpp` and both
+  renderers build/destroy the `m_pipelines[]` array from it. Overlay is
+  intentionally unsupported: it needs the fragment shader to READ the
+  destination pixel (subpass input attachment), which fixed-function blend
+  factors can't do — a render-pass restructure, not a blend-state tweak.
+- **A blend-mode VertexShader resolves its string to an int in Python.** Store
+  the resolved `int` on the shader (`self.mode = _MODES[mode]`), never the
+  string — the JSON stack and `getMetadataFromArgs` only ever deal with the
+  pipeline index. Beware the class-vs-type-alias name collision: a `class
+  blendMode` shadows a module-level `type blendMode = Literal[...]`, so name
+  the alias distinctly (`blendModeName`) or `from … import blendMode` silently
+  gives you the class.
 
 ### 5. Verify
 

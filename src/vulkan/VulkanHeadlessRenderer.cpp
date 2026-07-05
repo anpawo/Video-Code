@@ -559,21 +559,16 @@ bool VC::VulkanHeadlessRenderer::createPipeline()
     ms.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
 
-    VkPipelineColorBlendAttachmentState blendA{};
-    blendA.blendEnable = VK_TRUE;
-    blendA.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
-    blendA.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    blendA.colorBlendOp = VK_BLEND_OP_ADD;
-    blendA.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
-    blendA.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-    blendA.alphaBlendOp = VK_BLEND_OP_ADD;
-    blendA.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                            VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-
-    VkPipelineColorBlendStateCreateInfo blend{};
-    blend.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    blend.attachmentCount = 1;
-    blend.pAttachments = &blendA;
+    // One color-blend attachment (and thus one full create-info) per blend mode.
+    // Only pColorBlendState varies between the variants — see BlendModes.hpp.
+    VkPipelineColorBlendAttachmentState blendAttach[kBlendModeCount];
+    VkPipelineColorBlendStateCreateInfo blendState[kBlendModeCount]{};
+    for (int m = 0; m < kBlendModeCount; ++m) {
+        blendAttach[m] = blendAttachmentFor(m);
+        blendState[m].sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+        blendState[m].attachmentCount = 1;
+        blendState[m].pAttachments = &blendAttach[m];
+    }
 
     VkDescriptorSetLayout      setLayouts[] = {m_uboLayout, m_texLayout};
     VkPipelineLayoutCreateInfo layoutCI{};
@@ -582,21 +577,23 @@ bool VC::VulkanHeadlessRenderer::createPipeline()
     layoutCI.pSetLayouts = setLayouts;
     vkCreatePipelineLayout(m_device, &layoutCI, nullptr, &m_pipelineLayout);
 
-    VkGraphicsPipelineCreateInfo ci{};
-    ci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    ci.stageCount = 2;
-    ci.pStages = stages;
-    ci.pVertexInputState = &vi;
-    ci.pInputAssemblyState = &ia;
-    ci.pViewportState = &vs;
-    ci.pRasterizationState = &rs;
-    ci.pMultisampleState = &ms;
-    ci.pColorBlendState = &blend;
-    ci.pDynamicState = &dyn;
-    ci.layout = m_pipelineLayout;
-    ci.renderPass = m_renderPass;
+    VkGraphicsPipelineCreateInfo cis[kBlendModeCount]{};
+    for (int m = 0; m < kBlendModeCount; ++m) {
+        cis[m].sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+        cis[m].stageCount = 2;
+        cis[m].pStages = stages;
+        cis[m].pVertexInputState = &vi;
+        cis[m].pInputAssemblyState = &ia;
+        cis[m].pViewportState = &vs;
+        cis[m].pRasterizationState = &rs;
+        cis[m].pMultisampleState = &ms;
+        cis[m].pColorBlendState = &blendState[m];
+        cis[m].pDynamicState = &dyn;
+        cis[m].layout = m_pipelineLayout;
+        cis[m].renderPass = m_renderPass;
+    }
 
-    bool ok = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &ci, nullptr, &m_pipeline) == VK_SUCCESS;
+    bool ok = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, kBlendModeCount, cis, nullptr, m_pipelines) == VK_SUCCESS;
     vkDestroyShaderModule(m_device, vert, nullptr);
     vkDestroyShaderModule(m_device, frag, nullptr);
     return ok;
@@ -1003,7 +1000,9 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
     vkCmdBeginRenderPass(m_commandBuffer, &rpi, VK_SUBPASS_CONTENTS_INLINE);
     vkCmdSetViewport(m_commandBuffer, 0, 1, &vp);
     vkCmdSetScissor(m_commandBuffer, 0, 1, &sc);
-    vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+    // set=0 (UBO) is bound once: it persists across pipeline binds since every
+    // blend-mode pipeline shares m_pipelineLayout. The pipeline itself is bound
+    // per mesh below, keyed on mesh.blendMode.
     vkCmdBindDescriptorSets(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_uboSet, 0, nullptr);
 
     VkBuffer     vbufs[] = {m_vertexBuffer};
@@ -1017,9 +1016,20 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
     for (size_t s = 0; s < m_effectMeshIndices.size(); ++s)
         effectSlotForMesh[m_effectMeshIndices[s]] = s;
 
+    // Rebind the pipeline only when the blend mode changes from the previously
+    // bound one — blend-mode switches are rare per frame, so this is cheap and
+    // keeps Normal-only scenes at a single bind (identical to the old behavior).
+    int boundBlend = -1;
     for (size_t mi = 0; mi < m_meshes.size(); ++mi) {
         const Mesh& mesh = m_meshes[mi];
         auto        effIt = effectSlotForMesh.find(mi);
+
+        int bm = mesh.blendMode;
+        if (bm < 0 || bm >= kBlendModeCount) bm = 0;
+        if (bm != boundBlend) {
+            boundBlend = bm;
+            vkCmdBindPipeline(m_commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelines[bm]);
+        }
 
         if (effIt == effectSlotForMesh.end()) {
             const MeshDrawInfo& info = m_meshDrawInfos[mi];
@@ -1476,8 +1486,10 @@ void VC::VulkanHeadlessRenderer::recordEffectGeomPass(VkCommandBuffer cb, VkFram
     vkCmdSetViewport(cb, 0, 1, &vp);
     vkCmdSetScissor(cb, 0, 1, &sc);
 
-    // Reuse the main geometry pipeline (same format + sample count as m_effectPass)
-    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipeline);
+    // Reuse the Normal-mode geometry pipeline (same format + sample count as
+    // m_effectPass): the isolated layer is always rendered onto a transparent
+    // clear with standard alpha, then composited with its blend mode in the main pass.
+    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelines[0]);
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_uboSet, 0, nullptr);
 
     VkDeviceSize zero = 0;
@@ -1560,7 +1572,9 @@ void VC::VulkanHeadlessRenderer::cleanup()
         if (m_readbackMemories[i]) vkFreeMemory(m_device, m_readbackMemories[i], nullptr);
     }
 
-    vkDestroyPipeline(m_device, m_pipeline, nullptr);
+    for (VkPipeline& p : m_pipelines) {
+        if (p != VK_NULL_HANDLE) vkDestroyPipeline(m_device, p, nullptr);
+    }
     vkDestroyPipelineLayout(m_device, m_pipelineLayout, nullptr);
     vkDestroyRenderPass(m_device, m_renderPass, nullptr);
 

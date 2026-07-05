@@ -38,6 +38,7 @@ enum class VertexShader {
     Show,
     Args,
     ZIndex,
+    BlendMode,
 
     // -
 
@@ -55,6 +56,7 @@ const std::map<std::string, VertexShader> getTransformFromString = {
     {"Show", VertexShader::Show},
     {"Args", VertexShader::Args},
     {"ZIndex", VertexShader::ZIndex},
+    {"BlendMode", VertexShader::BlendMode},
 };
 
 inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size2f& size, const Metadata& meta)
@@ -178,6 +180,11 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
             meta.zIndex = args.at("zIndex").get<int>();
             meta.zOrderSeq = args.at("zOrderSeq").get<int>();
             meta.zIndexExplicit = true;
+            break;
+        }
+        case VertexShader::BlendMode: {
+            // Python resolves the mode string to an int before it reaches here.
+            meta.blendMode = args.at("mode").get<int>();
             break;
         }
     }

@@ -99,6 +99,11 @@ struct Metadata
     // so the most recently changed one wins (renders on top).
     int zOrderSeq{0};
 
+    // Compositing blend mode for how this input's pixels combine with the
+    // framebuffer: 0=Normal, 1=Multiply, 2=Screen, 3=Add. Selects which of the
+    // renderer's per-mode pipelines draws this mesh — see vulkan/BlendModes.hpp.
+    int blendMode{0};
+
     bool hidden{false};
 
     // True when no "Args" VertexShader has ever fired for this input.

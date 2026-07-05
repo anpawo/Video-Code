@@ -313,6 +313,7 @@ const std::vector<Mesh>& VC::Core::generateMeshes()
                     // Python-side default (Metadata.zIndex = self.index).
                     mesh.zIndex = meta.zIndexExplicit ? meta.zIndex : static_cast<int>(&i - &_inputs[0]);
                     mesh.zOrderSeq = meta.zOrderSeq;
+                    mesh.blendMode = meta.blendMode;
                     _cachedMeshes.push_back(std::move(mesh));
                 }
 #ifdef VC_DEBUG_ON

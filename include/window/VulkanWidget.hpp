@@ -16,6 +16,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "vulkan/BlendModes.hpp"
 #include "vulkan/Mesh.hpp"
 
 namespace VC
@@ -195,7 +196,10 @@ namespace VC
         VkDescriptorSet       m_defaultTextureSet = VK_NULL_HANDLE; // 1×1 white, bound for non-textured meshes
 
         VkPipelineLayout m_pipelineLayout = VK_NULL_HANDLE;
-        VkPipeline       m_pipeline = VK_NULL_HANDLE;
+        // One pipeline per blend mode (index = Mesh::blendMode). All share
+        // m_pipelineLayout and every other state — only pColorBlendState differs.
+        // m_pipelines[0] is Normal, the default main-scene pipeline.
+        VkPipeline       m_pipelines[kBlendModeCount] = {};
 
         // ── Texture resources ─────────────────────────────────────────────
         struct TextureResource
