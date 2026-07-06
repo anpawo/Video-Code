@@ -91,13 +91,13 @@ check("ends back at 1", abs(xs[-1] - 1.0) < 0.02)
 section("wipeIn / wipeOut — crop sweep + persistence")
 
 w1 = Rectangle(width=2, height=1)
-w1.apply(wipeIn(direction="left", duration=0.5))
+w1.apply(wipeIn(direction=Direction.LEFT, duration=0.5))
 crops = framesWith(w1.meta.index, "Crop")
 rs = [e["args"]["right"] for _, e in sorted(crops.items())]
 check("wipeIn animates right crop 100 -> 0", abs(rs[0] - 100) < 1e-6 and abs(rs[-1]) < 1e-6)
 
 w2 = Rectangle(width=2, height=1)
-w2.apply(wipeOut(direction="right", duration=0.5))
+w2.apply(wipeOut(direction=Direction.RIGHT, duration=0.5))
 crops = framesWith(w2.meta.index, "Crop")
 ls = [e["args"]["left"] for _, e in sorted(crops.items())]
 check("wipeOut animates left crop 0 -> 100", abs(ls[0]) < 1e-6 and abs(ls[-1] - 100) < 1e-6)

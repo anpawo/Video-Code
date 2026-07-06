@@ -6,6 +6,7 @@ from __future__ import annotations
 # Constant
 #
 
+from enum import Enum, StrEnum
 from sys import stderr
 from videocode.ty import *
 import videocode.utils.logger as logger
@@ -58,6 +59,63 @@ BL: v2[maybe[number], maybe[number]] = BOTTOM_SIDE + LEFT_SIDE
 BR: v2[maybe[number], maybe[number]] = BOTTOM_SIDE + RIGHT_SIDE
 TL: v2[maybe[number], maybe[number]] = TOP_SIDE + LEFT_SIDE
 TR: v2[maybe[number], maybe[number]] = TOP_SIDE + RIGHT_SIDE
+
+
+class Direction(Enum):
+    """
+    A cardinal screen direction, for entrance/exit/transition effects
+    (`slideIn`, `wipeOut`, `push`, ...). The value is the unit vector in
+    world coordinates (Y positive-up).
+
+        rect.apply(slideIn(direction=Direction.BOTTOM))
+        push(sceneA, sceneB, direction=Direction.LEFT)
+    """
+
+    LEFT = (-1.0, 0.0)
+    RIGHT = (1.0, 0.0)
+    TOP = (0.0, 1.0)
+    BOTTOM = (0.0, -1.0)
+
+    @property
+    def vector(self) -> tuple[float, float]:
+        """Unit direction vector in world coordinates."""
+        return self.value
+
+    @property
+    def opposite(self) -> Direction:
+        x, y = self.value
+        return Direction((-x, -y))
+
+    @property
+    def side(self) -> str:
+        """Lowercase side name — matches `crop()`'s per-side kwargs."""
+        return self.name.lower()
+
+
+class Axis(Enum):
+    """Which axis an oscillating effect (`shake`) moves along."""
+
+    X = "x"
+    Y = "y"
+    BOTH = "both"
+
+
+class UVMapping(StrEnum):
+    """
+    How a texture (`Image`/`Video`) is wrapped onto its shape. Values match
+    the C++ parser in `BezierPath.cpp` (a `StrEnum`, so members serialize to
+    the JSON stack as their plain string value).
+
+    - `STRETCH` (default): bbox-normalized UVs — the texture is stretched to
+      the shape's bounding box.
+    - `RADIAL`/`CONIC`: polar UVs around the bbox center, mirroring
+      `RadialGradient`/`ConicGradient`'s center/angle convention; `uvAngle`
+      (degrees) rotates the angular origin.
+    """
+
+    STRETCH = "stretch"
+    RADIAL = "radial"
+    CONIC = "conic"
 
 
 # colors

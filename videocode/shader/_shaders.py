@@ -12,6 +12,7 @@ from videocode.shader.ishader import *
 # Shaders
 from videocode.shader.fragmentShader.grayscale import *
 from videocode.shader.fragmentShader.blur import *
+from videocode.shader.fragmentShader.glow import *
 from videocode.shader.fragmentShader.gamma import *
 from videocode.shader.fragmentShader.grain import *
 from videocode.shader.fragmentShader.brightness import *
@@ -31,6 +32,7 @@ from videocode.shader.fragmentShader.posterize import *
 from videocode.shader.fragmentShader.hueRotate import *
 from videocode.shader.fragmentShader.halftone import *
 from videocode.shader.fragmentShader.chromaKey import *
+from videocode.shader.fragmentShader.lut import *
 
 # Transformations
 from videocode.shader.vertexShader.align import *
@@ -44,3 +46,5 @@ from videocode.shader.vertexShader.scale import *
 from videocode.shader.vertexShader.show import *
 from videocode.shader.vertexShader.zIndex import *
 from videocode.shader.vertexShader.blendMode import *
+from videocode.shader.vertexShader.matte import *
+from videocode.shader.vertexShader.adjustmentLayer import *

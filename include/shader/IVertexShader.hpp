@@ -39,6 +39,8 @@ enum class VertexShader {
     Args,
     ZIndex,
     BlendMode,
+    Matte,
+    AdjustmentLayer,
 
     // -
 
@@ -57,6 +59,8 @@ const std::map<std::string, VertexShader> getTransformFromString = {
     {"Args", VertexShader::Args},
     {"ZIndex", VertexShader::ZIndex},
     {"BlendMode", VertexShader::BlendMode},
+    {"Matte", VertexShader::Matte},
+    {"AdjustmentLayer", VertexShader::AdjustmentLayer},
 };
 
 inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size2f& size, const Metadata& meta)
@@ -185,6 +189,19 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
         case VertexShader::BlendMode: {
             // Python resolves the mode string to an int before it reaches here.
             meta.blendMode = args.at("mode").get<int>();
+            break;
+        }
+        case VertexShader::Matte: {
+            // `source` is the target input's index (Python meta.index), already
+            // 1:1 with the C++ _inputs[] position — a plain int reference.
+            meta.matteSource = args.at("source").get<int>();
+            break;
+        }
+        case VertexShader::AdjustmentLayer: {
+            // Presence is the whole signal — no args. Flags this input so the
+            // renderer flattens everything below its zIndex and runs its effect
+            // chain over that composite instead of drawing its own geometry.
+            meta.isAdjustmentLayer = true;
             break;
         }
     }

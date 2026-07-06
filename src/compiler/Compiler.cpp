@@ -32,7 +32,7 @@ namespace
         std::string output; // appended before the output filename
     };
 
-    AudioArgs buildAudioArgs(const std::vector<std::unique_ptr<IInput>>& inputs)
+    AudioArgs buildAudioArgs(const std::vector<std::unique_ptr<IInput>>& inputs, const std::string& audioCodec)
     {
         std::vector<Sound*> sounds;
         for (const auto& i : inputs)
@@ -69,8 +69,82 @@ namespace
             outLabel = "aout";
         }
 
-        result.output = std::format(" -filter_complex \"{}\" -map 0:v -map \"[{}]\" -c:a aac", filterComplex, outLabel);
+        result.output = std::format(" -filter_complex \"{}\" -map 0:v -map \"[{}]\" -c:a {}", filterComplex, outLabel, audioCodec);
         return result;
+    }
+
+    // ── Output-container format profile ───────────────────────────────────────
+    // Selects encoder args purely by output extension, mirroring the image-vs-
+    // video dispatch already done via ImageIO::hasImageExtension. `.mp4` and any
+    // unrecognized extension fall through to the historical h264 behavior
+    // byte-for-byte. `.mov`/`.webm` add real per-pixel alpha (and require the
+    // renderer's transparent-clear mode); `.gif` is palette-quantized, no alpha.
+    struct VideoProfile
+    {
+        std::string videoArgs;         // "-c:v … -pix_fmt …", or the gif -vf palette graph
+        bool        transparentClear = false; // main pass clears to {0,0,0,0}
+        bool        faststart = true;         // append "-movflags +faststart" (mp4/mov only)
+        bool        allowAudio = true;        // false for gif (container can't carry audio)
+        std::string audioCodec = "aac";       // aac for mp4/mov; libopus for webm
+    };
+
+    std::string lowerExt(const std::string& path)
+    {
+        auto dot = path.find_last_of('.');
+        if (dot == std::string::npos)
+            return "";
+        std::string ext = path.substr(dot);
+        for (char& c : ext) c = (char)std::tolower((unsigned char)c);
+        return ext;
+    }
+
+    VideoProfile videoProfileFor(const std::string& outputFile, bool hwEncode, int framerate)
+    {
+        const std::string ext = lowerExt(outputFile);
+        VideoProfile      p;
+
+        if (ext == ".mov") {
+            // ProRes 4444 carries a real alpha plane. prores_ks (software) is the
+            // required baseline; prores_videotoolbox (hardware, opt-in via
+            // --hwencode) also accepts a 4444 alpha profile on Apple silicon.
+            p.videoArgs = hwEncode
+                              ? " -c:v prores_videotoolbox -profile:v 4444 -pix_fmt yuva444p10le"
+                              : " -c:v prores_ks -profile:v 4444 -pix_fmt yuva444p10le";
+            p.transparentClear = true;
+            p.faststart = true; // valid for the mov/mp4 muxer
+        } else if (ext == ".webm") {
+            // VP9 with alpha. -b:v 0 + -crf gives constant-quality mode. The webm
+            // muxer rejects aac, so audio (if any) must be Opus.
+            p.videoArgs = " -c:v libvpx-vp9 -pix_fmt yuva420p -b:v 0 -crf 30";
+            p.transparentClear = true;
+            p.faststart = false; // faststart is an mp4/mov flag; invalid for webm
+            p.audioCodec = "libopus";
+        } else if (ext == ".gif") {
+            // Two-pass palette: generate an optimal 256-color palette from the
+            // stream, then apply it. No real alpha (binary transparency at best,
+            // accepted limitation) and no audio track. The -vf graph fully
+            // replaces the -c:v/-pix_fmt args; the renderer stays opaque.
+            p.videoArgs = std::format(
+                " -vf \"fps={},split[s0][s1];[s0]palettegen=stats_mode=diff[p];[s1][p]paletteuse=dither=bayer\" -loop 0",
+                framerate
+            );
+            p.transparentClear = false;
+            p.faststart = false;
+            p.allowAudio = false;
+        } else {
+            // .mp4 and anything unrecognized — unchanged from the original path.
+            p.videoArgs = hwEncode
+                              ? " -c:v h264_videotoolbox"
+                                " -pix_fmt yuv420p"
+                                " -q:v 65"
+                              : " -c:v libx264"
+                                " -preset veryfast"
+                                " -pix_fmt yuv420p"
+                                " -crf 23";
+            p.transparentClear = false;
+            p.faststart = true;
+        }
+        return p;
     }
 
     // ── Progress bar (pip-style) ──────────────────────────────────────────────
@@ -164,20 +238,20 @@ int VC::Compiler::generateVideo()
     if (VC::ImageIO::hasImageExtension(config.outputFile))
         return generateImage(renderer);
 
-    // h264_videotoolbox offloads encoding to the Mac's media engine (lighter on
-    // CPU, frees the ~460MB of libx264 buffers), but it has no CRF mode — use
-    // -q:v instead (0-100 quality scale, ~65 looks comparable to -crf 23).
-    // Quality/bitrate behavior differs from libx264, so it stays opt-in.
-    const std::string codecArgs = config.hwEncode
-                                      ? " -c:v h264_videotoolbox"
-                                        " -pix_fmt yuv420p"
-                                        " -q:v 65"
-                                      : " -c:v libx264"
-                                        " -preset veryfast"
-                                        " -pix_fmt yuv420p"
-                                        " -crf 23";
+    // Encoder args are chosen purely by output extension (see videoProfileFor):
+    // .mov → ProRes 4444+alpha, .webm → VP9+alpha, .gif → palette-quantized,
+    // everything else → the historical h264 path. Alpha-capable formats need the
+    // main pass to clear transparent so empty regions reach ffmpeg with alpha=0.
+    const VideoProfile profile = videoProfileFor(config.outputFile, config.hwEncode, config.framerate);
+    renderer.setTransparentBackground(profile.transparentClear);
 
-    AudioArgs audio = buildAudioArgs(_core._inputs);
+    // GIF can't carry audio, so skip the audio graph entirely for it.
+    AudioArgs audio = profile.allowAudio
+                          ? buildAudioArgs(_core._inputs, profile.audioCodec)
+                          : AudioArgs{"", " -an"};
+
+    // -movflags +faststart is an mp4/mov-only flag; omit it for webm/gif.
+    const std::string movflags = profile.faststart ? " -movflags +faststart" : "";
 
     FILE* pipe = popen(
         std::format(
@@ -191,15 +265,16 @@ int VC::Compiler::generateVideo()
             "{}"
             "{}"
             "{}"
-            " -movflags +faststart"
+            "{}"
             " -loglevel warning"
             " {}",
             (int)config.screenWidth,
             (int)config.screenHeight,
             config.framerate,
             audio.inputs,
-            codecArgs,
+            profile.videoArgs,
             audio.output,
+            movflags,
             config.outputFile
         )
             .c_str(),

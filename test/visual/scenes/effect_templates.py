@@ -29,7 +29,7 @@ Text("TYPEWRITER", fontSize=0.55, fillColor=WHITE).position(y=-0.4) \
     .apply(typewriter(interval=0.08))
 
 Rectangle(width=3.2, height=1.2, fillColor=LinearGradient(BLUE_C, GREEN_A), strokeColor=TRANSPARENT) \
-    .position(x=-2.5, y=-2.2).apply(wipeIn(direction="left", duration=0.8))
+    .position(x=-2.5, y=-2.2).apply(wipeIn(direction=Direction.LEFT, duration=0.8))
 
 Rectangle(width=3.2, height=1.2, fillColor=LinearGradient(RED_B, YELLOW), strokeColor=TRANSPARENT) \
-    .position(x=2.5, y=-2.2).apply(wipeOut(direction="right", duration=0.8))
+    .position(x=2.5, y=-2.2).apply(wipeOut(direction=Direction.RIGHT, duration=0.8))

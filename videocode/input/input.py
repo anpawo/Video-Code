@@ -24,7 +24,9 @@ from videocode.shader.vertexShader.translate import translate
 from videocode.shader.vertexShader.show import show
 from videocode.shader.vertexShader.opacity import opacity
 from videocode.shader.vertexShader.zIndex import zIndex
-from videocode.shader.vertexShader.blendMode import blendMode as _blendModeShader, blendModeName
+from videocode.shader.vertexShader.blendMode import blendMode as _blendModeShader, BlendMode
+from videocode.shader.vertexShader.matte import matte as _matteShader
+from videocode.input.media.TrackedPath import TrackedPath
 from videocode.utils.bezier import animate, Easing, easing
 from videocode.utils.logger import *
 from videocode.utils.classutils import At, AttributeNameReference, EaseAttributeSimplifier, _Over
@@ -328,15 +330,48 @@ class Input(ABC):
     def zIndex(self, z: int, offset: maybe[frame] = None) -> Self:
         return self.apply(zIndex(z), offset=offset)
 
-    def blendMode(self, mode: blendModeName, offset: maybe[frame] = None) -> Self:
+    def blendMode(self, mode: BlendMode, offset: maybe[frame] = None) -> Self:
         """
         Set how this `Input` composites over what is drawn behind it:
-        `"normal"` (default), `"multiply"` (darken), `"screen"` (lighten) or
-        `"add"` (linear dodge, clips toward white).
+        `BlendMode.NORMAL` (default), `BlendMode.MULTIPLY` (darken),
+        `BlendMode.SCREEN` (lighten) or `BlendMode.ADD` (linear dodge, clips
+        toward white).
 
-            Rectangle(...).blendMode("multiply")
+            Rectangle(...).blendMode(BlendMode.MULTIPLY)
         """
         return self.apply(_blendModeShader(mode), offset=offset)
+
+    def matte(self, source: Input, offset: maybe[frame] = None) -> Self:
+        """
+        Mask this `Input` with `source`'s alpha (track matte): this input is
+        only visible where `source` has coverage. `source` is consumed as a
+        mask and is NOT drawn separately — e.g. `video.matte(text)` clips the
+        video to the text silhouette.
+        """
+        return self.apply(_matteShader(source), offset=offset)
+
+    def attachTo(self, path: TrackedPath, offset: maybe[frame] = None) -> Self:
+        """
+        Follow a `TrackedPath`'s per-frame world position — see
+        `Video.track()`.
+
+            text.attachTo(video.track(120, 80))
+
+        Replays the path as one `.position(x, y, offset=trackedFrame +
+        (offset or 0))` call per tracked frame — reusing `position()`'s
+        existing step-function stack mechanism (each call is an absolute,
+        instantaneous override at its frame), so no new C++/Metadata
+        plumbing is needed: the per-frame position array `AInput::_metas`
+        already indexes by frame.
+
+        `offset` shifts every tracked frame by a constant amount — e.g. if
+        the tracked footage's `startFrame` should land at a later point in
+        this input's own timeline, pass that frame here.
+        """
+        base = offset or 0
+        for trackedFrame, (x, y) in path:
+            self.position(x, y, offset=trackedFrame + base)
+        return self
 
     def inFrontOf(self, other: Input) -> Self:
         """

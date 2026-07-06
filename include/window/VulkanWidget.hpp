@@ -14,6 +14,7 @@
 #include <opencv2/core/mat.hpp>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "vulkan/BlendModes.hpp"
@@ -246,7 +247,21 @@ namespace VC
         bool                      m_geomDirty = false;
 
         // ── Per-frame partitioned mesh indices ────────────────────────────
+        // Meshes needing an isolated pre-pass: those with a GLSL effect chain,
+        // matte consumers, and matte sources. See headless renderer for the
+        // matte design (both renderers stay mirrored).
         std::vector<size_t> m_effectMeshIndices;
+
+        // Matte plumbing: inputIndex→mesh position (identity lookup for a
+        // consumer's source, since mesh order ≠ input order), and the set of
+        // source mesh positions excluded from the main draw loop.
+        std::unordered_map<int, size_t> m_inputIndexToMeshPos;
+        std::unordered_set<size_t>      m_matteSourceMeshPositions;
+
+        // Adjustment-layer mesh positions, ascending (see the headless renderer
+        // for the full rationale — both stay mirrored). Empty = no adjustment
+        // layers → the flatten path never runs and the scene draws unchanged.
+        std::vector<size_t> m_adjustmentMeshPositions;
 
         // ── Effect post-process infrastructure ────────────────────────────
         VkRenderPass    m_effectPass = VK_NULL_HANDLE;     // 1× kernel pass
@@ -267,8 +282,30 @@ namespace VC
         VkDescriptorSet m_pingSrcSet = VK_NULL_HANDLE;
         VkDescriptorSet m_pongSrcSet = VK_NULL_HANDLE;
 
+        // ── Glow/bloom: hand-built exception to the effect-chain rules ─────────
+        // Preserves the sharp original past blur's in-place H/V passes (in a
+        // third scratch buffer) and additively composites the blurred copy back
+        // on top via a LOAD render pass + additive-blend pipeline. See the
+        // `lower == "glow"` branch in recordEffectPrepasses().
+        VkRenderPass    m_effectPassLoad = VK_NULL_HANDLE; // == m_effectPass but loadOp = LOAD
+        VkImage         m_thirdImage = VK_NULL_HANDLE;
+        VkDeviceMemory  m_thirdMemory = VK_NULL_HANDLE;
+        VkImageView     m_thirdView = VK_NULL_HANDLE;
+        VkFramebuffer   m_thirdFb = VK_NULL_HANDLE;
+        VkDescriptorSet m_thirdSrcSet = VK_NULL_HANDLE;
+
         // 4× MSAA geometry pipeline for effect ping pass
         VkPipeline m_effectGeomPipeline = VK_NULL_HANDLE;
+
+        // Blend-mode pipelines parallel to m_pipelines[] but built for the
+        // 1-sample m_effectPass (not the 4× MSAA main render pass) — REQUIRED
+        // ONLY here, not in the headless renderer. The adjustment-layer flatten
+        // pass composites MANY meshes with their individual blend modes into a
+        // 1-sample scratch (ping); m_pipelines[] are 4× MSAA and cannot bind in
+        // m_effectPass, and m_effectGeomPipeline is single-mesh Normal-only. So
+        // the flatten needs its own 1-sample blend-mode array. See the
+        // renderer-asymmetry note in docs/ADDING_EFFECTS.md.
+        VkPipeline m_effectBlendPipelines[kBlendModeCount] = {};
 
         struct EffectPipeline
         {
@@ -277,6 +314,11 @@ namespace VC
         };
 
         std::unordered_map<std::string, EffectPipeline> m_effectPipelines;
+
+        // Additive-blend pipeline for glow's combine pass (blendEnable + LOAD
+        // render pass), built by createGlowResources() outside the generic
+        // auto-discovery loop.
+        EffectPipeline m_glowCombine;
 
         VkBuffer       m_compVtxBuf = VK_NULL_HANDLE;
         VkDeviceMemory m_compVtxMem = VK_NULL_HANDLE;
@@ -297,22 +339,99 @@ namespace VC
 
         std::vector<EffectResultSlot> m_effectResults;
 
+        // ── Track matte: 2-sampler combine (content + matte) — mirrors the
+        // headless renderer. Second hand-built exception to "one texture, no
+        // compositing" (after glow); first feature where two inputs interact. ──
+        VkDescriptorSetLayout        m_matteLayout = VK_NULL_HANDLE;
+        VkDescriptorPool             m_mattePool = VK_NULL_HANDLE;
+        EffectPipeline               m_matteCombine;
+        std::vector<VkDescriptorSet> m_matteSets; // one per matte combine, grown on demand
+
+        // ── LUT color grade: the THIRD hand-built exception (after glow, matte)
+        // — mirrors the headless renderer. Unlike every other effect it needs a
+        // texture uploaded ONCE from a .cube file and reused every frame, keyed
+        // by file path in m_lutCache (a .cube's blue slices tiled into one 2D
+        // atlas, see LutAtlas.hpp). 2-sampler combine (content + atlas) with
+        // push constants (intensity + size); `lut` folder skipped by the generic
+        // auto-discovery loop. Built by createLutResources(). ───────────────────
+        VkDescriptorSetLayout        m_lutLayout = VK_NULL_HANDLE;
+        VkDescriptorPool             m_lutPool = VK_NULL_HANDLE;
+        EffectPipeline               m_lutCombine;
+        std::vector<VkDescriptorSet> m_lutSets; // one per lut combine, grown on demand
+
+        // A parsed+uploaded LUT atlas. image/memory owned by m_textures (built
+        // via uploadTexture, freed in cleanup); this bundles the view/sampler to
+        // bind + the LUT edge size N the shader needs.
+        struct LutResource
+        {
+            VkImageView view = VK_NULL_HANDLE;
+            VkSampler   sampler = VK_NULL_HANDLE;
+            int         size = 0; // N
+        };
+        std::unordered_map<std::string, LutResource> m_lutCache; // filepath → atlas
+
         bool createEffectResources();
         bool createEffectPipeline(const std::string& name);
+
+        // Build glow-only extras: m_effectPassLoad, third scratch buffer, m_glowCombine.
+        bool createGlowResources();
+
+        // Build the matte-only extras: 2-sampler layout/pool + combine pipeline.
+        bool createMatteResources();
+
+        // Build the LUT-only extras: 2-sampler layout/pool + combine pipeline
+        // (with push constants).
+        bool createLutResources();
+
+        // Parse+upload the .cube at `filepath` into a cached atlas (once per
+        // unique path), returning it — or nullptr if the file can't be loaded.
+        const LutResource* getOrBuildLut(const std::string& filepath);
 
         // Grow m_effectResults (never shrinks) so it has at least `count` slots.
         bool ensureEffectResultCapacity(size_t count);
 
+        // Grow m_matteSets (never shrinks) so it has at least `count` sets.
+        bool ensureMatteSetCapacity(size_t count);
+
+        // Grow m_lutSets (never shrinks) so it has at least `count` sets.
+        bool ensureLutSetCapacity(size_t count);
+
         void recordEffectGeomPass(VkCommandBuffer cb, size_t meshIndex);
         void recordEffectKernelPass(VkCommandBuffer cb, VkFramebuffer fb, VkDescriptorSet srcSet, const std::string& name, float texelX, float texelY, const std::vector<float>& params);
+        // Glow additive combine: LOAD the original already in `fb`, add
+        // intensity*blurred (sampled through `srcSet`) on top (m_glowCombine).
+        void recordGlowCombinePass(VkCommandBuffer cb, VkFramebuffer fb, VkDescriptorSet srcSet, float intensity);
+        // Matte combine: sample `set` (binding 0 = content, binding 1 = matte)
+        // and write the masked result into `fb` (m_matteCombine).
+        void recordMatteCombinePass(VkCommandBuffer cb, VkFramebuffer fb, VkDescriptorSet set);
+        // LUT combine: sample `set` (binding 0 = content, binding 1 = LUT atlas)
+        // and write the graded result into `fb` (m_lutCombine). `intensity`
+        // dissolves original↔graded; `lutSize` is the atlas edge N.
+        void recordLutCombinePass(VkCommandBuffer cb, VkFramebuffer fb, VkDescriptorSet set, float intensity, float lutSize);
 
-        // Per-mesh effect pre-passes: geometry + effect chain → m_effectResults.
+        // Per-mesh effect pre-passes: geometry + effect chain → m_effectResults,
+        // followed by the matte-combine phase (masks consumers in place).
         void recordEffectPrepasses(VkCommandBuffer cb);
 
         // Single zIndex-ordered draw loop: normal mesh geometry interleaved
         // with effect-mesh composite quads. Assumes the render pass, viewport/
         // scissor, pipeline and set=0 descriptor are already bound.
         void recordSceneDraws(VkCommandBuffer cb);
+
+        // ── Adjustment-layer support (mirrors the headless renderer) ──────────
+        // Draw meshes [begin,end) into the active render pass; `pipelines` is the
+        // blend-pipeline array to bind from — m_pipelines[] for the main pass,
+        // m_effectBlendPipelines[] (1-sample) for the flatten pass.
+        void recordMeshRange(VkCommandBuffer cb, size_t begin, size_t end,
+                             const std::unordered_map<size_t, size_t>& effectSlotForMesh,
+                             const VkPipeline* pipelines);
+        // Composite one effect-result image as a fullscreen quad (set=0 assumed
+        // bound), binding `pipeline` (main-pass MSAA or flatten-pass 1-sample).
+        void recordCompositeResultQuad(VkCommandBuffer cb, VkPipeline pipeline, VkDescriptorSet resultSet);
+        // Flatten meshes [begin,end) into m_pingFb (1-sample, transparent clear),
+        // optionally seeded with a previous adjustment layer's graded result.
+        void recordAdjustmentFlattenPass(VkCommandBuffer cb, size_t begin, size_t end, int seedSlot,
+                                         const std::unordered_map<size_t, size_t>& effectSlotForMesh);
 
         // ── Frame callback ────────────────────────────────────────────────
         std::function<std::vector<Mesh>()> m_frameCallback;

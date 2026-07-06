@@ -102,7 +102,18 @@ std::vector<ActiveEffect> AInput::getActiveEffectsAtFrame(size_t frame) const
     std::vector<ActiveEffect> result;
     for (size_t i : _effectTimeline[frame]) {
         const IFragmentShader* e = _effects[i].get();
-        result.push_back({std::string(e->shaderName()), e->paramsAtFrame(frame), e->needsBBox(), e->groupParamIndex()});
+        ActiveEffect ae{std::string(e->shaderName()), e->paramsAtFrame(frame), e->needsBBox(), e->groupParamIndex()};
+
+        // Carry a file-path string arg straight through (not via the numeric
+        // p[] path — a string can't be a push-constant float). `lut` uses this
+        // as the .cube cache key in the renderers; other effects have no
+        // "filepath" arg so this stays empty.
+        const auto& a = e->args();
+        auto        it = a.find("filepath");
+        if (it != a.end() && it->second.is_string())
+            ae.strParam = it->second.get<std::string>();
+
+        result.push_back(std::move(ae));
     }
     return result;
 }

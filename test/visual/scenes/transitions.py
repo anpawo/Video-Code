@@ -15,9 +15,9 @@ crossfade(cfOut, cfIn, duration=0.5)
 # push: green exits left, yellow enters from the right
 pOut = Rectangle(width=2, height=2, fillColor=GREEN_A, strokeColor=TRANSPARENT).position(0, 0)
 pIn = Rectangle(width=2, height=2, fillColor=YELLOW, strokeColor=TRANSPARENT).position(0, 0).hide()
-push(pOut, pIn, direction="left", distance=2.5, duration=0.5)
+push(pOut, pIn, direction=Direction.LEFT, distance=2.5, duration=0.5)
 
 # wipeBetween: red-blue gradient wiped away to reveal a green-yellow gradient
 wOut = Rectangle(width=2, height=2, fillColor=LinearGradient(RED_B, BLUE_C), strokeColor=TRANSPARENT).position(5, 0)
 wIn = Rectangle(width=2, height=2, fillColor=LinearGradient(GREEN_A, YELLOW), strokeColor=TRANSPARENT).position(5, 0).hide()
-wipeBetween(wOut, wIn, direction="left", duration=0.5)
+wipeBetween(wOut, wIn, direction=Direction.LEFT, duration=0.5)

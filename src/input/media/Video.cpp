@@ -8,6 +8,7 @@
 #include "input/media/Video.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <opencv2/imgproc.hpp>
 
 #include "utils/Exception.hpp"
@@ -62,15 +63,40 @@ Video::Video(json::object_t&& args)
     }
     _playbackLength = (totalCut < _nbFrame) ? (_nbFrame - totalCut) : 1;
 
+    // Speed ramps are expressed in playback space (the same post-cut index space
+    // `_playbackLength` describes), so they can only be parsed/clamped once
+    // `_playbackLength` is known. `end` is clamped to `_playbackLength` the same
+    // way cuts clamp to `_nbFrame` above.
+    if (_baseArgs.contains("speedRamps")) {
+        for (const auto& raw : _baseArgs.at("speedRamps")) {
+            auto   triple = raw.get<std::vector<double>>();
+            size_t start = std::min(static_cast<size_t>(triple[0]), _playbackLength);
+            size_t end = std::min(static_cast<size_t>(triple[1]), _playbackLength);
+            double rate = triple[2];
+
+            if (end > start) {
+                _speedRamps.push_back({start, end, rate});
+            }
+        }
+    }
+
+    // The Python side already rejects overlapping segments; sorting here just
+    // lets mapToSourceIndex do a simple ordered scan.
+    std::sort(_speedRamps.begin(), _speedRamps.end(),
+              [](const SpeedRamp& a, const SpeedRamp& b) { return a.playbackStart < b.playbackStart; });
+
     _lastIndex = mapToSourceIndex(0);
     _currentFrame = getFrameAt(_lastIndex);
 }
 
-// Maps a position in the cut-down playback timeline back to the corresponding
-// source-video frame index, by shifting forward over every cut range that the
+// The original cuts-only mapping: shifts forward over every cut range that the
 // (progressively shifted) index has reached. Cuts are sorted and non-overlapping,
-// so a single forward pass suffices.
-size_t Video::mapToSourceIndex(size_t playbackIndex) const
+// so a single forward pass suffices. Kept standalone (rather than folded into
+// mapToSourceIndex) so: (a) cuts-only behavior — no speedRamps at all — stays
+// byte-for-byte identical to before speed ramps existed, and (b) a speed-ramp
+// segment can anchor its own rate math on "what the plain cuts-only mapping
+// would have produced at the start of this ramp".
+size_t Video::mapCutsOnly(size_t playbackIndex) const
 {
     size_t source = playbackIndex;
 
@@ -83,6 +109,54 @@ size_t Video::mapToSourceIndex(size_t playbackIndex) const
     }
 
     return source;
+}
+
+// Maps a position in the cut-down playback timeline back to the corresponding
+// source-video frame index. Piecewise: `_cuts` and `_speedRamps` both carve up
+// playback space, but only `_speedRamps` need special per-segment rate math —
+// everywhere else (including a `rate == 1.0` ramp, which is a documented no-op)
+// the plain cuts-only additive mapping applies unchanged.
+//
+// A ramp segment anchors on `mapCutsOnly(playbackStart)` — the source frame the
+// plain mapping would show at the start of the ramp window — then advances by
+// `round((playbackIndex - playbackStart) * rate)` source frames from there:
+// rate 1 preserves the anchor+delta identity, 0 freezes on the anchor frame,
+// negative rates walk the source index backwards (reverse playback), and the
+// result is clamped into the video's valid source-frame range at the edges.
+//
+// Known limitation: a cut boundary falling *inside* a non-1x ramp window isn't
+// accounted for by the ramp's own math (only by the anchor, which is computed
+// once at the ramp's start) — segments aren't expected to straddle a cut in
+// practice, and this mirrors the "no frame-blending" simplicity of the rest of
+// this feature.
+size_t Video::mapToSourceIndex(size_t playbackIndex) const
+{
+    for (const auto& ramp : _speedRamps) {
+        if (playbackIndex < ramp.playbackStart) {
+            break; // sorted ascending — no later ramp can contain this index either
+        }
+        if (playbackIndex >= ramp.playbackEnd) {
+            continue;
+        }
+        if (ramp.rate == 1.0) {
+            break; // no-op ramp: fall through to the plain additive mapping below
+        }
+
+        size_t    anchor = mapCutsOnly(ramp.playbackStart);
+        long long delta = static_cast<long long>(playbackIndex - ramp.playbackStart);
+        long long offset = (ramp.rate == 0.0) ? 0 : static_cast<long long>(std::llround(static_cast<double>(delta) * ramp.rate));
+        long long source = static_cast<long long>(anchor) + offset;
+
+        if (source < 0) {
+            source = 0;
+        } else if (source >= static_cast<long long>(_nbFrame)) {
+            source = static_cast<long long>(_nbFrame) - 1;
+        }
+
+        return static_cast<size_t>(source);
+    }
+
+    return mapCutsOnly(playbackIndex);
 }
 
 cv::Mat Video::getFrameAt(size_t index)

@@ -24,6 +24,7 @@ using json = nlohmann::json;
 // Pure pixel functions — params pass through to the GLSL untouched.
 #define SHADERS(X) \
     X(Blur)        \
+    X(Glow)        \
     X(Grayscale)   \
     X(Gamma)       \
     X(Grain)       \
@@ -37,7 +38,8 @@ using json = nlohmann::json;
     X(Posterize)   \
     X(HueRotate)   \
     X(Halftone)    \
-    X(ChromaKey)
+    X(ChromaKey)   \
+    X(Lut)
 
 // Object-relative shaders — resolveEffectParams() prepends the mesh's own
 // screen-space bounding box, so their GLSL reads p[0..3] = (uMin, vMin,

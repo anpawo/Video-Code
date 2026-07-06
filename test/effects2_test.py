@@ -30,7 +30,7 @@ def framesWith(index: int, key: str) -> dict[int, dict]:
 section("slideIn — enters offset, lands on destination")
 
 r = Rectangle(width=1, height=1).position(2.0, 1.0)
-r.apply(slideIn(direction="left", distance=1.5, duration=0.5))
+r.apply(slideIn(direction=Direction.LEFT, distance=1.5, duration=0.5))
 pos = framesWith(r.meta.index, "Position")
 first, last = pos[min(pos)]["args"], pos[max(pos)]["args"]
 check("starts 1.5 left of destination", abs(first["x"] - 0.5) < 0.05 and first["y"] == 1.0)
@@ -42,7 +42,7 @@ check("fades in to 255", ops[max(ops)]["args"]["opacity"] == 255)
 section("slideOut — exits toward direction, ends hidden")
 
 r2 = Rectangle(width=1, height=1).position(0.0, 0.0)
-r2.apply(slideOut(direction="right", distance=2.0, duration=0.5))
+r2.apply(slideOut(direction=Direction.RIGHT, distance=2.0, duration=0.5))
 pos = framesWith(r2.meta.index, "Position")
 check("travels the full distance", abs(pos[max(pos)]["args"]["x"] - 2.0) < 1e-6)
 hides = framesWith(r2.meta.index, "Hide")

@@ -31,17 +31,13 @@ class Image(Polygon):
         cornerRadius: percent = 0,
         strokeColor: rgba = TRANSPARENT,
         strokeWidth: wufloat = 0,
-        uvMapping: Literal["stretch", "radial", "conic"] = "stretch",
+        uvMapping: UVMapping = UVMapping.STRETCH,
         uvAngle: wufloat = 0,
     ):
         """
-        `uvMapping` controls how the texture is wrapped onto the shape:
-
-        - `"stretch"` (default): bbox-normalized UVs — the texture is
-          stretched to the shape's bounding box.
-        - `"radial"`/`"conic"`: polar UVs around the bbox center, mirroring
-          `RadialGradient`/`ConicGradient`'s center/angle convention.
-          `uvAngle` (degrees) rotates the angular origin.
+        `uvMapping` controls how the texture is wrapped onto the shape —
+        see the `UVMapping` enum for the mode semantics; `uvAngle` (degrees)
+        rotates the angular origin of the polar modes.
         """
         self.filepath = filepath
         self.uvMapping = uvMapping

@@ -59,7 +59,7 @@ section("push — outgoing exits, incoming enters from the opposite side")
 
 out = Rectangle(width=1, height=1).position(0.0, 0.0)
 inc = Rectangle(width=1, height=1).position(0.0, 0.0).hide()
-push(out, inc, direction="left", distance=2.0, duration=0.5)
+push(out, inc, direction=Direction.LEFT, distance=2.0, duration=0.5)
 
 outPos = framesWith(out.meta.index, "Position")
 incPos = framesWith(inc.meta.index, "Position")
@@ -74,7 +74,7 @@ section("wipeBetween — reveal sweep, outgoing hidden after")
 
 o2 = Rectangle(width=1, height=1)
 i2 = Rectangle(width=1, height=1).hide()
-wipeBetween(o2, i2, direction="left", duration=0.5)
+wipeBetween(o2, i2, direction=Direction.LEFT, duration=0.5)
 
 crops = framesWith(i2.meta.index, "Crop")
 rightVals = [e["args"]["right"] for _, e in sorted(crops.items())]

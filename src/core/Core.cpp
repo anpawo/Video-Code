@@ -314,6 +314,12 @@ const std::vector<Mesh>& VC::Core::generateMeshes()
                     mesh.zIndex = meta.zIndexExplicit ? meta.zIndex : static_cast<int>(&i - &_inputs[0]);
                     mesh.zOrderSeq = meta.zOrderSeq;
                     mesh.blendMode = meta.blendMode;
+                    // Carry input identity + matte reference (same _inputs[]
+                    // index expression as the default zIndex above) so the
+                    // renderer can resolve a matte consumer's source mesh.
+                    mesh.inputIndex = static_cast<int>(&i - &_inputs[0]);
+                    mesh.matteSourceInputIndex = meta.matteSource;
+                    mesh.isAdjustmentLayer = meta.isAdjustmentLayer;
                     _cachedMeshes.push_back(std::move(mesh));
                 }
 #ifdef VC_DEBUG_ON

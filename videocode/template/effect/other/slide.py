@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generator, Any, Literal
+from typing import TYPE_CHECKING, Generator, Any
 from videocode.constants import *
 from videocode.shader.ishader import IShader, Effect
 from videocode.shader.vertexShader.hide import hide as _hide
@@ -13,14 +13,10 @@ from videocode.utils.bezier import *
 if TYPE_CHECKING:
     from videocode.input.input import Input
 
-type direction = Literal["left", "right", "top", "bottom"]
-
-_DIR: dict[str, tuple[float, float]] = {"left": (-1, 0), "right": (1, 0), "top": (0, 1), "bottom": (0, -1)}
-
 
 def slideIn(
     *,
-    direction: direction = "left",
+    direction: Direction = Direction.LEFT,
     distance: wnumber = 1.0,
     start: sec = 0,
     duration: sec = 0.5,
@@ -32,10 +28,10 @@ def slideIn(
 
     The current position is the DESTINATION; the effect starts offset from it.
 
-        rect.position(0, 0).apply(slideIn(direction="bottom"))
+        rect.position(0, 0).apply(slideIn(direction=Direction.BOTTOM))
         title.apply(slideIn(distance=2, easing=Easing.Back))
     """
-    dx, dy = _DIR[direction]
+    dx, dy = direction.vector
 
     def _apply(input: Input) -> Generator[IShader, Any, None]:
         dst = v2(*input.meta.position)
@@ -50,7 +46,7 @@ def slideIn(
 
 def slideOut(
     *,
-    direction: direction = "right",
+    direction: Direction = Direction.RIGHT,
     distance: wnumber = 1.0,
     start: sec = 0,
     duration: sec = 0.5,
@@ -61,9 +57,9 @@ def slideOut(
     (a `hide()` is emitted so it doesn't pop back once the frames run out).
 
         rect.apply(slideOut())
-        title.apply(slideOut(direction="top", distance=2))
+        title.apply(slideOut(direction=Direction.TOP, distance=2))
     """
-    dx, dy = _DIR[direction]
+    dx, dy = direction.vector
 
     def _apply(input: Input) -> Generator[IShader, Any, None]:
         src = v2(*input.meta.position)

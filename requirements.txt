@@ -7,3 +7,6 @@ svgelements
 pygments
 typing_extensions
 pyright
+opencv-python  # optional: only needed for Video.track() (motion tracking)
+numpy  # optional: only needed for Sound.beats() (onset/beat detection)
+faster-whisper  # optional: only needed for Sound.transcribe() (speech-to-text auto-captions)

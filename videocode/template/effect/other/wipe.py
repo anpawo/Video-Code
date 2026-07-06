@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generator, Any, Literal
+from typing import TYPE_CHECKING, Generator, Any
 from videocode.constants import *
 from videocode.shader.ishader import IShader, Effect
 from videocode.shader.fragmentShader.crop import crop as _crop
@@ -13,16 +13,10 @@ from videocode.utils.bezier import *
 if TYPE_CHECKING:
     from videocode.input.input import Input
 
-type direction = Literal["left", "right", "top", "bottom"]
-
-# The wipe front enters from `direction`, so the side still hidden — the one
-# whose crop percentage animates — is the opposite side.
-_OPPOSITE: dict[str, str] = {"left": "right", "right": "left", "top": "bottom", "bottom": "top"}
-
 
 def wipeIn(
     *,
-    direction: direction = "left",
+    direction: Direction = Direction.LEFT,
     start: sec = 0,
     duration: sec = 0.5,
     easing: easing = Easing.InOut,
@@ -35,9 +29,11 @@ def wipeIn(
     cropped on the first frame, so it can sit hidden before the effect:
 
         rect.hide().wait(1).apply(wipeIn())
-        title.apply(wipeIn(direction="top", duration=0.8))
+        title.apply(wipeIn(direction=Direction.TOP, duration=0.8))
     """
-    side = _OPPOSITE[direction]
+    # The wipe front enters from `direction`, so the side still hidden — the
+    # one whose crop percentage animates — is the opposite side.
+    side = direction.opposite.side
 
     def _apply(_input: Input) -> Generator[IShader, Any, None]:
         yield _show().at(start=start)
@@ -49,7 +45,7 @@ def wipeIn(
 
 def wipeOut(
     *,
-    direction: direction = "right",
+    direction: Direction = Direction.RIGHT,
     start: sec = 0,
     duration: sec = 0.5,
     easing: easing = Easing.InOut,
@@ -60,9 +56,9 @@ def wipeOut(
     emitted at the end).
 
         rect.apply(wipeOut())
-        title.apply(wipeOut(direction="bottom"))
+        title.apply(wipeOut(direction=Direction.BOTTOM))
     """
-    side = _OPPOSITE[direction]
+    side = direction.opposite.side
 
     def _apply(_input: Input) -> Generator[IShader, Any, None]:
         for p, i in easing.rangeIdx(0.0, 100.0, duration):

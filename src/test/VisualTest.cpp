@@ -135,6 +135,10 @@ namespace
         {"effect-shaders4", "test/visual/scenes/effect_shaders4.py", {0}},
         {"transitions", "test/visual/scenes/transitions.py", {0, 8, 15}},
         {"blend-modes", "test/visual/scenes/blend_modes.py", {0}},
+        {"glow", "test/visual/scenes/glow.py", {0}},
+        {"matte", "test/visual/scenes/matte.py", {0}},
+        {"lut", "test/visual/scenes/lut.py", {0}},
+        {"adjustment-layer", "test/visual/scenes/adjustment_layer.py", {0}},
     };
 
     const std::vector<ReloadCase> kReloadCases = {

@@ -13,10 +13,10 @@ from videocode.template.effect.other.spinIn import spinIn
 from videocode.template.effect.other.zoomPunch import zoomPunch
 
 Rectangle(width=1.6, height=1.1, fillColor=BLUE_C, strokeColor=WHITE, cornerRadius=15) \
-    .position(-4.5, 1.8).apply(slideIn(direction="left", distance=1.5, duration=0.6))
+    .position(-4.5, 1.8).apply(slideIn(direction=Direction.LEFT, distance=1.5, duration=0.6))
 
 Rectangle(width=1.6, height=1.1, fillColor=RED_B, strokeColor=WHITE, cornerRadius=15) \
-    .position(-1.5, 1.8).apply(slideOut(direction="right", distance=1.5, duration=0.8))
+    .position(-1.5, 1.8).apply(slideOut(direction=Direction.RIGHT, distance=1.5, duration=0.8))
 
 Rectangle(width=1.4, height=1.4, fillColor=GREEN_A, strokeColor=WHITE, cornerRadius=15) \
     .position(1.5, 1.8).apply(spinIn(duration=0.8))

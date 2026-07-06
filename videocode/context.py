@@ -57,6 +57,18 @@ class Metadata:
         # 0=normal, 1=multiply, 2=screen, 3=add. Default is normal.
         self.blendMode: int = 0
 
+        # --- Track matte / mask ---
+        # Index of another Input whose alpha masks this one (see
+        # shader/vertexShader/matte.py). None = no matte. Travels to C++ as a
+        # plain int (Metadata.matteSource, -1 = none).
+        self.matteSource: int | None = None
+
+        # --- Adjustment layer ---
+        # When True this input is never drawn on its own; its fragment effects
+        # grade the flattened composite of everything below its zIndex (see
+        # shader/vertexShader/adjustmentLayer.py and input/AdjustmentLayer.py).
+        self.isAdjustmentLayer: bool = False
+
         if not interface and not noRegister:
             Context.metas.append(self)
 

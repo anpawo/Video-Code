@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING
 from videocode.constants import *
 from videocode.shader.fragmentShader.crop import crop as _crop
 from videocode.shader.vertexShader.hide import hide as _hide
@@ -13,11 +13,6 @@ from videocode.utils.bezier import *
 
 if TYPE_CHECKING:
     from videocode.input.input import Input
-
-type direction = Literal["left", "right", "top", "bottom"]
-
-_DIR: dict[str, tuple[float, float]] = {"left": (-1, 0), "right": (1, 0), "top": (0, 1), "bottom": (0, -1)}
-_OPPOSITE: dict[str, str] = {"left": "right", "right": "left", "top": "bottom", "bottom": "top"}
 
 # These orchestrate TWO inputs at once (unlike the rest of template/effect/other/,
 # which are single-input Effect factories) — plain functions, not Effect
@@ -49,7 +44,7 @@ def push(
     outgoing: Input,
     incoming: Input,
     *,
-    direction: direction = "left",
+    direction: Direction = Direction.LEFT,
     distance: wnumber = 2.0,
     start: sec = 0,
     duration: sec = 0.5,
@@ -62,10 +57,10 @@ def push(
     the destinations/origins (call after positioning them at their resting
     spot).
 
-        push(slide1, slide2, direction="left", duration=0.6)
+        push(slide1, slide2, direction=Direction.LEFT, duration=0.6)
     """
-    dx, dy = _DIR[direction]
-    ox, oy = _DIR[_OPPOSITE[direction]]
+    dx, dy = direction.vector
+    ox, oy = direction.opposite.vector
 
     outSrc = v2(*outgoing.meta.position)
     outDst = v2(outSrc.x + dx * distance, outSrc.y + dy * distance)
@@ -83,7 +78,7 @@ def wipeBetween(
     outgoing: Input,
     incoming: Input,
     *,
-    direction: direction = "left",
+    direction: Direction = Direction.LEFT,
     start: sec = 0,
     duration: sec = 0.5,
     easing: easing = Easing.InOut,
@@ -94,9 +89,9 @@ def wipeBetween(
     already be positioned in the same spot (`incoming` sits behind/below
     `outgoing` — set zIndex if they aren't already stacked correctly).
 
-        wipeBetween(sceneA, sceneB, direction="right", duration=0.5)
+        wipeBetween(sceneA, sceneB, direction=Direction.RIGHT, duration=0.5)
     """
-    side = _OPPOSITE[direction]
+    side = direction.opposite.side
     incoming.apply(_show()).apply(_crop(**{side: 100.0}), start=start)
     for p, i in easing.rangeIdx(100.0, 0.0, duration):
         incoming.apply(_crop(**{side: p}), start=start + i * SINGLE_FRAME)

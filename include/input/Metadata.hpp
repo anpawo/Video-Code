@@ -104,6 +104,20 @@ struct Metadata
     // renderer's per-mode pipelines draws this mesh — see vulkan/BlendModes.hpp.
     int blendMode{0};
 
+    // Track matte / mask: index of another input (`_inputs[]` position, 1:1
+    // with the Python Metadata.index) whose alpha masks this input. -1 = none.
+    // The renderer isolates both inputs, then a 2-sampler combine pass keeps
+    // this input only where the source has coverage — see matte/frag.glsl.
+    int matteSource{-1};
+
+    // Adjustment layer: when true this input is never drawn on its own. Instead
+    // its applied fragment effects grade the flattened composite of every mesh
+    // drawn BELOW it in z-order (After Effects "adjustment layer"). Set by the
+    // AdjustmentLayer VertexShader; the renderers flatten each below-range into
+    // a scratch buffer, run this input's effect chain over it, and resume — see
+    // the adjustment-layer flatten passes in both renderers.
+    bool isAdjustmentLayer{false};
+
     bool hidden{false};
 
     // True when no "Args" VertexShader has ever fired for this input.

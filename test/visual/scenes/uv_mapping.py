@@ -6,6 +6,6 @@
 
 from videocode import *
 
-Image("wb.png", width=3, height=3, cornerRadius=100, uvMapping="stretch").position(x=-3, y=0)
-Image("wb.png", width=3, height=3, cornerRadius=100, uvMapping="radial").position(x=0, y=0)
-Image("wb.png", width=3, height=3, cornerRadius=100, uvMapping="conic", uvAngle=45).position(x=3, y=0)
+Image("wb.png", width=3, height=3, cornerRadius=100, uvMapping=UVMapping.STRETCH).position(x=-3, y=0)
+Image("wb.png", width=3, height=3, cornerRadius=100, uvMapping=UVMapping.RADIAL).position(x=0, y=0)
+Image("wb.png", width=3, height=3, cornerRadius=100, uvMapping=UVMapping.CONIC, uvAngle=45).position(x=3, y=0)
