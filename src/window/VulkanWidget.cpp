@@ -1643,7 +1643,7 @@ void VC::VulkanWidget::recordCommandBuffer(VkCommandBuffer cb, uint32_t imageInd
     recordEffectPrepasses(cb);
 
     VkClearValue clearValues[2]{};
-    clearValues[0] = {{{0.2f, 0.2f, 0.2f, 1.0f}}}; // MSAA attachment clear # Color
+    clearValues[0] = {{{m_bgColor[0], m_bgColor[1], m_bgColor[2], 1.0f}}}; // MSAA attachment clear # Color (scene BG)
     // clearValues[1] unused (resolve attachment has loadOp=DONT_CARE)
 
     VkViewport vp{0, 0, (float)m_swapExtent.width, (float)m_swapExtent.height, 0, 1};
@@ -1724,7 +1724,7 @@ cv::Mat VC::VulkanWidget::readFrame()
 
     // ── Render pass → MSAA resolve image ─────────────────────────────────
     VkClearValue clearValues[2]{};
-    clearValues[0] = {{{0.2f, 0.2f, 0.2f, 1.0f}}}; // # Color
+    clearValues[0] = {{{m_bgColor[0], m_bgColor[1], m_bgColor[2], 1.0f}}}; // # Color (scene BG)
     VkViewport vp{0, 0, (float)m_swapExtent.width, (float)m_swapExtent.height, 0, 1};
     VkRect2D   sc{{0, 0}, m_swapExtent};
 
@@ -2508,9 +2508,54 @@ bool VC::VulkanWidget::createEffectPipeline(const std::string& name)
     std::string lower = name;
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 
-    auto vertSrc = loadEffectShader("effects", "vert.glsl");
     auto fragSrc = loadEffectShader(lower, "frag.glsl");
-    if (vertSrc.empty() || fragSrc.empty()) return false;
+    if (fragSrc.empty()) return false;
+
+    return createEffectPipelineFromSource(lower, fragSrc);
+}
+
+// Cache key for a runtime-loaded MathShader pipeline — see the headless
+// renderer's mathPipelineKey for the full rationale (namespaced against
+// folder-name collisions, pre-lowercased to survive recordEffectKernelPass's
+// name transform; only the KEY is lowercased, the file is read as given).
+static std::string mathPipelineKey(const std::string& path)
+{
+    std::string key = "math:" + path;
+    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    return key;
+}
+
+// MathShader pipelines: user-supplied fragment GLSL (eff.strParam is the file
+// path), compiled once per file into m_effectPipelines. Failures are logged
+// once and remembered (m_mathFailed) so a broken file doesn't recompile every
+// frame — mirrors VulkanHeadlessRenderer::ensureMathPipeline exactly.
+bool VC::VulkanWidget::ensureMathPipeline(const std::string& path)
+{
+    std::string key = mathPipelineKey(path);
+    if (m_effectPipelines.count(key)) return true;
+    if (m_mathFailed.count(key)) return false;
+
+    std::ifstream f(path);
+    std::string   fragSrc;
+    if (f.is_open()) {
+        std::ostringstream ss;
+        ss << f.rdbuf();
+        fragSrc = ss.str();
+    }
+
+    if (fragSrc.empty() || !createEffectPipelineFromSource(key, fragSrc)) {
+        std::cerr << "[mathShader] could not load/compile '" << path
+                  << "' — effect skipped (fix the file and rerun)." << std::endl;
+        m_mathFailed.insert(key);
+        return false;
+    }
+    return true;
+}
+
+bool VC::VulkanWidget::createEffectPipelineFromSource(const std::string& key, const std::string& fragSrc)
+{
+    auto vertSrc = loadEffectShader("effects", "vert.glsl");
+    if (vertSrc.empty()) return false;
 
     auto vertSpv = compileGLSL(vertSrc, VK_SHADER_STAGE_VERTEX_BIT);
     auto fragSpv = compileGLSL(fragSrc, VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -2590,7 +2635,7 @@ bool VC::VulkanWidget::createEffectPipeline(const std::string& name)
         vkDestroyPipelineLayout(m_device, ep.layout, nullptr);
         return false;
     }
-    m_effectPipelines[lower] = ep;
+    m_effectPipelines[key] = ep;
     return true;
 }
 
@@ -3365,6 +3410,20 @@ void VC::VulkanWidget::recordEffectPrepasses(VkCommandBuffer cb)
                     inPing = !inPing;
                 }
                 // LUT failed to load → skip silently, layer stays ungraded.
+            } else if (lower == "mathshader") {
+                // Generic runtime-loaded "math shader" (fragcoord.xyz ports —
+                // silk is a bundled preset of this): eff.strParam carries the
+                // GLSL file path (the same strParam channel LUT uses for its
+                // .cube path). The pipeline is compiled once per file and then
+                // recorded exactly like any auto-discovered effect pass.
+                if (!eff.strParam.empty() && ensureMathPipeline(eff.strParam)) {
+                    recordEffectKernelPass(cb, dstFb, srcSet, mathPipelineKey(eff.strParam),
+                                           1.f / m_swapExtent.width, 1.f / m_swapExtent.height, eff.params);
+                    effectBarrier2(cb, dstImg, srcImg);
+                    inPing = !inPing;
+                }
+                // missing/broken file → logged once by ensureMathPipeline,
+                // layer passes through unmodified.
             } else {
                 // Single pass: src → dst, result moves to dst. texelX/texelY
                 // carry the real texel size here (Blur repurposes them as its

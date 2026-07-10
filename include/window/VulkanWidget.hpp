@@ -13,6 +13,7 @@
 #include <functional>
 #include <opencv2/core/mat.hpp>
 #include <string>
+#include <array>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -313,7 +314,15 @@ namespace VC
             VkPipeline       pipeline = VK_NULL_HANDLE;
         };
 
+        // Clear color of the main pass (the script's `BG` global, via
+        // Core::_bgColor — pushed by Window next to setMeshes).
+        std::array<float, 3> m_bgColor{0.2f, 0.2f, 0.2f};
+
         std::unordered_map<std::string, EffectPipeline> m_effectPipelines;
+
+        // Runtime-loaded MathShader files that failed to open/compile —
+        // remembered so a broken file is logged once, not retried every frame.
+        std::unordered_set<std::string> m_mathFailed;
 
         // Additive-blend pipeline for glow's combine pass (blendEnable + LOAD
         // render pass), built by createGlowResources() outside the generic
@@ -372,6 +381,17 @@ namespace VC
 
         bool createEffectResources();
         bool createEffectPipeline(const std::string& name);
+
+    public:
+
+        void setBackgroundColor(const std::array<float, 3>& c) { m_bgColor = c; }
+
+    private:
+
+        bool createEffectPipelineFromSource(const std::string& key, const std::string& fragSrc);
+        // Compile-once cache for runtime-loaded MathShader files (see the
+        // mathPipelineKey/ensureMathPipeline comments in the .cpp).
+        bool ensureMathPipeline(const std::string& path);
 
         // Build glow-only extras: m_effectPassLoad, third scratch buffer, m_glowCombine.
         bool createGlowResources();

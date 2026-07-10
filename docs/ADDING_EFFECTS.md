@@ -82,6 +82,19 @@ no rebuild).
 - Time-driven → hand-declare a class overriding `paramsAtFrame()` to append
   the 0..1 progress (`LightSweep`, `Glitch` are the references), and add a
   `BIND_SHADERS(...)` line to the factory map.
+- Procedural content ("math shader", fragcoord.xyz-style) → **no C++ at all**:
+  write a fragment-GLSL file following the contract in
+  `assets/mathshaders/plasma.glsl` (the template) and load it with
+  `mathShader("path/to/file.glsl")`. The generic `MathShader` factory class
+  appends the raw elapsed FRAME COUNT instead of 0..1 progress (an animation
+  loop needs an unbounded clock), the binding passes `fps` so the GLSL derives
+  seconds, and the renderers compile + cache one pipeline per file
+  (`ensureMathPipeline`, keyed via `strParam` — the same channel as Lut's
+  .cube path). The GLSL replaces RGB and keeps `texture(tex, fragUV).a` as
+  coverage (early-out on 0 — the pass is a fullscreen quad, so this keeps cost
+  proportional to the host shape), which makes it a content source that
+  composes with `.matte()` instead of a filter. `silk()` is a bundled preset
+  (`assets/mathshaders/silk.glsl`).
 - Group-union behavior (one continuous effect across a whole `Text`) →
   override `groupParamIndex()`; see `LightSweep` and EffectResolver.hpp.
 

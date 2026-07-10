@@ -352,6 +352,7 @@ int VC::Compiler::generateVideo()
 
         const auto& meshes = _core.generateMeshes();
         renderer.setMeshes(meshes);
+        renderer.setBackgroundColor(_core._bgColor);
 
         // readFrame() is one-frame pipeline-delayed: it returns the PREVIOUS
         // frame's pixels (empty on the first call) while this frame's GPU
@@ -426,6 +427,7 @@ int VC::Compiler::generateImage(VulkanHeadlessRenderer& renderer)
 {
     const auto& meshes = _core.generateMeshes();
     renderer.setMeshes(meshes);
+    renderer.setBackgroundColor(_core._bgColor);
 
     // readFrame() returns the previous (nonexistent) frame's pixels — empty —
     // so the actual frame is retrieved via flush().

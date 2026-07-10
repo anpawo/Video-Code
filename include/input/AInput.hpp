@@ -18,6 +18,35 @@
 
 using json = nlohmann::json;
 
+// Spans (start, n) during which an ambient clock category is paused — built
+// by Core from Wait events' `stop` lists (freeze() = a wait stopping all
+// three). Scheduled state needs no spans: it holds by itself.
+struct ClockStops
+{
+    std::vector<std::pair<size_t, size_t>> videos;
+    std::vector<std::pair<size_t, size_t>> paints;
+    std::vector<std::pair<size_t, size_t>> effects;
+
+    // Total paused frames of `spans` strictly before `frame` — subtracting it
+    // from a display frame yields the category's clock: constant inside a
+    // span (paused), advancing outside (resumes where it stopped, no skip).
+    static size_t pausedBefore(const std::vector<std::pair<size_t, size_t>>& spans, size_t frame)
+    {
+        size_t total = 0;
+        for (const auto& [start, n] : spans)
+            if (frame > start)
+                total += std::min(n, frame - start);
+        return total;
+    }
+
+    // Paused frames of `spans` between `since` and `frame` — the amount a
+    // clock that started counting at `since` has been held.
+    static size_t pausedBetween(const std::vector<std::pair<size_t, size_t>>& spans, size_t since, size_t frame)
+    {
+        return pausedBefore(spans, frame) - pausedBefore(spans, std::min(since, frame));
+    }
+};
+
 class AInput : public IInput
 {
 public:
@@ -45,7 +74,7 @@ public:
 
     // Returns the fragment shader effects active at the given frame index.
     // Empty when no effect is scheduled at that frame.
-    std::vector<ActiveEffect> getActiveEffectsAtFrame(size_t frame) const;
+    std::vector<ActiveEffect> getActiveEffectsAtFrame(size_t frame, const ClockStops& stops) const;
 
     // -
 

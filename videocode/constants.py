@@ -100,6 +100,22 @@ class Axis(Enum):
     BOTH = "both"
 
 
+class Clock(StrEnum):
+    """
+    The ambient clocks a `wait(n, stop=[...])` can pause — everything else
+    (scheduled state: positions, colors, visibility) holds by itself during
+    a gap. `freeze(n)` = a wait stopping ALL of them.
+
+    - `VIDEOS`: Video playback.
+    - `PAINTS`: shader fills (silk/fire/starNest/mathShader patterns).
+    - `EFFECTS`: time-driven effect progress (vhs, glitch, lightSweep, ...).
+    """
+
+    VIDEOS = "videos"
+    PAINTS = "paints"
+    EFFECTS = "effects"
+
+
 class UVMapping(StrEnum):
     """
     How a texture (`Image`/`Video`) is wrapped onto its shape. Values match

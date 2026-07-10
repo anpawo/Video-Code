@@ -177,6 +177,10 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
             // diverged, so clone it before mutating this frame's version.
             auto mutableArgs = std::make_shared<json::object_t>(meta.args());
             (*mutableArgs)[name] = args.at("value");
+
+            // A shader fill starts its clock at the frame it was assigned.
+            if (name == "fillColor" && args.at("value").is_object() && args.at("value").contains("shader"))
+                meta.fillShaderSince = args.at("start").get<size_t>();
             meta.argsPtr = std::move(mutableArgs);
             break;
         }

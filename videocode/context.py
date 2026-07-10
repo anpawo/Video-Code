@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Iterable
 from videocode.constants import *
 
 if TYPE_CHECKING:
@@ -129,10 +129,12 @@ class StackAction:
 
 
 class Wait(StackAction):
-    def __init__(self, startFrame: int, numberOfFrame: int):
+    def __init__(self, startFrame: int, numberOfFrame: int, stop: list[str]):
         self.action = self.__class__.__name__
         self.start = startFrame
         self.n = numberOfFrame
+        # Which ambient clocks pause during the gap (Clock values; [] = none).
+        self.stop = stop
 
 
 class Timestamp(StackAction):
@@ -163,6 +165,12 @@ class Context:
 
     # Wait creates an offset affecting the start of any transformation
     waitOffset: frame = 0
+
+    # Clear color of the frame, normalized 0..1 RGB — set by assigning a
+    # plain `rgba` to the script-global `BG` (resolved by serialize.py after
+    # the scene runs; C++ reads this attribute like lastEverAffectedFrame).
+    # None = the renderer's default dark gray.
+    backgroundColor: tuple[float, float, float] | None = None
 
     # Monotonic counter for zIndex tiebreaks — see Metadata.zOrderSeq
     zOrderCounter: int = 0
@@ -244,19 +252,45 @@ class Context:
         }
 
 
-def wait(n: sec = 0) -> None:
+def wait(n: sec = 0, stop: Clock | Iterable[Clock] | None = None) -> None:
     """
-    Wait for all animations to end and then pauses for `n` frames.
+    Wait for all animations to end, then leave `n` seconds where nothing new
+    is scheduled. By default the world stays ALIVE during the gap — shader
+    fills keep animating, videos keep playing; `stop` pauses selected
+    ambient clocks for the span:
 
-    Can be used to synchronize everything before moving on.
+        wait(2)                        # gap, everything keeps living
+        wait(2, stop=Clock.VIDEOS)     # gap, footage pauses, fills breathe
+        wait(2, stop=[Clock.VIDEOS, Clock.PAINTS])
+        freeze(2)                      # = wait(2, stop=<all clocks>)
+
+    A paused clock RESUMES where it stopped (pause, not skip). Scheduled
+    state (positions, colors, visibility) always simply holds — there is
+    nothing to stop.
     """
     n = int(n * FRAMERATE)
+
+    if stop is None:
+        stopped: list[str] = []
+    elif isinstance(stop, Clock):
+        stopped = [stop.value]
+    else:
+        stopped = sorted(c.value for c in stop)
 
     # Python
     startFrame = max(Context.lastEverAffectedFrame, Context.waitOffset)
     Context.waitOffset = Context.lastEverAffectedFrame = startFrame + n
 
-    Context.events.append(Wait(startFrame, n))
+    Context.events.append(Wait(startFrame, n, stopped))
+
+
+def freeze(n: sec = 0) -> None:
+    """
+    A literal FREEZE-FRAME: `wait(n)` with every ambient clock stopped — the
+    last rendered frame holds for `n` seconds (shader fills, videos and
+    time-driven effects all pause, then resume where they stopped).
+    """
+    wait(n, stop=tuple(Clock))
 
 
 def timestamp(name: str) -> None:

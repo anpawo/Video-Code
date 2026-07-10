@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 
-from videocode.input.shape.Polygon import Polygon
+from videocode.input.shape.Polygon import Polygon, paint
 from videocode.utils.decorators import prop
 from videocode.ty import *
 from videocode.constants import *
@@ -20,7 +20,7 @@ class Circle(Polygon):
     def __init__(
         self,
         radius: wufloat = 1,
-        fillColor: rgba = RED_A,
+        fillColor: paint = RED_A,
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.05,
     ):
@@ -69,7 +69,7 @@ class Dot(Circle):
     def __init__(
         self,
         radius: float = 0.0375,
-        fillColor: rgba = RED_A,
+        fillColor: paint = RED_A,
     ):
         super().__init__(
             radius=radius,

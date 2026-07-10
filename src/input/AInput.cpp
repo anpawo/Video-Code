@@ -94,15 +94,49 @@ void AInput::add(const std::string& name, const std::string& type, json::object_
     }
 }
 
-std::vector<ActiveEffect> AInput::getActiveEffectsAtFrame(size_t frame) const
+std::vector<ActiveEffect> AInput::getActiveEffectsAtFrame(size_t frame, const ClockStops& stops) const
 {
-    if (frame >= _effectTimeline.size())
-        return {};
-
     std::vector<ActiveEffect> result;
+
+    // Shader fill (fillColor = a PaintShader on the Python side): fills are
+    // per-frame STATE, not timeline effects — the {"shader": ...} object
+    // rides args["fillColor"] exactly like a color and persists until
+    // reassigned, so it is injected here on every frame it is active.
+    // Injected FIRST: timeline effects (.apply()) post-process the fill.
+    {
+        const Metadata& meta = _metas[std::min(frame, _metas.size() - 1)];
+        const auto&     margs = meta.args();
+        auto            fill = margs.find("fillColor");
+        if (fill != margs.end() && fill->second.is_object() && fill->second.contains("shader")) {
+            ActiveEffect fe{fill->second.at("shader").get<std::string>(), {}, false, -1};
+            // Numeric args in ALPHABETICAL order (json::object_t sorts keys)
+            // — the same p[] contract every effect follows — then the paint's
+            // clock: frames elapsed since this fill was assigned.
+            for (const auto& [k, v] : fill->second.items()) {
+                if (v.is_number())
+                    fe.params.push_back(v.get<float>());
+                else if (k == "filepath" && v.is_string())
+                    fe.strParam = v.get<std::string>();
+            }
+            // The paint clock counts from the fill's assignment, minus any
+            // frames a wait(stop=Clock.PAINTS)/freeze() held it.
+            size_t since = std::min(frame, meta.fillShaderSince);
+            size_t elapsed = (frame - since) - ClockStops::pausedBetween(stops.paints, since, frame);
+            fe.params.push_back(static_cast<float>(elapsed));
+            result.push_back(std::move(fe));
+        }
+    }
+
+    if (frame >= _effectTimeline.size())
+        return result;
+
     for (size_t i : _effectTimeline[frame]) {
         const IFragmentShader* e = _effects[i].get();
-        ActiveEffect ae{std::string(e->shaderName()), e->paramsAtFrame(frame), e->needsBBox(), e->groupParamIndex()};
+        // Activation is scheduling (real frame); PROGRESS is an ambient clock
+        // — subtract frames a wait(stop=Clock.EFFECTS)/freeze() held it since
+        // this effect started.
+        size_t effectFrame = frame - ClockStops::pausedBetween(stops.effects, e->start(), frame);
+        ActiveEffect ae{std::string(e->shaderName()), e->paramsAtFrame(effectFrame), e->needsBBox(), e->groupParamIndex()};
 
         // Carry a file-path string arg straight through (not via the numeric
         // p[] path — a string can't be a push-constant float). `lut` uses this

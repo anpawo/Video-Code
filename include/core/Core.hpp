@@ -11,12 +11,14 @@
 #include <vulkan/vulkan.h>
 
 #include <argparse/argparse.hpp>
+#include <array>
 #include <chrono>
 #include <functional>
 #include <memory>
 #include <opencv2/opencv.hpp>
 
 #include "core/Config.hpp"
+#include "input/AInput.hpp" // ClockStops
 #include "input/IInput.hpp"
 
 namespace py = pybind11;
@@ -71,6 +73,12 @@ namespace VC
         const bool _showstack;
         const bool _showtimeline;
 
+        ///< Frame clear color, normalized RGB — mirrors the script's `BG`
+        ///< global (Context.backgroundColor, resolved by serialize.py and
+        ///< read in executeStack; None → the historical dark gray).
+        ///< Renderers pick it up next to setMeshes.
+        std::array<float, 3> _bgColor{0.2f, 0.2f, 0.2f};
+
     private:
 
         void executeStack(const py::dict& stack, const py::list& events);
@@ -108,7 +116,9 @@ namespace VC
         bool _meshesRebuilt{true};
 
         ///< Waits:
-        std::map<size_t, size_t> _waits{};
+        ///< Ambient-clock pause spans from Wait events' `stop` lists — see
+        ///< ClockStops (AInput.hpp) and the Wait branch in executeStack.
+        ClockStops _clockStops{};
 
         ///< Timestamps:
         std::map<size_t, std::string> _timestamps{};

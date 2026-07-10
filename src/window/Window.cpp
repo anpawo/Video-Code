@@ -107,6 +107,7 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
         if (_lastMeshes.empty() || (now - _lastFrameTime) >= frameDuration) {
             _lastFrameTime = now;
             _lastMeshes = _core.generateMeshes();
+            _vulkanWidget->setBackgroundColor(_core._bgColor); // follows hot-reloads
         }
         return _lastMeshes;
     });
@@ -214,6 +215,7 @@ void VC::Window::mainRoutine()
 {
     const auto& meshes = _core.generateMeshes();
     _vulkanWidget->setMeshes(meshes);
+    _vulkanWidget->setBackgroundColor(_core._bgColor);
     if (_timeline) {
         _timeline->update();
     }

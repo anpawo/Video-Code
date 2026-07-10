@@ -208,6 +208,48 @@ private:
     const json::object_t _args;
 };
 
+// MathShader — generic runtime-loaded procedural shader (fragcoord.xyz
+// ports; `silk` is a bundled preset). The `filepath` arg names an arbitrary
+// fragment-GLSL file: it is excluded from the numeric params by
+// shaderParams()'s is_number() filter and instead rides ActiveEffect::strParam
+// (the same channel Lut's .cube path uses — AInput::getActiveEffectsAtFrame
+// lifts any "filepath" arg into it), where the renderers compile + cache one
+// pipeline per file (ensureMathPipeline). Replaces the input's RGB with the
+// generated pattern, keeping the input's own alpha as coverage.
+// Time-driven like Vhs, but paramsAtFrame appends the raw elapsed FRAME COUNT
+// (unclamped, not 0..1 progress): a procedural animation needs an unbounded
+// clock, and the GLSL derives seconds as elapsed / fps — fps rides the params
+// from the Python binding. shaderParams() yields [fps, quality, speed]
+// (alphabetical, filepath excluded).
+class MathShader final : public IFragmentShader
+{
+public:
+
+    MathShader(const json::object_t& args)
+        : _start(args.at("start").get<size_t>())
+        , _args(args)
+    {
+    }
+
+    size_t start() const override { return _start; }
+
+    std::string_view shaderName() const override { return "MathShader"; }
+
+    const json::object_t& args() const override { return _args; }
+
+    std::vector<float> paramsAtFrame(size_t frame) const override
+    {
+        std::vector<float> out = shaderParams();
+        out.push_back(static_cast<float>(frame - _start));
+        return out;
+    }
+
+private:
+
+    const size_t         _start;
+    const json::object_t _args;
+};
+
 // -------------------------------------------------------------------------
 // Factory map: shader name → constructor
 // -------------------------------------------------------------------------
@@ -221,4 +263,5 @@ const std::map<std::string, std::function<std::unique_ptr<IFragmentShader>(const
             BIND_SHADERS(LightSweep)
                 BIND_SHADERS(Glitch)
                     BIND_SHADERS(Vhs)
+                        BIND_SHADERS(MathShader)
 };

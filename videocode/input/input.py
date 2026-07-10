@@ -10,7 +10,7 @@ from videocode.template.effect.core.fadeTo import fadeTo
 from videocode.template.effect.core.moveTo import moveTo, moveBy
 from videocode.template.effect.core.rotateTo import rotateBy, rotateTo
 from videocode.template.effect.core.scaleTo import scaleBy, scaleTo
-from videocode.shader.ishader import Effect, IShader, VertexShader
+from videocode.shader.ishader import Effect, IShader, PaintShader, VertexShader
 from videocode.context import *
 from videocode.constants import *
 from videocode.utils.funcutils import *
@@ -102,6 +102,14 @@ class Input(ABC):
                 flatten.append(s)
 
         for s in flatten:
+            # Paints GENERATE pixels — they are fill state, not effects:
+            # fillColor=silk() is the one way to use them.
+            if isinstance(s, PaintShader):
+                raise TypeError(
+                    f"{type(s).__name__} is a PAINT and can't be applied as an "
+                    f"effect — set it as the fill instead: fillColor={type(s).__name__}(...)"
+                )
+
             # Pre-callbacks: fire before resolve/modify/stack-push. Mutate shader fields to rewrite
             # values, or return True to drop the shader entirely. Return False to let it through.
             if any(

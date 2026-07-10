@@ -67,6 +67,7 @@ namespace
         for (size_t i = 0; i <= maxFrame && i < core._nbFrame; ++i) {
             const auto& meshes = core.generateMeshes();
             renderer.setMeshes(meshes);
+            renderer.setBackgroundColor(core._bgColor);
 
             cv::Mat frame = renderer.readFrame();
             if (!frame.empty())
@@ -139,6 +140,10 @@ namespace
         {"matte", "test/visual/scenes/matte.py", {0}},
         {"lut", "test/visual/scenes/lut.py", {0}},
         {"adjustment-layer", "test/visual/scenes/adjustment_layer.py", {0}},
+        // Frame 15 too: silk is time-driven, so a stuck clock (elapsed frames
+        // never reaching the GLSL) would pass a frame-0-only check.
+        {"silk", "test/visual/scenes/silk.py", {0, 15}},
+        {"background", "test/visual/scenes/background.py", {0}},
     };
 
     const std::vector<ReloadCase> kReloadCases = {

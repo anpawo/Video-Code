@@ -19,6 +19,43 @@ def _resetContext():
     Context.inputCounter = 0
     Context.lastEverAffectedFrame = 0
     Context.waitOffset = 0
+    Context.backgroundColor = None
+    # A previous hot-reload's BG must not leak into a script that removed it.
+    globals().pop("BG", None)
+
+
+def _applyBackground() -> None:
+    """
+    Resolve the scene's optional script-global `BG` — the scene's
+    background, COLOR-ONLY (any `rgba`, gradients included — never an
+    `Input`: animated backgrounds stay explicit, e.g. `Plane().drift()` at
+    the end of the script):
+
+        BG = WHITE                        # anywhere in the script
+        BG = LinearGradient(RED, BLUE)
+
+    - A plain `rgba` becomes the renderer's clear color
+      (`Context.backgroundColor`, read by C++ like lastEverAffectedFrame) —
+      zero extra draw cost. Alpha is ignored (transparent backgrounds come
+      from `--generate out.mov/.webm` instead).
+    - A gradient can't be a clear value (a Vulkan clear is one RGBA
+      constant), so it becomes one static full-frame background `Rectangle`
+      — visible from frame 0 (`noHiding`) and layered behind everything
+      (`background(offset=0)`, exactly like `Plane`'s own backdrop).
+    """
+    bg = globals().get("BG")
+    if bg is None:
+        return
+
+    if isinstance(bg, (LinearGradient, RadialGradient, ConicGradient)):
+        with Context.noHiding():
+            Rectangle(
+                width=WORLD_WIDTH, height=WORLD_HEIGHT, fillColor=bg, strokeColor=TRANSPARENT
+            ).background(offset=0)
+    elif isinstance(bg, rgba):
+        Context.backgroundColor = (bg.r / 255, bg.g / 255, bg.b / 255)
+    else:
+        raise TypeError(f"BG must be an rgba color or a gradient, got {type(bg).__name__}")
 
 
 def execScene(filepath: str) -> None:
@@ -51,6 +88,8 @@ def execScene(filepath: str) -> None:
     else:
         exec(code, globals())
 
+    _applyBackground()
+
 
 def serializeScene(filepath: str) -> str:
     """
@@ -67,6 +106,8 @@ def serializeScene(filepath: str) -> str:
     __name__ = "Scene"
     code = compile(content, filepath, "exec")
     exec(code, globals())
+
+    _applyBackground()
 
     return json.dumps(
         {"stack": Context.stack, "events": [e.jsonSerialization() for e in Context.events]},

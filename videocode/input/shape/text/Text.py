@@ -6,8 +6,12 @@ import math
 from copy import copy as _shallow_copy
 import videocode.input.shape.text._TextHelper as _helper
 
+from videocode.context import Context
 from videocode.input.shape.Polygon import Polygon
+from videocode.input.shape.Rectangle import Rectangle
+from videocode.input.shape.Polygon import paint
 from videocode.input.interface.Group import Group
+from videocode.shader.ishader import FragmentShader, PaintShader
 from videocode.input.shape.text.Letter import Letter
 from videocode.shader.vertexShader.align import align
 from videocode.shader.vertexShader.hide import hide
@@ -27,18 +31,47 @@ __all__ = [
 ]
 
 
+# Padding (world units) added around the glyph bbox when auto-sizing a shader
+# fill's canvas — purely internal: just enough that antialiased glyph edges
+# don't get clipped at the canvas border.
+_SHADER_CANVAS_MARGIN = 0.3
+
+
 class Text(Group[Letter], _hasFillStroke):
     def __init__(
         self,
         text: str,
         fontSize: wnumber = 0.5,
         fontFamily: str = "Inter",
-        fillColor: rgba = WHITE,
+        fillColor: paint = WHITE,
         strokeColor: rgba = TRANSPARENT,
         strokeWidth: wufloat = 0,
         bold: bool = False,
         italic: bool = False,
     ):
+        """
+        `fillColor` may be a fragment shader instead of a color — the glyphs
+        are then FILLED BY THE SHADER, one continuous pattern spread across
+        the whole word:
+
+            Text("STAR NEST", fontSize=1.7, fillColor=starNest())
+
+        The shader is persistent fill state: it paints every frame from
+        creation until `text.fillColor` is reassigned (to a color or another
+        shader) or the video ends. Hiding/fading the text does NOT end it —
+        the fill is simply not rendered while invisible and is still there
+        when the text comes back. (Mechanics live in `Polygon`'s shader-fill
+        segments; the timeline span resolves after the script ends.)
+
+        Shader mode changes the structure: instead of per-letter inputs the
+        Text holds ONE merged glyph silhouette (matte source, never drawn) +
+        ONE canvas auto-sized to the word bbox — it positions/animates/hides
+        as a single unit, but per-letter APIs (`typewriter`, letter access)
+        don't apply. The shader only marches the canvas' coverage, so this is also
+        the cheap way to run heavy math shaders. A letters-mode Text cannot
+        switch to a shader fill after creation (recreate it instead).
+        """
+        self._shaderMode = isinstance(fillColor, PaintShader)
         self.text = text
         self.fontSize = fontSize
         self.fontFamily = fontFamily
@@ -47,6 +80,35 @@ class Text(Group[Letter], _hasFillStroke):
         self.strokeWidth = strokeWidth
         self.bold = bold
         self.italic = italic
+
+        if isinstance(fillColor, PaintShader):
+            # Lazy import: CompoundPolygon star-imports videocode, so a
+            # module-level import here would be circular.
+            from videocode.template.input.CompoundPolygon import CompoundPolygon
+
+            # The glyphs are never drawn themselves — they only exist merged
+            # into the matte source — so they must not register as inputs.
+            with Context.noRegister():
+                letters = Text(text, fontSize, fontFamily, WHITE, strokeColor, strokeWidth, bold, italic).inputs
+            word = CompoundPolygon(*letters)
+
+            # The canvas' fillColor IS the shader — Polygon's shader-fill
+            # segments handle persistence and later reassignments.
+            # Slightly larger than the glyph bbox so antialiased glyph edges
+            # never get clipped at the canvas border.
+            margin = _SHADER_CANVAS_MARGIN
+            canvas = Rectangle(
+                width=word.width + margin,
+                height=word.height + margin,
+                fillColor=fillColor,
+                strokeColor=TRANSPARENT,
+            )
+            canvas.matte(word)
+
+            # canvas + word grouped: the mask must travel with the pattern
+            # (matte is screen-space) when the Text is moved/animated.
+            super().__init__(canvas, word)
+            return
 
         super().__init__(
             *(
@@ -67,6 +129,21 @@ class Text(Group[Letter], _hasFillStroke):
         self.alignLetters()
 
     def _distributeGradientColor(self, attr: str) -> None:
+        value = getattr(self, attr)
+        # Shader mode holds [canvas, word], not letters: forward the fill to
+        # the CANVAS only (colors, gradients or another shader — Polygon's
+        # shader-fill segments take over from this frame). The word is a pure
+        # mask, and applying a shader to it would waste a fullscreen pass.
+        if getattr(self, "_shaderMode", False):
+            setattr(self.inputs[0], attr, value)
+            return
+        if isinstance(value, PaintShader):
+            raise TypeError(
+                "a letters-mode Text can't switch to a shader fill — create it "
+                "with Text(..., fillColor=<shader>) instead (shader fills need "
+                "the merged-silhouette structure)"
+            )
+
         letters = self.inputs[: len(self.text)]
         if not letters:
             return
@@ -106,7 +183,7 @@ class Text(Group[Letter], _hasFillStroke):
         self._distributeGradientColor("strokeColor")
 
     @prop(onSet=_distributeFillColor)
-    def fillColor() -> rgba: ...
+    def fillColor() -> paint: ...
 
     @prop(onSet=_distributeStrokeColor)
     def strokeColor() -> rgba: ...
@@ -138,7 +215,10 @@ class Text(Group[Letter], _hasFillStroke):
         self.alignLetters()
 
     def config(self) -> tuple[wnumber, str, rgba, rgba, wnumber, bool, bool]:
-        return (self.fontSize, self.fontFamily, self.fillColor, self.strokeColor, self.strokeWidth, self.bold, self.italic)
+        # Letters take a real color: in shader mode (fillColor is a shader,
+        # painted on the canvas) hand them the opaque placeholder instead.
+        fill = self.fillColor if isinstance(self.fillColor, rgba) else WHITE
+        return (self.fontSize, self.fontFamily, fill, self.strokeColor, self.strokeWidth, self.bold, self.italic)
 
     def apply(self, *shaders, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
         for s in shaders:
@@ -146,6 +226,12 @@ class Text(Group[Letter], _hasFillStroke):
                 _s, _d, _o = s.resolve(start, duration, offset)
                 _shallow_copy(s).modify(self)
                 self.alignLetters(start=_s, duration=_d, offset=_o)
+            elif getattr(self, "_shaderMode", False) and isinstance(s, FragmentShader):
+                # Shader mode: a fragment shader POST-PROCESSES the filled
+                # result — canvas only (touching the word would distort the
+                # mask). Chain order is guaranteed: the fill is per-frame
+                # state injected FIRST by the C++, timeline effects follow.
+                self.inputs[0].apply(s, start=start, duration=duration, offset=offset)
             else:
                 super().apply(s, start=start, duration=duration, offset=offset)
         return self
@@ -197,10 +283,14 @@ class Text(Group[Letter], _hasFillStroke):
 
     @property
     def width(self) -> wunumber:
+        if getattr(self, "_shaderMode", False):
+            return self.inputs[0].width or 0  # the shader canvas
         return sum(l.width for l in self.inputs) if self.inputs else 0
 
     @property
     def height(self) -> wunumber:
+        if getattr(self, "_shaderMode", False):
+            return self.inputs[0].height or 0  # the shader canvas
         return max(l.height for l in self.inputs) if self.inputs else 0
 
     @classmethod

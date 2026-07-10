@@ -206,6 +206,17 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
                    .attr("lastEverAffectedFrame")
                    .cast<size_t>();
 
+    // Clear color from the script's `BG` global (Context.backgroundColor,
+    // resolved by serialize.py after the scene ran). Reset to the default
+    // unconditionally: a hot-reload that removed BG must restore the gray.
+    py::object bg = py::module_::import("videocode.context").attr("Context").attr("backgroundColor");
+    if (bg.is_none()) {
+        _bgColor = {0.2f, 0.2f, 0.2f};
+    } else {
+        py::tuple t = bg.cast<py::tuple>();
+        _bgColor = {t[0].cast<float>(), t[1].cast<float>(), t[2].cast<float>()};
+    }
+
     // Only diff input-by-input when the set of input indices is unchanged — adding/
     // removing an input reshuffles Python's sequential index counter, so positional
     // diffing would silently compare unrelated inputs. Fall back to a full rebuild then.
@@ -266,17 +277,27 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
     _pySnapshot = std::move(newPySnapshot);
 
     // Pass 3: Wait and Timestamp events (absolute positions stored by Python).
-    _waits.clear();
+    _clockStops = {};
     _timestamps.clear();
     for (const auto& item : events) {
         auto obj    = py::reinterpret_borrow<py::object>(item);
         auto action = obj.attr("action").cast<std::string>();
 
         if (action == "Wait") {
+            // A wait is a SCHEDULING GAP: scheduled state holds by itself
+            // (the metas/args step-function keeps its last value) and the
+            // timeline extends. Its `stop` list names the ambient clocks
+            // paused for the span (empty = everything keeps living;
+            // freeze() = all of them). Paused clocks resume where they
+            // stopped — pause, not skip.
             size_t start = obj.attr("start").cast<size_t>();
             size_t n     = obj.attr("n").cast<size_t>();
-            for (size_t i = 0; i < n; i++)
-                _waits[start + i] = start == 0 ? 0 : (start - 1);
+            for (auto rawStop : obj.attr("stop")) {
+                std::string clock = py::str(rawStop).cast<std::string>();
+                if (clock == "videos") _clockStops.videos.push_back({start, n});
+                else if (clock == "paints") _clockStops.paints.push_back({start, n});
+                else if (clock == "effects") _clockStops.effects.push_back({start, n});
+            }
             size_t waitEnd = start + n;
             if (waitEnd > _nbFrame)
                 _nbFrame = waitEnd;
@@ -292,10 +313,6 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
 const std::vector<Mesh>& VC::Core::generateMeshes()
 {
     size_t renderIndex = _index;
-    auto   potentialIndex = _waits.find(_index);
-    if (potentialIndex != _waits.end()) {
-        renderIndex = potentialIndex->second;
-    }
 
     if (renderIndex != _lastRenderedIndex) {
         _cachedMeshes.clear();
@@ -305,10 +322,14 @@ const std::vector<Mesh>& VC::Core::generateMeshes()
                 auto _tInput0 = std::chrono::high_resolution_clock::now();
 #endif
                 auto meta = i->getMetadata(renderIndex);
+                // Video playback runs on the VIDEOS ambient clock — pause
+                // spans (wait(stop=Clock.VIDEOS)/freeze) subtract out here;
+                // frameIndex's only consumer is Video::getMesh.
+                meta.frameIndex = renderIndex - ClockStops::pausedBefore(_clockStops.videos, renderIndex);
                 if (!meta.hidden && meta.opacity != 0) {
                     auto mesh = i->getMesh(meta, _config);
                     if (auto* a = dynamic_cast<AInput*>(i.get()))
-                        mesh.effects = a->getActiveEffectsAtFrame(renderIndex);
+                        mesh.effects = a->getActiveEffectsAtFrame(renderIndex, _clockStops);
                     // Default zIndex = creation order, matching the
                     // Python-side default (Metadata.zIndex = self.index).
                     mesh.zIndex = meta.zIndexExplicit ? meta.zIndex : static_cast<int>(&i - &_inputs[0]);

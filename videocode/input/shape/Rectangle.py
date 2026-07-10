@@ -12,7 +12,7 @@ class Rectangle(Polygon):
         self,
         width: wunumber = 3,
         height: wunumber = 2,
-        fillColor: rgba = BLUE_C | BLACK,
+        fillColor: paint = BLUE_C | BLACK,
         strokeColor: rgba = BLUE_C | WHITE,
         strokeWidth: wunumber = 0.05,
         cornerRadius: percent = 0,  # percent 0-100, 100 = circle on a square
@@ -48,7 +48,7 @@ class Square(Rectangle):
         self,
         side: wunumber = 2,
         strokeWidth: wunumber = 0.05,
-        fillColor: rgba = GREEN_A | BLACK,
+        fillColor: paint = GREEN_A | BLACK,
         strokeColor: rgba = GREEN_A | WHITE,
         cornerRadius: percent = 0,
     ):
@@ -71,7 +71,7 @@ class HorizontalLine(Rectangle):
         self,
         length: wunumber = 3,
         strokeWidth: wunumber = 0.025,
-        fillColor: rgba = BLUE_A,
+        fillColor: paint = BLUE_A,
         strokeColor: rgba = TRANSPARENT,
         rounded: bool = True,
     ):
@@ -102,7 +102,7 @@ class VerticalLine(Rectangle):
         self,
         length: wunumber = 3,
         strokeWidth: wunumber = 0.025,
-        fillColor: rgba = BLUE_A,
+        fillColor: paint = BLUE_A,
         strokeColor: rgba = TRANSPARENT,
         rounded: bool = True,
     ):

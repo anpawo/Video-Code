@@ -64,10 +64,40 @@ class IShader(ABC):
 
 class FragmentShader(IShader):
     """
-    An `FragmentShader` modifies the pixels of an `Input`.
+    A `FragmentShader` FILTERS the pixels of an `Input` — it transforms what
+    is already there: blur, grayscale, glow, lut, chromaKey... Used via
+    `.apply()`. (Shaders that GENERATE pixels are their own kind — see
+    `PaintShader`.)
     """
 
     _type = "FragmentShader"
+
+
+class PaintShader(IShader):
+    """
+    The third shader kind, independent of the other two: a `PaintShader`
+    GENERATES pixels from position and time, ignoring what's underneath
+    (only the shape's coverage is kept) — silk, fire, starNest, any
+    mathShader.
+
+    A paint is FILL STATE, nothing else: `fillColor=fire()` rides
+    `args["fillColor"]` exactly like a color (via `jsonSerialization`, like
+    gradients do) and persists until reassigned — the C++ injects it into
+    the effect chain on every frame it is active
+    (`AInput::getActiveEffectsAtFrame`). It can NOT be `.apply()`d
+    (`Input.apply` rejects it), and the `paint` alias (`rgba | PaintShader`)
+    can never admit a `FragmentShader` — the three shader kinds don't
+    overlap.
+    """
+
+    def jsonSerialization(self) -> dict:
+        # {"shader": <effect name>, <its args>} — the "shader" key is what the
+        # C++ fillColor parsing/injection discriminates on; numeric args reach
+        # the GLSL alphabetically (the usual p[] contract), "filepath" rides
+        # ActiveEffect::strParam.
+        return {"shader": upperFirst(type(self).__name__)} | {
+            k: v for k, v in vars(self).items() if k not in ("start", "duration", "offset")
+        }
 
 
 class VertexShader(IShader):

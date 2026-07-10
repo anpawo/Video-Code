@@ -6,9 +6,14 @@ from __future__ import annotations
 # Types
 #
 
-from typing import Any, Generic, Literal, Protocol, Self, cast, overload
+from typing import TYPE_CHECKING, Any, Generic, Literal, Protocol, Self, cast, overload
 
 from videocode.color import ConicGradient, LinearGradient, RadialGradient, rgba
+
+if TYPE_CHECKING:
+    # Only for the lazily-evaluated `paint` alias below — a runtime import
+    # would be circular (ishader -> constants -> ty).
+    from videocode.shader.ishader import PaintShader
 
 
 type int8 = int
@@ -33,6 +38,15 @@ is in frame count not sec
 """
 
 type maybe[T] = T | None
+
+type paint = rgba | PaintShader
+"""
+what fillColor accepts: a color (incl. gradients) or a PaintShader — a
+fragment shader that GENERATES pixels (silk/fire/starNest/mathShader), as
+opposed to the filter kind (blur/grayscale/...) which only transforms
+existing pixels and belongs in .apply(). PEP 695 aliases evaluate lazily,
+so the TYPE_CHECKING-only PaintShader import is enough.
+"""
 type number = int | float
 type unumber = int | float
 type mnbr = maybe[number]

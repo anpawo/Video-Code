@@ -173,6 +173,17 @@ void BezierPath::parseColorOrGradient(
 {
     const auto& colorJson = args.at(key);
 
+    // A PaintShader fill (fillColor = silk()/fire()/... on the Python side)
+    // serializes as an object with a "shader" key: the geometry renders as
+    // opaque white — full coverage for the shader (injected per-frame by
+    // AInput::getActiveEffectsAtFrame) to replace, keeping only the alpha.
+    if (colorJson.is_object()) {
+        color = {255, 255, 255, 255};
+        stops.clear();
+        gradType = GradType::None;
+        return;
+    }
+
     // LinearGradient / RadialGradient / ConicGradient emit [stops_array, discriminator].
     // Linear:  discriminator is a number (the angle in degrees).
     // Radial:  discriminator is the string "radial".

@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 
 from abc import abstractmethod
+from videocode.context import Context
 from videocode.input.input import Input
 from videocode.utils.bezier import Easing
 from videocode.utils.decorators import inputCreation, prop
@@ -27,7 +28,7 @@ class Polygon(Input):
     def __init__(
         self,
         vertices: list[point],
-        fillColor: rgba,
+        fillColor: paint,
         strokeColor: rgba,
         strokeWidth: wufloat,
         cornerRadius: percent = 0,
@@ -42,6 +43,13 @@ class Polygon(Input):
         self.sharpCorners = sharpCorners
         self.open = open
         self.points = self.buildPoints()
+
+    # Shader fills: `fillColor` may be a PaintShader instead of a color — and
+    # it behaves exactly like one: per-frame state (it serializes into
+    # args["fillColor"] like gradients do), persistent until reassigned, the
+    # C++ injects it into the effect chain each active frame. Nothing to do
+    # here — the `paint` type (rgba | PaintShader) can't admit filters, since
+    # PaintShader is its own shader kind, not a FragmentShader.
 
     @abstractmethod
     def generateVertices(self) -> list[point]: ...

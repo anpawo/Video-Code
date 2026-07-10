@@ -110,6 +110,12 @@ struct Metadata
     // this input only where the source has coverage — see matte/frag.glsl.
     int matteSource{-1};
 
+    ///< Frame at which the CURRENT shader fill (args["fillColor"] being a
+    ///< {"shader": ...} object) was assigned — the paint's clock starts here.
+    ///< Maintained by the Args case in getMetadataFromArgs; meaningless while
+    ///< fillColor is a plain color.
+    size_t fillShaderSince{0};
+
     // Adjustment layer: when true this input is never drawn on its own. Instead
     // its applied fragment effects grade the flattened composite of every mesh
     // drawn BELOW it in z-order (After Effects "adjustment layer"). Set by the

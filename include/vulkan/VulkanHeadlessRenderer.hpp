@@ -11,6 +11,7 @@
 
 #include <opencv2/core/mat.hpp>
 #include <string>
+#include <array>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -51,6 +52,10 @@ namespace VC
         // WebM/VP9-alpha). Default false keeps the historical opaque gray clear
         // ({0.2,0.2,0.2,1.0}) — byte-identical to every existing golden/PNG/MP4.
         void setTransparentBackground(bool transparent) { m_transparentClear = transparent; }
+
+        // Clear color of the main pass (the script's `BG` global, via
+        // Core::_bgColor). Ignored while m_transparentClear is set.
+        void setBackgroundColor(const std::array<float, 3>& c) { m_bgColor = c; }
 
         // Render the current scene and submit it without waiting for the GPU.
         // Returns the PREVIOUS call's pixels (BGRA cv::Mat), which the GPU
@@ -157,6 +162,7 @@ namespace VC
         // all existing render paths (PNG/MP4 export, visual-test goldens) are
         // untouched; only the alpha-preserving video exports flip it on.
         bool                      m_transparentClear = false;
+        std::array<float, 3> m_bgColor{0.2f, 0.2f, 0.2f};
 
         // ── Per-frame partitioned mesh indices ────────────────────────────────
         // Meshes that need an isolated pre-pass: those with a GLSL effect chain,
@@ -221,6 +227,10 @@ namespace VC
         };
 
         std::unordered_map<std::string, EffectPipeline> m_effectPipelines;
+
+        // Runtime-loaded MathShader files that failed to open/compile —
+        // remembered so a broken file is logged once, not retried every frame.
+        std::unordered_set<std::string> m_mathFailed;
 
         // Additive-blend pipeline for glow's combine pass: samples the blurred
         // copy, multiplies by intensity in glow/frag.glsl, and the (ONE, ONE)
@@ -317,6 +327,10 @@ namespace VC
         cv::Mat copyReadback(size_t idx);
 
         bool createEffectPipeline(const std::string& name);
+        bool createEffectPipelineFromSource(const std::string& key, const std::string& fragSrc);
+        // Compile-once cache for runtime-loaded MathShader files (see the
+        // mathPipelineKey/ensureMathPipeline comments in the .cpp).
+        bool ensureMathPipeline(const std::string& path);
 
         // Build the glow-only extras: m_effectPassLoad, the third scratch
         // buffer, and m_glowCombine. Called from createEffectResources().
