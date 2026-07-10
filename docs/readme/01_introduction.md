@@ -8,5 +8,4 @@ AI have a hard time with designs, they are better with code, they could potentia
 Thirdly, I want the program to have a visual interface like any other video editing app but I want it to be automatically generated from the Python API.<br>
 With a code and a visual interface, anyone can make videos according to their liking.
 
-Below is an example of the last feature added (code) and the result (video).
-
+Below is a tutorial example and its rendered preview video. The tutorial video was made with Videocode, and the source lives in `docs/by-example/tuto.py`.

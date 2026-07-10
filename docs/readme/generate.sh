@@ -3,12 +3,14 @@
 
 # README_HEADER=docs/readme/01_header.md
 README_CODE=docs/readme/02_code.md
+TUTORIAL_SCENE=docs/by-example/tuto.py
 README_GIF=docs/readme/example.gif
 
 # code file
-printf '\n%s\n%s\n%s\n' '```py' "$(cat video.py)" '```' > "$README_CODE"
+printf '\n%s\n%s\n%s\n' '```py' "$(cat "$TUTORIAL_SCENE")" '```' > "$README_CODE"
 
-# video file (doesn't change)
+# preview video source
+./video-code --file "$TUTORIAL_SCENE" --generate output.mp4
 
 # gif file
 ffmpeg -i output.mp4 \
