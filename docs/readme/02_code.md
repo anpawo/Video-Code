@@ -1,3 +1,5 @@
+<details>
+<summary>Show tutorial code</summary>
 
 ```py
 #!/usr/bin/env python3
@@ -208,3 +210,5 @@ g.waitFor(para).wait(PAUSE_DELAY).scaleTo(0.5, duration=1.2).rotateBy(180, durat
 # bg - created last so drift() starts at the end of existing content
 para = Plane().drift()
 ```
+
+</details>

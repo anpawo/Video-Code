@@ -10,6 +10,8 @@ With a code and a visual interface, anyone can make videos according to their li
 
 Below is a tutorial example and its rendered preview video. The tutorial video was made with Videocode, and the source lives in `docs/by-example/tuto.py`.
 
+<details>
+<summary>Show tutorial code</summary>
 
 ```py
 #!/usr/bin/env python3
@@ -220,6 +222,8 @@ g.waitFor(para).wait(PAUSE_DELAY).scaleTo(0.5, duration=1.2).rotateBy(180, durat
 # bg - created last so drift() starts at the end of existing content
 para = Plane().drift()
 ```
+
+</details>
 
 <p>The preview below is the rendered tutorial video made with Videocode.</p>
 

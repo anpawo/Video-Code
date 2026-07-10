@@ -7,7 +7,12 @@ TUTORIAL_SCENE=docs/by-example/tuto.py
 README_GIF=docs/readme/example.gif
 
 # code file
-printf '\n%s\n%s\n%s\n' '```py' "$(cat "$TUTORIAL_SCENE")" '```' > "$README_CODE"
+printf '\n%s\n%s\n%s\n%s\n%s\n' \
+  '<details>' \
+  '<summary>Show tutorial code</summary>' \
+  "$(printf '\n```py\n%s\n```\n' "$(cat "$TUTORIAL_SCENE")")" \
+  '</details>' \
+  '' > "$README_CODE"
 
 # preview video source
 ./video-code --file "$TUTORIAL_SCENE" --generate output.mp4
