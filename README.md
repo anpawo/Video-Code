@@ -227,7 +227,7 @@ para = Plane().drift()
 
 <p>The preview below is the rendered tutorial video made with Videocode.</p>
 
-<img src="docs/readme/example.gif" style="width: 75%;">
+<img src="docs/readme/example.gif" style="width: 100%;">
 
 ## Getting Started
 To create a video with Video-Code, you need to write some simple code in Python.
