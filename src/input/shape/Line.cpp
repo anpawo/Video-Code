@@ -8,6 +8,7 @@
 #include "input/shape/Line.hpp"
 
 #include <cstddef>
+#include <cmath>
 #include <vector>
 
 #include "opencv2/core/matx.hpp"
@@ -30,16 +31,18 @@ static void line(cv::Mat &bg, const size_t x, const size_t y, const size_t w, co
 
 cv::Mat Line::getBaseMatrix(const json::object_t &args)
 {
-    size_t l = args.at("length");
-    size_t t = args.at("thickness");
+    const double rawLength = args.at("length");
+    const double rawThickness = args.at("thickness");
     const std::vector<int> &color = args.at("color");
     bool rounded = args.at("rounded");
+    const size_t l = std::max<size_t>(1, static_cast<size_t>(std::llround(rawLength)));
+    const size_t t = std::max<size_t>(1, static_cast<size_t>(std::llround(rawThickness)));
     const cv::Vec4b bgra = cv::Scalar(color[2], color[1], color[0], color[3]);
     cv::LineTypes lineType = cv::LINE_AA;
-    int radius = t / 2;
+    int radius = static_cast<int>(t / 2);
     int cy = radius;
     int leftCx = radius;
-    int rightCx = l - radius - 1;
+    int rightCx = static_cast<int>(l) - radius - 1;
 
     cv::Mat mat = cv::Mat(t, l, CV_8UC4).setTo(cv::Scalar(0, 0, 0, 0));
 

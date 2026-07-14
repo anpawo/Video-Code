@@ -8,6 +8,7 @@
 #include <QApplication>
 #include <QMainWindow>
 #include <argparse/argparse.hpp>
+#include <cstdio>
 #include <nlohmann/json.hpp>
 #include <opencv2/core/utils/logger.hpp>
 #include <opencv2/opencv.hpp>

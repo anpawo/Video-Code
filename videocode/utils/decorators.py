@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 
+from functools import wraps
 from sys import stderr
 from typing import TYPE_CHECKING, Any, Callable
 import inspect
@@ -121,6 +122,7 @@ def inputCreation(f: Callable[..., None]):
     Automate the `Input` creation.
     """
 
+    @wraps(f)
     def inputCreationWrapper(*args, **kwargs):
         # Input's init
         f(*args, **kwargs)
@@ -142,9 +144,6 @@ def inputCreation(f: Callable[..., None]):
             },
         )
 
-    # Preserve signature and annotations for UI introspection
-    inputCreationWrapper.__wrapped__ = f
-    inputCreationWrapper.__annotations__ = getattr(f, "__annotations__", {})
     try:
         inputCreationWrapper.__signature__ = inspect.signature(f)
     except Exception:

@@ -31,8 +31,10 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
 
     ///< Setup the layout and image
     _imageLabel = new QLabel(this);
-    _imageLabel->setMinimumSize(_width / 2, _height / 2);
+    _imageLabel->setMinimumSize(320, 180);
     _imageLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    _imageLabel->setAlignment(Qt::AlignCenter);
+    _imageLabel->setText("Preview");
 
     if (_uiMode) {
         _uiPanel = new UiPanel(_imageLabel, &_core, this);
@@ -77,7 +79,6 @@ VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
         if (screen) {
             const QRect geo = screen->availableGeometry();
             setGeometry(geo);
-            setMaximumSize(geo.size());
             resize(geo.size());
         } else {
             resize(_width, _height);

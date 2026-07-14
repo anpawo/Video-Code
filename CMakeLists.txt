@@ -74,8 +74,9 @@ if(CI_BUILD)
     FetchContent_MakeAvailable(nlohmann_json)
 endif()
 
-find_package(OpenCV CONFIG REQUIRED)
+find_package(OpenCV CONFIG REQUIRED COMPONENTS core imgproc imgcodecs videoio)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
+list(PREPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
 find_package(CURL REQUIRED)
 
@@ -100,8 +101,10 @@ set(SOURCES
     include/window/Window.hpp # Needed for the MOC (Meta-Object Compiler) Q_OBJECT
     include/window/TimelineWidget.hpp # Needed for the MOC (Meta-Object Compiler) Q_OBJECT
     include/window/UiPanel.hpp # Needed for the MOC (Meta-Object Compiler) Q_OBJECT
+    include/window/EffectTimeline.hpp # Needed for the MOC (Meta-Object Compiler) Q_OBJECT
     src/window/Window.cpp
     src/window/UiPanel.cpp
+    src/window/EffectTimeline.cpp
 
     # --- Compiler ---
     src/compiler/Compiler.cpp

@@ -9,6 +9,7 @@
 
 #include <QLabel>
 #include <argparse/argparse.hpp>
+#include <functional>
 #include <memory>
 #include <opencv2/opencv.hpp>
 
@@ -34,8 +35,17 @@ namespace VC
         void updateFrame(QLabel& imageLabel);
 
         ///< Generate the video
+        using RenderProgressCallback = std::function<bool(size_t currentFrame, size_t totalFrames)>;
         int generateVideo();
-        int generateVideo(const std::string& outputFile);
+        int generateVideo(const std::string& outputFile, RenderProgressCallback onProgress = nullptr);
+
+        ///< Scene size
+        int sceneWidth() const { return _width; }
+        int sceneHeight() const { return _height; }
+        size_t sceneFramerate() const { return _framerate; }
+        size_t currentFrame() const { return _nbFrame == 0 ? 0 : (_index + 1); }
+        size_t frameCount() const { return _nbFrame; }
+        bool isPaused() const { return _paused; }
 
         ///< Time control
         void pause();
@@ -43,6 +53,7 @@ namespace VC
         void goToLastFrame();
         void forward1frame();
         void backward1frame();
+        void seekToFrame(size_t frame);
 
         // ---
 

@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 
+from __future__ import annotations
+
 import argparse
+import importlib.util
 import inspect
 import json
 import os
 import sys
-import importlib.util
 from types import ModuleType
+from typing import Any, Iterable, Optional
 
 
 ROOT = os.path.abspath(os.path.dirname(__file__) + "/..")
@@ -46,7 +49,7 @@ import videocode.input._inputs  # noqa: F401
 import videocode.shader._shaders  # noqa: F401
 
 
-def iter_subclasses(base):
+def iter_subclasses(base: type) -> set[type]:
     seen = set()
     work = list(base.__subclasses__())
     while work:
@@ -58,7 +61,7 @@ def iter_subclasses(base):
     return seen
 
 
-def format_annotation(ann):
+def format_annotation(ann: Any) -> str:
     if ann is inspect._empty:
         return "Any"
     if isinstance(ann, type):
@@ -67,14 +70,22 @@ def format_annotation(ann):
     return s.replace("typing.", "")
 
 
-def format_default(value):
+def format_default(value: Any) -> str:
     if value is None:
         return "None"
     if isinstance(value, (int, float, bool, str)):
         return repr(value)
+    if hasattr(value, "makeSerializable"):
+        try:
+            serializable = value.makeSerializable()
+            if isinstance(serializable, (tuple, list)):
+                return "(" + ", ".join(str(v) for v in serializable) + ")"
+            return repr(serializable)
+        except Exception:
+            pass
 
     # Try to map easing objects to readable names
-    easing_maps = []
+    easing_maps: list[tuple[type, Optional[type]]] = []
     if VCEasing:
         easing_maps.append((VCEasing, VCCubicBezier))
     if UEasing:
@@ -90,7 +101,7 @@ def format_default(value):
     return value.__class__.__name__
 
 
-def format_signature(name, sig):
+def format_signature(name: str, sig: inspect.Signature) -> str:
     params = []
     for p in sig.parameters.values():
         if p.name == "self":
@@ -103,7 +114,7 @@ def format_signature(name, sig):
     return f"{name}({', '.join(params)})"
 
 
-def code_signature(func):
+def code_signature(func: Any) -> str:
     code = func.__code__
     argcount = code.co_argcount
     kwonlycount = code.co_kwonlyargcount
@@ -138,7 +149,7 @@ def code_signature(func):
     return f"{func.__name__}({', '.join(params)})"
 
 
-def params_from_signature(sig):
+def params_from_signature(sig: inspect.Signature) -> list[dict[str, Any]]:
     params = []
     for p in sig.parameters.values():
         if p.name == "self":
@@ -151,7 +162,7 @@ def params_from_signature(sig):
     return params
 
 
-def params_from_code(func):
+def params_from_code(func: Any) -> list[dict[str, Any]]:
     code = func.__code__
     argcount = code.co_argcount
     kwonlycount = code.co_kwonlyargcount
@@ -186,7 +197,7 @@ def params_from_code(func):
     return params
 
 
-def format_callable(callable_obj, name_override=None):
+def format_callable(callable_obj: Any, name_override: Optional[str] = None) -> str:
     name = name_override or callable_obj.__name__
     try:
         sig = inspect.signature(callable_obj, eval_str=False)
@@ -196,7 +207,7 @@ def format_callable(callable_obj, name_override=None):
         return sig.replace(callable_obj.__name__, name, 1)
 
 
-def param_list(callable_obj):
+def param_list(callable_obj: Any) -> list[dict[str, Any]]:
     try:
         sig = inspect.signature(callable_obj, eval_str=False)
         return params_from_signature(sig)
@@ -204,7 +215,7 @@ def param_list(callable_obj):
         return params_from_code(callable_obj)
 
 
-def load_module_from_path(path, module_name):
+def load_module_from_path(path: str, module_name: str) -> Optional[ModuleType]:
     spec = importlib.util.spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
         return None
@@ -216,12 +227,15 @@ def load_module_from_path(path, module_name):
     return module
 
 
-def collect_inputs():
+def collect_inputs() -> list[dict[str, Any]]:
+    unsupported_ui_inputs = {"Shape", "group", "square"}
     inputs = []
     for cls in sorted(iter_subclasses(Input), key=lambda c: c.__name__):
         if cls in (Input,):
             continue
         if not cls.__module__.startswith("videocode.input"):
+            continue
+        if cls.__name__ in unsupported_ui_inputs:
             continue
         annotations = getattr(cls, "__annotations__", {}) or {}
         if annotations:
@@ -232,7 +246,7 @@ def collect_inputs():
     return inputs
 
 
-def collect_shaders():
+def collect_shaders() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     vertex = []
     fragment = []
     for cls in sorted(iter_subclasses(IShader), key=lambda c: c.__name__):
@@ -247,7 +261,7 @@ def collect_shaders():
     return vertex, fragment
 
 
-def collect_templates():
+def collect_templates() -> list[dict[str, Any]]:
     templates = []
     effect_dir = os.path.join(ROOT, "videocode", "template", "effect")
     for filename in sorted(os.listdir(effect_dir)):
@@ -267,7 +281,7 @@ def collect_templates():
     return templates
 
 
-def collect_input_methods():
+def collect_input_methods() -> list[dict[str, Any]]:
     methods = []
     for name, obj in inspect.getmembers(Input, inspect.isfunction):
         if name.startswith("_"):
@@ -280,7 +294,7 @@ def collect_input_methods():
     return methods
 
 
-def print_section(title, entries):
+def print_section(title: str, entries: Iterable[dict[str, Any]]) -> None:
     print(f"\n[{title}]")
     if not entries:
         print("- (none)")
@@ -295,7 +309,7 @@ def print_section(title, entries):
         print(f"- {e['name']}({params})")
 
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--json", action="store_true")
     args, _ = parser.parse_known_args()

@@ -43,6 +43,7 @@ VC::Core::Core(const argparse::ArgumentParser& parser)
         reloadSourceFile();
     } else {
         VC_LOG_DEBUG("[Core] UI mode: skip source file load.");
+        _paused = true;
     }
 }
 
@@ -169,6 +170,11 @@ void VC::Core::updateFrame(QLabel& imageLabel)
         return;
     }
 
+    if (_inputs.empty()) {
+        _indexChanged = false;
+        return;
+    }
+
     cv::Mat frame;
     try {
         frame = generateFrame(_index);
@@ -184,21 +190,6 @@ void VC::Core::updateFrame(QLabel& imageLabel)
         return;
     }
 
-    // Screen pixel density ratio (needed for mac's retina)
-    qreal scaleFactor = qApp->devicePixelRatio();
-
-    cv::resize(
-        frame,
-        frame,
-        cv::Size(
-            _width / (2.0 / scaleFactor),
-            _height / (2.0 / scaleFactor)
-        ),
-        _width / (2.0 / scaleFactor),
-        _height / (2.0 / scaleFactor),
-        cv::INTER_LINEAR
-    );
-
     // load next frame if not in pause and not at the end
     if (_paused == false && _nbFrame && _index < _nbFrame - 1) {
         _index += 1;
@@ -207,9 +198,35 @@ void VC::Core::updateFrame(QLabel& imageLabel)
         _indexChanged = false;
     }
 
+    // Fit the preview to the actual label size instead of enforcing a fixed half-scene output.
+    qreal scaleFactor = qApp->devicePixelRatio();
+    QSize targetSize = imageLabel.contentsRect().size();
+    if (!targetSize.isValid()) {
+        targetSize = QSize(_width, _height);
+    }
+
+    const double safeTargetW = std::max(1, targetSize.width());
+    const double safeTargetH = std::max(1, targetSize.height());
+    const double scale = std::min(
+        safeTargetW / static_cast<double>(_width),
+        safeTargetH / static_cast<double>(_height)
+    );
+
+    const int previewW = std::max(1, static_cast<int>(_width * scale * scaleFactor));
+    const int previewH = std::max(1, static_cast<int>(_height * scale * scaleFactor));
+
+    cv::resize(
+        frame,
+        frame,
+        cv::Size(previewW, previewH),
+        0.0,
+        0.0,
+        cv::INTER_LINEAR
+    );
+
     // Create QImage from frame data
     QImage img(frame.data, frame.cols, frame.rows, frame.step, QImage::Format_ARGB32);
-    img.setDevicePixelRatio(qApp->devicePixelRatio());
+    img.setDevicePixelRatio(scaleFactor);
 
     // Create a pixmap for better display (cpu)
     QPixmap pixmap = QPixmap::fromImage(img);
@@ -221,7 +238,7 @@ int VC::Core::generateVideo()
     return generateVideo(_outputFile);
 }
 
-int VC::Core::generateVideo(const std::string& outputFile)
+int VC::Core::generateVideo(const std::string& outputFile, RenderProgressCallback onProgress)
 {
     FILE* ffmpegPipe = popen(
         std::format(
@@ -253,6 +270,7 @@ int VC::Core::generateVideo(const std::string& outputFile)
         throw Error("Could not start the ffmpeg pipe.");
     }
 
+    bool aborted = false;
     for (size_t i = 0; i < _nbFrame; i++) {
         cv::Mat f = generateFrame(i);
 
@@ -270,9 +288,18 @@ int VC::Core::generateVideo(const std::string& outputFile)
         if (written != bytes) {
             throw Error("index: " + std::to_string(i) + ". Wrote only " + std::to_string(written) + " out of " + std::to_string(bytes) + " bytes.");
         }
+
+        if (onProgress && !onProgress(i + 1, _nbFrame)) {
+            aborted = true;
+            break;
+        }
     }
 
     pclose(ffmpegPipe);
+    if (aborted) {
+        VC_LOG_DEBUG("video render aborted: " + outputFile);
+        return 1;
+    }
     VC_LOG_DEBUG("video generated as: " + outputFile)
     return 0;
 }
@@ -320,4 +347,17 @@ void VC::Core::forward1frame()
         _indexChanged = true;
     }
     std::cout << std::format("Jumped forward to the frame {}/{}.", currIndex(_index, _nbFrame), _nbFrame) << std::endl;
+}
+
+void VC::Core::seekToFrame(size_t frame)
+{
+    if (_nbFrame == 0) {
+        return;
+    }
+    const size_t target = std::min(frame, _nbFrame - 1);
+    if (target == _index) {
+        return;
+    }
+    _index = target;
+    _indexChanged = true;
 }

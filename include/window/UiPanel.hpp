@@ -7,29 +7,50 @@
 
 #pragma once
 
-#include <QFormLayout>
-#include <QListWidget>
-#include <QPushButton>
-#include <QShortcut>
-#include <QScrollArea>
-#include <QTimer>
-#include <QTreeWidget>
 #include <QWidget>
+#include <QString>
 #include <nlohmann/json.hpp>
+#include <vector>
 
-#include "core/Core.hpp"
+class QLabel;
+class QFormLayout;
+class QListWidget;
+class QPushButton;
+class QResizeEvent;
+class QScrollArea;
+class QShortcut;
+class QSpinBox;
+class QSplitter;
+class QTimer;
+class QTreeWidget;
 
 namespace VC
 {
+    class Core;
+    class EffectTimeline;
+
     class UiPanel : public QWidget
     {
         Q_OBJECT
 
     public:
         UiPanel(QLabel* preview, Core* core, QWidget* parent = nullptr);
+        void resizeEvent(QResizeEvent* event) override;
 
     private:
         QLabel* _preview{nullptr};
+        QWidget* _previewPane{nullptr};
+        QWidget* _previewStage{nullptr};
+        QWidget* _leftPane{nullptr};
+        QWidget* _rightPane{nullptr};
+        QSplitter* _splitter{nullptr};
+        QSplitter* _centerSplitter{nullptr};
+        EffectTimeline* _timeline{nullptr};
+        QSpinBox* _lifespanStartSpin{nullptr};
+        QSpinBox* _lifespanDurationSpin{nullptr};
+        QTimer* _playheadTimer{nullptr};
+        QPushButton* _playPauseBtn{nullptr};
+        QLabel* _frameCounter{nullptr};
         Core* _core{nullptr};
 
         QTreeWidget* _effectTree{nullptr};
@@ -45,10 +66,12 @@ namespace VC
         QString _currentKind{};
         QString _currentName{};
         nlohmann::json _currentParams{};
+        nlohmann::json _schema{};
         nlohmann::json _uiInput{};
         nlohmann::json _uiEffect{};
         std::vector<nlohmann::json> _inputs{};
         int _activeInputIndex{-1};
+        bool _isCreatingNewInput{false};
         std::vector<std::vector<nlohmann::json>> _effectsByInput{};
         int _activeEffectIndex{-1};
 
@@ -68,14 +91,28 @@ namespace VC
         void addOrUpdateInput();
         bool buildCreateArgs(const nlohmann::json& inputDef, nlohmann::json::object_t& outArgs);
         void addOrUpdateEffect();
+        void removeSelectedInput();
         void refreshEffectStackList();
         void removeSelectedEffect();
         void removeEffectAt(int index);
         void renderVideo();
+        void updatePreviewSize();
+        void showInspectorMessage(const QString& title, const QString& body);
+        QString inputListLabel(const nlohmann::json& inputDef) const;
+        QString fileDialogFilterForInput(const QString& inputName) const;
+        nlohmann::json schemaParamsFor(const QString& name, const QString& kind) const;
+        void refreshStudioState();
         // Stack building helpers
         bool buildStack(nlohmann::json::array_t& outStack);
-        bool appendInputCreate(const nlohmann::json& inputDef, int index, nlohmann::json::array_t& outStack);
+        bool appendInputCreate(const nlohmann::json& inputDef, nlohmann::json::array_t& outStack);
+        void appendInputLifespan(const nlohmann::json& inputDef, int inputIndex, nlohmann::json::array_t& outStack);
         void appendEffectApply(const nlohmann::json& effDef, int inputIndex, nlohmann::json::array_t& outStack);
         void fillEditorFromEffect(QWidget* editor, const nlohmann::json& effectParams, const QString& pname);
+        size_t timelineFrameCount() const;
+        void refreshTimelineView();
+        void onTimelineClipSelected(int inputIndex, int effectIndex);
+        void onTimelineScrubbed(size_t frame);
+        void togglePlayPause();
+        void updatePlayPauseButton();
     };
 };
