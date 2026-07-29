@@ -32,6 +32,13 @@ jobs:
       - name: Type-check Python API
         run: python3 -m pyright
 
+      # Does anything public land here undocumented or untested? Reads the
+      # pushed range, so it sees the same additions a reviewer would.
+      # Deliberate exception: say why in the commit message and this is the
+      # one job to override.
+      - name: Documentation and test coverage of new public API
+        run: python3 test/coverage_check.py --pushed
+
   build:
     runs-on: ubuntu-latest
 
@@ -73,6 +80,11 @@ jobs:
 
       - name: copy executable
         run: cp build/video-code video-code
+
+      # eg.py is the living showcase — every feature worth seeing, in one scene.
+      # If it stops rendering, an example in the docs has gone stale.
+      - name: Render the example scene
+        run: ./video-code --file eg.py --generate eg.mp4
 
       - name: Run video-code
         run: |
