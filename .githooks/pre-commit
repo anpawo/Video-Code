@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# OPT-IN, and deliberately fast (~12 s). Nothing here runs unless you arm it:
+#   git config core.hooksPath .githooks
+# Bypass once with  git commit --no-verify.
+#
+# The slow gates do NOT live here — pushes must not wait. Types and tests run on
+# GitHub (.github/workflows/ci-build.yaml); the render and performance gates
+# need a real GPU and a local baseline, so they are `make check`, run when you
+# want them, never on your critical path.
+
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+printf "→ coverage of new public API\n"
+python3 test/coverage_check.py || {
+    printf "\n\033[31m✗ commit cancelled — new public API is missing docs or tests\033[0m\n"
+    exit 1
+}
+
+printf "\033[32m✓ pre-commit clean\033[0m\n"

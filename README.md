@@ -242,6 +242,20 @@ To add the frames of the __Input__ to the timeline, use the __\<Input\>.add()__ 
 
 To install the project, checkout the [documentation](docs/user/user.md#installation).
 
+### Contributing
+
+Nothing blocks a push. GitHub Actions checks types, the test suites, the build,
+and whether new public API arrived documented and tested. The two gates that
+need this machine's GPU — visual regression and the performance baseline — are
+one command, run when you want them:
+
+```bash
+make check
+```
+
+See [docs/WORKFLOWS.md](docs/WORKFLOWS.md) for what each gate can and cannot
+decide, and how to re-baseline performance deliberately.
+
 ## Patch Notes
 
 

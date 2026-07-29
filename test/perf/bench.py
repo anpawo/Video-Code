@@ -41,13 +41,14 @@ def renderOnce() -> dict:
         if not chunk:
             break
         buf += chunk
-        if firstFrame is None and b"frame 1/" in buf:
+        # progress reads "1/300 frames" — the renderer prints the count AFTER the ratio
+        if firstFrame is None and re.search(rb"\b1/\d+ frames", buf):
             firstFrame = time.perf_counter() - t0
     proc.wait()
     total = time.perf_counter() - t0
 
     text = buf.decode(errors="replace")
-    frames = int(re.search(r"frame \d+/(\d+)", text).group(1))
+    frames = int(re.search(r"\d+/(\d+) frames", text).group(1))
     rss = int(re.search(r"(\d+)\s+maximum resident set size", text).group(1))
 
     return {

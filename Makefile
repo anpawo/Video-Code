@@ -69,6 +69,28 @@ format:
 	clang-format -i **/*.cpp **/*.hpp
 
 
+# The gates GitHub cannot run: the goldens were rendered on this machine's GPU,
+# and a shared runner's timings say nothing about a local baseline. Run it when
+# you want the answer — never on the way to a push.
+.PHONY: check
+check:
+	@ printf "\n→ visual regression (new failures only)\n"
+	@ ./video-code --visual-test 2>&1 | tr '\r' '\n' | perl -pe 's/\e\[[0-9;]*m//g' \
+		| awk '/^\[visual-test\]/ { scene = $$2 } /\[FAIL\]/ { print scene }' | sort -u \
+		> /tmp/vc_failed.txt || true
+	@ grep -v '^\#' test/visual/known_failures.txt | grep -v '^[[:space:]]*$$' | sort -u > /tmp/vc_known.txt
+	@ if comm -23 /tmp/vc_failed.txt /tmp/vc_known.txt | grep -q .; then \
+		printf "\033[31mgoldens moved that were passing:\033[0m\n"; \
+		comm -23 /tmp/vc_failed.txt /tmp/vc_known.txt | sed 's/^/  /'; \
+		printf "Look at the render before regenerating: a golden can be recording a bug.\n"; \
+		exit 1; \
+	else \
+		printf "  no new visual regressions\n"; \
+	fi
+	@ printf "\n→ performance guard\n"
+	@ python3 test/perf/guard.py
+
+
 .PHONY: docs
 docs: cmake
 docs: docvid

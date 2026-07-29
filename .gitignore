@@ -18,6 +18,9 @@ video/
 *.png
 *.mov
 *.webm
+# Renders, not assets. The one gif under version control (docs/readme) is
+# already tracked, so this never hides it.
+*.gif
 
 # Python
 __pycache__/

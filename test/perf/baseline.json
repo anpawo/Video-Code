@@ -1,0 +1,8 @@
+{
+  "load": 0.5385,
+  "msPerFrame": 9.6178,
+  "total": 3.4238,
+  "rssMb": 461.7031,
+  "frames": 300,
+  "scene": "test/perf/stress_text.py"
+}
