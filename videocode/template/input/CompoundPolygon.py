@@ -37,8 +37,21 @@ class CompoundPolygon(Polygon):
         all_contours: list[list[point]] = []
 
         for m in members:
-            ox, oy = m.meta.position.x, m.meta.position.y
             pts = m.points
+            if not pts:
+                continue
+
+            # A member's points sit in ITS OWN local space, where the origin is
+            # a corner, not the centre — an Input is only centred on its
+            # position at draw time, by its `align`. Baking the points here
+            # skips that step, so re-apply it: without this a member lands off
+            # by half its own size, which also drags the compound's bounding
+            # box off-centre and slides EVERY member with it (a Plane's grid
+            # ended up 6 units left and 4 down, losing its top and right rows).
+            xs = [p[0] for p in pts]
+            ys = [p[1] for p in pts]
+            ox = m.meta.position.x - (min(xs) + (max(xs) - min(xs)) * m.meta.align.x)
+            oy = m.meta.position.y - (min(ys) + (max(ys) - min(ys)) * m.meta.align.y)
             sizes: list[int] = list(m.contourSizes) if m.contourSizes else [len(pts)]
             base = 0
             for size in sizes:

@@ -11,6 +11,7 @@ class Plane(Group):
         self,
         # center=False,
         margin: wnumber = 2,
+        strokeWidth: wnumber = 0.015,
     ) -> None:
         transparent = 0.05
         self._margin = margin
@@ -26,7 +27,7 @@ class Plane(Group):
             v_lines = [
                 VerticalLine(
                     length=h + 2,
-                    strokeWidth=0.01,
+                    strokeWidth=strokeWidth,
                     rounded=False,
                     fillColor=fill_color,
                 ).position(x=i, y=0, offset=0)
@@ -35,7 +36,7 @@ class Plane(Group):
             h_lines = [
                 HorizontalLine(
                     length=w + 2,
-                    strokeWidth=0.01,
+                    strokeWidth=strokeWidth,
                     rounded=False,
                     fillColor=fill_color,
                 ).position(x=0, y=i, offset=0)

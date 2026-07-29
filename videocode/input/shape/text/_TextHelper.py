@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 _FONT_DIR = Path(__file__).parents[3] / "assets" / "fonts"
 _STEPS = 4
+_TAB_SIZE = 4
 _FT_FLAGS = 1 | 2 | 8  # FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP
 
 
@@ -233,7 +234,9 @@ def buildLetterData(
     """
     Returns (char, x_offset, y_offset) for each rendered glyph.
     Newlines split the text into lines; each subsequent line is offset downward
-    by one line height (ascender − descender, scaled).
+    by one line height (ascender − descender, scaled). Tabs expand to the next
+    _TAB_SIZE-column stop before shaping — fonts carry no U+0009 glyph, so
+    HarfBuzz would otherwise map a tab to .notdef and draw a tofu box.
     """
     path = fontPath(fontFamily, bold, italic)
     _, hbFont, _, capH, (desc, asc) = loadFaces(path)
@@ -242,7 +245,9 @@ def buildLetterData(
 
     result: list[tuple[str, float, float]] = []
 
-    for lineIdx, line in enumerate(text.split("\n")):
+    for lineIdx, rawLine in enumerate(text.split("\n")):
+        # Expanded before shaping so info.cluster keeps indexing the same string.
+        line = rawLine.expandtabs(_TAB_SIZE)
         if not line:
             continue
         yBase = -lineIdx * lineHeight

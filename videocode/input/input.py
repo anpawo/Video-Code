@@ -10,7 +10,7 @@ from videocode.template.effect.core.fadeTo import fadeTo
 from videocode.template.effect.core.moveTo import moveTo, moveBy
 from videocode.template.effect.core.rotateTo import rotateBy, rotateTo
 from videocode.template.effect.core.scaleTo import scaleBy, scaleTo
-from videocode.shader.ishader import Effect, IShader, PaintShader, VertexShader
+from videocode.shader.ishader import Effect, GroupEffect, IShader, PaintShader, VertexShader
 from videocode.context import *
 from videocode.constants import *
 from videocode.utils.funcutils import *
@@ -82,7 +82,7 @@ class Input(ABC):
         i.broadcast(lambda m: frames.append(m.meta.lastAffectedFrame))
         return self.waitTo(max(frames))
 
-    def apply(self, *shaders: IShader | Effect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+    def apply(self, *shaders: IShader | Effect | GroupEffect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
         """
         Applies some `Transformations` to the `Input`.
 

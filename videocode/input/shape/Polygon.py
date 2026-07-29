@@ -7,6 +7,7 @@ import math
 from abc import abstractmethod
 from videocode.context import Context
 from videocode.input.input import Input
+from videocode.template.effect.other.morphTo import morphTo
 from videocode.utils.bezier import Easing
 from videocode.utils.decorators import inputCreation, prop
 from videocode.ty import *
@@ -76,6 +77,31 @@ class Polygon(Input):
 
     def stroke(self, color: rgba, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4, offset: maybe[frame] = None) -> Self:
         return self.ease("strokeColor", color, easing=easing, start=start, duration=duration, offset=offset)
+
+    def morphTo(
+        self,
+        target: int | list[point],
+        *,
+        easing=Easing.Smooth,
+        start: sec = 0,
+        duration: sec = 2.2,
+        offset: maybe[frame] = None,
+    ) -> Self:
+        """
+        Morph the outline into another shape — ``target`` is a corner count
+        (a regular polygon of the same area, fitted to the current outline) or
+        an explicit ring::
+
+            hexa = Square(side=4, cornerRadius=30).morphTo(6, duration=2.4)
+            hexa.morphTo(square, easing=Easing.ExponentialDecay)
+
+        Corners are inserted or absorbed along the edges as needed and
+        ``cornerRadius`` keeps its meaning at both ends, so each shape stays
+        rounded in its own proportions. Sugar over the effect itself — see
+        videocode/template/effect/other/morphTo.py for the interpolation and
+        videocode/utils/ring.py for the ring math.
+        """
+        return self.apply(morphTo(target, start=start, easing=easing, duration=duration), offset=offset)
 
     @property
     def width(self) -> wunumber:

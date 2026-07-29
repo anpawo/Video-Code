@@ -8,7 +8,7 @@ from typing import Any
 from typing_extensions import TypeVar
 from videocode.input.input import *
 from videocode.input.interface.Interface import Interface
-from videocode.shader.ishader import Effect
+from videocode.shader.ishader import Effect, GroupEffect
 
 _GROUP_T = TypeVar("_GROUP_T", bound=Input, default=Input)
 
@@ -144,8 +144,16 @@ class Group(Interface, Generic[_GROUP_T]):
         for child in self.inputs:
             child.broadcast(func)
 
-    def apply(self, *shaders: IShader | Effect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+    def apply(self, *shaders: IShader | Effect | GroupEffect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
         for s in shaders:
+            if isinstance(s, GroupEffect):
+                # Group-scoped effect: gets the group itself. What it does only
+                # means something across the members — a fill sweeping a Text
+                # travels over the WORD, and a letter has no idea where it sits
+                # in one. e.g. g.apply(fillIn(GOLD))
+                self.apply(*s(self), start=start, duration=duration, offset=offset)
+                continue
+
             if not isinstance(s, IShader):
                 # Member-aware effect: Group dispatches it per-child, letting the
                 # effect read each member's own state (scale, fillColor, …).
