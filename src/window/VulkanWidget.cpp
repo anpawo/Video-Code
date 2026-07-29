@@ -64,7 +64,8 @@ struct EffectPC
 {
     float texelX;
     float texelY;
-    float p[8];
+    // 24 — see the twin struct in VulkanHeadlessRenderer.cpp.
+    float p[24];
 };
 
 static void effectBarrier(VkCommandBuffer cb, VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage, VkImage image, VkAccessFlags srcAccess, VkAccessFlags dstAccess, VkImageLayout oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VkImageLayout newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
@@ -3270,7 +3271,7 @@ void VC::VulkanWidget::recordEffectKernelPass(
     EffectPC pc{};
     pc.texelX = texelX;
     pc.texelY = texelY;
-    for (size_t i = 0; i < std::min(params.size(), size_t(8)); i++)
+    for (size_t i = 0; i < std::min(params.size(), size_t(24)); i++)
         pc.p[i] = params[i];
     vkCmdPushConstants(cb, it->second.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(EffectPC), &pc);
 

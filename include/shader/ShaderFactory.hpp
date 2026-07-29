@@ -219,8 +219,17 @@ private:
 // Time-driven like Vhs, but paramsAtFrame appends the raw elapsed FRAME COUNT
 // (unclamped, not 0..1 progress): a procedural animation needs an unbounded
 // clock, and the GLSL derives seconds as elapsed / fps — fps rides the params
-// from the Python binding. shaderParams() yields [fps, quality, speed]
-// (alphabetical, filepath excluded).
+// from the Python binding. The params themselves come from pushMathParams
+// (IFragmentShader.hpp), NOT shaderParams(): the origin is hoisted to a fixed
+// slot ahead of the alphabetical args, so every math shader reads it at the
+// same index. A stock preset ends up as [originX, originY, originUnit, fps,
+// quality, speed] + the clock, behind the bbox below (filepath excluded — it
+// is a string).
+// needsBBox is on for every math shader: the effect pass is a fullscreen quad
+// over absolute frame UV, so without the host's box a generated pattern can
+// only ever be centred on the FRAME — an eye, a portal, anything with a middle
+// looks off-centre the moment its shape isn't. The box costs p[0..3] and is
+// free to ignore (silk, plasma... just read past it).
 class MathShader final : public IFragmentShader
 {
 public:
@@ -237,9 +246,12 @@ public:
 
     const json::object_t& args() const override { return _args; }
 
+    bool needsBBox() const override { return true; }
+
     std::vector<float> paramsAtFrame(size_t frame) const override
     {
-        std::vector<float> out = shaderParams();
+        std::vector<float> out;
+        pushMathParams(_args, out);
         out.push_back(static_cast<float>(frame - _start));
         return out;
     }

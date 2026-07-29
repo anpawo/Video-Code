@@ -22,15 +22,19 @@ layout(set = 0, binding = 0) uniform sampler2D tex;
 layout(push_constant) uniform PC {
     float texelX;   // 1 / frame width
     float texelY;   // 1 / frame height
-    // Args arrive ALPHABETICALLY from the C++ json (see docs/ADDING_EFFECTS.md):
-    // p[0] = fps      (set automatically by the Python binding)
-    // p[1] = quality  (0..1, scales the march step count — 1.0 = the
-    //        original's 99 steps; lower is cheaper and dimmer/softer)
-    // p[2] = speed    (time multiplier, 1.0 = the original's clock)
-    // p[3] = elapsed frames since the effect started (appended per-frame by
-    //        Silk::paramsAtFrame — raw frames, not 0..1 progress: a
-    //        procedural animation needs an unbounded clock)
-    float p[6];
+    // Fixed head, then the args ALPHABETICALLY (docs/ADDING_EFFECTS.md):
+    // p[0..3] = uMin, vMin, uMax, vMax of the host shape, in absolute frame UV
+    // p[4..5] = the origin inside that box — percent of it, or pixels from its
+    //           top-left when p[6] is 1. 50/50 (the default) is its centre,
+    //           and this shader slides its pattern so the middle lands there.
+    // p[6]    = origin unit: 0 = percent, 1 = pixels
+    // p[7]    = fps      (set automatically by the Python binding)
+    // p[8]    = quality  (0..1, scales the 99 raymarch steps)
+    // p[9]    = scale    (pattern zoom around the origin — <1 shrinks it)
+    // p[10]   = speed    (time multiplier)
+    // p[11]   = elapsed frames since the effect started (appended per-frame by
+    //           MathShader::paramsAtFrame)
+    float p[12];
 } pc;
 
 layout(location = 0) out vec4 outColor;
@@ -47,9 +51,23 @@ void main() {
     }
 
     vec2  R = vec2(1.0 / pc.texelX, 1.0 / pc.texelY);
-    vec2  C = fragUV * R;
-    float T = pc.p[3] / max(pc.p[0], 1.0) * pc.p[2];   // elapsed seconds × speed
-    int   steps = int(99.0 * clamp(pc.p[1], 0.05, 1.0));
+    // Every math shader draws around its HOST's box, not the frame's: the
+    // renderer hands it the box (p[0..3]) and the origin inside it (p[4..6]).
+    // Clamped to the frame: the box is absolute frame UV, so a host that
+    // spills outside centres the pattern on the part you can actually see —
+    // and a renderer that hands over a bogus box (rendering at a size the
+    // world transform doesn't follow, say) degrades to the frame instead of
+    // throwing the pattern into deep space.
+    vec2 boxMin = clamp(vec2(pc.p[0], pc.p[1]), 0.0, 1.0);
+    vec2 boxSize = clamp(vec2(pc.p[2], pc.p[3]), 0.0, 1.0) - boxMin;
+    vec2 origin = pc.p[6] > 0.5
+                      ? boxMin + vec2(pc.p[4], pc.p[5]) * vec2(pc.texelX, pc.texelY)
+                      : boxMin + vec2(pc.p[4], pc.p[5]) * 0.01 * boxSize;
+
+    float scale = max(pc.p[9], 0.001);   // pattern zoom, around the origin
+    vec2  C = ((fragUV - origin) / scale + 0.5) * R;
+    float T = pc.p[11] / max(pc.p[7], 1.0) * pc.p[10];   // elapsed seconds × speed
+    int   steps = int(99.0 * clamp(pc.p[8], 0.05, 1.0));
 
     // Ray from the camera through this pixel: nor(R.xyy - 2*C.rgb).
     vec3 dir = normalize(vec3(R.x - 2.0 * C.x, R.y - 2.0 * C.y, R.y));

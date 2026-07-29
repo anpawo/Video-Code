@@ -34,9 +34,13 @@ Key facts:
 
 - **Read `input.meta.*` inside `_apply`**, at application time. The factory
   runs before the input reaches its final state.
-- **`Group.apply` dispatches the same Effect instance once per member, in
-  order.** A closure counter (`index += 1` per call) therefore gives you
-  per-member staggering — that's the whole typewriter trick.
+- **Scope — `Effect` vs `GroupEffect`.** `Group.apply` dispatches an `Effect`
+  once per member, in order, so a closure counter (`index += 1` per call) gives
+  you per-member staggering — that's the whole typewriter trick. Return a
+  `GroupEffect` (videocode/shader/ishader.py) instead when the animation only
+  means something across the whole group: `fillIn` sweeps ONE boundary over a
+  word, not one wipe per letter, and only a `Text` can slice a gradient per
+  glyph — a letter cannot know where it sits in the word.
 - Deterministic offsets (pure sine, no `random`) keep group members rigid
   under broadcast and keep visual-test goldens reproducible (`shake`).
 - To persist an end state past the animation, emit a stateful shader at the
@@ -61,7 +65,7 @@ layout(set = 0, binding = 0) uniform sampler2D tex;     // the input's isolated 
 layout(push_constant) uniform PC {
     float texelX;   // 1/frameWidth  (blur passes repurpose these as step direction)
     float texelY;   // 1/frameHeight
-    float p[6];     // your params — max 8 floats total
+    float p[6];     // your params — declare what you read; EffectPC sends 24
 } pc;
 layout(location = 0) out vec4 outColor;
 void main() { ... }
@@ -78,14 +82,33 @@ no rebuild).
 - Object-relative params (needs the mesh's bounding box) → `BBOX_SHADERS(X)`
   macro. `resolveEffectParams()` (vulkan/EffectResolver.hpp) prepends the
   mesh's screen-space bbox, so your GLSL reads `p[0..3]` = (uMin, vMin,
-  uMax, vMax) followed by your args. (`crop`, `vignette`)
+  uMax, vMax) followed by your args. (`crop`, `vignette`, `zoomBlur` — and
+  every math shader, which declares it unconditionally, see below)
 - Time-driven → hand-declare a class overriding `paramsAtFrame()` to append
   the 0..1 progress (`LightSweep`, `Glitch` are the references), and add a
   `BIND_SHADERS(...)` line to the factory map.
 - Procedural content ("math shader", fragcoord.xyz-style) → **no C++ at all**:
   write a fragment-GLSL file following the contract in
   `assets/mathshaders/plasma.glsl` (the template) and load it with
-  `mathShader("path/to/file.glsl")`. The generic `MathShader` factory class
+  `mathShader("path/to/file.glsl")`. Its `p[]` starts with a FIXED head, and
+  only then your own args:
+
+  | slot | meaning |
+  |------|---------|
+  | `p[0..3]` | the host shape's screen-space box (uMin, vMin, uMax, vMax), absolute frame UV — every math shader declares `needsBBox`, free to ignore |
+  | `p[4..5]` | the origin inside that box: percent of it, or pixels from its top-left when `p[6]` is 1 |
+  | `p[6]` | the origin's unit — 0 = percent, 1 = pixels |
+  | `p[7..]` | your own numeric args, ALPHABETICALLY (a stock preset: fps, quality, speed) |
+  | last | elapsed frames since the effect started |
+
+  The head is fixed because a math shader draws AROUND A POINT rather than
+  across the frame: without it a generated pattern can only ever be centred on
+  the frame, and looks off-centre the moment its host shape isn't. Hoisting
+  the origin out of the alphabetical order (`IFragmentShader::pushMathParams`)
+  is what lets every shader read it at the same index. Slot budget: `EffectPC`
+  holds 24 floats, anything past that is silently dropped.
+
+  The generic `MathShader` factory class
   appends the raw elapsed FRAME COUNT instead of 0..1 progress (an animation
   loop needs an unbounded clock), the binding passes `fps` so the GLSL derives
   seconds, and the renderers compile + cache one pipeline per file

@@ -12,8 +12,42 @@ if TYPE_CHECKING:
 
 @runtime_checkable
 class Effect(Protocol):
-    """A callable that takes an Input and yields IShader instances."""
+    """
+    A callable that takes an Input and yields IShader instances.
+
+    Applied to a `Group`, it runs once PER MEMBER, so each call sees that
+    member's own state — that is what lets `typewriter` stagger letter by
+    letter and `highlight` flash each letter's own colour. An effect that
+    only means something across the whole group is a `GroupEffect`.
+    """
+
     def __call__(self, input: Input, /) -> Generator[IShader, Any, None]: ...
+
+
+class GroupEffect:
+    """
+    An `Effect` that only means something across a whole `Group`, so it
+    receives the GROUP itself instead of being dispatched to its members —
+    `fillIn` sweeps ONE boundary over a word, not one wipe per letter.
+
+    Two things make an effect group-scoped: it sweeps across its target (a
+    letter cannot know it is the 7th of 12, nor where the word starts), or it
+    ASSIGNS an attribute rather than yielding shaders, because assignment is
+    what routes a value through a group's own distribution — `Text.fillColor`
+    slices a gradient per letter, and only the Text can do that.
+
+        def fillIn(...) -> GroupEffect:
+            def _apply(input: Input) -> Generator[IShader, Any, None]: ...
+            return GroupEffect(_apply)
+
+    On a plain `Input` nothing differs: a leaf has no members to split for.
+    """
+
+    def __init__(self, apply: Effect) -> None:
+        self._apply = apply
+
+    def __call__(self, input: Input, /) -> Generator[IShader, Any, None]:
+        return self._apply(input)
 
 
 class IShader(ABC):
@@ -90,12 +124,17 @@ class PaintShader(IShader):
     overlap.
     """
 
+    # C++ effect name, when it is not this class's own name. A preset that
+    # subclasses a paint to add args (a mathShader with its own uniforms) is
+    # still that paint on the C++ side — the factory only binds the base.
+    cppName: maybe[str] = None
+
     def jsonSerialization(self) -> dict:
         # {"shader": <effect name>, <its args>} — the "shader" key is what the
         # C++ fillColor parsing/injection discriminates on; numeric args reach
         # the GLSL alphabetically (the usual p[] contract), "filepath" rides
         # ActiveEffect::strParam.
-        return {"shader": upperFirst(type(self).__name__)} | {
+        return {"shader": self.cppName or upperFirst(type(self).__name__)} | {
             k: v for k, v in vars(self).items() if k not in ("start", "duration", "offset")
         }
 

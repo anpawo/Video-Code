@@ -34,6 +34,7 @@ from videocode.shader.fragmentShader.halftone import *
 from videocode.shader.fragmentShader.chromaKey import *
 from videocode.shader.fragmentShader.lut import *
 from videocode.shader.fragmentShader.mathShader import *
+from videocode.shader.fragmentShader.evilEye import *
 from videocode.shader.fragmentShader.silk import *
 from videocode.shader.fragmentShader.fire import *
 from videocode.shader.fragmentShader.starNest import *

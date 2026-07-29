@@ -35,6 +35,32 @@ struct IFragmentShader
         return out;
     }
 
+    // Math-shader params: the origin FIRST, at fixed slots, then everything
+    // else alphabetically. A math shader draws around a point rather than
+    // across the frame, so every one of them reads that point at the same
+    // p[] index whatever its own args happen to be called — the alphabetical
+    // rule would otherwise put it somewhere different in each file.
+    //
+    // Shared by the two ways a math shader reaches the renderers: as a
+    // timeline effect (MathShader::paramsAtFrame) and as a fill paint, which
+    // is built straight from the json and never sees the ShaderFactory
+    // (AInput::getActiveEffectsAtFrame).
+    static void pushMathParams(const json::object_t& args, std::vector<float>& out)
+    {
+        auto arg = [&](const char* key, float fallback) {
+            auto it = args.find(key);
+            return it != args.end() && it->second.is_number() ? it->second.get<float>() : fallback;
+        };
+        out.push_back(arg("originX", 50.f));       // percent of the host box, or pixels
+        out.push_back(arg("originY", 50.f));       // 50/50 = its centre
+        out.push_back(arg("originUnit", 0.f));     // 0 = percent, 1 = pixels
+
+        for (const auto& [k, v] : args) {
+            if (k != "start" && k != "duration" && k != "originX" && k != "originY" && k != "originUnit" && v.is_number())
+                out.push_back(v.get<float>());
+        }
+    }
+
     // Params for a specific frame. Most effects are constant over their
     // duration; time-driven ones (e.g. LightSweep) override this to append
     // per-frame values such as the animation progress.

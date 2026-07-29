@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from videocode.shader.fragmentShader.mathShader import mathShader
-from videocode.ty import unumber
+from videocode.ty import point, unumber
 
 
 __all__ = ["silk", "SILK_GLSL"]
@@ -12,7 +12,7 @@ __all__ = ["silk", "SILK_GLSL"]
 SILK_GLSL = "assets/mathshaders/silk.glsl"
 
 
-def silk(speed: unumber = 1.0, quality: unumber = 1.0) -> mathShader:
+def silk(speed: unumber = 1.0, quality: unumber = 1.0, scale: unumber = 1.0, origin: point = (50, 50), pixels: bool = False) -> mathShader:
     """
     Raymarched sine-turbulence silk, ported from fragcoord.xyz (original
     shader: https://fragcoord.xyz/s/ae4trrxh) — a bundled preset of
@@ -27,6 +27,12 @@ def silk(speed: unumber = 1.0, quality: unumber = 1.0) -> mathShader:
       99 steps). The march dominates the cost — ~0.5 halves the GPU time at
       the price of a dimmer, softer pattern. Drop it for real-time preview,
       keep 1.0 for the final render.
+    - `scale`: zoom of the pattern — <1 shrinks it, so more of it fits.
+    - `origin`: where the pattern is centred inside its HOST, as a percentage
+      of the host's bounding box — `(50, 50)`, the default, is its middle, so
+      a shaped host shows the middle of the pattern rather than whatever fell
+      on that part of the frame. `pixels=True` reads it as pixels from the
+      box's top-left instead.
 
     Cost note — this is an intrinsically heavy shader (~600 sin iterations
     per covered pixel; fragcoord.xyz only feels fast because a browser
@@ -36,4 +42,4 @@ def silk(speed: unumber = 1.0, quality: unumber = 1.0) -> mathShader:
     to the host shape's coverage, NOT the frame. For a smooth preview: size
     the canvas to what the matte will reveal, and/or pass quality=0.3-0.5.
     """
-    return mathShader(SILK_GLSL, speed=speed, quality=quality)
+    return mathShader(SILK_GLSL, speed=speed, quality=quality, scale=scale, origin=origin, pixels=pixels)

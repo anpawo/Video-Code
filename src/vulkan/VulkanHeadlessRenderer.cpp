@@ -63,7 +63,12 @@ struct EffectPC
 {
     float texelX;
     float texelY;
-    float p[8];
+    // 24, not 8: a MathShader carries its host's bounding box (4) + its
+    // origin (3) + its own args + the frame clock, and silent truncation is
+    // the worst possible failure here. 2 + 24 floats = 104 bytes, still
+    // inside the 128 every Vulkan implementation guarantees. A GLSL block
+    // may declare fewer.
+    float p[24];
 };
 
 // Explicit image memory barrier between effect passes.
@@ -2460,7 +2465,7 @@ void VC::VulkanHeadlessRenderer::recordEffectKernelPass(
     EffectPC pc{};
     pc.texelX = texelX;
     pc.texelY = texelY;
-    for (size_t i = 0; i < std::min(params.size(), size_t(8)); i++)
+    for (size_t i = 0; i < std::min(params.size(), size_t(24)); i++)
         pc.p[i] = params[i];
     vkCmdPushConstants(cb, it->second.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(EffectPC), &pc);
 

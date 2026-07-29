@@ -108,16 +108,27 @@ std::vector<ActiveEffect> AInput::getActiveEffectsAtFrame(size_t frame, const Cl
         const auto&     margs = meta.args();
         auto            fill = margs.find("fillColor");
         if (fill != margs.end() && fill->second.is_object() && fill->second.contains("shader")) {
-            ActiveEffect fe{fill->second.at("shader").get<std::string>(), {}, false, -1};
+            // A paint is built straight from the json, never through the
+            // ShaderFactory, so IFragmentShader::needsBBox() never gets a say
+            // here — MathShader declares it, and a math shader is nearly
+            // always used AS a paint, so the box is resolved for it by name.
+            const std::string shaderName = fill->second.at("shader").get<std::string>();
+            ActiveEffect      fe{shaderName, {}, shaderName == "MathShader", -1};
             // Numeric args in ALPHABETICAL order (json::object_t sorts keys)
             // — the same p[] contract every effect follows — then the paint's
-            // clock: frames elapsed since this fill was assigned.
-            for (const auto& [k, v] : fill->second.items()) {
-                if (v.is_number())
-                    fe.params.push_back(v.get<float>());
-                else if (k == "filepath" && v.is_string())
+            // clock: frames elapsed since this fill was assigned. A math
+            // shader gets its origin hoisted to fixed slots first, exactly
+            // like MathShader::paramsAtFrame does on the timeline path.
+            const json::object_t& fargs = fill->second.get_ref<const json::object_t&>();
+            if (fe.needsBBox)
+                IFragmentShader::pushMathParams(fargs, fe.params);
+            else
+                for (const auto& [k, v] : fargs)
+                    if (v.is_number())
+                        fe.params.push_back(v.get<float>());
+            for (const auto& [k, v] : fargs)
+                if (k == "filepath" && v.is_string())
                     fe.strParam = v.get<std::string>();
-            }
             // The paint clock counts from the fill's assignment, minus any
             // frames a wait(stop=Clock.PAINTS)/freeze() held it.
             size_t since = std::min(frame, meta.fillShaderSince);
