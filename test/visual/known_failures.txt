@@ -1,6 +1,8 @@
 # Visual scenes that already fail on main, with the reason they are tolerated.
-# The pre-push hook blocks on any failure NOT listed here — so this file is the
-# difference between "we know" and "we broke it just now".
+# `make check` blocks on any failure NOT listed here — so this file is the
+# difference between "we know" and "we broke it just now". (It is `make check`
+# and not a hook: the goldens were rendered on a real GPU, so only a machine
+# with one can decide. Nothing runs this for you — run it before you push.)
 #
 # Remove a line the moment its scene passes again: a stale entry silently
 # disarms the gate for that scene.
