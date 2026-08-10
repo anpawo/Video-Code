@@ -82,7 +82,7 @@ namespace
     // renderer's transparent-clear mode); `.gif` is palette-quantized, no alpha.
     struct VideoProfile
     {
-        std::string videoArgs;         // "-c:v … -pix_fmt …", or the gif -vf palette graph
+        std::string videoArgs;                // "-c:v … -pix_fmt …", or the gif -vf palette graph
         bool        transparentClear = false; // main pass clears to {0,0,0,0}
         bool        faststart = true;         // append "-movflags +faststart" (mp4/mov only)
         bool        allowAudio = true;        // false for gif (container can't carry audio)
@@ -323,14 +323,14 @@ int VC::Compiler::generateVideo()
     // Header line — printed once; ETA is appended in-place after the first frame.
     auto fmtDur = [](double secs) -> std::string {
         return secs < 60.0
-            ? std::format("{:.1f}s", secs)
-            : std::format("{:d}:{:02d} min", (int)secs / 60, (int)secs % 60);
+                   ? std::format("{:.1f}s", secs)
+                   : std::format("{:d}:{:02d} min", (int)secs / 60, (int)secs % 60);
     };
     double      durSecs = config.framerate > 0 ? (double)total / config.framerate : 0.0;
     std::string headerBase = std::string(kBold) + "Generating" + kReset + "  " + config.outputFile + "   " + kDim + std::format("{}x{} · {} fps · {} · {} frames", (int)config.screenWidth, (int)config.screenHeight, config.framerate, fmtDur(durSecs), total) + kReset;
     std::cout << headerBase << "\n";
 
-    auto   t0      = std::chrono::steady_clock::now();
+    auto   t0 = std::chrono::steady_clock::now();
     double etaSecs = -1.0; // set once after the first frame, never updated again
 
     for (size_t i = 0; i < total; ++i) {

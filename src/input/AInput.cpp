@@ -152,7 +152,7 @@ std::vector<ActiveEffect> AInput::getActiveEffectsAtFrame(size_t frame, const Cl
         // Activation is scheduling (real frame); PROGRESS is an ambient clock
         // — subtract frames a wait(stop=Clock.EFFECTS)/freeze() held it since
         // this effect started.
-        size_t effectFrame = frame - ClockStops::pausedBetween(stops.effects, e->start(), frame);
+        size_t       effectFrame = frame - ClockStops::pausedBetween(stops.effects, e->start(), frame);
         ActiveEffect ae{std::string(e->shaderName()), e->paramsAtFrame(effectFrame), e->needsBBox(), e->groupParamIndex()};
 
         // A math shader reached through the timeline resolves its head exactly

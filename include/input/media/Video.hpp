@@ -45,7 +45,8 @@ private:
     // the source index advances at `rate` source-frames per playback-frame instead
     // of the implicit 1x (0 = freeze-frame, negative = reverse). Anchored on the
     // plain cuts-only mapping of `playbackStart` — see mapToSourceIndex.
-    struct SpeedRamp {
+    struct SpeedRamp
+    {
         size_t playbackStart;
         size_t playbackEnd;
         double rate;
@@ -59,6 +60,6 @@ private:
     size_t                                 _lastIndex{SIZE_MAX};
     VkDescriptorSet                        _descriptor{VK_NULL_HANDLE};
     std::function<void(const cv::Mat&)>    _reupload;
-    std::vector<std::pair<size_t, size_t>> _cuts; // sorted, merged, non-overlapping [start, end) ranges of source frames to skip
+    std::vector<std::pair<size_t, size_t>> _cuts;       // sorted, merged, non-overlapping [start, end) ranges of source frames to skip
     std::vector<SpeedRamp>                 _speedRamps; // sorted, non-overlapping playback-space ranges with a non-default rate
 };

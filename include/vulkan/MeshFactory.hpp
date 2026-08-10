@@ -399,6 +399,7 @@ private:
             cv::Vec2f center, prevDir, nextDir;
             cv::Vec4f color;
         };
+
         std::vector<JoinInfo> joinInfos;
 
         // Partial-disc (arc) join for merged corners: fan of triangles from
@@ -408,12 +409,12 @@ private:
         // bend regardless of turn direction. 1 segment per ~7.5° gives 12
         // segments for a 90° corner — visibly smooth.
         auto emitJoinArc = [&](const cv::Vec2f &centerW,
-                                const cv::Vec2f &startN,
-                                const cv::Vec2f &endN,
-                                const cv::Vec4f &c) {
-            float dotNE  = dot2d(startN, endN);
+                               const cv::Vec2f &startN,
+                               const cv::Vec2f &endN,
+                               const cv::Vec4f &c) {
+            float dotNE = dot2d(startN, endN);
             float crossNE = startN[0] * endN[1] - startN[1] * endN[0];
-            float sweep   = std::atan2(crossNE, dotNE); // signed CCW angle from startN to endN
+            float sweep = std::atan2(crossNE, dotNE); // signed CCW angle from startN to endN
 
             if (std::abs(sweep) < 1e-4f)
                 return;
@@ -422,18 +423,18 @@ private:
             if (mesh.vertices.size() + static_cast<size_t>(segs) + 2 > 250000)
                 return;
 
-            float     startAng  = std::atan2(startN[1], startN[0]);
+            float     startAng = std::atan2(startN[1], startN[0]);
             cv::Vec2f centerNdc = toNdcPoint(centerW);
-            uint32_t  center    = vertexCount();
+            uint32_t  center = vertexCount();
             mesh.vertices.push_back(Vertex{{centerNdc[0], centerNdc[1]}, {0.f, halfW}, {c[0], c[1], c[2], c[3]}, {2.f, 0.f, 0.f, 0.f}});
 
             uint32_t prevRim = 0;
             for (int k = 0; k <= segs; ++k) {
-                float     t      = static_cast<float>(k) / static_cast<float>(segs);
-                float     ang    = startAng + sweep * t;
-                cv::Vec2f dir    = {std::cos(ang), std::sin(ang)};
+                float     t = static_cast<float>(k) / static_cast<float>(segs);
+                float     ang = startAng + sweep * t;
+                cv::Vec2f dir = {std::cos(ang), std::sin(ang)};
                 cv::Vec2f rimNdc = toNdcPoint(centerW + dir * halfW_expanded);
-                uint32_t  rim    = vertexCount();
+                uint32_t  rim = vertexCount();
                 mesh.vertices.push_back(Vertex{{rimNdc[0], rimNdc[1]}, {halfW_expanded, halfW}, {c[0], c[1], c[2], c[3]}, {2.f, 0.f, 0.f, 0.f}});
                 if (k > 0) {
                     mesh.indices.push_back(center);
@@ -548,11 +549,7 @@ private:
                 if (!insideOnly) {
                     // Centered strokes: round-join arc at the band midline,
                     // stamped after the strip (with its capsule neighbours).
-                    joinInfos.push_back({
-                        (pairInfos.back().neg + pairInfos.back().pos) * 0.5f,
-                        prevDir, nextDir,
-                        {vr, vg, vb, va}
-                    });
+                    joinInfos.push_back({(pairInfos.back().neg + pairInfos.back().pos) * 0.5f, prevDir, nextDir, {vr, vg, vb, va}});
                 }
             } else {
                 emitPair(stepToCorner(prevDir, nextDir, isEndpoint));

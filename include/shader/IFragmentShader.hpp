@@ -59,9 +59,9 @@ struct IFragmentShader
             auto it = args.find(key);
             return it != args.end() && it->second.is_number() ? it->second.get<float>() : fallback;
         };
-        out.push_back(arg("originX", 50.f));       // percent of the box, or pixels
-        out.push_back(arg("originY", 50.f));       // 50/50 = its centre
-        out.push_back(arg("originUnit", 0.f));     // 0 = percent, 1 = pixels
+        out.push_back(arg("originX", 50.f));   // percent of the box, or pixels
+        out.push_back(arg("originY", 50.f));   // 50/50 = its centre
+        out.push_back(arg("originUnit", 0.f)); // 0 = percent, 1 = pixels
 
         for (const auto& [k, v] : args) {
             if (!isMathHeadArg(k) && k != "start" && k != "duration" && v.is_number())

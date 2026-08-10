@@ -82,8 +82,7 @@ Video::Video(json::object_t&& args)
 
     // The Python side already rejects overlapping segments; sorting here just
     // lets mapToSourceIndex do a simple ordered scan.
-    std::sort(_speedRamps.begin(), _speedRamps.end(),
-              [](const SpeedRamp& a, const SpeedRamp& b) { return a.playbackStart < b.playbackStart; });
+    std::sort(_speedRamps.begin(), _speedRamps.end(), [](const SpeedRamp& a, const SpeedRamp& b) { return a.playbackStart < b.playbackStart; });
 
     _lastIndex = mapToSourceIndex(0);
     _currentFrame = getFrameAt(_lastIndex);

@@ -46,7 +46,7 @@ namespace VC
         if (!file.is_open())
             return false;
 
-        int                N = 0;
+        int                    N = 0;
         std::vector<cv::Vec3f> samples; // in file order: R fastest, then G, then B
 
         std::string line;
@@ -102,7 +102,7 @@ namespace VC
                 for (int r = 0; r < N; ++r) {
                     // .cube index: R fastest, then G, then B.
                     const cv::Vec3f& c = samples[static_cast<size_t>(r) + static_cast<size_t>(g) * N + static_cast<size_t>(b) * N * N];
-                    auto to8 = [](float v) -> uchar {
+                    auto             to8 = [](float v) -> uchar {
                         int i = static_cast<int>(v * 255.f + 0.5f);
                         return static_cast<uchar>(i < 0 ? 0 : (i > 255 ? 255 : i));
                     };

@@ -244,8 +244,8 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
     py::dict newPySnapshot;
 
     for (auto [rawIdx, rawInputData] : stack) {
-        int      idx      = py::reinterpret_borrow<py::object>(rawIdx).cast<int>();
-        py::object inputObj  = py::reinterpret_borrow<py::object>(rawInputData);
+        int        idx = py::reinterpret_borrow<py::object>(rawIdx).cast<int>();
+        py::object inputObj = py::reinterpret_borrow<py::object>(rawInputData);
         py::dict   inputData = inputObj.cast<py::dict>();
 
         bool known = sameIndexSet && _pySnapshot.contains(rawIdx);
@@ -264,12 +264,12 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
         // when only its modifications changed, i.e. its Create entry ("-1") is identical.
         bool reuseExisting = false;
         if (known) {
-            py::object prevData  = _pySnapshot[rawIdx];
+            py::object prevData = _pySnapshot[rawIdx];
             py::int_   createKey(-1);
-            auto       prevDict  = prevData.cast<py::dict>();
+            auto       prevDict = prevData.cast<py::dict>();
             if (prevDict.contains(createKey) && inputData.contains(createKey)) {
                 py::object prevCreate = prevDict[createKey];
-                py::object newCreate  = inputData[createKey];
+                py::object newCreate = inputData[createKey];
                 reuseExisting = PyObject_RichCompareBool(prevCreate.ptr(), newCreate.ptr(), Py_EQ) == 1;
             }
         }
@@ -284,7 +284,7 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
     _clockStops = {};
     _timestamps.clear();
     for (const auto& item : events) {
-        auto obj    = py::reinterpret_borrow<py::object>(item);
+        auto obj = py::reinterpret_borrow<py::object>(item);
         auto action = obj.attr("action").cast<std::string>();
 
         if (action == "Wait") {
@@ -295,12 +295,15 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
             // freeze() = all of them). Paused clocks resume where they
             // stopped — pause, not skip.
             size_t start = obj.attr("start").cast<size_t>();
-            size_t n     = obj.attr("n").cast<size_t>();
+            size_t n = obj.attr("n").cast<size_t>();
             for (auto rawStop : obj.attr("stop")) {
                 std::string clock = py::str(rawStop).cast<std::string>();
-                if (clock == "videos") _clockStops.videos.push_back({start, n});
-                else if (clock == "paints") _clockStops.paints.push_back({start, n});
-                else if (clock == "effects") _clockStops.effects.push_back({start, n});
+                if (clock == "videos")
+                    _clockStops.videos.push_back({start, n});
+                else if (clock == "paints")
+                    _clockStops.paints.push_back({start, n});
+                else if (clock == "effects")
+                    _clockStops.effects.push_back({start, n});
             }
             size_t waitEnd = start + n;
             if (waitEnd > _nbFrame)

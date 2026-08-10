@@ -10,10 +10,10 @@
 #include <vulkan/vulkan.h>
 
 #include <QWidget>
+#include <array>
 #include <functional>
 #include <opencv2/core/mat.hpp>
 #include <string>
-#include <array>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -201,7 +201,7 @@ namespace VC
         // One pipeline per blend mode (index = Mesh::blendMode). All share
         // m_pipelineLayout and every other state — only pColorBlendState differs.
         // m_pipelines[0] is Normal, the default main-scene pipeline.
-        VkPipeline       m_pipelines[kBlendModeCount] = {};
+        VkPipeline m_pipelines[kBlendModeCount] = {};
 
         // ── Texture resources ─────────────────────────────────────────────
         struct TextureResource
@@ -377,6 +377,7 @@ namespace VC
             VkSampler   sampler = VK_NULL_HANDLE;
             int         size = 0; // N
         };
+
         std::unordered_map<std::string, LutResource> m_lutCache; // filepath → atlas
 
         bool createEffectResources();
@@ -442,16 +443,13 @@ namespace VC
         // Draw meshes [begin,end) into the active render pass; `pipelines` is the
         // blend-pipeline array to bind from — m_pipelines[] for the main pass,
         // m_effectBlendPipelines[] (1-sample) for the flatten pass.
-        void recordMeshRange(VkCommandBuffer cb, size_t begin, size_t end,
-                             const std::unordered_map<size_t, size_t>& effectSlotForMesh,
-                             const VkPipeline* pipelines);
+        void recordMeshRange(VkCommandBuffer cb, size_t begin, size_t end, const std::unordered_map<size_t, size_t>& effectSlotForMesh, const VkPipeline* pipelines);
         // Composite one effect-result image as a fullscreen quad (set=0 assumed
         // bound), binding `pipeline` (main-pass MSAA or flatten-pass 1-sample).
         void recordCompositeResultQuad(VkCommandBuffer cb, VkPipeline pipeline, VkDescriptorSet resultSet);
         // Flatten meshes [begin,end) into m_pingFb (1-sample, transparent clear),
         // optionally seeded with a previous adjustment layer's graded result.
-        void recordAdjustmentFlattenPass(VkCommandBuffer cb, size_t begin, size_t end, int seedSlot,
-                                         const std::unordered_map<size_t, size_t>& effectSlotForMesh);
+        void recordAdjustmentFlattenPass(VkCommandBuffer cb, size_t begin, size_t end, int seedSlot, const std::unordered_map<size_t, size_t>& effectSlotForMesh);
 
         // ── Frame callback ────────────────────────────────────────────────
         std::function<std::vector<Mesh>()> m_frameCallback;

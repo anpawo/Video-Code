@@ -12,17 +12,16 @@
 #include "window/VulkanWidget.hpp"
 
 #if defined(__APPLE__)
-#include <vulkan/vulkan_metal.h>
+    #include <vulkan/vulkan_metal.h>
 #elif defined(__linux__)
-// Linux presents through an XCB surface. xcb/xcb.h must come before
-// vulkan_xcb.h — it provides the xcb_connection_t / xcb_window_t types the
-// VkXcbSurfaceCreateInfoKHR struct refers to.
-#include <xcb/xcb.h>
+    // Linux presents through an XCB surface. xcb/xcb.h must come before
+    // vulkan_xcb.h — it provides the xcb_connection_t / xcb_window_t types the
+    // VkXcbSurfaceCreateInfoKHR struct refers to.
+    #include <QtGui/qguiapplication_platform.h> // QNativeInterface::QX11Application
+    #include <vulkan/vulkan_xcb.h>
+    #include <xcb/xcb.h>
 
-#include <vulkan/vulkan_xcb.h>
-
-#include <QGuiApplication>
-#include <QtGui/qguiapplication_platform.h> // QNativeInterface::QX11Application
+    #include <QGuiApplication>
 #endif
 
 #include <QDebug>
@@ -41,7 +40,7 @@
 #include "vulkan/EffectResolver.hpp"
 #include "vulkan/LutAtlas.hpp"
 #if defined(__APPLE__)
-#include "vulkan/MetalSurface.hpp" // CAMetalLayer bridge (macOS only)
+    #include "vulkan/MetalSurface.hpp" // CAMetalLayer bridge (macOS only)
 #endif
 #include "vulkan/ShaderCompiler.hpp" // Runtime GLSL → SPIR-V via glslang
 #include "vulkan/Vertex.hpp"
@@ -529,7 +528,8 @@ bool VC::VulkanWidget::createSurface()
     // exported by the loader at link time — resolve it dynamically (same
     // approach MetalSurface.mm uses for vkCreateMetalSurfaceEXT).
     auto createXcbSurface = reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(
-        vkGetInstanceProcAddr(m_instance, "vkCreateXcbSurfaceKHR"));
+        vkGetInstanceProcAddr(m_instance, "vkCreateXcbSurfaceKHR")
+    );
     if (!createXcbSurface) {
         qWarning("createSurface: vkCreateXcbSurfaceKHR unavailable (loader built without XCB WSI?)");
         return false;
@@ -3119,7 +3119,7 @@ const VC::VulkanWidget::LutResource* VC::VulkanWidget::getOrBuildLut(const std::
     // Reuse the same 2D-texture upload path Image/Video use (stores the
     // TextureResource in m_textures, freed in cleanup); we only need its
     // view+sampler for the 2-sampler LUT set.
-    VkDescriptorSet ds = uploadTexture(atlas);
+    VkDescriptorSet        ds = uploadTexture(atlas);
     const TextureResource& tex = m_textures[m_textureIndex[ds]];
 
     LutResource lr{tex.view, tex.sampler, N};
@@ -3310,7 +3310,7 @@ void VC::VulkanWidget::recordEffectPrepasses(VkCommandBuffer cb)
             // Seed ping with the flattened composite of everything below this
             // layer (see the headless renderer for the full walkthrough).
             size_t chunkBegin = (alIdx == 0) ? 0 : m_adjustmentMeshPositions[alIdx - 1] + 1;
-            int    seedSlot   = (alIdx == 0) ? -1 : (int)effectSlotForMesh[m_adjustmentMeshPositions[alIdx - 1]];
+            int    seedSlot = (alIdx == 0) ? -1 : (int)effectSlotForMesh[m_adjustmentMeshPositions[alIdx - 1]];
             recordAdjustmentFlattenPass(cb, chunkBegin, meshIdx, seedSlot, effectSlotForMesh);
             ++alIdx;
         } else {
@@ -3418,8 +3418,7 @@ void VC::VulkanWidget::recordEffectPrepasses(VkCommandBuffer cb)
                 // .cube path). The pipeline is compiled once per file and then
                 // recorded exactly like any auto-discovered effect pass.
                 if (!eff.strParam.empty() && ensureMathPipeline(eff.strParam)) {
-                    recordEffectKernelPass(cb, dstFb, srcSet, mathPipelineKey(eff.strParam),
-                                           1.f / m_swapExtent.width, 1.f / m_swapExtent.height, eff.params);
+                    recordEffectKernelPass(cb, dstFb, srcSet, mathPipelineKey(eff.strParam), 1.f / m_swapExtent.width, 1.f / m_swapExtent.height, eff.params);
                     effectBarrier2(cb, dstImg, srcImg);
                     inPing = !inPing;
                 }
@@ -3465,7 +3464,7 @@ void VC::VulkanWidget::recordEffectPrepasses(VkCommandBuffer cb)
             const EffectResultSlot& consumerSlot = m_effectResults[s];
             const EffectResultSlot& sourceSlot = m_effectResults[srcSlotIt->second];
 
-            VkDescriptorSet matteSet = m_matteSets[matteN++];
+            VkDescriptorSet       matteSet = m_matteSets[matteN++];
             VkDescriptorImageInfo infos[2] = {
                 {m_effectSampler, consumerSlot.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
                 {m_effectSampler, sourceSlot.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
@@ -3530,7 +3529,7 @@ void VC::VulkanWidget::recordSceneDraws(VkCommandBuffer cb)
 void VC::VulkanWidget::recordMeshRange(
     VkCommandBuffer cb, size_t begin, size_t end,
     const std::unordered_map<size_t, size_t>& effectSlotForMesh,
-    const VkPipeline* pipelines
+    const VkPipeline*                         pipelines
 )
 {
     VkBuffer     vbufs[] = {m_vertexBuffer};

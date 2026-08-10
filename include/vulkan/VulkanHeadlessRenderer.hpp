@@ -9,9 +9,9 @@
 
 #include <vulkan/vulkan.h>
 
+#include <array>
 #include <opencv2/core/mat.hpp>
 #include <string>
-#include <array>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -105,7 +105,7 @@ namespace VC
         // One pipeline per blend mode (index = Mesh::blendMode). All share
         // m_pipelineLayout and every other state — only pColorBlendState differs.
         // m_pipelines[0] (Normal) is also reused for the effect isolated-layer pass.
-        VkPipeline       m_pipelines[kBlendModeCount] = {};
+        VkPipeline m_pipelines[kBlendModeCount] = {};
 
         // ── set=0 UBO ─────────────────────────────────────────────────────────
         VkDescriptorSetLayout m_uboLayout = VK_NULL_HANDLE;
@@ -159,7 +159,7 @@ namespace VC
         // opaque gray default — see setTransparentBackground(). Off by default so
         // all existing render paths (PNG/MP4 export, visual-test goldens) are
         // untouched; only the alpha-preserving video exports flip it on.
-        bool                      m_transparentClear = false;
+        bool                 m_transparentClear = false;
         std::array<float, 3> m_bgColor{0.2f, 0.2f, 0.2f};
 
         // ── Per-frame partitioned mesh indices ────────────────────────────────
@@ -283,9 +283,9 @@ namespace VC
         // matte (binding 0 = content, binding 1 = LUT atlas) but adds push
         // constants (intensity + size); the `lut` folder is skipped by the
         // generic auto-discovery loop. Built by createLutResources(). ──────────
-        VkDescriptorSetLayout m_lutLayout = VK_NULL_HANDLE; // 2 combined-image-samplers
-        VkDescriptorPool      m_lutPool = VK_NULL_HANDLE;
-        EffectPipeline        m_lutCombine;
+        VkDescriptorSetLayout        m_lutLayout = VK_NULL_HANDLE; // 2 combined-image-samplers
+        VkDescriptorPool             m_lutPool = VK_NULL_HANDLE;
+        EffectPipeline               m_lutCombine;
         std::vector<VkDescriptorSet> m_lutSets; // one per lut combine, grown on demand
 
         // A parsed+uploaded LUT atlas. The image/memory are owned by m_textures
@@ -297,6 +297,7 @@ namespace VC
             VkSampler   sampler = VK_NULL_HANDLE;
             int         size = 0; // N
         };
+
         std::unordered_map<std::string, LutResource> m_lutCache; // filepath → atlas
 
         // ── Init helpers ──────────────────────────────────────────────────────
@@ -366,9 +367,7 @@ namespace VC
         // mesh's own effect-result composite quad. `pipelines` is the blend-pipeline
         // array to bind from (m_pipelines works in both passes here — it is
         // format/sample-compatible with m_effectPass; see recordEffectGeomPass).
-        void recordMeshRange(VkCommandBuffer cb, size_t begin, size_t end,
-                             const std::unordered_map<size_t, size_t>& effectSlotForMesh,
-                             const VkPipeline* pipelines);
+        void recordMeshRange(VkCommandBuffer cb, size_t begin, size_t end, const std::unordered_map<size_t, size_t>& effectSlotForMesh, const VkPipeline* pipelines);
         // Composite one effect-result image as a fullscreen quad (set=0 assumed
         // bound). Used to seed a flatten chunk / the main pass with a prior
         // adjustment layer's graded result, and internally by recordMeshRange.
@@ -377,8 +376,7 @@ namespace VC
         // seeded first with a previous adjustment layer's graded result (seedSlot,
         // -1 = none). The caller then runs the adjustment layer's effect chain over
         // ping exactly as for a normal effect mesh — see readFrame().
-        void recordAdjustmentFlattenPass(VkCommandBuffer cb, size_t begin, size_t end, int seedSlot,
-                                         const std::unordered_map<size_t, size_t>& effectSlotForMesh);
+        void recordAdjustmentFlattenPass(VkCommandBuffer cb, size_t begin, size_t end, int seedSlot, const std::unordered_map<size_t, size_t>& effectSlotForMesh);
         void recordEffectKernelPass(VkCommandBuffer cb, VkFramebuffer fb, VkDescriptorSet srcSet, const std::string& name, float texelX, float texelY, const std::vector<float>& params);
         // Glow additive combine: LOAD the original already in `fb`, add
         // intensity*blurred sampled through `srcSet` on top (m_glowCombine).

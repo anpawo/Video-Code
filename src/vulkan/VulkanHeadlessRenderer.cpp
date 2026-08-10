@@ -1025,7 +1025,7 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
             // the layer mesh itself (meshIdx) is excluded (exclusive end). seedSlot
             // = the previous layer's result, so its grade is already baked in.
             size_t chunkBegin = (alIdx == 0) ? 0 : m_adjustmentMeshPositions[alIdx - 1] + 1;
-            int    seedSlot   = (alIdx == 0) ? -1 : (int)effectSlotForMesh[m_adjustmentMeshPositions[alIdx - 1]];
+            int    seedSlot = (alIdx == 0) ? -1 : (int)effectSlotForMesh[m_adjustmentMeshPositions[alIdx - 1]];
             recordAdjustmentFlattenPass(m_commandBuffer, chunkBegin, meshIdx, seedSlot, effectSlotForMesh);
             ++alIdx;
         } else {
@@ -1142,8 +1142,7 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
                 // .cube path). The pipeline is compiled once per file and then
                 // recorded exactly like any auto-discovered effect pass.
                 if (!eff.strParam.empty() && ensureMathPipeline(eff.strParam)) {
-                    recordEffectKernelPass(m_commandBuffer, dstFb, srcSet, mathPipelineKey(eff.strParam),
-                                           1.f / m_extent.width, 1.f / m_extent.height, eff.params);
+                    recordEffectKernelPass(m_commandBuffer, dstFb, srcSet, mathPipelineKey(eff.strParam), 1.f / m_extent.width, 1.f / m_extent.height, eff.params);
                     effectBarrier2(m_commandBuffer, dstImg, srcImg);
                     inPing = !inPing;
                 }
@@ -1194,7 +1193,7 @@ cv::Mat VC::VulkanHeadlessRenderer::readFrame()
             // Point this combine's descriptor set at {content, matte}. Safe to
             // update in place: the GPU is idle here (fence waited at top of
             // readFrame), and each combine owns its own set.
-            VkDescriptorSet matteSet = m_matteSets[matteN++];
+            VkDescriptorSet       matteSet = m_matteSets[matteN++];
             VkDescriptorImageInfo infos[2] = {
                 {m_effectSampler, consumerSlot.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
                 {m_effectSampler, sourceSlot.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL},
@@ -2198,7 +2197,7 @@ const VC::VulkanHeadlessRenderer::LutResource* VC::VulkanHeadlessRenderer::getOr
     // Reuse the exact 2D-texture upload path Image/Video use: it stores the
     // TextureResource in m_textures (freed in cleanup) and returns its set. We
     // only need the atlas's view+sampler to bind into the 2-sampler LUT set.
-    VkDescriptorSet ds = uploadTexture(atlas);
+    VkDescriptorSet        ds = uploadTexture(atlas);
     const TextureResource& tex = m_textures[m_textureIndex[ds]];
 
     LutResource lr{tex.view, tex.sampler, N};
@@ -2328,7 +2327,7 @@ void VC::VulkanHeadlessRenderer::recordEffectGeomPass(VkCommandBuffer cb, VkFram
 void VC::VulkanHeadlessRenderer::recordMeshRange(
     VkCommandBuffer cb, size_t begin, size_t end,
     const std::unordered_map<size_t, size_t>& effectSlotForMesh,
-    const VkPipeline* pipelines
+    const VkPipeline*                         pipelines
 )
 {
     VkBuffer     vbufs[] = {m_vertexBuffer};

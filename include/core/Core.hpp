@@ -141,8 +141,8 @@ namespace VC
 
         ///< Frame we last jumped to via goToPrevTimestamp/goToNextTimestamp,
         ///< and when. Used to skip past it only on a quick double-press (< 2s).
-        size_t                                        _lastJumpedFrame{0};
-        std::chrono::steady_clock::time_point         _lastJumpTime{};
+        size_t                                _lastJumpedFrame{0};
+        std::chrono::steady_clock::time_point _lastJumpTime{};
 
         ///< Inputs created
         std::vector<std::unique_ptr<IInput>> _inputs{};

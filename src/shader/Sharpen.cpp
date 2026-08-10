@@ -21,8 +21,8 @@ void Sharpen::render(cv::Mat& mat, size_t) const
         amount = 1.0;
     }
 
-    cv::Mat original = mat.clone();
-    cv::Mat sharpened;
+    cv::Mat       original = mat.clone();
+    cv::Mat       sharpened;
     const cv::Mat kernel = (cv::Mat_<float>(3, 3) << 0, -1, 0, -1, 5, -1, 0, -1, 0);
 
     cv::filter2D(original, sharpened, original.depth(), kernel);
