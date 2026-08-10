@@ -56,6 +56,15 @@ If you want to generate a video directly, use:
 ./video-code --file path/to/your/script.py --generate
 
 ```
+Videos are 1920x1080 by default. Pass `-w`/`--width` and `--height` to change
+it — the preview window and the rendered video both follow, and your script
+needs no edit:
+```sh
+./video-code --file path/to/your/script.py -w 1200 --height 1500 --generate out.mp4
+```
+```sh
+./video-code --file path/to/your/script.py --width 1200 --height 1500 --generate out.mp4
+```
 
 ### Usage
 

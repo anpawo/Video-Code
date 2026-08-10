@@ -71,8 +71,6 @@ namespace VC
     private:
 
         // ── Fixed output dimensions ───────────────────────────────────────────
-        uint32_t   m_width;
-        uint32_t   m_height;
         VkExtent2D m_extent{};     // = {width, height}
         VkExtent2D m_ssaaExtent{}; // = {width*4, height*4}
 

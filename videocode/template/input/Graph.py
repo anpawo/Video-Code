@@ -143,11 +143,18 @@ class Graph(Group):
 class PositiveGraph(Graph):
     def __init__(
         self,
-        xRange: tuple[int, int] = (-1, WORLD_WIDTH // 2),
-        yRange: tuple[int, int] = (-1, WORLD_HEIGHT // 2),
+        # `None` rather than a WORLD_* literal: a default argument is evaluated
+        # at import time, which freezes it to the world the module was first
+        # loaded in — see the same note on `SplitView`.
+        xRange: tuple[int, int] | None = None,
+        yRange: tuple[int, int] | None = None,
         xExclude: list[int] = [-1],
         yExclude: list[int] = [-1],
     ) -> None:
+        if xRange is None:
+            xRange = (-1, int(WORLD_WIDTH // 2))
+        if yRange is None:
+            yRange = (-1, int(WORLD_HEIGHT // 2))
         super().__init__(xRange, yRange, xExclude, yExclude)
 
 

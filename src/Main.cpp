@@ -36,14 +36,16 @@ void setParserArgument(argparse::ArgumentParser &p)
         .help("Generate the video, otherwise the program runs in edit mode where you can visualize the video as you write it.");
 
     p
-        .add_argument("--width")
+        .add_argument("-w", "--width")
         .default_value(1920.f)
-        .scan<'f', float>();
+        .scan<'f', float>()
+        .help("Output width in pixels. The only way to change it — a scene cannot.");
 
     p
         .add_argument("--height")
         .default_value(1080.f)
-        .scan<'f', float>();
+        .scan<'f', float>()
+        .help("Output height in pixels. (No -h: argparse reserves it for --help.)");
 
     p
         .add_argument("--windowRatio")

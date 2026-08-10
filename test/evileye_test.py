@@ -4,11 +4,11 @@
 Assertion-based tests for the math-shader p[] contract, through evilEye.
 
 The slot each uniform lands in is decided by its NAME (alphabetical), after a
-fixed head: the host's bbox (4, prepended by resolveEffectParams) then the
-origin (3, hoisted by IFragmentShader::pushMathParams). That is invisible from
-the GLSL side — rename an arg and the shader keeps compiling while reading the
-wrong value. These checks rebuild the layout the C++ will send and compare it
-against the `// p[N] = name` header the .glsl documents itself with.
+fixed 3-float head: the resolved origin (2) and unit (1), which
+resolveEffectParams patches over what pushMathParams sent. That is invisible
+from the GLSL side — rename an arg and the shader keeps compiling while reading
+the wrong value. These checks rebuild the layout the C++ will send and compare
+it against the `// p[N] = name` header the .glsl documents itself with.
 Run directly: `python3 test/evileye_test.py`
 """
 
@@ -23,15 +23,19 @@ from videocode import evilEye, rgba, starNest
 from videocode.shader.fragmentShader.evilEye import EVIL_EYE_GLSL
 from videocode.shader.fragmentShader.mathShader import mathShader
 
-BBOX = 4  # uMin, vMin, uMax, vMax, prepended for every math shader
-HOISTED = ["originX", "originY", "originUnit"]
+# The fixed head, as the GLSL sees it: originX/originY/originUnit go in,
+# (originU, originV, unit) come out — same three slots, resolved in place.
+HEAD = ["origin", "origin", "unit"]
+# Consumed out-of-band by IFragmentShader::isMathHeadArg, so never in p[]:
+# the raw head, plus the anchoring mode and its group id.
+OFF_BAND = ["originX", "originY", "originUnit", "space", "group"]
 
 
 def layout(shader) -> list[str]:
-    """The p[] the C++ sends: bbox, the hoisted origin, the rest alphabetically, the clock."""
+    """The p[] the C++ sends: the resolved head, the rest alphabetically, the clock."""
     args = shader.jsonSerialization()
-    numeric = sorted(k for k, v in args.items() if isinstance(v, (int, float)) and k not in HOISTED)
-    return ["bbox"] * BBOX + HOISTED + numeric + ["elapsed"]
+    numeric = sorted(k for k, v in args.items() if isinstance(v, (int, float)) and k not in OFF_BAND)
+    return HEAD + numeric + ["elapsed"]
 
 
 def documented(glsl: str) -> dict[int, str]:
@@ -54,12 +58,13 @@ section("evilEye — the p[] layout matches what the glsl documents")
 slots = layout(eye)
 doc = documented(EVIL_EYE_GLSL)
 
-check("the origin is hoisted to p[4..6], before the alphabetical args", slots[4:7] == HOISTED)
-check("p[7..13] are color, fps, intensity, pupilSize, quality, scale, speed", slots[7:14] == ["color", "fps", "intensity", "pupilSize", "quality", "scale", "speed"])
+check("the resolved origin + unit are p[0..2], before the alphabetical args", slots[0:3] == HEAD)
+check("p[3..9] are color, fps, intensity, pupilSize, quality, scale, speed", slots[3:10] == ["color", "fps", "intensity", "pupilSize", "quality", "scale", "speed"])
+check("neither the anchoring mode nor its group id shifts the args", all(k not in slots for k in ("space", "group")))
 check("the frame clock is last", slots[-1] == "elapsed")
 check("the glsl documents its slots at all", len(doc) > 0)
 for i, name in sorted(doc.items()):
-    if i < BBOX + len(HOISTED):   # the fixed head documents itself in prose
+    if i < len(HEAD):   # the fixed head documents itself in prose
         continue
     check(f"the glsl reads {name} at p[{i}], and that is where it is sent", slots[i] == name)
 # EffectPC holds 24 floats; anything past that is silently dropped.

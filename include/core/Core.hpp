@@ -14,8 +14,10 @@
 #include <array>
 #include <chrono>
 #include <functional>
+#include <map>
 #include <memory>
 #include <opencv2/opencv.hpp>
+#include <utility>
 
 #include "core/Config.hpp"
 #include "input/AInput.hpp" // ClockStops
@@ -109,6 +111,20 @@ namespace VC
         ///< Mesh cache — rebuilt only when the render index changes
         size_t            _lastRenderedIndex{SIZE_MAX};
         std::vector<Mesh> _cachedMeshes{};
+
+        ///< Boxes for ShaderSpace::Anchor, keyed (input index, fillShaderSince).
+        ///< A PURE CACHE, not remembered state: the value is a function of a
+        ///< declared frame, so re-deriving it always gives the same box —
+        ///< which is what keeps a pinned pattern stable under preview
+        ///< scrubbing and hot-reload resume, where "the first box actually
+        ///< rendered" would depend on render history. Only the cost is saved
+        ///< (an anchored paint would otherwise re-tessellate its host every
+        ///< frame); cleared on reload, where the geometry itself may change.
+        std::map<std::pair<size_t, size_t>, ShaderBox> _anchorBoxes{};
+
+        ///< The host's box at `since`, re-derived through the normal
+        ///< metadata → mesh path and memoised.
+        const ShaderBox& anchorBoxFor(size_t inputIndex, size_t since);
 
     public:
 

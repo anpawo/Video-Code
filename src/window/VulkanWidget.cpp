@@ -220,8 +220,8 @@ void VC::VulkanWidget::setMeshes(const std::vector<Mesh>& meshes)
     }
 
     // Object-space → absolute-UV param patching (Crop/Vignette bbox,
-    // LightSweep group union) — shared with the headless renderer, see
-    // EffectResolver.hpp.
+    // LightSweep group union, math-shader origin/unit) — shared with the
+    // headless renderer, see EffectResolver.hpp.
     resolveEffectParams(m_meshes);
 
     m_geomDirty = true;

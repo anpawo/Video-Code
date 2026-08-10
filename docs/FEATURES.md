@@ -8,7 +8,8 @@ General notes:
 - **Coordinate system**: world coordinates, **Y is positive upward**, origin
   at screen center. `WORLD_TO_SCREEN_RATIO = 120` maps world units to pixels
   (`videocode/constants.py`). `WORLD_WIDTH`/`WORLD_HEIGHT`/`WORLD_OFFSET_X`/
-  `WORLD_OFFSET_Y` give the visible world-space bounds (1920x1080 reference).
+  `WORLD_OFFSET_Y` give the visible world-space bounds — 16x9 at the default
+  1920x1080, 9x16 in portrait, etc. (see [Render size](#render-size)).
 - **Everything is an `Input`** (`videocode/input/input.py`) — every shape,
   text, image, video, sound, group, etc. is a subclass and shares the
   transformation/animation API described in [Transformations](#transformations--animation-input-methods).
@@ -196,9 +197,46 @@ is loaded through the same `_SVGHelper`/`SVGPath`/`Offset`/`Group` pipeline as
 | `DashedLine(x1, y1, x2, y2, dashLength, dashedRatio, color, strokeWidth)` | `DashedLine.py` | Straight line rendered as evenly-spaced dashes — Manim's `DashedLine`, for annotation/helper lines |
 | `Arrow(length, bodyLength, bodyWidth, tipLength, tipHeight, bodyInTip, fillColor, strokeColor, strokeWidth, cornerRadius)` | `Arrow.py` | Single-`Polygon` arrow shape |
 | `Cursor()` | `Arrow.py` | Pre-shaped `Arrow` styled as a mouse cursor |
+| `SplitView(ratio, split, marginX, marginY, padding, ...)` / `Panel` | `SplitView.py` | Two panels dividing the frame — see below |
 
 **Examples**: `test/visual/scenes/shadow.py`, `test/visual/scenes/groups.py`,
 `test/visual/scenes/chess.py` (chessboard built from these primitives).
+
+### Two-panel layouts — `SplitView(split=Split.…)`
+
+```python
+sv = SplitView(ratio=3 / 5)                    # columns at 16x9, rows at 9x16
+sv = SplitView(ratio=3 / 5, split=Split.ROWS)  # stacked, whatever the frame
+Text("hi").position(sv.a.left, sv.a.top)       # same API either way
+```
+
+Named after what each PANEL is, like CSS grid — `COLUMNS` = two columns side
+by side, `ROWS` = two rows stacked. Not "in a row".
+
+| Mode | Layout | `ratio` sizes |
+|---|---|---|
+| `AUTO` (default) | `COLUMNS` if the world is wider than tall, else `ROWS` | the split axis |
+| `COLUMNS` | `a \| b`, side by side, full height | `b`'s width against `a`'s |
+| `ROWS` | `a` above `b`, stacked, full width | `b`'s height against `a`'s |
+
+In a 16x9 world `AUTO` **is** `COLUMNS`, so swapping one for the other there
+changes nothing — they diverge only when the frame is square or portrait.
+
+How: `AUTO` reads the world box, which already tracks the render size — so one
+scene renders side-by-side as a 16x9 master and stacked as a 9x16 phone cut,
+with no edit. `a` is always the first panel and `b` the second, and every
+`Panel` property (`left`/`right`/`top`/`bot`/`cx`/`cy`/`innerWidth`/
+`innerHeight`) means the same thing in both, so a scene written against them
+survives the flip. **Pros**: two columns in a portrait frame are each too
+narrow to hold anything — stacking is the only layout that keeps both panels
+usable, and `AUTO` picks it for you. **Cons**: a stacked panel is short and
+wide, so a `Paragraphe` of many lines that fitted a full-height column can
+overflow it vertically — that is content tuning, not layout. `panelHeight` is
+a `COLUMNS`-only override (in `ROWS` the split decides the heights).
+
+**Examples**: `test/visual/scenes/split_rows.py` (portrait, golden-tested),
+`test/splitview_test.py`, `video.py`, `docs/by-example/tuto.py`.
+
 
 ---
 
@@ -448,7 +486,43 @@ reported once on stderr and the effect is skipped.
 | `starNest(speed, quality)` | "Star Nest" by Pablo Roman Andrioli (MIT) | ~19ms/frame |
 | `plasma.glsl` (template) | classic sine plasma | ~free |
 
+#### Where the pattern lives — `space=Space.…`
+
+```python
+sq.fillColor = starNest()                      # SHAPE (default) — follows its host
+bg.fillColor = silk(space=Space.FRAME)         # a window onto a frame-wide pattern
+sq.fillColor = fire(space=Space.ANCHOR)        # frozen where it started; growing UNCOVERS it
+p = starNest(space=Space.GROUP)                # one pattern across several hosts
+a.fillColor = p; b.fillColor = p
+```
+
+A math shader is measured against a box: the origin it draws around, and the
+unit it scales by, both come from it. `Space` picks which box.
+
+| Mode | Box | Behaviour under a moving/scaling host |
+|---|---|---|
+| `SHAPE` (default) | the host's own, this frame | pattern moves and scales WITH it — a growing shape MAGNIFIES the pattern |
+| `FRAME` | the whole frame | pattern stays put; the host slides over it like a torch beam |
+| `ANCHOR` | the host's, frozen at `fillShaderSince` | pattern pinned where it started — growing UNCOVERS it |
+| `GROUP` | the union of every host sharing the instance | one pattern spanning them all |
+
+How: `resolveEffectParams` picks the box, resolves origin + unit from it, and
+patches them over the 3-float head. The GLSL never learns the mode, so
+anchoring costs a shader file nothing. `ANCHOR` is RE-DERIVED from the
+declared frame (`getMesh(getMetadata(fillShaderSince))`, memoised in `Core`),
+never remembered from render history — so it survives preview scrubbing and
+hot-reload instead of depending on which frame happened to render first.
+**Pros**: `SHAPE` makes patterns behave like every other paint here
+(gradients project in local mesh space, textures default to
+`UVMapping.STRETCH`) and like Manim, where colour rides the mobject's points;
+the other three are effects Manim can only reach by hand-masking a separate
+static background. **Cons**: the box is an AABB, so no mode follows ROTATION
+yet — a rotating host slides its pattern (`Space.Object`, an inverse matrix,
+is the extension point). `GROUP` is a no-op on a `Text`, whose paint is
+already one matted mesh spanning the word.
+
 **Examples**: `test/visual/scenes/silk.py` (golden-tested at 2 frames),
+`test/visual/scenes/shader_space.py` (all four modes, 2 frames),
 `test/math_shader_test.py`, `feat.py`.
 
 ---
@@ -482,6 +556,62 @@ everything. **Pros**: replaces the manual full-frame-rect + `background()` +
 color-only — an animated background (e.g. `Plane`) stays explicit
 (`Plane().drift()` at the END of the script, so the drift covers the full
 duration).
+
+### Render size
+
+```sh
+./video-code --file scene.py                                    # 1920x1080
+./video-code --file scene.py -w 1200 --height 1500 --generate out.mp4
+```
+
+The resolution is a **command-line concern only**: `-w`/`--width` and
+`--height`, defaulting to 1920x1080. A scene cannot change it — assigning
+`SCREEN_WIDTH` in a script rebinds that script's own global and nothing else,
+because by then the surface is allocated and the world box is built. (There is
+no `-h` short form: argparse reserves it for `--help`.)
+
+Everything downstream is derived, never declared:
+
+| | |
+|---|---|
+| `SCREEN_WIDTH` / `SCREEN_HEIGHT` | read from the renderer, in `videocode/constants.py` |
+| `WORLD_WIDTH` / `WORLD_HEIGHT` | `screen / WORLD_TO_SCREEN_RATIO` — 16x9 at 1920x1080, 9x16 at 1080x1920 |
+| `WORLD_OFFSET_X/Y`, `TOP_SIDE`, `BL`, `TR`, ... | from the world box |
+| the Qt preview window | `screen * --windowRatio`, so it always has the output's shape |
+
+How: `VC::makeConfig` reads the two flags, points the world->pixel transform at
+them (`config::screen`/`screenOffset`) and exports `VC_SCREEN`, all before
+`videocode` is imported — so `constants.py` builds its world box from the real
+numbers on the first read. One direction, no negotiation: C++ decides, Python
+is told. **Pros**: the world box, the preview surface and the encoder cannot
+disagree, which is the failure that used to put every shape off-centre; and
+one scene renders to any format without edits. **Cons**: a scene can't carry
+its own format, so a project with several targets drives them from the command
+line (or a Makefile rule per format). The world unit stays 120 px whatever the
+resolution, so shapes keep their physical size and only the world BOX changes —
+a portrait render doesn't shrink your content, it gives you 9x16 instead of
+16x9 to place it in.
+
+One process, several sizes — `constants.setScreen(width, height)`. The
+import-time read above answers the normal case, where the resolution is known
+before `videocode` loads. The visual-regression suite is the exception: it
+renders landscape and portrait cases in a single interpreter, so `C++`'s
+`applyScreenSize` calls `setScreen` to re-derive the world box in place. It
+rebinds the resolution-derived names (`W`, `H`, `TOP_SIDE`, `BL`, …) in every
+already-imported `videocode` module, because a star-import copies values. Call
+it yourself only if you drive the renderer from an embedding of your own.
+
+The one thing `setScreen` cannot rebind is a **default argument** — it was
+evaluated when its module was imported, and no rebinding of a global reaches
+it. So a template whose default depends on the world box takes `None` and
+resolves in its body: `SplitView(marginX=None)` and `PositiveGraph(xRange=None)`
+do exactly that. Follow suit in new templates, or they will silently lay
+themselves out for the previous resolution.
+
+**Examples**: `test/screen_test.py`, and the two portrait golden cases
+`test/visual/scenes/aspect_portrait.py` / `split_rows.py` (the suite pins their
+resolution in `kGoldenCases`, since a scene has no say).
+
 
 Typed enums also live in `videocode/constants.py` (plus `BlendMode` in
 `shader/vertexShader/blendMode.py`): `Direction.LEFT/RIGHT/TOP/BOTTOM` (slides,
@@ -561,7 +691,7 @@ Easing curves (`videocode/utils/bezier.py`):
 | (none) | Live Qt preview window, hot-reloadable with `Ctrl+R` |
 | `--file <path>` | Script to run (default `video.py`) |
 | `--generate [out.mp4\|out.mov\|out.webm\|out.gif\|out.png]` | Headless render — the extension picks the format: `.mp4` = h264; `.mov` = ProRes 4444 with real per-pixel **alpha** (transparent background); `.webm` = VP9 with alpha; `.gif` = 2-pass palette (no alpha/audio); image ext → single frame. Audio (`Sound` inputs) muxed where the container allows. |
-| `--width` / `--height` | Output resolution (default 1920x1080) |
+| `-w`/`--width`, `--height` | Output resolution in pixels (default 1920x1080). The only way to set it. See *Render size* |
 | `--framerate` | Output fps — scenes are authored at 30fps and resampled |
 | `--hwencode` | Hardware H.264 encode (videotoolbox, macOS) |
 | `--showstack` / `--showtimeline` | Debug printing during generation |

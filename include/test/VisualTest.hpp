@@ -39,7 +39,13 @@ namespace VC
 
     private:
 
-        std::vector<cv::Mat> renderFrames(const std::string& scenePath, const std::vector<size_t>& frames);
+        // The Config a case renders under — _baseConfig unless the case pins its
+        // own size. Also (re)points the world->pixel transform at it.
+        Config configFor(const std::string& scenePath, int width, int height);
+
+        std::vector<cv::Mat> renderFrames(
+            const std::string& scenePath, const std::vector<size_t>& frames, int width = 0, int height = 0
+        );
         std::vector<cv::Mat> renderFramesAfterReload(
             const std::string& before, const std::string& after, const std::vector<size_t>& frames
         );

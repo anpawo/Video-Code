@@ -374,5 +374,8 @@ decide, and how to re-baseline performance deliberately.
 - `template`: moveTo, moveBy, scaleTo, scaleBy, fadeIn, fadeOut => effect overtime that are smooth (01/01/2026)
 - `feature`: flush => prevents effects to be applied at the same time (01/01/2026)
 - `feature`: frames are not kept in memory anymore, they are generated on the fly. (01/01/2026)
+- `feature`: any output resolution — `-w`/`--width` + `--height` (default 1920x1080); the world box, the preview window and the encoder all follow (01/08/2026)
+- `feature`: math-shader anchoring — `Space.SHAPE|FRAME|ANCHOR|GROUP`, so a pattern stops swimming when its host moves or scales (01/08/2026)
+- `feature`: `SplitView(split=Split.ROWS)` — panels stack instead of sitting side by side, and `AUTO` picks by frame shape so one scene cuts to 16:9 and 9:16 (01/08/2026)
 
 </details>

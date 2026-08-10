@@ -40,12 +40,16 @@ Text("starNest · morphTo · evilEye", fontSize=0.3, fillColor=WHITE | 0.4).posi
 
 wait(1)
 
-# ── not shipped yet ─────────────────────────────────────────────────────────
-# The council of 2026-07-28 decided `space=`, which is what decides whether a
-# pattern is painted ON the shape or merely revealed BY it:
+# ── shipped ─────────────────────────────────────────────────────────────────
+# `space=` decides whether a pattern is painted ON the shape or merely
+# revealed BY it — Space.SHAPE is the default, so the starNest above already
+# scales with its host instead of boiling as it changes:
 #
-#     starNest(space=Space.Shape)    # scaling the host scales the pattern
-#     starNest(space=Space.Frame)    # the host is a moving window onto it
-#     starNest(space=Space.Anchor)   # frozen where the fill was assigned
+#     starNest(space=Space.SHAPE)    # scaling the host scales the pattern
+#     starNest(space=Space.FRAME)    # the host is a moving window onto it
+#     starNest(space=Space.ANCHOR)   # frozen where the fill was assigned
+#     starNest(space=Space.GROUP)    # one pattern across several hosts
 #
-# See ~/.claude/councils/2026-07-28-videocode-shader-anchor/log.md
+# Designed by the council of 2026-07-28
+# (~/.claude/councils/2026-07-28-videocode-shader-anchor/log.md); see the
+# "Where the pattern lives" section of docs/FEATURES.md.

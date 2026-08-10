@@ -41,6 +41,30 @@ for name, preset, glsl in (("silk", silk, SILK_GLSL), ("fire", fire, FIRE_GLSL),
     check(f"{name}() is a mathShader on {glsl.split('/')[-1]}",
           isinstance(s, mathShader) and s.filepath == glsl and s.speed == 3)
 
+# ── anchoring space ──────────────────────────────────────────────────────────
+section("space — which box the pattern is measured against")
+
+check("the default is SHAPE: the pattern follows its host, so nothing swims",
+      mathShader("x.glsl").space == Space.SHAPE)
+check("every preset takes it", silk(space=Space.FRAME).space == Space.FRAME
+      and fire(space=Space.ANCHOR).space == Space.ANCHOR
+      and starNest(space=Space.GROUP).space == Space.GROUP
+      and evilEye(space=Space.FRAME).space == Space.FRAME)
+check("it serializes as its plain string value, so it is not a numeric p[] slot",
+      silk(space=Space.ANCHOR).jsonSerialization()["space"] == "anchor")
+
+# The group id is numeric, so the C++ has to exclude it BY NAME
+# (IFragmentShader::isMathHeadArg) or every preset's uniforms shift a slot.
+check("auto group ids are negative, so they can't collide with explicit ones",
+      mathShader("x.glsl").group < 0)
+check("each instance gets its own id — one paint per host unless shared",
+      mathShader("x.glsl").group != mathShader("x.glsl").group)
+check("an explicit id is honoured, to span separate assignments",
+      silk(group=7).group == 7)
+one = starNest(space=Space.GROUP)
+check("ONE instance assigned to several hosts shares its id (that is the union key)",
+      one.group == one.group and Rectangle(width=1, height=1, fillColor=one).fillColor.group == one.group)
+
 # ── taxonomy walls ───────────────────────────────────────────────────────────
 section("paints are their own shader kind, fills-only")
 

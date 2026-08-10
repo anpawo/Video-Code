@@ -95,18 +95,51 @@ no rebuild).
 
   | slot | meaning |
   |------|---------|
-  | `p[0..3]` | the host shape's screen-space box (uMin, vMin, uMax, vMax), absolute frame UV — every math shader declares `needsBBox`, free to ignore |
-  | `p[4..5]` | the origin inside that box: percent of it, or pixels from its top-left when `p[6]` is 1 |
-  | `p[6]` | the origin's unit — 0 = percent, 1 = pixels |
-  | `p[7..]` | your own numeric args, ALPHABETICALLY (a stock preset: fps, quality, speed) |
+  | `p[0..1]` | the pattern's origin, in absolute frame UV — already resolved |
+  | `p[2]` | the unit: half the host box's height, in frame UV |
+  | `p[3..]` | your own numeric args, ALPHABETICALLY (a stock preset: fps, quality, scale, speed) |
   | last | elapsed frames since the effect started |
+
+  Read them exactly like this and your pattern inherits every anchoring mode
+  for free:
+
+  ```glsl
+  vec2  origin = vec2(pc.p[0], pc.p[1]);
+  float unit   = max(pc.p[2], 1e-6);
+  vec2  uv     = (fragUV - origin) / (2.0 * unit * scale) + 0.5;
+  ```
 
   The head is fixed because a math shader draws AROUND A POINT rather than
   across the frame: without it a generated pattern can only ever be centred on
-  the frame, and looks off-centre the moment its host shape isn't. Hoisting
-  the origin out of the alphabetical order (`IFragmentShader::pushMathParams`)
-  is what lets every shader read it at the same index. Slot budget: `EffectPC`
-  holds 24 floats, anything past that is silently dropped.
+  the frame, and looks off-centre the moment its host shape isn't. Keeping it
+  out of the alphabetical order (`IFragmentShader::pushMathParams`) is what
+  lets every shader read it at the same index.
+
+  Dividing by `unit` is not optional decoration — it is what stops the pattern
+  SWIMMING. Origin and unit are resolved together from ONE box, the one
+  `Space` selects (`resolveEffectParams`); divide by `scale` alone and you
+  re-anchor per frame while the pattern's size doesn't follow, so a scaling
+  host resamples its pattern instead of magnifying it. Which box that is —
+  the host's, the frame's, a frozen one, a group union — never reaches the
+  GLSL, and neither does the percent/pixel choice: adding an anchoring mode
+  costs a shader file nothing. Slot budget: `EffectPC` holds 24 floats,
+  anything past that is silently dropped.
+
+  The mode travels out-of-band, not in `p[]`. `IFragmentShader::MathHead` is
+  the pair that rides `ActiveEffect` instead — the `ShaderSpace` and the group
+  id `Space.GROUP` unions on — and `readMathHead` pulls it off the args on
+  both routes a math shader can take (as a fill, in `AInput.cpp`; as a
+  timeline effect, from `MathShader::args()`). It is a struct rather than two
+  loose slots for one reason: `isMathHeadArg` has to exclude exactly the same
+  keys from the alphabetical order, or every preset's own uniforms shift.
+  If you add a mode, extend `MathHead` and that exclusion list together.
+
+  A `pixels=True` origin is divided by `config::screen` — the *output*
+  resolution — never by the surface a renderer draws into. The preview
+  swapchain is `--windowRatio`-scaled (and DPR-scaled on retina), so measuring
+  against it put the origin somewhere else in the preview than in the export.
+  `resolveEffectParams` takes no dimensions at all now, so a caller cannot
+  reintroduce that.
 
   The generic `MathShader` factory class
   appends the raw elapsed FRAME COUNT instead of 0..1 progress (an animation

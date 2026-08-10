@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from videocode.color import rgba
+from videocode.constants import Space
 from videocode.shader.fragmentShader.mathShader import mathShader
-from videocode.ty import point, unumber
+from videocode.ty import maybe, point, unumber
 
 __all__ = ["evilEye"]
 
@@ -56,8 +57,12 @@ class evilEye(mathShader):
         quality: unumber = 1.0,
         origin: point = (50, 50),
         pixels: bool = False,
+        space: Space = Space.SHAPE,
+        group: maybe[int] = None,
     ):
-        super().__init__(EVIL_EYE_GLSL, speed=speed, quality=quality, scale=scale, origin=origin, pixels=pixels)
+        super().__init__(
+            EVIL_EYE_GLSL, speed=speed, quality=quality, scale=scale, origin=origin, pixels=pixels, space=space, group=group
+        )
         # 0xRRGGBB in one float: a vec3 would cost three of the eight slots.
         # Exact — the value stays under 2^24, where float32 still counts by 1.
         self.color = float((color.r << 16) | (color.g << 8) | color.b)

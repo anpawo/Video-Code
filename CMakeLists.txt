@@ -151,6 +151,7 @@ set(SOURCES
 
     # --- Core ---
     src/core/Core.cpp
+    src/core/ScreenSize.cpp
 
     # --- Inputs ---
     src/input/AInput.cpp

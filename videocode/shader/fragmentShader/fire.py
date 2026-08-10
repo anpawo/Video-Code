@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from videocode.constants import Space
 from videocode.shader.fragmentShader.mathShader import mathShader
-from videocode.ty import point, unumber
+from videocode.ty import maybe, point, unumber
 
 
 __all__ = ["fire", "FIRE_GLSL"]
@@ -12,7 +13,15 @@ __all__ = ["fire", "FIRE_GLSL"]
 FIRE_GLSL = "assets/mathshaders/fire.glsl"
 
 
-def fire(speed: unumber = 1.0, quality: unumber = 1.0, scale: unumber = 1.0, origin: point = (50, 50), pixels: bool = False) -> mathShader:
+def fire(
+    speed: unumber = 1.0,
+    quality: unumber = 1.0,
+    scale: unumber = 1.0,
+    origin: point = (50, 50),
+    pixels: bool = False,
+    space: Space = Space.SHAPE,
+    group: maybe[int] = None,
+) -> mathShader:
     """
     "3D Fire" by @XorDev (Shadertoy) — a raymarched cone of sine-turbulence
     flames; a bundled preset of `mathShader` (which documents the
@@ -36,4 +45,4 @@ def fire(speed: unumber = 1.0, quality: unumber = 1.0, scale: unumber = 1.0, ori
     proportional to the host shape's coverage, and `quality` trades steps for
     speed. Size the host to what you'll actually show.
     """
-    return mathShader(FIRE_GLSL, speed=speed, quality=quality, scale=scale, origin=origin, pixels=pixels)
+    return mathShader(FIRE_GLSL, speed=speed, quality=quality, scale=scale, origin=origin, pixels=pixels, space=space, group=group)

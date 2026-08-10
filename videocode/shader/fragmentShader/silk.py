@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from videocode.constants import Space
 from videocode.shader.fragmentShader.mathShader import mathShader
-from videocode.ty import point, unumber
+from videocode.ty import maybe, point, unumber
 
 
 __all__ = ["silk", "SILK_GLSL"]
@@ -12,7 +13,15 @@ __all__ = ["silk", "SILK_GLSL"]
 SILK_GLSL = "assets/mathshaders/silk.glsl"
 
 
-def silk(speed: unumber = 1.0, quality: unumber = 1.0, scale: unumber = 1.0, origin: point = (50, 50), pixels: bool = False) -> mathShader:
+def silk(
+    speed: unumber = 1.0,
+    quality: unumber = 1.0,
+    scale: unumber = 1.0,
+    origin: point = (50, 50),
+    pixels: bool = False,
+    space: Space = Space.SHAPE,
+    group: maybe[int] = None,
+) -> mathShader:
     """
     Raymarched sine-turbulence silk, ported from fragcoord.xyz (original
     shader: https://fragcoord.xyz/s/ae4trrxh) — a bundled preset of
@@ -42,4 +51,4 @@ def silk(speed: unumber = 1.0, quality: unumber = 1.0, scale: unumber = 1.0, ori
     to the host shape's coverage, NOT the frame. For a smooth preview: size
     the canvas to what the matte will reveal, and/or pass quality=0.3-0.5.
     """
-    return mathShader(SILK_GLSL, speed=speed, quality=quality, scale=scale, origin=origin, pixels=pixels)
+    return mathShader(SILK_GLSL, speed=speed, quality=quality, scale=scale, origin=origin, pixels=pixels, space=space, group=group)

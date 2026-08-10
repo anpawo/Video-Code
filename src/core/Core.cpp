@@ -29,6 +29,7 @@ using json = nlohmann::json;
 #include "input/media/Video.hpp"
 // #include "input/media/Video.hpp"
 #include "utils/Logger.hpp"
+#include "vulkan/EffectResolver.hpp"
 #include "window/VulkanWidget.hpp"
 
 VC::Core::Core(const argparse::ArgumentParser& parser, const Config& config)
@@ -126,6 +127,9 @@ void VC::Core::reloadSourceFile()
         // blanking it.
         _lastRenderedIndex = SIZE_MAX;
         _cachedMeshes.clear();
+        // The geometry a Space.ANCHOR box was derived from may have just been
+        // edited — re-derive it against the new scene.
+        _anchorBoxes.clear();
 
     } catch (const py::error_already_set& e) {
         std::cerr << "\nError in source file '" << _config.sourceFile << "':\n"
@@ -310,6 +314,25 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
     }
 }
 
+const ShaderBox& VC::Core::anchorBoxFor(size_t inputIndex, size_t since)
+{
+    auto key = std::make_pair(inputIndex, since);
+    auto it = _anchorBoxes.find(key);
+    if (it != _anchorBoxes.end())
+        return it->second;
+
+    // Re-derive rather than remember: run the SAME metadata → mesh path the
+    // renderer runs, at the declared frame. Deterministic, so scrubbing back
+    // and forth or hot-reloading can never shift a pinned pattern; the map is
+    // only there to keep an anchored paint from re-tessellating its host on
+    // every frame.
+    auto&    input = _inputs[inputIndex];
+    Metadata meta = input->getMetadata(since);
+    meta.frameIndex = since - ClockStops::pausedBefore(_clockStops.videos, since);
+
+    return _anchorBoxes.emplace(key, meshBoxUV(input->getMesh(meta, _config))).first->second;
+}
+
 const std::vector<Mesh>& VC::Core::generateMeshes()
 {
     size_t renderIndex = _index;
@@ -328,8 +351,19 @@ const std::vector<Mesh>& VC::Core::generateMeshes()
                 meta.frameIndex = renderIndex - ClockStops::pausedBefore(_clockStops.videos, renderIndex);
                 if (!meta.hidden && meta.opacity != 0) {
                     auto mesh = i->getMesh(meta, _config);
-                    if (auto* a = dynamic_cast<AInput*>(i.get()))
+                    if (auto* a = dynamic_cast<AInput*>(i.get())) {
                         mesh.effects = a->getActiveEffectsAtFrame(renderIndex, _clockStops);
+                        // A paint pinned with Space.ANCHOR needs the box of a
+                        // frame that is not this one. Only Core can produce it
+                        // (it owns the inputs), so it travels on the effect —
+                        // the resolver never sees an input.
+                        for (auto& eff : mesh.effects)
+                            if (eff.space == ShaderSpace::Anchor)
+                                eff.anchorBox = anchorBoxFor(
+                                    static_cast<size_t>(&i - &_inputs[0]),
+                                    std::min(meta.fillShaderSince, renderIndex)
+                                );
+                    }
                     // Default zIndex = creation order, matching the
                     // Python-side default (Metadata.zIndex = self.index).
                     mesh.zIndex = meta.zIndexExplicit ? meta.zIndex : static_cast<int>(&i - &_inputs[0]);

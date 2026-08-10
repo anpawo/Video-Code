@@ -220,16 +220,17 @@ private:
 // (unclamped, not 0..1 progress): a procedural animation needs an unbounded
 // clock, and the GLSL derives seconds as elapsed / fps — fps rides the params
 // from the Python binding. The params themselves come from pushMathParams
-// (IFragmentShader.hpp), NOT shaderParams(): the origin is hoisted to a fixed
-// slot ahead of the alphabetical args, so every math shader reads it at the
-// same index. A stock preset ends up as [originX, originY, originUnit, fps,
-// quality, speed] + the clock, behind the bbox below (filepath excluded — it
-// is a string).
-// needsBBox is on for every math shader: the effect pass is a fullscreen quad
-// over absolute frame UV, so without the host's box a generated pattern can
-// only ever be centred on the FRAME — an eye, a portal, anything with a middle
-// looks off-centre the moment its shape isn't. The box costs p[0..3] and is
-// free to ignore (silk, plasma... just read past it).
+// (IFragmentShader.hpp), NOT shaderParams(): a fixed 3-float head sits ahead
+// of the alphabetical args, so every math shader reads the point it draws
+// around at the same index. A stock preset ends up as [originX, originY,
+// originUnit, fps, quality, scale, speed] + the clock (filepath excluded — it
+// is a string; space/group excluded — they ride ActiveEffect).
+// isMathPaint, not needsBBox: the effect pass is a fullscreen quad over
+// absolute frame UV, so a generated pattern needs to be told where its host
+// is — but handing over the raw box is what made patterns SWIM, because each
+// GLSL then re-derived the origin from a box that moved while dividing by a
+// scale that didn't. resolveEffectParams now resolves origin AND unit from
+// one box, chosen by ShaderSpace, and patches them over the head in place.
 class MathShader final : public IFragmentShader
 {
 public:
@@ -246,7 +247,7 @@ public:
 
     const json::object_t& args() const override { return _args; }
 
-    bool needsBBox() const override { return true; }
+    bool isMathPaint() const override { return true; }
 
     std::vector<float> paramsAtFrame(size_t frame) const override
     {

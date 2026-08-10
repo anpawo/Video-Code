@@ -14,6 +14,7 @@
 #include <stdexcept>
 
 #include "core/Core.hpp"
+#include "core/ScreenSize.hpp"
 #include "utils/Logger.hpp"
 #include "vulkan/VulkanHeadlessRenderer.hpp"
 
@@ -88,6 +89,11 @@ namespace
         std::string         name;
         std::string         scene;
         std::vector<size_t> frames;
+        // Resolution for this case. 0 = the suite's base (1920x1080). Lives
+        // here rather than in the scene because --width/--height are the only
+        // way to set a resolution — a scene has no say, by design.
+        int width = 0;
+        int height = 0;
     };
 
     struct ReloadCase
@@ -143,7 +149,15 @@ namespace
         // Frame 15 too: silk is time-driven, so a stuck clock (elapsed frames
         // never reaching the GLSL) would pass a frame-0-only check.
         {"silk", "test/visual/scenes/silk.py", {0, 15}},
+        // Two frames: three of the four Space modes differ only over time —
+        // what the pattern does while its host scales IS the check.
+        {"shader-space", "test/visual/scenes/shader_space.py", {0, 29}},
         {"background", "test/visual/scenes/background.py", {0}},
+        // Portrait: proves the world->pixel transform follows the resolution.
+        {"aspect-portrait", "test/visual/scenes/aspect_portrait.py", {0}, 1080, 1920},
+        // Also portrait: SplitView stacking itself because the world is taller
+        // than it is wide (Split.AUTO).
+        {"split-rows", "test/visual/scenes/split_rows.py", {0}, 1080, 1920},
     };
 
     const std::vector<ReloadCase> kReloadCases = {
@@ -156,10 +170,9 @@ namespace
 VC::VisualTest::VisualTest(const argparse::ArgumentParser& parser)
     : _parser(parser)
     , _baseConfig({
-          // MeshFactory derives its NDC divisor directly from screenWidth/screenHeight,
-          // and Metadata's world->pixel transform is hardcoded to a 1920x1080 reference
-          // (see config::screenOffset / config::worldToPixelRatio in Metadata.hpp) — so
-          // these must match that reference resolution or every shape renders off-screen.
+          // The goldens are 1920x1080, so the suite pins the resolution instead of
+          // reading constants.py: editing the project default must not move every
+          // golden. A scene declaring its own size still gets it (configFor).
           .screenWidth = 1920.f,
           .screenHeight = 1080.f,
           .framerate = 30,
@@ -167,12 +180,35 @@ VC::VisualTest::VisualTest(const argparse::ArgumentParser& parser)
           .outputFile = "",
       })
 {
+    // MeshFactory derives its NDC divisor from screenWidth/screenHeight while
+    // Metadata's world->pixel transform reads config::screenOffset — the two have
+    // to agree or every shape renders off-center.
+    applyScreenSize(_baseConfig.screenWidth, _baseConfig.screenHeight);
 }
 
-std::vector<cv::Mat> VC::VisualTest::renderFrames(const std::string& scenePath, const std::vector<size_t>& frames)
+Config VC::VisualTest::configFor(const std::string& scenePath, int width, int height)
 {
     Config config = _baseConfig;
     config.sourceFile = scenePath;
+
+    // A case may pin its own resolution (portrait cases do); everything else
+    // renders at the suite's base, which is what the goldens were written at.
+    if (width > 0 && height > 0) {
+        config.screenWidth = (float)width;
+        config.screenHeight = (float)height;
+    }
+    // Reapplied per scene because the world->pixel transform it drives is
+    // process-global, and the previous case may have moved it.
+    applyScreenSize(config.screenWidth, config.screenHeight);
+
+    return config;
+}
+
+std::vector<cv::Mat> VC::VisualTest::renderFrames(
+    const std::string& scenePath, const std::vector<size_t>& frames, int width, int height
+)
+{
+    Config config = configFor(scenePath, width, height);
 
     Core core(_parser, config);
 
@@ -192,8 +228,7 @@ std::vector<cv::Mat> VC::VisualTest::renderFramesAfterReload(
     const std::string& before, const std::string& after, const std::vector<size_t>& frames
 )
 {
-    Config config = _baseConfig;
-    config.sourceFile = before;
+    Config config = configFor(before, 0, 0);
 
     Core core(_parser, config);
 
@@ -227,7 +262,7 @@ int VC::VisualTest::run(bool updateGolden)
 
         std::vector<cv::Mat> frames;
         try {
-            frames = renderFrames(c.scene, c.frames);
+            frames = renderFrames(c.scene, c.frames, c.width, c.height);
         } catch (const std::exception& e) {
             std::cout << std::format("  [{}] {} — {}\n", statusLabel(false), c.name, e.what());
             failures++;

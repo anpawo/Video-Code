@@ -17,6 +17,7 @@
 #include <string>
 #include <thread>
 
+#include "core/ScreenSize.hpp"
 #include "input/media/Sound.hpp"
 #include "utils/ImageIO.hpp"
 #include "vulkan/VulkanHeadlessRenderer.hpp"
@@ -201,17 +202,7 @@ namespace
 }
 
 VC::Compiler::Compiler(const argparse::ArgumentParser& parser)
-    : config({
-          .screenWidth = parser.get<float>("--width"),
-          .screenHeight = parser.get<float>("--height"),
-
-          .framerate = parser.get<int>("--framerate"),
-
-          .hwEncode = parser.get<bool>("--hwencode"),
-
-          .sourceFile = parser.get("--file"),
-          .outputFile = parser.get("--generate"),
-      })
+    : config(makeConfig(parser))
     , _core(parser, config)
 {
 }

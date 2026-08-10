@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "Vertex.hpp"
+#include "shader/ShaderSpace.hpp"
 
 // A fragment shader effect active on a mesh at a given frame.
 // name   = shader class name ("Blur", "Grayscale", …)
@@ -34,6 +35,17 @@ struct ActiveEffect
     // the .cube path used as a cache key for a lazily-built, persistently-cached
     // LUT atlas texture in the renderers. Empty for every other effect.
     std::string        strParam;
+
+    // Math-shader paints only (NotMath for every other effect). Which box
+    // resolveEffectParams measures the pattern's origin and unit against, and
+    // the id ShaderSpace::Group unions on — deliberately NOT in params, so a
+    // math shader's own args keep the same p[] index in every mode.
+    ShaderSpace        space = ShaderSpace::NotMath;
+    float              groupId = 0.f;
+    // ShaderSpace::Anchor only: the host's box (uMin, vMin, uMax, vMax) at
+    // Metadata::fillShaderSince, re-derived by Core — the resolver has no
+    // access to the inputs, and the box of a PAST frame isn't in this mesh.
+    ShaderBox          anchorBox{0.f, 0.f, 1.f, 1.f};
 };
 
 struct Mesh

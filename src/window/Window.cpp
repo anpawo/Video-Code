@@ -18,6 +18,7 @@
 #include <format>
 #include <iostream>
 
+#include "core/ScreenSize.hpp"
 #include "utils/ImageIO.hpp"
 #include "utils/Logger.hpp"
 
@@ -27,16 +28,7 @@ static auto s_windowStart = std::chrono::high_resolution_clock::now();
 
 VC::Window::Window(const argparse::ArgumentParser& parser, QWidget* parent)
     : QMainWindow(parent)
-    , config({
-          .screenWidth = parser.get<float>("--width"),
-          .screenHeight = parser.get<float>("--height"),
-          .windowRatio = parser.get<float>("--windowRatio"),
-
-          .framerate = parser.get<int>("--framerate"),
-
-          .sourceFile = parser.get("--file"),
-          .outputFile = parser.get("--generate"),
-      })
+    , config(makeConfig(parser))
     , _core(parser, config) // ← reloadSourceFile() runs here (Python + executeStack)
 {
     using Clock = std::chrono::high_resolution_clock;

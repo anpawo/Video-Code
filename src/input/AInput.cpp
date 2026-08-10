@@ -109,20 +109,26 @@ std::vector<ActiveEffect> AInput::getActiveEffectsAtFrame(size_t frame, const Cl
         auto            fill = margs.find("fillColor");
         if (fill != margs.end() && fill->second.is_object() && fill->second.contains("shader")) {
             // A paint is built straight from the json, never through the
-            // ShaderFactory, so IFragmentShader::needsBBox() never gets a say
+            // ShaderFactory, so IFragmentShader::isMathPaint() never gets a say
             // here — MathShader declares it, and a math shader is nearly
-            // always used AS a paint, so the box is resolved for it by name.
+            // always used AS a paint, so it is recognised by name instead.
             const std::string shaderName = fill->second.at("shader").get<std::string>();
-            ActiveEffect      fe{shaderName, {}, shaderName == "MathShader", -1};
+            const bool        isMath = shaderName == "MathShader";
+            ActiveEffect      fe{shaderName, {}, false, -1};
             // Numeric args in ALPHABETICAL order (json::object_t sorts keys)
             // — the same p[] contract every effect follows — then the paint's
             // clock: frames elapsed since this fill was assigned. A math
             // shader gets its origin hoisted to fixed slots first, exactly
             // like MathShader::paramsAtFrame does on the timeline path.
             const json::object_t& fargs = fill->second.get_ref<const json::object_t&>();
-            if (fe.needsBBox)
+            if (isMath) {
                 IFragmentShader::pushMathParams(fargs, fe.params);
-            else
+                // Anchoring mode + group id — off p[] on purpose, so a preset's
+                // own uniforms keep their slots whatever space it was given.
+                const auto head = IFragmentShader::readMathHead(fargs);
+                fe.space = head.space;
+                fe.groupId = head.group;
+            } else
                 for (const auto& [k, v] : fargs)
                     if (v.is_number())
                         fe.params.push_back(v.get<float>());
@@ -148,6 +154,14 @@ std::vector<ActiveEffect> AInput::getActiveEffectsAtFrame(size_t frame, const Cl
         // this effect started.
         size_t effectFrame = frame - ClockStops::pausedBetween(stops.effects, e->start(), frame);
         ActiveEffect ae{std::string(e->shaderName()), e->paramsAtFrame(effectFrame), e->needsBBox(), e->groupParamIndex()};
+
+        // A math shader reached through the timeline resolves its head exactly
+        // like the paint path above — same args, same out-of-band channel.
+        if (e->isMathPaint()) {
+            const auto head = IFragmentShader::readMathHead(e->args());
+            ae.space = head.space;
+            ae.groupId = head.group;
+        }
 
         // Carry a file-path string arg straight through (not via the numeric
         // p[] path — a string can't be a push-constant float). `lut` uses this

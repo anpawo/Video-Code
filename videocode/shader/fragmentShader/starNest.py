@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from videocode.constants import Space
 from videocode.shader.fragmentShader.mathShader import mathShader
-from videocode.ty import point, unumber
+from videocode.ty import maybe, point, unumber
 
 
 __all__ = ["starNest", "STAR_NEST_GLSL"]
@@ -12,7 +13,15 @@ __all__ = ["starNest", "STAR_NEST_GLSL"]
 STAR_NEST_GLSL = "assets/mathshaders/starnest.glsl"
 
 
-def starNest(speed: unumber = 1.0, quality: unumber = 1.0, scale: unumber = 1.0, origin: point = (50, 50), pixels: bool = False) -> mathShader:
+def starNest(
+    speed: unumber = 1.0,
+    quality: unumber = 1.0,
+    scale: unumber = 1.0,
+    origin: point = (50, 50),
+    pixels: bool = False,
+    space: Space = Space.SHAPE,
+    group: maybe[int] = None,
+) -> mathShader:
     """
     "Star Nest" by Pablo Roman Andrioli (Kali) — the famous volumetric
     fractal starfield/nebula (shadertoy.com/view/XlfGRj, MIT). A bundled
@@ -37,4 +46,4 @@ def starNest(speed: unumber = 1.0, quality: unumber = 1.0, scale: unumber = 1.0,
     full-frame animated background (drop `quality` if the preview stutters).
     Zero-alpha pixels early-out, so shaped hosts cost proportionally less.
     """
-    return mathShader(STAR_NEST_GLSL, speed=speed, quality=quality, scale=scale, origin=origin, pixels=pixels)
+    return mathShader(STAR_NEST_GLSL, speed=speed, quality=quality, scale=scale, origin=origin, pixels=pixels, space=space, group=group)

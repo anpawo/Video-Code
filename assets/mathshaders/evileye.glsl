@@ -19,20 +19,22 @@ layout(push_constant) uniform PC {
     float texelX;   // 1 / frame width
     float texelY;   // 1 / frame height
     // Fixed head, then the args ALPHABETICALLY (docs/ADDING_EFFECTS.md):
-    // p[0..3] = uMin, vMin, uMax, vMax of the host shape, in absolute frame UV
-    // p[4..5] = the origin inside that box — percent of it, or pixels from its
-    //           top-left when p[6] is 1. 50/50 (the default) is its centre,
-    //           and THE EYE LOOKS AT YOU FROM THERE, wherever the shape sits.
-    // p[6]    = origin unit: 0 = percent, 1 = pixels
-    // p[7]    = color    (0xRRGGBB packed into one float, exact below 2^24)
-    // p[8]    = fps      (set automatically by the Python binding)
-    // p[9]    = intensity
-    // p[10]   = pupilSize
-    // p[11]   = quality  (0..1 — octave count of the procedural noise)
-    // p[12]   = scale
-    // p[13]   = speed
-    // p[14]   = elapsed frames since the effect started
-    float p[15];
+    // p[0..1] = the pattern's origin, in absolute frame UV — already resolved
+    //           by resolveEffectParams from the box `space` selects. THE EYE
+    //           LOOKS AT YOU FROM THERE, wherever its shape sits.
+    // p[2]    = the unit: HALF THE BOX'S HEIGHT, in frame UV — the eye's own
+    //           radius unit, so it scales with its host rather than with the
+    //           render resolution. This file has always divided by a box
+    //           height; the head now hands every math shader the same thing.
+    // p[3]    = color    (0xRRGGBB packed into one float, exact below 2^24)
+    // p[4]    = fps      (set automatically by the Python binding)
+    // p[5]    = intensity
+    // p[6]    = pupilSize
+    // p[7]    = quality  (0..1 — octave count of the procedural noise)
+    // p[8]    = scale
+    // p[9]    = speed
+    // p[10]   = elapsed frames since the effect started
+    float p[11];
 } pc;
 
 layout(location = 0) out vec4 outColor;
@@ -92,29 +94,23 @@ void main()
         return;
     }
 
-    float packed = pc.p[7];
+    float packed = pc.p[3];
     vec3  eyeColor = vec3(floor(packed / 65536.0), floor(mod(packed, 65536.0) / 256.0), mod(packed, 256.0)) / 255.0;
-    float intensity = pc.p[9];
-    float pupilSize = pc.p[10];
-    int   octaves = int(clamp(pc.p[11], 0.0, 1.0) * 4.0) + 4;
-    float scale = max(pc.p[12], 0.001);
+    float intensity = pc.p[5];
+    float pupilSize = pc.p[6];
+    int   octaves = int(clamp(pc.p[7], 0.0, 1.0) * 4.0) + 4;
+    float scale = max(pc.p[8], 0.001);
 
     // The component works in (fragCoord*2 - res)/res.y: centred, y up, x in
-    // [-aspect, aspect]. Same frame here, but built around the HOST's box
-    // instead of the frame's, so the eye sits in the middle of its shape:
-    // the box's own half-height is the unit, which also makes the eye scale
-    // with the shape instead of with the render resolution.
-    // Clamped to the frame — see the note in silk.glsl.
-    vec2  boxMin = clamp(vec2(pc.p[0], pc.p[1]), 0.0, 1.0);
-    vec2  boxSize = clamp(vec2(pc.p[2], pc.p[3]), 0.0, 1.0) - boxMin;
-    vec2  origin = pc.p[6] > 0.5
-                       ? boxMin + vec2(pc.p[4], pc.p[5]) * vec2(pc.texelX, pc.texelY)
-                       : boxMin + vec2(pc.p[4], pc.p[5]) * 0.01 * boxSize;
-    float halfH = max(boxSize.y * 0.5, 1e-6);
+    // [-aspect, aspect]. Same frame here, but around the resolved origin and
+    // unit instead of the frame's centre and height, so the eye sits in the
+    // middle of whatever box `space` chose and scales with it.
+    vec2  origin = vec2(pc.p[0], pc.p[1]);
+    float unit = max(pc.p[2], 1e-6);        // half the box's height
     float aspect = pc.texelY / pc.texelX;   // frame width / height
-    vec2  uv = vec2((fragUV.x - origin.x) * aspect, origin.y - fragUV.y) / (halfH * scale);
+    vec2  uv = vec2((fragUV.x - origin.x) * aspect, origin.y - fragUV.y) / (unit * scale);
 
-    float ft = pc.p[14] / max(pc.p[8], 1.0) * pc.p[13];   // elapsed seconds × speed
+    float ft = pc.p[10] / max(pc.p[4], 1.0) * pc.p[9];   // elapsed seconds × speed
 
     float polarRadius = length(uv) * 2.0;
     float polarAngle = (2.0 * atan(uv.x, uv.y)) / 6.28 * 0.3;

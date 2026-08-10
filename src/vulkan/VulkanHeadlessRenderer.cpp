@@ -182,9 +182,7 @@ static void runOneShot(VkDevice device, VkCommandPool pool, VkQueue queue, const
 // ===========================================================================
 
 VC::VulkanHeadlessRenderer::VulkanHeadlessRenderer(uint32_t width, uint32_t height)
-    : m_width(width)
-    , m_height(height)
-    , m_extent{width, height}
+    : m_extent{width, height}
     , m_ssaaExtent{width * 4, height * 4}
 {
 }
@@ -921,7 +919,8 @@ void VC::VulkanHeadlessRenderer::setMeshes(const std::vector<Mesh>& meshes)
     }
 
     // Object-space → absolute-UV param patching (Crop/Vignette bbox,
-    // LightSweep group union) — shared with VulkanWidget, see EffectResolver.hpp.
+    // LightSweep group union, math-shader origin/unit) — shared with
+    // VulkanWidget, see EffectResolver.hpp.
     resolveEffectParams(m_meshes);
 
     m_geomDirty = true;
