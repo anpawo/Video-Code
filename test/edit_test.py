@@ -13,7 +13,7 @@ sys.path.insert(0, ".")
 sys.path.insert(0, "test")
 from helpers import check, section, summary
 
-from videocode.edit import callLine, findCalls, readArgument, removeArgument, setArgument
+from videocode.edit import argumentSpan, callLine, findCalls, readArgument, removeArgument, setArgument
 
 SOURCE = '''#!/usr/bin/env python3
 
@@ -106,6 +106,24 @@ section("a gesture: moving an effect writes its start")
 moved = setArgument(SOURCE, 10, "scaleTo", "start", "0.8").source
 check("start added to the right link", "scaleTo(0.5, duration=0.5, start=0.8)" in line(moved, 10))
 check("the file still parses", isinstance(compile(moved, "scene.py", "exec"), object))
+
+section("argumentSpan — the same edit, as a range the editor can apply")
+span = argumentSpan(SOURCE, 10, "rotateBy", "duration", "2.0")
+check("a span was given", span is not None)
+if span is not None:
+    start, end, text = span
+    check("splicing it gives the same file", SOURCE[:start] + text + SOURCE[end:] == setArgument(SOURCE, 10, "rotateBy", "duration", "2.0").source)
+    check("it replaces the value, nothing more", SOURCE[start:end] == "1.5" and text == "2.0")
+
+span = argumentSpan(SOURCE, 6, "Video", "endFrame", "240")
+check("adding one is an insertion", span is not None and span[0] == span[1])
+if span is not None:
+    start, end, text = span
+    check("with its own separator", text == ", endFrame=240")
+    check("splicing it gives the same file", SOURCE[:start] + text + SOURCE[end:] == setArgument(SOURCE, 6, "Video", "endFrame", "240").source)
+
+check("the same value is no span at all", argumentSpan(SOURCE, 10, "rotateBy", "duration", "1.5") is None)
+check("a call that is not there is refused", argumentSpan(SOURCE, 10, "moveBy", "x", "1") is None)
 
 section("broken source is refused, not mangled")
 broken = "square = Square(side=\n"

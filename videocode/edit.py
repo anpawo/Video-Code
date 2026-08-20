@@ -171,6 +171,49 @@ def setArgument(
     return Edit(source[:closing] + separator + f"{name}={value}" + source[closing:], True)
 
 
+def argumentSpan(
+    source: str,
+    line: int,
+    call: str,
+    name: str,
+    value: str,
+    occurrence: int = 0,
+) -> tuple[int, int, str] | None:
+    """
+    The same edit as `setArgument`, expressed as a range and what to put in it.
+
+    Replacing `source[start:end]` with the text gives the edited file. The
+    editor needs this rather than the finished string because a gesture that
+    hands the pane a whole new buffer erases the pane's undo history — Qt
+    records edits, not assignments, and ⌘Z after a drag did nothing. Applied as
+    a remove-and-insert on the document, the gesture lands in the same history
+    as typing, and one ⌘Z takes it back.
+
+    `None` when the call is not there, which is a refusal, not an empty edit.
+    """
+    node = _pick(source, line, call, occurrence)
+    if node is None:
+        return None
+
+    for keyword in node.keywords:
+        if keyword.arg != name:
+            continue
+        start, end = _span(source, keyword.value)
+        if source[start:end] == value:
+            return None
+        return start, end, value
+
+    start, end = _span(source, node)
+    closing = source.rfind(")", start, end)
+    if closing < 0:
+        return None
+
+    inner = source[start:closing]
+    hasArguments = bool(node.args or node.keywords)
+    separator = ", " if hasArguments and not inner.rstrip().endswith("(") else ""
+    return closing, closing, f"{separator}{name}={value}"
+
+
 def removeArgument(source: str, line: int, call: str, name: str, occurrence: int = 0) -> Edit:
     """
     Take a keyword argument out, and the separator that came with it.
