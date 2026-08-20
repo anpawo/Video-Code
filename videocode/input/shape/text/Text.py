@@ -221,8 +221,25 @@ class Text(Group[Letter], _hasFillStroke):
         return (self.fontSize, self.fontFamily, fill, self.strokeColor, self.strokeWidth, self.bold, self.italic)
 
     def apply(self, *shaders, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+        # Everything the group handles goes down in ONE call.
+        #
+        # An animation arrives here as one shader per frame — `rotateBy` over a
+        # second is thirty of them — and forwarding them one at a time made the
+        # group answer thirty separate questions about the same window. The group
+        # writes its members' positions from the whole window at once (see
+        # Group._emitTimeline), so thirty calls meant rewriting it thirty times:
+        # a two-transform Text cost 140 ms instead of 9. The batch is flushed
+        # before anything that must keep its place in the order.
+        batch: list[Any] = []
+
+        def flush() -> None:
+            if batch:
+                super(Text, self).apply(*batch, start=start, duration=duration, offset=offset)
+                batch.clear()
+
         for s in shaders:
             if isinstance(s, align):
+                flush()
                 _s, _d, _o = s.resolve(start, duration, offset)
                 _shallow_copy(s).modify(self)
                 self.alignLetters(start=_s, duration=_d, offset=_o)
@@ -231,9 +248,12 @@ class Text(Group[Letter], _hasFillStroke):
                 # result — canvas only (touching the word would distort the
                 # mask). Chain order is guaranteed: the fill is per-frame
                 # state injected FIRST by the C++, timeline effects follow.
+                flush()
                 self.inputs[0].apply(s, start=start, duration=duration, offset=offset)
             else:
-                super().apply(s, start=start, duration=duration, offset=offset)
+                batch.append(s)
+
+        flush()
         return self
 
     def alignLetters(self, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> None:

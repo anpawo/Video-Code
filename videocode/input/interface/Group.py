@@ -47,11 +47,23 @@ class Group(Interface, Generic[_GROUP_T]):
         """Snapshot current member position/rotation/scale as the rigid-body base."""
         self._memberBases: list[tuple[Input, _MemberBase]] = [(m, _MemberBase(m.meta)) for m in self.inputs]
         # Per-frame rigid state recorded during the current time window, keyed by
-        # relative frame (round(start * FRAMERATE)). Lets concurrent chained rigid
-        # animations (g.scaleTo(...).rotateBy(...)) combine: a later pass computes
-        # member positions with the value the earlier pass had AT that frame, not
-        # the earlier pass's final value (meta follows exec order, not frame order).
+        # relative frame (round(start * FRAMERATE)). It is what lets concurrent
+        # chained rigid animations — `g.rotateBy(...).scaleTo(...)` — combine:
+        # a member's position at a frame depends on the group's position AND
+        # rotation AND scale at that frame, and the passes are written one after
+        # another while the frames they cover overlap.
+        #
+        # Nothing is emitted while a pass runs. The whole timeline is emitted
+        # once the call is over, because a pass can change frames an earlier pass
+        # already answered for: `rotateBy(180, duration=1.5)` writes 45 frames of
+        # orbit at scale 1, then `scaleTo(0.5, duration=0.5)` halves the group for
+        # every frame from its 15th onwards — including the 30 the rotation had
+        # already emitted. Emitting as we went left those 30 on the old orbit, so
+        # the members shrank for half a second and then jumped back out to twice
+        # the radius in one frame.
         self._rigidTimeline: dict[int, dict[str, Any]] = {}
+        # What the last emission wrote, so an identical repeat costs nothing.
+        self._rigidWritten: tuple = ()
 
     def _regroup(self) -> None:
         """Re-snapshot member bases from their current meta (call after layout changes)."""
@@ -79,6 +91,36 @@ class Group(Interface, Generic[_GROUP_T]):
     # ------------------------------------------------------------------
     # Rigid-body emission
 
+    def _stateAt(self, at: int) -> dict[str, Any]:
+        """
+        The group's position, rotation and scale at a frame.
+
+        Each component is the last value it was given at or before that frame;
+        before its first, the value the animation started from; and with nothing
+        recorded at all, whatever the group's meta says.
+        """
+        state = {
+            "pos": v2(*self.meta.position),
+            "rot": self.meta.rotation,
+            "scl": v2(*self.meta.scale),
+        }
+        seen: set[str] = set()
+
+        for f in sorted(self._rigidTimeline):
+            rec = self._rigidTimeline[f]
+            for key in ("pos", "rot", "scl"):
+                if key not in rec:
+                    continue
+                # Before its first record, a component is whatever that first
+                # record says: an animation starts from where the group already
+                # was.
+                if f > at and key in seen:
+                    continue
+                state[key] = rec[key]
+                seen.add(key)
+
+        return state
+
     def _emitRigid(
         self,
         start: sec,
@@ -88,20 +130,24 @@ class Group(Interface, Generic[_GROUP_T]):
         pos: bool = False,
         rot: bool = False,
         scl: bool = False,
+        state: maybe[dict[str, Any]] = None,
     ) -> None:
         """
         Emit concrete position/rotation/scale shaders to each member, applying the
-        group's current accumulated transform on top of each member's frozen base.
+        group transform on top of each member's frozen base.
+
+        `state` is the transform to use; without one the group's state at that
+        frame is worked out from the timeline, which is what a caller outside the
+        rigid passes — `Text.alignLetters` — wants.
         """
+        if state is None:
+            state = self._stateAt(round(start * FRAMERATE))
         if not self._memberBases:
             return
 
-        # Frame-accurate state: components animated by an earlier concurrent pass
-        # were recorded per frame — fall back to meta only for unanimated ones.
-        rec = self._rigidTimeline.get(round(start * FRAMERATE), {})
-        gx, gy = rec.get("pos", self.meta.position)
-        grot_deg = rec.get("rot", self.meta.rotation)
-        gscale = rec.get("scl", self.meta.scale)
+        gx, gy = state["pos"]
+        grot_deg = state["rot"]
+        gscale = state["scl"]
 
         C = self._pivot()
         # C++ renders a positive degree as a clockwise spin on screen (the
@@ -145,6 +191,7 @@ class Group(Interface, Generic[_GROUP_T]):
             child.broadcast(func)
 
     def apply(self, *shaders: IShader | Effect | GroupEffect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+        rigid = False
         for s in shaders:
             if isinstance(s, GroupEffect):
                 # Group-scoped effect: gets the group itself. What it does only
@@ -173,18 +220,17 @@ class Group(Interface, Generic[_GROUP_T]):
             k = s._rigidKind
             if k:
                 # Resolve the shader's own timing (.at(start=t) per animation frame)
-                # before forwarding — each frame in a moveTo animation carries its own t.
+                # before recording — each frame in a moveTo animation carries its own t.
                 ts, td, to = s.resolve(start, duration, offset)
                 rec = self._rigidTimeline.setdefault(round(ts * FRAMERATE), {})
+                rec["t"] = (ts, td, to)
                 if k == 1:
                     rec["pos"] = v2(*self.meta.position)
-                    self._emitRigid(ts, td, to, pos=True)
                 elif k == 2:
                     rec["rot"] = self.meta.rotation
-                    self._emitRigid(ts, td, to, pos=True, rot=True)
                 else:
                     rec["scl"] = v2(*self.meta.scale)
-                    self._emitRigid(ts, td, to, scl=True)
+                rigid = True
             else:
                 # All other shaders (color, opacity, args, translate, hide, …) broadcast
                 # as-is to every member. i.apply() makes its own shallow copy for
@@ -192,7 +238,78 @@ class Group(Interface, Generic[_GROUP_T]):
                 for i in self.inputs:
                     i.apply(s, start=start, duration=duration, offset=offset)
 
+        if rigid:
+            self._emitTimeline()
+
         return self
+
+    def _emitTimeline(self) -> None:
+        """
+        Write every frame the timeline knows about, with the group's state AT that
+        frame — the last value each component was given at or before it.
+
+        Carried FORWARD because a transform holds until the next one: the scale a
+        half-second animation lands on is the scale of every frame after it, and
+        the members' orbit has to keep using it. Carried BACKWARD from the first
+        record for frames an animation has not reached yet, since an animation
+        starts from the value the group already had.
+
+        Re-emitting is safe by construction: the stack keys a frame's entry by
+        shader name, so writing frame 30's position twice replaces it rather than
+        stacking two.
+        """
+        if not self._rigidTimeline:
+            return
+
+        frames = sorted(self._rigidTimeline)
+
+        def firstOf(key: str, fallback: Any) -> Any:
+            for f in frames:
+                if key in self._rigidTimeline[f]:
+                    return self._rigidTimeline[f][key]
+            return fallback
+
+        state = {
+            "pos": firstOf("pos", v2(*self.meta.position)),
+            "rot": firstOf("rot", self.meta.rotation),
+            "scl": firstOf("scl", v2(*self.meta.scale)),
+        }
+
+        # Walk it once to know what would be written, and say nothing if that is
+        # what was written last time.
+        #
+        # A group's `apply` runs far more often than a scene has animations — a
+        # Text dispatches one per letter, 42 calls for two transforms — and
+        # rewriting the whole window on each of them turned a two-transform Text
+        # from 9 ms into 140. Skipping an IDENTICAL repeat is safe in a way that
+        # skipping individual frames is not: a member's `autodestroy` drops a
+        # shader that matches the member's current meta, so the meta trajectory
+        # has to stay exactly what it would have been. A repeat re-walks the same
+        # values in the same order and ends where it started; dropping it changes
+        # nothing at all.
+        plan: list[tuple[int, dict[str, Any], bool, bool]] = []
+        for f in frames:
+            rec = self._rigidTimeline[f]
+            for key in ("pos", "rot", "scl"):
+                if key in rec:
+                    state[key] = rec[key]
+            plan.append((f, dict(state), "rot" in rec, "scl" in rec))
+
+        signature = tuple(
+            (f, float(st["pos"].x), float(st["pos"].y), float(st["rot"]),
+             float(st["scl"].x), float(st["scl"].y), r, sc)
+            for f, st, r, sc in plan
+        )
+        if signature == self._rigidWritten:
+            return
+        self._rigidWritten = signature
+
+        for f, st, withRot, withScl in plan:
+            ts, td, to = self._rigidTimeline[f]["t"]
+            # Position is emitted for every frame — it is the one thing that
+            # depends on all three — while rotation and scale are only written
+            # where they actually change.
+            self._emitRigid(ts, td, to, pos=True, rot=withRot, scl=withScl, state=st)
 
     # Advancing the time window (flush / wait / waitTo / waitFor) invalidates the
     # rigid timeline: its keys are frames relative to the members' transformation
@@ -200,18 +317,22 @@ class Group(Interface, Generic[_GROUP_T]):
 
     def flush(self) -> Self:
         self._rigidTimeline.clear()
+        self._rigidWritten = ()
         return super().flush()
 
     def waitTo(self, n: frame) -> Self:
         self._rigidTimeline.clear()
+        self._rigidWritten = ()
         return super().waitTo(n)
 
     def wait(self, n: sec) -> Self:
         self._rigidTimeline.clear()
+        self._rigidWritten = ()
         return super().wait(n)
 
     def waitFor(self, i: Input) -> Self:
         self._rigidTimeline.clear()
+        self._rigidWritten = ()
         return super().waitFor(i)
 
     def waitForOthers(self) -> Self:

@@ -6,6 +6,7 @@ moveTo/moveBy preserving relative layout, waitForOthers, and scaleBy behavior.
 Run directly: `python3 test/group_test.py`
 """
 
+import math
 import sys
 
 sys.path.insert(0, ".")
@@ -14,6 +15,7 @@ from helpers import check, section, summary
 
 from videocode import Rectangle, Circle, Context
 from videocode.input.interface.Group import Group
+from videocode.serialize import execSource
 
 def approx(a: float, b: float, eps: float = 1e-6) -> bool:
     return abs(a - b) <= eps
@@ -76,6 +78,85 @@ g3.scaleBy(x=0.5, y=0.5, duration=0.2)
 check("rect ends at 1.5 + 0.5 = 2.0", approx(rectS.meta.scale.x, 2.0))
 check("circle ends at 0.5 + 0.5 = 1.0", approx(circS.meta.scale.x, 1.0))
 check("original 1.0 divergence preserved", approx(rectS.meta.scale.x - circS.meta.scale.x, 1.0))
+
+# ── Chained rigid animations of different lengths ──────────────────────────
+# A member's position depends on the group's position AND rotation AND scale at
+# that frame. The passes are written one after another while the frames they
+# cover overlap, so the order they are WRITTEN in must not change the result.
+#
+# The bug this guards: `rotateBy(180, duration=1.5).scaleTo(0.5, duration=0.5)`
+# emitted 45 frames of orbit at scale 1, and the scale pass only corrected the
+# 15 frames it covered. The members shrank for half a second and then jumped
+# back out to twice the radius in one frame. Writing the same two the other way
+# round was fine, which is why the showcase scene never caught it.
+section("Group — chaining rigid animations of different lengths, either order")
+
+
+def orbit(line: str) -> dict[int, tuple[float, float]]:
+    """Every position the first member is given, by frame."""
+    source = (
+        "from videocode import *\n"
+        "s = Square(side=1.5).position(x=-1)\n"
+        "c = Circle(radius=0.75).position(x=1)\n"
+        "wait(0.3)\n" + line + "\nwait(0.5)\n"
+    )
+    # Through the same door a scene comes in by, which resets the context for us.
+    execSource(source, "group_test_scene.py")
+    frames = Context.stack[0]
+    return {
+        f: (entry["Position"]["args"]["x"], entry["Position"]["args"]["y"])
+        for f, entry in frames.items()
+        if f != -1 and "Position" in entry
+    }
+
+
+def sameAnimation(first: str, second: str) -> float:
+    """The worst distance between the two orders, over every frame either wrote."""
+    a, b = orbit(first), orbit(second)
+    worst = 0.0
+    for f in set(a) | set(b):
+        if f not in a or f not in b:
+            return float("inf")
+        worst = max(worst, math.dist(a[f], b[f]))
+    return worst
+
+
+check(
+    "rotate(1.5) then scale(0.5) == scale(0.5) then rotate(1.5)",
+    sameAnimation(
+        "Group(s, c).rotateBy(180, duration=1.5).scaleTo(0.5, duration=0.5)",
+        "Group(s, c).scaleTo(0.5, duration=0.5).rotateBy(180, duration=1.5)",
+    )
+    < 1e-9,
+)
+
+check(
+    "move(1.5) then scale(0.4) == scale(0.4) then move(1.5)",
+    sameAnimation(
+        "Group(s, c).moveBy(x=1, duration=1.5).scaleTo(0.5, duration=0.4)",
+        "Group(s, c).scaleTo(0.5, duration=0.4).moveBy(x=1, duration=1.5)",
+    )
+    < 1e-9,
+)
+
+check(
+    "rotate(1.0) then move(0.3) == move(0.3) then rotate(1.0)",
+    sameAnimation(
+        "Group(s, c).rotateBy(90, duration=1.0).moveBy(y=1, duration=0.3)",
+        "Group(s, c).moveBy(y=1, duration=0.3).rotateBy(90, duration=1.0)",
+    )
+    < 1e-9,
+)
+
+# The jump itself, named: the orbit a member rides must not change radius
+# between two frames once the scale that set it has landed.
+radii = [math.hypot(x, y) for _, (x, y) in sorted(
+    orbit("Group(s, c).rotateBy(180, duration=1.5).scaleTo(0.5, duration=0.5)").items()
+)]
+check(
+    "the orbit never jumps once the scale has landed",
+    all(abs(a - b) < 0.2 for a, b in zip(radii, radii[1:])),
+)
 
 # ── summary ────────────────────────────────────────────────────────────────
 summary()
