@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from abc import abstractmethod
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Callable, Iterable
@@ -129,12 +131,17 @@ class StackAction:
 
 
 class Wait(StackAction):
-    def __init__(self, startFrame: int, numberOfFrame: int, stop: list[str]):
+    def __init__(self, startFrame: int, numberOfFrame: int, stop: list[str], line: int = 0):
         self.action = self.__class__.__name__
         self.start = startFrame
         self.n = numberOfFrame
         # Which ambient clocks pause during the gap (Clock values; [] = none).
         self.stop = stop
+        # The line it was written on. A wait is where the scene's time actually
+        # joins — everything before it has ended, everything after starts from
+        # there — so the editor draws it across the timeline, and a gesture that
+        # lengthens something knows what will move because of it.
+        self.line = line
 
 
 class Timestamp(StackAction):
@@ -153,6 +160,12 @@ class Context:
     # stack[inputIdx][frameIdx][key] = {"type": shaderType, **shaderArgs}   — Apply
     # "Args" shaders use key "Args:{argName}" to allow multiple per frame.
     stack: dict[int, dict] = {}
+
+    # Where each input came from: (file, line, python class). A SIDE TABLE, never
+    # part of `stack` — C++ hands `stack[i]["args"]` straight into shader parsing
+    # and diffs the dicts to decide what to rebuild, so a new key there would
+    # both travel somewhere it does not belong and defeat the incremental reload.
+    origin: dict[int, tuple[str, int, str]] = {}
 
     # Wait and Timestamp actions; C++ consumes these separately.
     events: list[StackAction] = []
@@ -240,6 +253,41 @@ class Context:
     @staticmethod
     def create(inputIndex: int, inputType: str, inputArgs: dict[str, Any]):
         Context.stack.setdefault(inputIndex, {})[-1] = {"type": inputType, "args": inputArgs}
+        Context.origin[inputIndex] = Context._callSite()
+
+    @staticmethod
+    def _callSite() -> tuple[str, int, str]:
+        """
+        Where in the USER's file this input was made, and what class made it.
+
+        `inputType` is the C++ factory key, so every shape in a scene comes back
+        as "Polygon" and a `Text` arrives as one input per glyph — the stack
+        cannot say what a person wrote. This walks out of the library to the
+        first frame that is not ours, which is the right answer whether the call
+        was written there directly or three levels down inside `Text.__init__`,
+        and it is honest under `from videocode import *` by construction.
+
+        The innermost library frame's `self` recovers the class the stack
+        destroys: `Text`, `Square`, `Circle`.
+        """
+        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + os.sep
+        library = os.path.join(here, "videocode") + os.sep
+
+        frame = sys._getframe(2)
+        cls = ""
+        while frame is not None:
+            name = frame.f_code.co_filename
+            if not name.startswith(library):
+                return (name, frame.f_lineno, cls)
+            # The OUTERMOST library frame's `self`, not the innermost: a
+            # `Text` builds `Letter`s, and the letter is an implementation
+            # detail of the word. Overwriting as the walk goes outward leaves
+            # the last one standing, which is the class the author named.
+            owner = frame.f_locals.get("self")
+            if owner is not None:
+                cls = type(owner).__name__
+            frame = frame.f_back
+        return ("", 0, cls)
 
     @staticmethod
     def apply(inputIndex: int, shaderName: str, shaderType: str, shaderArgs: dict[str, Any]):
@@ -281,7 +329,7 @@ def wait(n: sec = 0, stop: Clock | Iterable[Clock] | None = None) -> None:
     startFrame = max(Context.lastEverAffectedFrame, Context.waitOffset)
     Context.waitOffset = Context.lastEverAffectedFrame = startFrame + n
 
-    Context.events.append(Wait(startFrame, n, stopped))
+    Context.events.append(Wait(startFrame, n, stopped, Context._callSite()[1]))
 
 
 def freeze(n: sec = 0) -> None:

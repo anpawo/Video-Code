@@ -184,7 +184,18 @@ def sceneModel() -> dict:
             }
         )
 
-    return {"fps": FRAMERATE, "frames": total, "elements": elements}
+    # ── Where the scene's time joins ──────────────────────────────────────
+    # A `wait()` is the one place the language lets time propagate: everything
+    # before it has ended, everything after starts from there. The editor draws
+    # them across the tracks, because "will this push what follows?" is answered
+    # by whether there is one — not by a rule the timeline invented.
+    waits = [
+        {"start": event.start, "frames": event.n, "line": event.line}
+        for event in Context.events
+        if isinstance(event, Wait)
+    ]
+
+    return {"fps": FRAMERATE, "frames": total, "elements": elements, "waits": waits}
 
 
 def effectCatalogue() -> list[dict]:
