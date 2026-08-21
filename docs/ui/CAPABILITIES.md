@@ -97,14 +97,17 @@ by gesture. `★` marks what has been named as important.
 - ● **Drag an effect onto the element** to choose when it starts
 - ● Snapping to 0.1 s, ⌘ to drop exactly under the pointer
 - ● The card stays open through the whole gesture
-- ○ Drop an effect straight onto a timeline clip, without opening the card
+- ● Drop an effect straight onto a timeline clip, without opening the card — the
+  lane under the pointer lights up, and the line lands where the moment you
+  dropped on actually is, not under the caret
 - ● Drag an effect's edge on the card to change its duration after the fact
 - ● Move an applied effect in time by dragging it — it writes `start=`
 - ● Remove an applied effect: the ✕ on its row deletes the call that wrote it —
   a link of a chain loses its link, a statement of its own takes its line
 - ○ Reorder effects, and see the order that the render actually uses
 - ○ Disable an effect without deleting it
-- ○ Favourites, recently used, and a search box in the library
+- ◐ A search box over the whole library — effects and templates in one list; no
+  favourites and no recently-used yet
 - ○ Effect presets: a configured effect saved under a name, reusable
 - ○ Copy an effect from one element to another by dragging
 - ○ Apply one effect to a multi-selection in one gesture
