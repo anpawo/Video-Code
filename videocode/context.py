@@ -285,7 +285,9 @@ class Context:
             if not name.startswith(library):
                 Context.lastCallFunction = func
                 return (name, frame.f_lineno, cls)
-            if not frame.f_code.co_name.startswith("_") and frame.f_code.co_name not in ("apply", "broadcast", "noteStatement"):
+            if not frame.f_code.co_name.startswith("_") and frame.f_code.co_name not in (
+                "apply", "broadcast", "noteStatement", "wrapper", "inner",
+            ):
                 func = frame.f_code.co_name
             # The OUTERMOST library frame's `self`, not the innermost: a
             # `Text` builds `Letter`s, and the letter is an implementation

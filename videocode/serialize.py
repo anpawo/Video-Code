@@ -411,6 +411,111 @@ def _effectForm(name: str, fn, inputClass) -> tuple[str, list[dict]]:
     return "effect", _effectParameters(fn)
 
 
+def templateCatalogue() -> list[dict]:
+    """
+    Everything a scene can be given, by name: shapes, media, and the composite
+    templates the library builds out of them.
+
+    Discovered, like the effects, and for the same reason — a hand-written list
+    is wrong the day someone adds a file. The rule for what belongs here is the
+    one the language already draws: an `Input` subclass reachable by name from
+    `from videocode import *` is something a person could have typed, and
+    nothing else is offered.
+
+    The group is read from where the class lives — a shape, a piece of media, or
+    a template assembled from them — because that is the only division a person
+    browsing them cares about, and it is already true in the tree.
+    """
+    import importlib
+    import inspect
+    import pkgutil
+
+    import videocode
+
+    import videocode.template.input as templates
+
+    from videocode.input.input import Input
+
+    groups = {
+        "videocode.input.shape": "shape",
+        "videocode.input.media": "media",
+        "videocode.input.interface": "interface",
+    }
+
+    def described(value) -> str:
+        # The first line of the docstring, when there is one. Never a
+        # description written here: what the class says about itself is what the
+        # person reading the code will see, and two of them would drift apart.
+        # Its OWN docstring, never an inherited one: `inspect.getdoc` walks up
+        # to the base class, so eleven different shapes all introduced
+        # themselves as "An `Input` is a source that you want to add to the
+        # timeline of the video" — a sentence that tells you nothing about which
+        # one to pick. A class that says nothing about itself says nothing here.
+        told = value.__dict__.get("__doc__") or ""
+        return told.strip().split("\n")[0][:120]
+
+    def parameters(value) -> list[dict]:
+        try:
+            return [p for p in _effectParameters(value.__init__) if p["name"] != "self"]
+        except (TypeError, ValueError):
+            return []
+
+    def required(value) -> list[str]:
+        # What has no default. `Shadow(shape=…)` is about another input and
+        # cannot be conjured on its own; `Video(filepath=…)` needs a file. The
+        # editor asks before it writes rather than writing a call that raises.
+        return [p["name"] for p in parameters(value) if not p["optional"]]
+
+    found: list[dict] = []
+    seen: set[str] = set()
+
+    # What `from videocode import *` already gives a scene: no import to write.
+    for name, value in vars(videocode).items():
+        if name.startswith("_") or not inspect.isclass(value):
+            continue
+        if not issubclass(value, Input) or value is Input or inspect.isabstract(value):
+            continue
+
+        where = getattr(value, "__module__", "")
+        group = next((tag for prefix, tag in groups.items() if where.startswith(prefix)), "")
+        if not group:
+            continue
+
+        seen.add(name)
+        found.append({
+            "name": name, "group": group, "module": "",
+            "says": described(value), "params": parameters(value),
+            "required": required(value),
+        })
+
+    # And the composite ones, which are NOT in the star import — `Arrow` lives
+    # in videocode.template.input.Arrow, so the module travels with the name the
+    # way it does for effects: a button that writes a call without its import
+    # writes a scene that does not run.
+    for module in pkgutil.walk_packages(templates.__path__, templates.__name__ + "."):
+        try:
+            loaded = importlib.import_module(module.name)
+        except Exception:
+            continue
+        for name, value in vars(loaded).items():
+            if name.startswith("_") or name in seen or not inspect.isclass(value):
+                continue
+            if value.__module__ != module.name:
+                continue
+            if not issubclass(value, Input) or inspect.isabstract(value):
+                continue
+
+            seen.add(name)
+            found.append({
+                "name": name, "group": "template", "module": module.name,
+                "says": described(value), "params": parameters(value),
+                "required": required(value),
+            })
+
+    found.sort(key=lambda t: (t["group"], t["name"]))
+    return found
+
+
 def inputSignature(className: str) -> list[dict]:
     """
     What the call that makes an input takes, so the editor can offer its fields.
@@ -439,8 +544,17 @@ def inputSignature(className: str) -> list[dict]:
 
 def _namedEasing(value) -> str:
     """
-    `Easing.Out` for the object behind it, or an empty string for anything else.
+    What a default is CALLED, when the library gives it a name.
+
+    `Easing.Out` for the curve behind it, `BLUE_C` for the colour: the editor
+    shows and writes what a person would have typed, and an object's own repr is
+    an address nobody can paste into a call. Found by identity in the namespaces
+    that name them, so a new easing or a new colour needs no entry here.
+
+    An empty string for anything else, which reads as "no default to show".
     """
+    import videocode.constants as constants
+
     from videocode.utils.bezier import Easing
 
     if value is None:
@@ -449,6 +563,20 @@ def _namedEasing(value) -> str:
     for name, candidate in vars(Easing).items():
         if not name.startswith("_") and candidate is value:
             return f"Easing.{name}"
+
+    # Colours by VALUE, not by identity: a signature's `fillColor=rgba(77, 111,
+    # 71, 255)` is the same green as `GREEN_E` without being the same object,
+    # and the name is what a person would have typed.
+    from videocode.color import rgba
+
+    if isinstance(value, rgba):
+        for name, candidate in vars(constants).items():
+            if name.isupper() and isinstance(candidate, rgba) and candidate == value:
+                return name
+
+    for name, candidate in vars(constants).items():
+        if not name.startswith("_") and candidate is value and name.isupper():
+            return name
     return ""
 
 
@@ -494,7 +622,16 @@ def _effectParameters(fn) -> list[dict]:
         annotation = parameter.annotation
         kind = annotation if isinstance(annotation, str) else getattr(annotation, "__name__", "")
 
-        out.append({"name": name, "default": written, "kind": kind})
+        # Whether the call can be made without it. NOT "the default came back
+        # empty": a colour the library does not name has no spelling to show and
+        # is still optional, and treating it as required made `Square` look like
+        # something you cannot place without answering two questions.
+        out.append({
+            "name": name,
+            "default": written,
+            "kind": kind,
+            "optional": parameter.default is not inspect.Parameter.empty,
+        })
 
     return out
 

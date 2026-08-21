@@ -120,9 +120,12 @@ A template here is a Python callable that builds inputs — `CardStack`,
 one without typing it.
 
 - ● Composite inputs in the library, parameterised, composable
-- ○ A template browser: name, preview, parameters, where it comes from
-- ○ **Drag a template onto the timeline** at a chosen time, like an effect
-- ○ Its parameters set BEFORE the drop, same rule as effects
+- ● A template browser: a dockable Library panel — shapes, media and composite
+  templates, searchable, each with the fields its own signature declares
+- ● **Drag a template onto the timeline** at a chosen time, like an effect — the
+  drop writes the line that makes it, and, when the moment is not the one the
+  code has already reached, the `hide()`/`show(start=…)` that says when it appears
+- ● Its parameters set BEFORE the drop, same rule as effects
 - ○ A live preview of the template while dragging, at its real duration
 - ○ Resize a placed template by dragging its edge, and decide what stretches:
   the middle stretches, the in and out stay — Premiere calls this responsive time

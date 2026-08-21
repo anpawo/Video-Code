@@ -164,4 +164,36 @@ placed = model(
 )["elements"][0]
 check("the clip ends on the frame before it", placed["last"] == target - 1)
 
+# ── What the editor can offer to place ─────────────────────────────────────
+section("the catalogue is what the language actually exposes")
+from videocode.serialize import templateCatalogue
+
+catalogue = templateCatalogue()
+byName = {one["name"]: one for one in catalogue}
+
+check("it found something in every family",
+      {one["group"] for one in catalogue} >= {"shape", "media", "template"})
+check("a shape is there", "Square" in byName)
+check("and a composite one", "Arrow" in byName)
+
+check("what the star import gives needs no import line", byName["Square"]["module"] == "")
+check("a template carries the module it lives in",
+      byName["Arrow"]["module"] == "videocode.template.input.Arrow")
+
+check("a Square can be placed with no answers", byName["Square"]["required"] == [])
+check("a Text cannot be placed without its text", byName["Text"]["required"] == ["text"])
+check("a Video needs its file", byName["Video"]["required"] == ["filepath"])
+
+# The editor writes only what differs from the default, so a default it cannot
+# spell is a field it would have to leave to the person. A colour is the case
+# that matters: `RED_A` is what a person types, and `(199, 84, 80, 255)` is not.
+check("a colour default is named, not printed",
+      dict((p["name"], p["default"]) for p in byName["Circle"]["params"])["fillColor"] == "RED_A")
+check("optional is about the signature, not about having a spelling",
+      all(p["optional"] for p in byName["Square"]["params"]))
+
+check("every name in it can actually be imported",
+      all(one["module"] == "" or __import__(one["module"], fromlist=[one["name"]])
+          for one in catalogue))
+
 summary()
