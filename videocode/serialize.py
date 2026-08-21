@@ -148,11 +148,84 @@ def sceneModel() -> dict:
                 else:
                     spans.append([frame, frame])
 
-        effects = [
-            {"name": key, "start": span[0], "end": span[1]}
-            for key, spans in runs.items()
-            for span in spans
-        ]
+        # Where each run was WRITTEN.
+        #
+        # A run is frames on the stack; the editor needs the line that asked for
+        # them, or an effect can only be read, never moved, shortened or deleted.
+        # `Context.statements` holds one entry per apply() — the line and the
+        # frames it covered — so a run is attributed to the statement of the same
+        # input whose span for that shader key overlaps it. A group emits per
+        # frame, so several statements carry the same line; the earliest wins,
+        # which is the one a person would point at.
+        def wroteIt(key: str, first: int, last: int) -> tuple[int, str]:
+            # Whoever covers the most of it. Consecutive frames are merged into
+            # one run, so a run can span two statements — `Circle().opacity(0)`
+            # writing frame 0 and `fadeIn()` writing the ten after it — and the
+            # one that owns two frames of twelve is not the one a person means.
+            best, call, widest, kinds = 0, "", 0, 99
+            for statement in Context.statements:
+                if statement["input"] != index:
+                    continue
+                span = statement["keys"].get(key)
+                if span is None:
+                    continue
+                overlap = min(span[1], last) - max(span[0], first) + 1
+                if overlap <= 0:
+                    continue
+                # Most of the run wins; between statements that cover it
+                # equally, the one that touched the FEWEST kinds of shader — a
+                # group re-emits position, rotation and scale on every pass, so
+                # `scaleTo` (position and scale) is a better answer for a Scale
+                # run than `rotateBy` (all three).
+                spread = len(statement["keys"])
+                if overlap > widest or (overlap == widest and spread < kinds):
+                    best, call, widest, kinds = statement["line"], statement["call"], overlap, spread
+            return best, call
+
+        effects = []
+        for key, spans in runs.items():
+            for span in spans:
+                line, call = wroteIt(key, span[0], span[1])
+                effects.append({
+                    "name": key,
+                    "start": span[0],
+                    "end": span[1],
+                    "line": line,
+                    # What the person wrote, when it is known: an editor that
+                    # says `scaleTo` is talking about their scene, one that says
+                    # `Scale` is talking about ours.
+                    "call": call,
+                })
+        # One row per STATEMENT, not per kind of shader.
+        #
+        # A single `scaleTo` on a group writes both position and scale, and two
+        # bars called `scaleTo` sitting on the same frames describe one thing
+        # twice. Runs from the same call on the same line become one row, and
+        # what they wrote is kept in `kinds`.
+        #
+        # The row is the SHORTEST of them, not their union. A group's `scaleTo`
+        # writes scale for its own second and a half, and position for as long
+        # as ANYTHING in the group is moving — the rigid recomputation that
+        # keeps the members' places consistent. The union says the call lasts as
+        # long as the group does, which is why shortening it left the bar where
+        # it was; the shortest run is the animation the call actually asked for.
+        folded: dict[tuple[int, str], dict] = {}
+        loose: list[dict] = []
+        for effect in effects:
+            key = (effect["line"], effect["call"])
+            if effect["line"] == 0 or not effect["call"]:
+                loose.append(effect)
+                continue
+            held = folded.get(key)
+            if held is None:
+                folded[key] = effect | {"kinds": [effect["name"]]}
+                continue
+            held["kinds"].append(effect["name"])
+            if effect["end"] - effect["start"] < held["end"] - held["start"]:
+                held["start"] = effect["start"]
+                held["end"] = effect["end"]
+
+        effects = loose + list(folded.values())
         effects.sort(key=lambda e: (e["start"], e["name"]))
 
         # ── When it is actually on screen ─────────────────────────────────

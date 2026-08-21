@@ -275,10 +275,18 @@ class Context:
 
         frame = sys._getframe(2)
         cls = ""
+        # The last library function crossed on the way out — `moveBy`,
+        # `scaleTo`, `fadeIn`. The stack knows which method a person called; the
+        # shaders it produced do not, and the editor needs it to offer "remove
+        # this" on the right call of a chain rather than on the whole line.
+        func = ""
         while frame is not None:
             name = frame.f_code.co_filename
             if not name.startswith(library):
+                Context.lastCallFunction = func
                 return (name, frame.f_lineno, cls)
+            if not frame.f_code.co_name.startswith("_") and frame.f_code.co_name not in ("apply", "broadcast", "noteStatement"):
+                func = frame.f_code.co_name
             # The OUTERMOST library frame's `self`, not the innermost: a
             # `Text` builds `Letter`s, and the letter is an implementation
             # detail of the word. Overwriting as the walk goes outward leaves
@@ -287,7 +295,35 @@ class Context:
             if owner is not None:
                 cls = type(owner).__name__
             frame = frame.f_back
+        Context.lastCallFunction = func
         return ("", 0, cls)
+
+    # One entry per apply() that reached the stack: which input, which line of
+    # the person's file, which shader keys, and the frames it covers. A SIDE
+    # TABLE like `origin` — the stack itself is handed to C++ and diffed, so
+    # nothing that is only for the editor may live in it.
+    statements: list[dict[str, Any]] = []
+
+    # Filled by the last `_callSite()`: the library function the person called.
+    lastCallFunction: str = ""
+
+    @staticmethod
+    def noteStatement(inputIndex: int, touched: dict[str, list[int]]) -> None:
+        """
+        Record where a statement was written, and what it covers.
+
+        The line is read here rather than per shader: the walk out of the library
+        costs about 2 µs, an animation is hundreds of shaders, and every one of
+        them came from the same line anyway.
+        """
+        file, line, _ = Context._callSite()
+        Context.statements.append({
+            "file": file,
+            "line": line,
+            "call": Context.lastCallFunction,
+            "input": inputIndex,
+            "keys": {name: (span[0], span[1]) for name, span in touched.items()},
+        })
 
     @staticmethod
     def apply(inputIndex: int, shaderName: str, shaderType: str, shaderArgs: dict[str, Any]):

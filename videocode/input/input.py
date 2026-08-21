@@ -94,6 +94,8 @@ class Input(ABC):
         if Context.waitOffset >= self.meta.transformationOffset:
             self.waitTo(Context.waitOffset)
 
+        touched: dict[str, list[int]] = {}
+
         flatten: list[IShader] = []
         for s in shaders:
             if not isinstance(s, IShader):
@@ -156,11 +158,30 @@ class Input(ABC):
             args = {k: v for k, v in vars(s).items() if k not in ("start", "duration", "offset")} | {"start": __start, "duration": __duration}
 
             # Add step to the stack
-            Context.apply(self.meta.index, upperFirst(s.__class__.__name__), s._type, args)
+            key = upperFirst(s.__class__.__name__)
+            Context.apply(self.meta.index, key, s._type, args)
+
+            # What this STATEMENT touched, for the editor.
+            #
+            # A shader on the stack says what happens on a frame; it does not say
+            # which line asked for it, and the editor needs that to let you move,
+            # shorten or delete an effect by its bar rather than by finding the
+            # call yourself. Gathered per apply() — one call is one statement —
+            # and the source line is read once at the end, because the walk out
+            # of the library costs 2 µs and an animation is hundreds of shaders.
+            span = touched.get(key)
+            if span is None:
+                touched[key] = [__start, __end]
+            else:
+                span[0] = min(span[0], __start)
+                span[1] = max(span[1], __end)
 
             # Post-callbacks
             for callback in self.meta.postCallbacks.get(type(s), []):
                 callback(s, start, duration, offset if offset is not None else self.meta.transformationOffset)
+
+        if touched:
+            Context.noteStatement(self.meta.index, touched)
 
         return self
 

@@ -13,7 +13,16 @@ sys.path.insert(0, ".")
 sys.path.insert(0, "test")
 from helpers import check, section, summary
 
-from videocode.edit import argumentSpan, callLine, findCalls, readArgument, removeArgument, setArgument
+from videocode.edit import (
+    argumentSpan,
+    callLine,
+    findCalls,
+    positionalSpan,
+    readArgument,
+    removeArgument,
+    removeCallSpan,
+    setArgument,
+)
 
 SOURCE = '''#!/usr/bin/env python3
 
@@ -129,6 +138,63 @@ section("broken source is refused, not mangled")
 broken = "square = Square(side=\n"
 edit = setArgument(broken, 1, "Square", "side", "2")
 check("returned unchanged", edit.source == broken and not edit.changed)
+
+# ── An argument with no name ───────────────────────────────────────────────
+section("positionalSpan — `wait(0.3)` writes its seconds without a name")
+span = positionalSpan(SOURCE, 8, "wait", 0, "0.6")
+check("a span was given", span is not None)
+if span is not None:
+    start, end, text = span
+    check("it replaces the number, nothing more", SOURCE[start:end] == "0.3" and text == "0.6")
+    edited = SOURCE[:start] + text + SOURCE[end:]
+    check("the line reads as written", line(edited, 8) == "wait(0.6)")
+    check("every other line is untouched", untouched(SOURCE, edited, 8))
+
+check("the same value is no span at all", positionalSpan(SOURCE, 8, "wait", 0, "0.3") is None)
+
+empty = "wait()\n"
+span = positionalSpan(empty, 1, "wait", 0, "0.5")
+check("an argument that is not there yet is appended", span is not None)
+if span is not None:
+    start, end, text = span
+    check("with no stray separator", empty[:start] + text + empty[end:] == "wait(0.5)\n")
+
+check("a slot cannot be skipped", positionalSpan(empty, 1, "wait", 2, "0.5") is None)
+
+# ── Taking a call away ─────────────────────────────────────────────────────
+section("removeCallSpan — a link in a chain loses only its link")
+span = removeCallSpan(SOURCE, 10, "scaleTo")
+check("a span was given", span is not None)
+if span is not None:
+    start, end, text = span
+    edited = SOURCE[:start] + text + SOURCE[end:]
+    check("the scale is gone", line(edited, 10) == "Group(square, circle).rotateBy(180, duration=1.5)")
+    check("the file still parses", isinstance(compile(edited, "scene.py", "exec"), object))
+    check("every other line is untouched", untouched(SOURCE, edited, 10))
+
+span = removeCallSpan(SOURCE, 10, "rotateBy")
+check("the middle link goes too, and only it", span is not None)
+if span is not None:
+    start, end, text = span
+    edited = SOURCE[:start] + text + SOURCE[end:]
+    check("what is left is the rest of the chain",
+          line(edited, 10) == "Group(square, circle).scaleTo(0.5, duration=0.5)")
+
+section("removeCallSpan — a statement of its own takes its line")
+alone = "square = Square(side=1)\nsquare.fadeIn()\nsquare.moveBy(x=1)\n"
+span = removeCallSpan(alone, 2, "fadeIn")
+check("a span was given", span is not None)
+if span is not None:
+    start, end, text = span
+    edited = alone[:start] + text + alone[end:]
+    check("the line went with it, newline included",
+          edited == "square = Square(side=1)\nsquare.moveBy(x=1)\n")
+    check("no bare name left behind", "square\n" not in edited)
+
+section("removeCallSpan — what it refuses")
+check("a call that is not there", removeCallSpan(SOURCE, 10, "moveBy") is None)
+check("the call that MADE the element", removeCallSpan(SOURCE, 5, "Square") is None)
+check("broken source", removeCallSpan("square.fadeIn(\n", 1, "fadeIn") is None)
 
 # ── summary ────────────────────────────────────────────────────────────────
 summary()

@@ -214,6 +214,47 @@ def argumentSpan(
     return closing, closing, f"{separator}{name}={value}"
 
 
+def positionalSpan(
+    source: str,
+    line: int,
+    call: str,
+    index: int,
+    value: str,
+    occurrence: int = 0,
+) -> tuple[int, int, str] | None:
+    """
+    The same as `argumentSpan`, for an argument that has no name.
+
+    `wait(0.3)` is the case that asked for it: the number is written in the
+    brackets, not after an `=`, and a timeline that lets you drag a gap has to
+    rewrite exactly that. Missing arguments are appended in order — `wait()`
+    takes a first positional the way `wait(0.3)` already has one.
+    """
+    node = _pick(source, line, call, occurrence)
+    if node is None:
+        return None
+
+    if index < len(node.args):
+        start, end = _span(source, node.args[index])
+        if source[start:end] == value:
+            return None
+        return start, end, value
+
+    # Only the argument straight after the last one written can be added: there
+    # is no way to skip a slot without naming it, and guessing a name here would
+    # be inventing part of a signature.
+    if index != len(node.args) or node.keywords:
+        return None
+
+    start, end = _span(source, node)
+    closing = source.rfind(")", start, end)
+    if closing < 0:
+        return None
+
+    separator = ", " if node.args else ""
+    return closing, closing, f"{separator}{value}"
+
+
 def removeArgument(source: str, line: int, call: str, name: str, occurrence: int = 0) -> Edit:
     """
     Take a keyword argument out, and the separator that came with it.
@@ -247,6 +288,70 @@ def removeArgument(source: str, line: int, call: str, name: str, occurrence: int
         return Edit(source[:start] + source[end:], True)
 
     return Edit(source, False, f"no argument named {name!r}")
+
+
+def removeCallSpan(
+    source: str,
+    line: int,
+    call: str,
+    occurrence: int = 0,
+) -> tuple[int, int, str] | None:
+    """
+    The span that takes a call away, as a range to replace with nothing.
+
+    Two shapes, told apart by what is left behind:
+
+    - a link in a chain — `Group(a, b).scaleTo(0.5).rotateBy(180)` — where only
+      `.scaleTo(0.5)` goes, from the end of what it was called on to its own end;
+    - a statement of its own — `square.fadeIn()` — where removing the link would
+      leave the bare name `square` sitting on a line, so the line goes with it,
+      newline included.
+
+    `None` when the call is not there, or when it is nested inside something
+    else (an argument, an assignment's value): taking it out then changes what
+    the surrounding expression means, and a gesture may not do that quietly.
+    """
+    node = _pick(source, line, call, occurrence)
+    if node is None:
+        return None
+
+    start, end = _span(source, node)
+
+    # Where the link begins: just after whatever it was called on.
+    if not isinstance(node.func, ast.Attribute):
+        receiverEnd = start
+    else:
+        receiverEnd = _span(source, node.func.value)[1]
+
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return None
+
+    # The statement this call sits in, and whether the call IS all of it.
+    for statement in ast.walk(tree):
+        if not isinstance(statement, ast.Expr):
+            continue
+        if _span(source, statement) != (start, end) and _span(source, statement.value) != (start, end):
+            continue
+
+        # Only when nothing else on the line does anything. `square.fadeIn()`
+        # leaves a bare name behind, so the line goes; but the last link of
+        # `Group(a, b).scaleTo(0.5).rotateBy(180)` is also the outermost call,
+        # and taking its line would take the scale with it.
+        if any(isinstance(inner, ast.Call) for inner in ast.walk(node.func)):
+            break
+
+        offsets = _offsets(source)
+        lineStart = offsets[statement.lineno]
+        lineEnd = offsets[(statement.end_lineno or statement.lineno) + 1] if (statement.end_lineno or statement.lineno) + 1 < len(offsets) else len(source)
+        if source[lineStart:_span(source, statement)[0]].strip() == "":
+            return lineStart, lineEnd, ""
+
+    # A link in a chain, and only a link.
+    if receiverEnd == start:
+        return None
+    return receiverEnd, end, ""
 
 
 def callLine(source: str, name: str, occurrence: int = 0) -> int:
