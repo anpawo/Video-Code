@@ -21,6 +21,10 @@ def _resetContext():
     Context.waitOffset = 0
     Context.backgroundColor = None
     Context.origin = {}
+    # The side table too. The editor runs a scene on every gesture, and
+    # statements that outlive their run pile up in it — a hundred a frame for a
+    # group — until an effect is attributed to a line that moved three edits ago.
+    Context.statements = []
 
 
 def _applyBackground(scope: dict) -> None:
@@ -228,6 +232,27 @@ def sceneModel() -> dict:
         effects = loose + list(folded.values())
         effects.sort(key=lambda e: (e["start"], e["name"]))
 
+        # ── Where a new statement about this element could go ─────────────
+        # The lines that already say something about it, in the order they ran,
+        # each with the cursor left standing after it. To write `hide` at a
+        # chosen moment the editor puts it after the last of these whose cursor
+        # is not already past that moment, and counts `start` from there.
+        # Consecutive entries on one line are one point: a group re-emits its
+        # members every frame, which is a hundred statements from one line.
+        points: list[dict[str, Any]] = []
+        for statement in Context.statements:
+            if statement["input"] != index or statement["line"] <= 0:
+                continue
+            if points and points[-1]["line"] == statement["line"]:
+                points[-1]["call"] = statement["call"]
+                points[-1]["cursor"] = statement["cursor"]
+                continue
+            points.append({
+                "line": statement["line"],
+                "call": statement["call"],
+                "cursor": statement["cursor"],
+            })
+
         # ── When it is actually on screen ─────────────────────────────────
         # NOT "the frames it has entries on". A typewriter writes
         # `opacity(0)` at frame 0 for every letter before ramping each one in,
@@ -235,25 +260,45 @@ def sceneModel() -> dict:
         # the whole point of the gesture — disappears. Visibility lives in the
         # VALUE, and the predicate is the renderer's own: not hidden, and
         # opacity not zero (src/core/Core.cpp).
+        # A state, not a set of frames. What a key says holds until another key
+        # says otherwise: a square that fades in at frame 1 and is hidden at
+        # frame 45 is on screen for all of 1…44, and it has entries on none of
+        # them. Counting only the frames carrying keys ended the clip at 11,
+        # where the fade stopped writing.
         opacity = 255.0
         hidden = False
-        visible = []
+        firstSeen = -1
+        lastSeen = total - 1
+        wasVisible = False
         for frame in frames:
-            for shader in entry[frame].values():
+            for key, shader in entry[frame].items():
                 args = shader.get("args", {})
                 if "opacity" in args:
                     opacity = args["opacity"]
-                if "hidden" in args:
-                    hidden = bool(args["hidden"])
-            if not hidden and opacity != 0:
-                visible.append(frame)
+                # `hide()` carries no arguments — the KEY is the whole
+                # statement, the way the renderer reads it. Asking for a
+                # `hidden` value left every hidden element on the timeline until
+                # the end of the scene, which is exactly the length nobody
+                # wanted to see.
+                if key == "Hide":
+                    hidden = True
+                elif key == "Show":
+                    hidden = False
+            nowVisible = not hidden and opacity != 0
+            if nowVisible and firstSeen < 0:
+                firstSeen = frame
+            if wasVisible and not nowVisible:
+                lastSeen = frame - 1
+            elif nowVisible and not wasVisible:
+                # On again — and on until something turns it off, which is what
+                # the scene ending is.
+                lastSeen = total - 1
+            wasVisible = nowVisible
 
-        # An input that is still on screen at its last key stays on screen: the
-        # scene ends, it does not.
-        firstSeen = visible[0] if visible else (frames[0] if frames else 0)
-        lastSeen = total - 1 if (visible and visible[-1] == frames[-1]) else (
-            visible[-1] if visible else total - 1
-        )
+        # Never on screen at all: drawn where its keys are, rather than not at
+        # all, because a clip you cannot see is still a clip you have to find.
+        if firstSeen < 0:
+            firstSeen = frames[0] if frames else 0
 
         file, line, cls = Context.origin.get(index, ("", 0, ""))
         elements.append(
@@ -265,6 +310,7 @@ def sceneModel() -> dict:
                 "first": firstSeen,
                 "last": lastSeen,
                 "effects": effects,
+                "points": points,
             }
         )
 

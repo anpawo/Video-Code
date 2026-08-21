@@ -181,7 +181,16 @@ class Input(ABC):
                 callback(s, start, duration, offset if offset is not None else self.meta.transformationOffset)
 
         if touched:
-            Context.noteStatement(self.meta.index, touched)
+            # The cursor this statement counted from, so the editor can write a
+            # `start=` for a statement it inserts NEXT to this one: `start` is
+            # seconds after the element's own cursor, and nothing in the buffer
+            # says where that is.
+            Context.noteStatement(
+                self.meta.index,
+                touched,
+                offset if offset is not None else self.meta.transformationOffset,
+                self.meta.transformationOffset,
+            )
 
         return self
 

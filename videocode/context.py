@@ -308,7 +308,9 @@ class Context:
     lastCallFunction: str = ""
 
     @staticmethod
-    def noteStatement(inputIndex: int, touched: dict[str, list[int]]) -> None:
+    def noteStatement(
+        inputIndex: int, touched: dict[str, list[int]], offset: int = 0, cursor: int = 0
+    ) -> None:
         """
         Record where a statement was written, and what it covers.
 
@@ -323,6 +325,13 @@ class Context:
             "call": Context.lastCallFunction,
             "input": inputIndex,
             "keys": {name: (span[0], span[1]) for name, span in touched.items()},
+            "offset": offset,
+            # Where the element's cursor stands once this statement is done —
+            # which is what a statement written on the NEXT line would count its
+            # `start` from. The editor needs it to write a `hide` at a chosen
+            # moment: `hide(start=…)` is seconds after the cursor, and the
+            # cursor is nowhere in the buffer.
+            "cursor": cursor,
         })
 
     @staticmethod
