@@ -119,7 +119,18 @@ def sceneModel() -> dict:
     frames it actually has entries on, extended to the end of the scene because
     an input that exists keeps existing until the scene ends.
     """
-    total = Context.lastEverAffectedFrame + 1
+    # The cursor IS the count.
+    #
+    # `lastEverAffectedFrame` is exclusive: `__end = start + duration`, so it
+    # points at the frame after the last one carrying anything. Adding one
+    # counted it twice, and the timeline drew a scene one frame longer than the
+    # video the renderer writes — 2.733 s of editor for a 2.700 s file.
+    #
+    # The floor is the scene that animates nothing: everything lands on frame 0
+    # with no duration, the cursor never leaves 0, and the one frame there is to
+    # see still has to be counted. Without it a static scene renders an empty
+    # file, which is what the C++ side did.
+    total = max(Context.lastEverAffectedFrame, 1)
     elements = []
 
     for index in sorted(Context.stack):
@@ -419,7 +430,7 @@ def execSource(source: str, filepath: str) -> dict:
     return {
         "ok": True,
         "inputs": len(Context.stack),
-        "frames": Context.lastEverAffectedFrame + 1,
+        "frames": max(Context.lastEverAffectedFrame, 1),
         "fps": FRAMERATE,
         "scene": json.dumps(sceneModel()),
     }

@@ -210,6 +210,11 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
                    .attr("lastEverAffectedFrame")
                    .cast<size_t>();
 
+    // A scene that animates nothing still has a frame to show: everything lands
+    // on frame 0 with no duration, so the cursor never leaves 0 and this wrote a
+    // video with no frames in it at all.
+    _nbFrame = std::max<size_t>(_nbFrame, 1);
+
     // Clear color from the script's `BG` global (Context.backgroundColor,
     // resolved by serialize.py after the scene ran). Reset to the default
     // unconditionally: a hot-reload that removed BG must restore the gray.
