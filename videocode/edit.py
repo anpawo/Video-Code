@@ -255,6 +255,24 @@ def positionalSpan(
     return closing, closing, f"{separator}{value}"
 
 
+def readPositional(source: str, line: int, call: str, index: int, occurrence: int = 0) -> str | None:
+    """
+    What an argument written WITHOUT a name says, verbatim.
+
+    `Video("shot.mp4")` keeps its file in the first slot, and the editor has to
+    be able to read it back: dragging that clip from the bin onto the timeline
+    writes another call about the same file, and the file is only ever named
+    here. The TEXT again — `"shot.mp4"` with its quotes, or `PATH` if that is
+    what was typed — because what goes back into a call is what came out of one.
+    """
+    node = _pick(source, line, call, occurrence)
+    if node is None or index >= len(node.args):
+        return None
+
+    start, end = _span(source, node.args[index])
+    return source[start:end]
+
+
 def removeArgument(source: str, line: int, call: str, name: str, occurrence: int = 0) -> Edit:
     """
     Take a keyword argument out, and the separator that came with it.

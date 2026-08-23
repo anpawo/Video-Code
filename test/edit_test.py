@@ -18,6 +18,7 @@ from videocode.edit import (
     callLine,
     findCalls,
     positionalSpan,
+    readPositional,
     readArgument,
     removeArgument,
     removeCallSpan,
@@ -160,6 +161,12 @@ if span is not None:
     check("with no stray separator", empty[:start] + text + empty[end:] == "wait(0.5)\n")
 
 check("a slot cannot be skipped", positionalSpan(empty, 1, "wait", 2, "0.5") is None)
+
+section("readPositional — an argument with no name, read back")
+check("the file a Video was made from", readPositional(SOURCE, 6, "Video", 0) == '"shot.mp4"')
+check("the seconds a wait was given", readPositional(SOURCE, 8, "wait", 0) == "0.3")
+check("a slot nothing was written into", readPositional(SOURCE, 8, "wait", 1) is None)
+check("a call that is not there", readPositional(SOURCE, 6, "Sound", 0) is None)
 
 # ── Taking a call away ─────────────────────────────────────────────────────
 section("removeCallSpan — a link in a chain loses only its link")

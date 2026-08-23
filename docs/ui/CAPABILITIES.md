@@ -27,7 +27,8 @@ by gesture. `★` marks what has been named as important.
 - ● Video trimming at load (`cuts`, `startFrame`, `endFrame`)
 - ◐ A bin: list and grid, add by button — no folders, no search, no rename
 - ○ Drag a file from the Finder onto the timeline at a chosen time
-- ○ Drag from the bin to the timeline (today it writes a line at the caret)
+- ● Drag from the bin to the timeline: the file lands at the moment you dropped it,
+  named after itself, before the `wait` that has already passed that moment
 - ○ Folders and collections in the bin, with the agent able to sort into them
 - ○ Search and filter the bin by name, kind, duration, resolution
 - ○ Thumbnails from the first frame; hover-scrub a clip's thumbnail
@@ -105,7 +106,9 @@ by gesture. `★` marks what has been named as important.
 - ● Remove an applied effect: the ✕ on its row deletes the call that wrote it —
   a link of a chain loses its link, a statement of its own takes its line
 - ○ Reorder effects, and see the order that the render actually uses
-- ○ Disable an effect without deleting it
+- ● Disable an effect without deleting it — the line is commented out, and the card
+  keeps showing it (read from the BUFFER, since nothing ran) with the switch to
+  bring it back
 - ◐ A search box over the whole library — effects and templates in one list; no
   favourites and no recently-used yet
 - ○ Effect presets: a configured effect saved under a name, reusable
