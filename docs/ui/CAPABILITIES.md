@@ -62,9 +62,11 @@ by gesture. `★` marks what has been named as important.
 - ○ Ripple delete (close the gap) vs lift (leave a hole)
 - ○ Multi-selection, rubber-band selection, select all to the left/right
 - ○ Copy, cut, paste — including paste attributes only
-- ○ Snapping to: clips, the playhead, markers, beats, seconds, frames
+- ◐ Snapping: clip edges, wait edges, the playhead and the range, within eight
+  pixels at any zoom, ⌘ to ignore it — no beats and no markers yet
 - ○ Markers on the timeline and on clips, named and coloured, with comments
-- ○ In and out points, and playing only the range between them
+- ● In and out points (`I` / `O`, `⇧X` clears), drawn on the timeline with the rest
+  of the scene quietened — and Space plays the range and stops at its end
 - ○ Grouping several clips so they move as one
 - ○ Nesting: fold a selection into a compound clip, open it, unfold it
 - ○ Track locking, muting, soloing, hiding
