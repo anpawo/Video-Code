@@ -142,6 +142,36 @@ class Input(ABC):
             # VertexShader.modify() writes resolved values back to self.* (e.g. position.modify
             # sets self.x = current x when x=None) so vars(s) contains the right args.
             # Shallow copy is sufficient: only primitive attributes are reassigned, never mutated.
+            if not registered:
+                continue
+
+            key = upperFirst(s.__class__.__name__)
+
+            # What this STATEMENT covers, for the editor.
+            #
+            # A shader on the stack says what happens on a frame; it does not say
+            # which line asked for it, and the editor needs that to let you move,
+            # shorten or delete an effect by its bar rather than by finding the
+            # call yourself. Gathered per apply() — one call is one statement —
+            # and the source line is read once at the end, because the walk out
+            # of the library costs 2 µs and an animation is hundreds of shaders.
+            #
+            # Recorded BEFORE `autodestroy`, and that is the whole point. A
+            # rotation has not turned by anything on its first frame, so the
+            # shader for that frame changes nothing and is dropped — rightly, it
+            # would be a write with no effect. But the CALL still covers that
+            # frame: `rotateBy(180, duration=1.2)` starts where it says it
+            # starts. Counting only what reached the stack drew it one frame
+            # late, beside a `scaleTo` of the same length that started on time,
+            # and made two things written to happen together look as if they did
+            # not.
+            span = touched.get(key)
+            if span is None:
+                touched[key] = [__start, __end]
+            else:
+                span[0] = min(span[0], __start)
+                span[1] = max(span[1], __end)
+
             # FragmentShaders never mutate self, so no copy is needed there.
             # autodestroy() only reads from self (the Input), never mutates s — safe to check
             # before copying so no-op shaders skip the allocation entirely.
@@ -151,30 +181,11 @@ class Input(ABC):
                 s = _shallow_copy(s)
                 s.modify(self)
 
-            if not registered:
-                continue
-
             # Args w/ Start & Duration
             args = {k: v for k, v in vars(s).items() if k not in ("start", "duration", "offset")} | {"start": __start, "duration": __duration}
 
             # Add step to the stack
-            key = upperFirst(s.__class__.__name__)
             Context.apply(self.meta.index, key, s._type, args)
-
-            # What this STATEMENT touched, for the editor.
-            #
-            # A shader on the stack says what happens on a frame; it does not say
-            # which line asked for it, and the editor needs that to let you move,
-            # shorten or delete an effect by its bar rather than by finding the
-            # call yourself. Gathered per apply() — one call is one statement —
-            # and the source line is read once at the end, because the walk out
-            # of the library costs 2 µs and an animation is hundreds of shaders.
-            span = touched.get(key)
-            if span is None:
-                touched[key] = [__start, __end]
-            else:
-                span[0] = min(span[0], __start)
-                span[1] = max(span[1], __end)
 
             # Post-callbacks
             for callback in self.meta.postCallbacks.get(type(s), []):

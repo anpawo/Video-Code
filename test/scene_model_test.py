@@ -74,10 +74,14 @@ members = model(
 check("both members report both calls",
       all(sorted(set(called(m))) == ["rotateBy", "scaleTo"] for m in members))
 check("one row per call, not one per shader", len(members[0]["effects"]) == 2)
-check("scaleTo owns the scale", "Scale" in dict(
-    (e["call"], e["kinds"]) for e in members[0]["effects"])["scaleTo"])
-check("rotateBy owns the rotation", dict(
-    (e["call"], e["kinds"]) for e in members[0]["effects"])["rotateBy"] == ["Rotation"])
+kinds = dict((e["call"], e["kinds"]) for e in members[0]["effects"])
+check("scaleTo owns the scale", "Scale" in kinds["scaleTo"])
+check("rotateBy owns the rotation", "Rotation" in kinds["rotateBy"])
+# A group re-emits position for every member on every frame it touches — that is
+# what keeps them in formation — so both calls carry it. What tells them apart is
+# the row's NAME, which is the call, and the kinds are there to say what a call
+# really wrote when someone asks.
+check("and the group's own bookkeeping is not hidden", "Position" in kinds["rotateBy"])
 
 section("a row is the call's own animation, not the group's whole activity")
 shorter = model(
@@ -90,11 +94,26 @@ shorter = model(
 start, end = span(shorter, "scaleTo")
 check("half a second of scale reads as half a second", end - start + 1 == round(0.5 * FPS))
 start, end = span(shorter, "rotateBy")
-# It ENDS a second and a half in. It starts one frame late, and deliberately: at
-# frame zero the rotation has not turned by anything yet, and a shader that
-# changes nothing is dropped rather than written.
-check("and the rotation ends where its own duration says", end == round(1.5 * FPS) - 1)
-check("its first frame is the one that turns", start == 1)
+check("and the rotation keeps its own length", end - start + 1 == round(1.5 * FPS))
+
+section("two calls written to happen together start on the same frame")
+# The one thing a bar must never do: a rotation writes no shader on its first
+# frame — nothing has turned yet — and for a while the row began there instead of
+# where the call did, one frame after the `scaleTo` beside it. A row is the CALL,
+# and a call starts when it says it starts.
+check("scaleTo and rotateBy start together",
+      span(shorter, "scaleTo")[0] == span(shorter, "rotateBy")[0])
+
+together = model(
+    "from videocode import *\n"
+    "square = Square(side=1)\n"
+    "square.fadeIn(duration=0.5)\n"
+    "square.moveBy(x=1, duration=0.5)\n"
+)["elements"][0]
+check("so do a fade and a move on the same cursor",
+      span(together, "fadeIn")[0] == span(together, "moveBy")[0])
+check("a call covers exactly its own duration",
+      span(together, "moveBy")[1] - span(together, "moveBy")[0] + 1 == round(0.5 * FPS))
 
 # ── How long a clip is ─────────────────────────────────────────────────────
 section("an element is on screen until something takes it off")

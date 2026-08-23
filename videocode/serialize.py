@@ -152,85 +152,62 @@ def sceneModel() -> dict:
                 else:
                     spans.append([frame, frame])
 
-        # Where each run was WRITTEN.
+        # ── One row per STATEMENT ─────────────────────────────────────────
+        # A row is a CALL, not a shader run.
         #
-        # A run is frames on the stack; the editor needs the line that asked for
-        # them, or an effect can only be read, never moved, shortened or deleted.
-        # `Context.statements` holds one entry per apply() — the line and the
-        # frames it covered — so a run is attributed to the statement of the same
-        # input whose span for that shader key overlaps it. A group emits per
-        # frame, so several statements carry the same line; the earliest wins,
-        # which is the one a person would point at.
-        def wroteIt(key: str, first: int, last: int) -> tuple[int, str]:
-            # Whoever covers the most of it. Consecutive frames are merged into
-            # one run, so a run can span two statements — `Circle().opacity(0)`
-            # writing frame 0 and `fadeIn()` writing the ten after it — and the
-            # one that owns two frames of twelve is not the one a person means.
-            best, call, widest, kinds = 0, "", 0, 99
-            for statement in Context.statements:
-                if statement["input"] != index:
-                    continue
-                span = statement["keys"].get(key)
-                if span is None:
-                    continue
-                overlap = min(span[1], last) - max(span[0], first) + 1
-                if overlap <= 0:
-                    continue
-                # Most of the run wins; between statements that cover it
-                # equally, the one that touched the FEWEST kinds of shader — a
-                # group re-emits position, rotation and scale on every pass, so
-                # `scaleTo` (position and scale) is a better answer for a Scale
-                # run than `rotateBy` (all three).
-                spread = len(statement["keys"])
-                if overlap > widest or (overlap == widest and spread < kinds):
-                    best, call, widest, kinds = statement["line"], statement["call"], overlap, spread
-            return best, call
-
-        effects = []
-        for key, spans in runs.items():
-            for span in spans:
-                line, call = wroteIt(key, span[0], span[1])
-                effects.append({
-                    "name": key,
-                    "start": span[0],
-                    "end": span[1],
-                    "line": line,
-                    # What the person wrote, when it is known: an editor that
-                    # says `scaleTo` is talking about their scene, one that says
-                    # `Scale` is talking about ours.
-                    "call": call,
-                })
-        # One row per STATEMENT, not per kind of shader.
+        # It used to be the other way round: runs of consecutive frames were
+        # found on the stack and then attributed back to whichever statement
+        # overlapped them most. That answered a different question — "what
+        # changed, and who is to blame" — and it got the two most visible things
+        # wrong.
         #
-        # A single `scaleTo` on a group writes both position and scale, and two
-        # bars called `scaleTo` sitting on the same frames describe one thing
-        # twice. Runs from the same call on the same line become one row, and
-        # what they wrote is kept in `kinds`.
+        # It started late. A rotation has not turned by anything on its first
+        # frame, so no shader is written there, and `rotateBy(180, duration=1.2)`
+        # was drawn beginning one frame after the `scaleTo(0.5, duration=1.2)`
+        # written to happen with it. Two calls of the same length, on the same
+        # line, starting at different times: a display saying something the
+        # scene does not.
         #
-        # The row is the SHORTEST of them, not their union. A group's `scaleTo`
-        # writes scale for its own second and a half, and position for as long
-        # as ANYTHING in the group is moving — the rigid recomputation that
-        # keeps the members' places consistent. The union says the call lasts as
-        # long as the group does, which is why shortening it left the bar where
-        # it was; the shortest run is the animation the call actually asked for.
-        folded: dict[tuple[int, str], dict] = {}
-        loose: list[dict] = []
-        for effect in effects:
-            key = (effect["line"], effect["call"])
-            if effect["line"] == 0 or not effect["call"]:
-                loose.append(effect)
+        # And it could not tell a call's own length from its side effects: a
+        # group re-emits position for as long as ANYTHING in it moves, so
+        # `scaleTo` looked as long as the group's whole activity.
+        #
+        # Each `apply()` now records the frames it COVERS — before no-op shaders
+        # are dropped — so the frames a call is answerable for are known without
+        # looking at what survived. A group emits per frame, which is why the
+        # window is the union of every statement sharing a line and a call.
+        windows: dict[tuple[int, str], dict] = {}
+        for statement in Context.statements:
+            if statement["input"] != index or statement["line"] <= 0:
                 continue
-            held = folded.get(key)
+            if not statement["keys"]:
+                continue
+
+            first = min(span[0] for span in statement["keys"].values())
+            # Exclusive on the stack, inclusive here: `__end = start + duration`
+            # points at the frame after the last one carrying anything.
+            last = max(span[1] for span in statement["keys"].values()) - 1
+            if last < first:
+                last = first
+
+            at = (statement["line"], statement["call"])
+            held = windows.get(at)
             if held is None:
-                folded[key] = effect | {"kinds": [effect["name"]]}
+                windows[at] = {
+                    "name": statement["call"],
+                    "call": statement["call"],
+                    "line": statement["line"],
+                    "start": first,
+                    "end": last,
+                    "kinds": sorted(statement["keys"]),
+                }
                 continue
-            held["kinds"].append(effect["name"])
-            if effect["end"] - effect["start"] < held["end"] - held["start"]:
-                held["start"] = effect["start"]
-                held["end"] = effect["end"]
 
-        effects = loose + list(folded.values())
-        effects.sort(key=lambda e: (e["start"], e["name"]))
+            held["start"] = min(held["start"], first)
+            held["end"] = max(held["end"], last)
+            held["kinds"] = sorted(set(held["kinds"]) | set(statement["keys"]))
+
+        effects = sorted(windows.values(), key=lambda e: (e["start"], e["name"]))
 
         # ── Where a new statement about this element could go ─────────────
         # The lines that already say something about it, in the order they ran,
