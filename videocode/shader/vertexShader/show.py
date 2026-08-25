@@ -13,7 +13,7 @@ class show(VertexShader):
     def __init__(self) -> None: ...
 
     def autodestroy(self, i: Input) -> bool:
-        return i.meta.hidden == False
+        return False  # never — see hide.autodestroy
 
     def modify(self, i: Input):
         i.meta.hidden = False

@@ -188,6 +188,10 @@ class Context:
     # Monotonic counter for zIndex tiebreaks — see Metadata.zOrderSeq
     zOrderCounter: int = 0
 
+    # Stack keys that are two names for one state — writing one on a frame
+    # removes the other. See Context.apply().
+    _EXCLUSIVE: dict[str, str] = {"Hide": "Show", "Show": "Hide"}
+
     # Every non-interface Metadata ever created — used to resolve relative
     # layer-order operations (bringToFront, sendToBack, bringForward, sendBackward).
     metas: list[Metadata] = []
@@ -341,7 +345,16 @@ class Context:
         frameIdx = shaderArgs["start"]
         argName = shaderArgs.get("name") if shaderName == "Args" else None
         dictKey = f"Args:{argName}" if argName is not None else shaderName
-        Context.stack.setdefault(inputIndex, {}).setdefault(frameIdx, {})[dictKey] = {
+        onFrame = Context.stack.setdefault(inputIndex, {}).setdefault(frameIdx, {})
+        # One piece of state, two names. Left side by side on a frame, both
+        # travelled to C++ and the dict's INSERTION order — the order the two
+        # calls happened to be typed in — decided which one held. Dropping the
+        # one being contradicted makes the frame single-valued, which is what
+        # it already meant; the survivor is the same one C++ was picking.
+        opposite = Context._EXCLUSIVE.get(dictKey)
+        if opposite is not None:
+            onFrame.pop(opposite, None)
+        onFrame[dictKey] = {
             "type": shaderType,
             "args": shaderArgs,
         }

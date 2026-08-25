@@ -18,7 +18,15 @@ class hide(VertexShader):
     def __init__(self) -> None: ...
 
     def autodestroy(self, i: Input) -> bool:
-        return i.meta.hidden == True
+        # Never. `autodestroy` answers from the WRITE CURSOR, and visibility is
+        # a discrete state whose value at a frame is set by the last statement
+        # in TIME, not the last one typed: `show(start=2)` written before
+        # `hide(start=1)` was dropped as a no-op — the input was visible when
+        # the line ran — and then hidden for good by a line that came after it
+        # in the file and before it on the timeline. Writing it always costs one
+        # argument-free entry, and `Context._EXCLUSIVE` keeps a frame down to
+        # one of the two.
+        return False
 
     def modify(self, i: Input):
         i.meta.hidden = True
