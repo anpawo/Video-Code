@@ -341,6 +341,51 @@ class Context:
         })
 
     @staticmethod
+    def contendedKeys() -> list[dict[str, Any]]:
+        """
+        Statements that write the same key, on the same input, over frames that
+        overlap — the one case where the order the two lines were TYPED in
+        decides what the video looks like.
+
+        A frame holds one entry per key, so the second statement does not blend
+        with the first: it ERASES it, wherever the two meet. `moveTo` against
+        `moveBy` over the same second is not a compromise between the two, it is
+        whichever call ran last, and swapping the lines gives a different video.
+
+        Two things are deliberately NOT reported, because they are how a scene
+        is written rather than a mistake:
+
+        - A construction call. `position(x=-4)` covers the single instant it
+          lands on; `moveTo(x=4, duration=1)` starting there is the animation
+          reading its own starting value, not fighting it. Both statements must
+          cover more than one frame.
+        - A single frame in common. Two animations that meet end-to-start touch
+          on the frame they hand over, and the later one is meant to win it.
+
+        Nothing here is sent to C++ and nothing is prevented — it is a reading
+        of `statements`, which the editor already keeps.
+        """
+        byKey: dict[tuple[int, str], list[dict[str, Any]]] = {}
+        for st in Context.statements:
+            for key, (first, last) in st["keys"].items():
+                if last - first <= 1:
+                    continue
+                byKey.setdefault((st["input"], key), []).append(
+                    {"key": key, "input": st["input"], "first": first, "last": last,
+                     "file": st["file"], "line": st["line"], "call": st["call"]}
+                )
+
+        found: list[dict[str, Any]] = []
+        for spans in byKey.values():
+            for i, a in enumerate(spans):
+                for b in spans[i + 1:]:
+                    shared = min(a["last"], b["last"]) - max(a["first"], b["first"])
+                    if shared > 1:
+                        found.append({"key": a["key"], "input": a["input"], "frames": shared,
+                                      "from": max(a["first"], b["first"]), "a": a, "b": b})
+        return found
+
+    @staticmethod
     def apply(inputIndex: int, shaderName: str, shaderType: str, shaderArgs: dict[str, Any]):
         frameIdx = shaderArgs["start"]
         argName = shaderArgs.get("name") if shaderName == "Args" else None

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 
 
@@ -38,6 +39,31 @@ def _resetContext():
     # see any more.
     Context.metas = []
     Context.zOrderCounter = 0
+
+
+def _reportContendedKeys() -> None:
+    """
+    Say it out loud when two statements write the same key over the same frames.
+
+    Printed rather than raised: the strict rule would refuse to render a scene
+    that renders today, and a scene being written is broken most of the time —
+    the editor runs this on every keystroke. On the 52 scenes of the repository
+    it says nothing at all, which is the point: it is silent until the ambiguity
+    is real.
+    """
+    for hit in Context.contendedKeys():
+        a, b = hit["a"], hit["b"]
+        origin = Context.origin.get(hit["input"])
+        who = f"the {origin[2]} from {os.path.basename(origin[0])}:{origin[1]}" if origin else f"input {hit['input']}"
+        print(
+            f"[videocode] {os.path.basename(a['file'])}:{a['line']} {a['call']}() and "
+            f"{os.path.basename(b['file'])}:{b['line']} {b['call']}() both write {hit['key']} on "
+            f"{who}, over {hit['frames']} frames from frame {hit['from']}.\n"
+            f"            A frame holds one entry per key, so the later call ERASES the earlier one "
+            f"wherever they meet — swapping the two lines gives a different video. Separate them "
+            f"with flush() or a start=, or write the one thing you mean.",
+            file=sys.stderr,
+        )
 
 
 def _applyBackground(scope: dict) -> None:
@@ -120,6 +146,7 @@ def execScene(filepath: str) -> None:
         exec(code, scope)
 
     _applyBackground(scope)
+    _reportContendedKeys()
 
 
 def sceneModel() -> dict:
@@ -649,6 +676,7 @@ def execSource(source: str, filepath: str) -> dict:
         code = compile(source, filepath, "exec")
         exec(code, scope)
         _applyBackground(scope)
+        _reportContendedKeys()
     except SyntaxError as error:
         return {
             "ok": False,
