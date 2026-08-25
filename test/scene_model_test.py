@@ -215,4 +215,23 @@ check("every name in it can actually be imported",
       all(one["module"] == "" or __import__(one["module"], fromlist=[one["name"]])
           for one in catalogue))
 
+# ── Ce qu'une exécution laisse derrière elle ───────────────────────────────
+section("a run leaves nothing behind for the next one")
+# The editor runs a scene on every gesture. Anything a run leaves standing is
+# read by the next one as if it belonged to it — and answers about a scene that
+# no longer exists are worse than no answer.
+from videocode.context import Context
+
+before = len(Context.metas)
+model("from videocode import *\nsquare = Square(side=1)\nsquare.fadeIn()\n")
+once = len(Context.metas)
+model("from videocode import *\nsquare = Square(side=1)\nsquare.fadeIn()\n")
+twice = len(Context.metas)
+check("the register of inputs does not grow run after run", once == twice)
+
+model("from videocode import *\nsquare = Square(side=1)\nsquare.zIndex(50)\n")
+check("the highest layer is this scene's", Context.maxZIndex() == 50)
+model("from videocode import *\nsquare = Square(side=1)\nsquare.fadeIn()\n")
+check("and a layer from a deleted line is gone with it", Context.maxZIndex() != 50)
+
 summary()

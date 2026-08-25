@@ -26,6 +26,19 @@ def _resetContext():
     # group — until an effect is attributed to a line that moved three edits ago.
     Context.statements = []
 
+    # And the register of every input's metadata, with the counter that breaks
+    # ties between equal z-indices.
+    #
+    # `Context.metas` is what `bringToFront()` and friends read to answer "what
+    # is the highest layer in this scene". Left standing between runs it grew by
+    # one entry per input per execution — the editor runs a scene on every
+    # gesture — and, worse, it answered from scenes that no longer exist:
+    # deleting the line that said `zIndex(50)` did not stop `maxZIndex()` from
+    # replying 50, so the next `bringToFront()` jumped over a layer nobody could
+    # see any more.
+    Context.metas = []
+    Context.zOrderCounter = 0
+
 
 def _applyBackground(scope: dict) -> None:
     """
