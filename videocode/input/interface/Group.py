@@ -14,10 +14,43 @@ _GROUP_T = TypeVar("_GROUP_T", bound=Input, default=Input)
 
 
 class _MemberBase:
-    def __init__(self, meta: Metadata) -> None:
-        self.position = v2(*meta.position)
+    """
+    A member as it stood when the group was formed.
+
+    `width` and `height` are frozen here for the same reason the position is:
+    the pivot is measured from them, and a pivot measured from LIVE members is a
+    pivot that moves while it is being used. `Group.width` reads
+    `inp.meta.position` of its members, so once a rotation has started moving
+    them, the box the pivot is sampled from is the box the rotation has already
+    produced — the transform derives its centre from its own result.
+
+    Measured on `Group(Group(a, b), c).rotateBy(90)`: the outer pivot went from
+    (0.25, 0) before the animation to (0.50, 0) after, and `_emitRigid` asks for
+    it on every emission.
+    """
+
+    #: The pivot of a MEMBER GROUP, or None for a leaf.
+    #:
+    #: A group is not AT its `meta.position`: that field is a displacement it
+    #: adds to members it holds around its own pivot, so zero means "wherever
+    #: they already are", not the origin. Reading it as a location made a
+    #: parent turn a point its child's content was not at, and the formation
+    #: came apart — `Group(Group(a, b), c).rotateBy(90)` left the squares
+    #: 1 / 0.707 / 1.581 apart when they had started 1 / 1 / 2.
+    #:
+    #: So the base position of a member group is its pivot plus that
+    #: displacement, and `_emitRigid` hands it back the displacement that lands
+    #: the pivot where the parent wants it.
+    pivot: maybe[v2]
+
+    def __init__(self, member: Input) -> None:
+        meta = member.meta
+        self.pivot = member._pivot() if isinstance(member, Group) else None
+        self.position = v2(*meta.position) if self.pivot is None else self.pivot + v2(*meta.position)
         self.rotation = meta.rotation
         self.scale = v2(*meta.scale)
+        self.width = member.width
+        self.height = member.height
 
 
 class Group(Interface, Generic[_GROUP_T]):
@@ -45,7 +78,7 @@ class Group(Interface, Generic[_GROUP_T]):
 
     def _snapshot(self) -> None:
         """Snapshot current member position/rotation/scale as the rigid-body base."""
-        self._memberBases: list[tuple[Input, _MemberBase]] = [(m, _MemberBase(m.meta)) for m in self.inputs]
+        self._memberBases: list[tuple[Input, _MemberBase]] = [(m, _MemberBase(m)) for m in self.inputs]
         # Per-frame rigid state recorded during the current time window, keyed by
         # relative frame (round(start * FRAMERATE)). It is what lets concurrent
         # chained rigid animations — `g.rotateBy(...).scaleTo(...)` — combine:
@@ -79,10 +112,11 @@ class Group(Interface, Generic[_GROUP_T]):
         if not self._memberBases:
             return v2(0.0, 0.0)
         ax, ay = self.meta.align
-        lefts = [base.position.x - m.width / 2 for m, base in self._memberBases]
-        rights = [base.position.x + m.width / 2 for m, base in self._memberBases]
-        bots = [base.position.y - m.height / 2 for m, base in self._memberBases]
-        tops = [base.position.y + m.height / 2 for m, base in self._memberBases]
+        # Frozen extents, not live ones — see `_MemberBase`.
+        lefts = [base.position.x - base.width / 2 for _, base in self._memberBases]
+        rights = [base.position.x + base.width / 2 for _, base in self._memberBases]
+        bots = [base.position.y - base.height / 2 for _, base in self._memberBases]
+        tops = [base.position.y + base.height / 2 for _, base in self._memberBases]
         return v2(
             min(lefts) + ax * (max(rights) - min(lefts)),
             min(bots) + ay * (max(tops) - min(bots)),
@@ -168,7 +202,12 @@ class Group(Interface, Generic[_GROUP_T]):
                 ry = (base.position.y - C.y) * gscale.y
                 wx = rx * cos_r - ry * sin_r + C.x + gx
                 wy = rx * sin_r + ry * cos_r + C.y + gy
-                shaders.append(position(wx, wy))
+                # A member group reads a position as a displacement from its own
+                # pivot — see `_MemberBase.pivot`.
+                if base.pivot is None:
+                    shaders.append(position(wx, wy))
+                else:
+                    shaders.append(position(wx - base.pivot.x, wy - base.pivot.y))
 
             if rot:
                 shaders.append(rotation(base.rotation + grot_deg))
@@ -350,20 +389,28 @@ class Group(Interface, Generic[_GROUP_T]):
             return self
         return self.waitTo(max(frames))
 
+    @staticmethod
+    def _anchorOf(inp: Input) -> v2:
+        """Where an input's content sits — for a group, not its `meta.position`."""
+        p = v2(inp.meta.position.x or 0, inp.meta.position.y or 0)
+        return p + inp._pivot() if isinstance(inp, Group) else p
+
     @property
     def width(self) -> wnumber:
         if not self.inputs:
             return 0
-        rights = [(inp.meta.position.x or 0) + inp.width / 2 for inp in self.inputs]
-        lefts = [(inp.meta.position.x or 0) - inp.width / 2 for inp in self.inputs]
+        anchors = [Group._anchorOf(inp).x for inp in self.inputs]
+        rights = [a + inp.width / 2 for a, inp in zip(anchors, self.inputs)]
+        lefts = [a - inp.width / 2 for a, inp in zip(anchors, self.inputs)]
         return max(rights) - min(lefts)
 
     @property
     def height(self) -> wnumber:
         if not self.inputs:
             return 0
-        tops = [(inp.meta.position.y or 0) + inp.height / 2 for inp in self.inputs]
-        bots = [(inp.meta.position.y or 0) - inp.height / 2 for inp in self.inputs]
+        anchors = [Group._anchorOf(inp).y for inp in self.inputs]
+        tops = [a + inp.height / 2 for a, inp in zip(anchors, self.inputs)]
+        bots = [a - inp.height / 2 for a, inp in zip(anchors, self.inputs)]
         return max(tops) - min(bots)
 
     def __str__(self) -> str:

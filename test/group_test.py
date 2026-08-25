@@ -158,5 +158,81 @@ check(
     all(abs(a - b) < 0.2 for a, b in zip(radii, radii[1:])),
 )
 
+# ── A group inside a group ─────────────────────────────────────────────────
+# The bug this guards: `Group(Group(a, b), c).rotateBy(90)` left three squares
+# 1 / 0.707 / 1.581 apart that had started 1 / 1 / 2 apart — the formation came
+# apart mid-turn. Two causes, both of them "a group is not where it says it
+# is": the pivot was sampled from members the rotation had already moved, and
+# the parent handed its child an absolute position, which a child reads as a
+# displacement from its own pivot.
+#
+# The assertion is stronger than rigidity, and deliberately so: however the
+# members are bracketed, it has to be the SAME animation. Rigidity alone would
+# still pass with the turn happening around the wrong point.
+section("Group — a group inside a group moves like one flat group")
+
+
+def trajectories(line: str, n: int) -> list[dict[int, tuple[float, float]]]:
+    """Every position each of the first `n` squares is given, by frame."""
+    source = (
+        "from videocode import *\n"
+        "a = Square(side=0.4).position(x=-1)\n"
+        "b = Square(side=0.4).position(x=0)\n"
+        "c = Square(side=0.4).position(x=1)\n"
+        "d = Square(side=0.4).position(x=2)\n" + line + "\nwait(1)\n"
+    )
+    execSource(source, "group_test_nested.py")
+    return [
+        {
+            f: (entry["Position"]["args"]["x"], entry["Position"]["args"]["y"])
+            for f, entry in Context.stack[i].items()
+            if f != -1 and "Position" in entry
+        }
+        for i in range(n)
+    ]
+
+
+def sameAsFlat(nested: str, flat: str, n: int) -> float:
+    """
+    The worst distance between the two bracketings, over every frame either wrote.
+
+    Compared as CURVES, since a position holds until the next one is written: a
+    frame one side left out is the value it last wrote. The two do differ in
+    WHICH frames they write — carrying a displacement through a level of
+    nesting leaves a member sitting exactly on the pivot with a string of 1e-16
+    entries that `autodestroy` cannot tell are no-ops — and that is not a
+    difference in the animation.
+    """
+
+    def at(track: dict[int, tuple[float, float]], f: int) -> tuple[float, float]:
+        return track[max(k for k in track if k <= f)]
+
+    worst = 0.0
+    for a, b in zip(trajectories(nested, n), trajectories(flat, n)):
+        for f in sorted(set(a) | set(b)):
+            if f < min(min(a), min(b)):
+                continue
+            worst = max(worst, math.dist(at(a, f), at(b, f)))
+    return worst
+
+
+for what, nestedLine, flatLine, members in (
+    ("rotate", "Group(Group(a, b), c).rotateBy(90, duration=1.0)", "Group(a, b, c).rotateBy(90, duration=1.0)", 3),
+    ("rotate, nested on the right", "Group(a, Group(b, c)).rotateBy(90, duration=1.0)", "Group(a, b, c).rotateBy(90, duration=1.0)", 3),
+    ("scale", "Group(Group(a, b), c).scaleTo(2, duration=1.0)", "Group(a, b, c).scaleTo(2, duration=1.0)", 3),
+    ("move", "Group(Group(a, b), c).moveBy(x=2, y=1, duration=1.0)", "Group(a, b, c).moveBy(x=2, y=1, duration=1.0)", 3),
+    ("rotate, three levels deep", "Group(Group(Group(a, b), c), d).rotateBy(90, duration=1.0)", "Group(a, b, c, d).rotateBy(90, duration=1.0)", 4),
+):
+    check(f"{what}: nested == flat, every member, every frame", sameAsFlat(nestedLine, flatLine, members) < 1e-9)
+
+# The failure as it was first seen, in the numbers it was seen in.
+ended = [t[max(t)] for t in trajectories("Group(Group(a, b), c).rotateBy(90, duration=1.0)", 3)]
+check(
+    "the formation is still 1 / 1 / 2 apart at the end of the turn",
+    approx(math.dist(ended[0], ended[1]), 1.0)
+    and approx(math.dist(ended[1], ended[2]), 1.0)
+    and approx(math.dist(ended[0], ended[2]), 2.0),
+)
+
 # ── summary ────────────────────────────────────────────────────────────────
 summary()
