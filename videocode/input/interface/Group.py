@@ -102,16 +102,45 @@ class Group(Interface, Generic[_GROUP_T]):
         """Re-snapshot member bases from their current meta (call after layout changes)."""
         self._snapshot()
 
-    def _pivot(self) -> v2:
+    #: The channels a group's rigid state is made of — one per independent
+    #: number, exactly like a leaf's. `pos` and `scl` carry two axes each and an
+    #: effect may claim one without the other, and `align` is here because it
+    #: decides the PIVOT: a pivot is what every emission was computed from, so a
+    #: later `align` must not reach back and change frames already written.
+    _RIGID_CHANNELS = ("pos.x", "pos.y", "rot", "scl.x", "scl.y", "align.x", "align.y")
+
+    def _rigidDefaults(self) -> dict[str, Any]:
+        """Where each channel stands when the timeline says nothing about it."""
+        return {
+            "pos.x": self.meta.position.x, "pos.y": self.meta.position.y,
+            "rot": self.meta.rotation,
+            "scl.x": self.meta.scale.x, "scl.y": self.meta.scale.y,
+            "align.x": self.meta.align.x, "align.y": self.meta.align.y,
+        }
+
+    @staticmethod
+    def _assemble(channels: dict[str, Any]) -> dict[str, Any]:
+        """Channels back into the shape `_emitRigid` reads."""
+        return {
+            "pos": v2(channels["pos.x"], channels["pos.y"]),
+            "rot": channels["rot"],
+            "scl": v2(channels["scl.x"], channels["scl.y"]),
+            "align": v2(channels["align.x"], channels["align.y"]),
+        }
+
+    def _pivot(self, align: maybe[v2] = None) -> v2:
         """
-        Pivot point in member-base space, determined by `meta.align`.
+        Pivot point in member-base space, determined by the group's alignment.
 
         Default align (0.5, 0.5) = center of the group's bounding box.
         This is the point that stays fixed when the group is rotated or scaled.
+
+        `align` is the alignment for the frame being emitted, which is not always
+        the group's current one — see `_RIGID_CHANNELS`.
         """
         if not self._memberBases:
             return v2(0.0, 0.0)
-        ax, ay = self.meta.align
+        ax, ay = align if align is not None else self.meta.align
         # Frozen extents, not live ones — see `_MemberBase`.
         lefts = [base.position.x - base.width / 2 for _, base in self._memberBases]
         rights = [base.position.x + base.width / 2 for _, base in self._memberBases]
@@ -133,27 +162,23 @@ class Group(Interface, Generic[_GROUP_T]):
         before its first, the value the animation started from; and with nothing
         recorded at all, whatever the group's meta says.
         """
-        state = {
-            "pos": v2(*self.meta.position),
-            "rot": self.meta.rotation,
-            "scl": v2(*self.meta.scale),
-        }
+        channels = self._rigidDefaults()
         seen: set[str] = set()
 
         for f in sorted(self._rigidTimeline):
             rec = self._rigidTimeline[f]
-            for key in ("pos", "rot", "scl"):
+            for key in Group._RIGID_CHANNELS:
                 if key not in rec:
                     continue
-                # Before its first record, a component is whatever that first
+                # Before its first record, a channel is whatever that first
                 # record says: an animation starts from where the group already
                 # was.
                 if f > at and key in seen:
                     continue
-                state[key] = rec[key]
+                channels[key] = rec[key]
                 seen.add(key)
 
-        return state
+        return Group._assemble(channels)
 
     def _emitRigid(
         self,
@@ -183,7 +208,7 @@ class Group(Interface, Generic[_GROUP_T]):
         grot_deg = state["rot"]
         gscale = state["scl"]
 
-        C = self._pivot()
+        C = self._pivot(state.get("align"))
         # C++ renders a positive degree as a clockwise spin on screen (the
         # rotation matrix is applied in pixel space, which is Y-flipped vs
         # world space) — the orbit must turn the same way or members shear
@@ -260,6 +285,10 @@ class Group(Interface, Generic[_GROUP_T]):
             # e.g. Text.alignLetters reads self.meta.align.x, or user code
             # inspects text.meta.position to query the group's current logical state.
             # Groups are otherwise stateless — children own the rendering state.
+            # Read before `modify` moves it: an `align` that lands mid-window
+            # needs to put the alignment it REPLACES on the timeline, or the
+            # frames before it would be repainted with the new pivot.
+            previousAlign = v2(*self.meta.align)
             if isinstance(s, VertexShader):
                 _shallow_copy(s).modify(self)
 
@@ -270,14 +299,59 @@ class Group(Interface, Generic[_GROUP_T]):
                 ts, td, to = s.resolve(start, duration, offset)
                 rec = self._rigidTimeline.setdefault(round(ts * FRAMERATE), {})
                 rec["t"] = (ts, td, to)
+                # Only the components the shader CLAIMED, for the same reason a
+                # leaf records only those: `g.moveTo(x=2)` followed by
+                # `g.moveBy(y=3, start=0.5)` used to make x jump to its
+                # destination the instant the y animation began writing —
+                # the bug of the leaves, one level up.
+                claimsX = getattr(s, "x", None) is not None
+                claimsY = getattr(s, "y", None) is not None
                 if k == 1:
-                    rec["pos"] = v2(*self.meta.position)
+                    if claimsX:
+                        rec["pos.x"] = self.meta.position.x
+                    if claimsY:
+                        rec["pos.y"] = self.meta.position.y
                 elif k == 2:
                     rec["rot"] = self.meta.rotation
                 else:
-                    rec["scl"] = v2(*self.meta.scale)
+                    if claimsX:
+                        rec["scl.x"] = self.meta.scale.x
+                    if claimsY:
+                        rec["scl.y"] = self.meta.scale.y
                 rigid = True
             else:
+                # `align` is not a rigid transform — it broadcasts to the members
+                # like any other shader, and that stays. But it ALSO moves the
+                # group's pivot, and a pivot is what every emission was computed
+                # from: applied between two rotations, it used to reach back and
+                # rewrite frames that had already been written. Recorded on the
+                # timeline, each frame keeps the pivot it was emitted with.
+                #
+                # Only while a timeline exists — a lone `align` on an unanimated
+                # group has nothing to reach back into, and should stay the plain
+                # broadcast it has always been.
+                if isinstance(s, align) and self._rigidTimeline:
+                    ts, td, to = s.resolve(start, duration, offset)
+                    written = sorted(self._rigidTimeline)
+
+                    # The alignment this one REPLACES belongs on the timeline
+                    # first. The fold carries a channel backward from its first
+                    # record — that is how an animation starts from where the
+                    # group already was — so without this, an `align` written at
+                    # frame 15 would hand its pivot to frames 0 through 14 as
+                    # well, which is the retroactive rewrite being fixed.
+                    if not any(k.startswith("align.") for f in written for k in self._rigidTimeline[f]):
+                        opening = self._rigidTimeline[written[0]]
+                        opening.setdefault("align.x", previousAlign.x)
+                        opening.setdefault("align.y", previousAlign.y)
+
+                    rec = self._rigidTimeline.setdefault(round(ts * FRAMERATE), {})
+                    rec.setdefault("t", (ts, td, to))
+                    if s.x is not None:
+                        rec["align.x"] = float(s.x)
+                    if s.y is not None:
+                        rec["align.y"] = float(s.y)
+                    rigid = True
                 # All other shaders (color, opacity, args, translate, hide, …) broadcast
                 # as-is to every member. i.apply() makes its own shallow copy for
                 # VertexShaders before calling modify(), so passing s directly is safe.
@@ -315,11 +389,8 @@ class Group(Interface, Generic[_GROUP_T]):
                     return self._rigidTimeline[f][key]
             return fallback
 
-        state = {
-            "pos": firstOf("pos", v2(*self.meta.position)),
-            "rot": firstOf("rot", self.meta.rotation),
-            "scl": firstOf("scl", v2(*self.meta.scale)),
-        }
+        defaults = self._rigidDefaults()
+        channels = {key: firstOf(key, defaults[key]) for key in Group._RIGID_CHANNELS}
 
         # Walk it once to know what would be written, and say nothing if that is
         # what was written last time.
@@ -336,14 +407,15 @@ class Group(Interface, Generic[_GROUP_T]):
         plan: list[tuple[int, dict[str, Any], bool, bool]] = []
         for f in frames:
             rec = self._rigidTimeline[f]
-            for key in ("pos", "rot", "scl"):
+            for key in Group._RIGID_CHANNELS:
                 if key in rec:
-                    state[key] = rec[key]
-            plan.append((f, dict(state), "rot" in rec, "scl" in rec))
+                    channels[key] = rec[key]
+            plan.append((f, Group._assemble(channels), "rot" in rec, "scl.x" in rec or "scl.y" in rec))
 
         signature = tuple(
             (f, float(st["pos"].x), float(st["pos"].y), float(st["rot"]),
-             float(st["scl"].x), float(st["scl"].y), r, sc)
+             float(st["scl"].x), float(st["scl"].y),
+             float(st["align"].x), float(st["align"].y), r, sc)
             for f, st, r, sc in plan
         )
         if signature == self._rigidWritten:

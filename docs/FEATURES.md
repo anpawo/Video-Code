@@ -249,6 +249,22 @@ a `COLUMNS`-only override (in `ROWS` the split decides the heights).
 | `Offset(input, x, y, r)` | `Offset.py` | Wraps an input with a fixed local-frame offset (rotates with the wrapped input). Used internally by `Text`/`SVG` to place letters/shapes within their parent. |
 | `Interface` | `Interface.py` | Common base for `Group`/`Offset` — defines `flush`, `wait`, `waitTo`, `waitFor`, `broadcast` |
 
+**How a group's own animations combine** — the same claim model as a leaf,
+applied to the group's rigid state (`Group._RIGID_CHANNELS`): `pos.x`, `pos.y`,
+`rot`, `scl.x`, `scl.y`, `align.x`, `align.y`. `g.moveTo(x=2, duration=1)` and
+`g.moveBy(y=3, start=0.5, duration=2)` both play, and x travels exactly as it
+would have alone. What a group emits toward its members is worked out per
+frame from those channels — members are never told to compose anything.
+
+`align` is on that list because it decides the **pivot**, and a pivot is what
+every emission was computed from. A group re-emits its whole window on each
+call, so an `align` landing mid-window used to hand its new pivot to frames
+written long before it. Give it a time — `g.apply(align(0, 0.5), start=0.5)` —
+and the frames before it keep the pivot they were emitted with. A bare
+`g.apply(align(...))` carries no time and so still applies from the start of
+the window: `align` is still doing two jobs at once (aligning the content, and
+placing the pivot), and separating them is an open question.
+
 **Examples**: `test/visual/scenes/groups.py`, `stateful_group_scale.py`,
 `test/visual/scenes/mirror.py`.
 
@@ -307,11 +323,12 @@ nothing else:
 - **A channel nobody claims on a frame keeps the value it last had** — a
   transform holds until the next one, so an effect that ends early does not snap
   back.
-- **A group's own working-out is not a rival.** `g.scaleTo(...).rotateBy(...)`
-  re-emits position for every member on both calls; `_rigidTimeline` has already
-  composed them per channel, so nothing is reported. A member written BY HAND
-  during a group's window still is — there the group and the line really do
-  disagree.
+- **A group works the same way**, on its own channels — see *Grouping &
+  Composition*. And its own working-out is not a rival: `g.scaleTo(...)
+  .rotateBy(...)` re-emits position for every member on both calls;
+  `_rigidTimeline` has already composed them per channel, so nothing is
+  reported. A member written BY HAND during a group's window still is — there
+  the group and the line really do disagree.
 
 **Mirroring**:
 - `mirror(*targets)` / `unmirror(*targets)` — replicate every future shader

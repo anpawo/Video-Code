@@ -255,5 +255,62 @@ check(
     and approx(math.dist(ended[0], ended[2]), 2.0),
 )
 
+# ── A group's channels are as independent as a leaf's ───────────────────────
+# The bug this guards is the one the leaves had, one level up: `_rigidTimeline`
+# recorded `pos` as a single value read off the group's meta, so
+# `g.moveTo(x=2)` followed by `g.moveBy(y=3, start=0.5)` made x jump to its
+# destination the instant the y animation started writing — measured, x went
+# from easing through -0.504 to sitting at 1.0 from frame 15 on.
+section("Group — two axes of one group animate independently")
+
+
+def groupTrack(line: str, member: int = 0) -> dict[int, tuple[float, float]]:
+    """A member's resolved position, frame by frame — see composition_test.py."""
+    execSource(
+        "from videocode import *\n"
+        "a = Square(side=0.4).position(x=-1)\n"
+        "b = Square(side=0.4).position(x=1)\n"
+        "g = Group(a, b)\n" + line + "\nwait(3)\n",
+        "group_test_channels.py",
+    )
+    out: dict[int, tuple[float, float]] = {}
+    x, y = 0.0, 0.0
+    for f in sorted(k for k in Context.stack[member] if k != -1):
+        args = Context.stack[member][f].get("Position")
+        if args is not None:
+            claimed = args["args"]
+            x = claimed["x"] if claimed["x"] is not None else x
+            y = claimed["y"] if claimed["y"] is not None else y
+        out[f] = (x, y)
+    return out
+
+
+alone = groupTrack("g.moveTo(x=2, duration=1)")
+withY = groupTrack("g.moveTo(x=2, duration=1)\ng.moveBy(y=3, start=0.5, duration=2)")
+
+check(
+    "x travels exactly as it would have alone",
+    all(abs(alone[f][0] - withY[f][0]) < 1e-9 for f in alone),
+)
+check("and y is travelling at the same time", withY[45][1] != withY[20][1])
+check("x holds its arrival while y is still going", abs(withY[45][0] - alone[max(alone)][0]) < 1e-9)
+
+# ── An alignment does not reach back ────────────────────────────────────────
+# `align` moves the group's PIVOT, and a pivot is what every emission was
+# computed from — while `_emitTimeline` re-emits its whole window on every
+# apply. Applied between two rotations it used to rewrite frames already
+# written: frame 8 measured (0.883, -0.469) before, (0.743, -1.032) after.
+section("Group — an alignment written mid-window leaves the past alone")
+
+plain = groupTrack("g.rotateBy(45, duration=0.5)\ng.rotateBy(45, start=0.5, duration=0.5)")
+realigned = groupTrack(
+    "g.rotateBy(45, duration=0.5)\n"
+    "g.apply(align(0, 0.5), start=0.5)\n"
+    "g.rotateBy(45, start=0.5, duration=0.5)"
+)
+
+check("frames written before it are untouched", all(math.dist(plain[f], realigned[f]) < 1e-9 for f in (4, 8, 12)))
+check("and frames after it do change", math.dist(plain[20], realigned[20]) > 1e-6)
+
 # ── summary ────────────────────────────────────────────────────────────────
 summary()
