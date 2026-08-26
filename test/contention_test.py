@@ -32,19 +32,22 @@ def contentions(body: str) -> list[dict]:
 # meet, and swapping the two lines gives a different video.
 section("contendedKeys — two animations fighting over one key")
 
-fight = contentions("s.moveTo(x=2, duration=1)\ns.moveBy(y=1, duration=1)")
+# The example is two moves on the SAME axis. It used to be x against y — until
+# an effect began claiming only the axis it was given, which made those two
+# compose. Two claims on one axis is what is left, and it is the real case.
+fight = contentions("s.moveTo(x=2, duration=1)\ns.moveBy(x=1, duration=1)")
 check("the pair is reported", len(fight) == 1)
-check("named by key", fight and fight[0]["key"] == "Position")
+check("named by channel, axis included", fight and fight[0]["key"] == "Position:x")
 check("both call sites are named", fight and {fight[0]["a"]["call"], fight[0]["b"]["call"]} == {"moveTo", "moveBy"})
 check("with the frames they share", fight and fight[0]["frames"] == 30)
 
 check(
     "reported whichever order the two lines are in",
-    len(contentions("s.moveBy(y=1, duration=1)\ns.moveTo(x=2, duration=1)")) == 1,
+    len(contentions("s.moveBy(x=1, duration=1)\ns.moveTo(x=2, duration=1)")) == 1,
 )
 check(
     "partial overlap counts too",
-    len(contentions("s.moveTo(x=2, duration=1)\ns.moveBy(y=1, start=0.5, duration=1)")) == 1,
+    len(contentions("s.moveTo(x=2, duration=1)\ns.moveBy(x=1, start=0.5, duration=1)")) == 1,
 )
 
 # ── What it must NOT catch ──────────────────────────────────────────────────
@@ -60,13 +63,65 @@ check(
 )
 check(
     "flush() puts them in separate windows",
-    not contentions("s.moveTo(x=2, duration=1)\ns.flush()\ns.moveBy(y=1, duration=1)"),
+    not contentions("s.moveTo(x=2, duration=1)\ns.flush()\ns.moveBy(x=1, duration=1)"),
 )
 check(
     "back to back, sharing only the handover frame",
-    not contentions("s.moveTo(x=2, duration=1)\ns.moveBy(y=1, start=1, duration=1)"),
+    not contentions("s.moveTo(x=2, duration=1)\ns.moveBy(x=1, start=1, duration=1)"),
 )
 check("one statement is never its own rival", not contentions("s.moveTo(x=2, duration=1)"))
+
+# ── One emitter call is one statement ───────────────────────────────────────
+# The bug this guards: `ease()` — and `over()`, `easeTogether`, `fillIn` on top
+# of it — writes a frame at a time, so a ramp arrives as N statements one frame
+# long. Counting those raw made the whole of paint animation invisible here:
+# every span was a single frame, and a single frame is rightly never contended.
+# Two `over().fillColor` overlapping by half a second reported nothing at all.
+section("contendedKeys — a frame-by-frame emitter is still one statement")
+
+
+def painted(body: str) -> list[dict]:
+    with contextlib.redirect_stderr(io.StringIO()):
+        execSource(
+            "from videocode import *\n\nr = Rectangle(width=2, height=2, fillColor=BLUE_B)\n" + body + "\nwait(3)\n",
+            "contention_test_paint.py",
+        )
+    return Context.contendedKeys()
+
+
+check("two overlapping fillColor ramps are reported", len(painted("r.over(duration=0.5).fillColor = RED_B\nr.over(duration=0.5).fillColor = WHITE")) == 1)
+check("named by the channel, not by the shader class", painted("r.over(duration=0.5).fillColor = RED_B\nr.over(duration=0.5).fillColor = WHITE")[0]["key"] == "Args:fillColor")
+check("fillColor and strokeColor are different channels", not painted("r.over(duration=0.5).fillColor = RED_B\nr.over(duration=0.5).strokeColor = WHITE"))
+
+# ── An axis is a channel ────────────────────────────────────────────────────
+# Since an effect claims only the axis it was given, two effects on different
+# axes compose — so calling them a conflict would be crying wolf on the very
+# thing the claim model exists to allow.
+section("contendedKeys — x and y are different channels")
+
+check("moveTo(x) and moveBy(y) do not contend", not contentions("s.moveTo(x=2, duration=1)\ns.moveBy(y=3, duration=1)"))
+check("moveTo(x) twice does", len(contentions("s.moveTo(x=2, duration=1)\ns.moveTo(x=5, duration=1)")) == 1)
+check("and it is named by the axis", contentions("s.moveTo(x=2, duration=1)\ns.moveTo(x=5, duration=1)")[0]["key"] == "Position:x")
+
+# ── What a group works out is not a statement about a member ────────────────
+# A group re-emits its whole window on every apply, so two chained animations
+# look from the outside like two statements fighting over one key — when
+# `_rigidTimeline` has already composed them per channel. But a member written
+# BY HAND during a group's window is a real conflict, and must still be said.
+section("contendedKeys — a group's own working-out is not a rival")
+
+
+def grouped(body: str) -> list[dict]:
+    with contextlib.redirect_stderr(io.StringIO()):
+        execSource(
+            "from videocode import *\n\na = Square(side=0.4).position(x=-1)\nb = Square(side=0.4).position(x=1)\ng = Group(a, b)\n" + body + "\nwait(3)\n",
+            "contention_test_group.py",
+        )
+    return Context.contendedKeys()
+
+
+check("chained group animations are not a conflict", not grouped("g.scaleTo(2, duration=1).rotateBy(90, duration=1)"))
+check("a member written by hand during a group window IS", len(grouped("g.rotateBy(90, duration=1)\nb.moveBy(y=1, duration=1)")) == 1)
 
 # ---------------------------------------------------------------------------
 summary()

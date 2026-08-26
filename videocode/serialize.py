@@ -40,6 +40,10 @@ def _resetContext():
     Context.metas = []
     Context.zOrderCounter = 0
 
+    # And the flag a Group raises while it emits toward its members — a run that
+    # died mid-emission must not leave the next one marking everything derived.
+    Context.deriving = False
+
 
 def _reportContendedKeys() -> None:
     """
@@ -59,9 +63,10 @@ def _reportContendedKeys() -> None:
             f"[videocode] {os.path.basename(a['file'])}:{a['line']} {a['call']}() and "
             f"{os.path.basename(b['file'])}:{b['line']} {b['call']}() both write {hit['key']} on "
             f"{who}, over {hit['frames']} frames from frame {hit['from']}.\n"
-            f"            A frame holds one entry per key, so the later call ERASES the earlier one "
-            f"wherever they meet — swapping the two lines gives a different video. Separate them "
-            f"with flush() or a start=, or write the one thing you mean.",
+            f"            Two claims on one channel cannot both hold, so the later call WINS the "
+            f"frames they share — swapping the two lines gives a different video. Separate them "
+            f"with flush() or a start=, or write the one thing you mean. (Different channels — x "
+            f"against y, fillColor against strokeColor — compose, and are never reported here.)",
             file=sys.stderr,
         )
 

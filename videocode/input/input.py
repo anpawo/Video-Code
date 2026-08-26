@@ -147,6 +147,24 @@ class Input(ABC):
 
             key = upperFirst(s.__class__.__name__)
 
+            # What is being written is the CHANNEL, not the shader class — and a
+            # statement can claim several at once.
+            #
+            # `args(name, value)` is one class for every attribute there is, so
+            # counting it as one key made `fillColor` and `strokeColor` look like
+            # the same thing. And `position`, `scale`, `align` and `translate`
+            # each carry two independent axes: since an effect may now claim one
+            # without the other, `moveTo(x=2)` and `moveBy(y=3)` must not look
+            # like rivals — they are not, and the whole point of the claim model
+            # is that they compose.
+            argName = getattr(s, "name", None) if key == "Args" else None
+            if argName is not None:
+                channels: tuple[str, ...] = (f"Args:{argName}",)
+            elif hasattr(s, "x") and hasattr(s, "y"):
+                channels = tuple(f"{key}:{c}" for c in ("x", "y") if getattr(s, c) is not None) or (key,)
+            else:
+                channels = (key,)
+
             # What this STATEMENT covers, for the editor.
             #
             # A shader on the stack says what happens on a frame; it does not say
@@ -165,12 +183,13 @@ class Input(ABC):
             # late, beside a `scaleTo` of the same length that started on time,
             # and made two things written to happen together look as if they did
             # not.
-            span = touched.get(key)
-            if span is None:
-                touched[key] = [__start, __end]
-            else:
-                span[0] = min(span[0], __start)
-                span[1] = max(span[1], __end)
+            for channel in channels:
+                span = touched.get(channel)
+                if span is None:
+                    touched[channel] = [__start, __end]
+                else:
+                    span[0] = min(span[0], __start)
+                    span[1] = max(span[1], __end)
 
             # FragmentShaders never mutate self, so no copy is needed there.
             # autodestroy() only reads from self (the Input), never mutates s — safe to check

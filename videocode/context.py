@@ -192,6 +192,19 @@ class Context:
     # removes the other. See Context.apply().
     _EXCLUSIVE: dict[str, str] = {"Hide": "Show", "Show": "Hide"}
 
+    # True while a Group is emitting toward its members.
+    #
+    # What reaches a member then is not an instruction someone wrote about that
+    # member — it is the group's transform, worked out for that frame. A group
+    # re-emits its whole window on every `apply`, so two chained animations look
+    # from the outside like two statements fighting over the same key, when
+    # `_rigidTimeline` has in fact already composed them per channel. Telling the
+    # two apart is what keeps `contendedKeys()` from crying wolf on
+    # `g.scaleTo(...).rotateBy(...)` — and what keeps it ABLE to speak up when a
+    # member is written directly during a group's window, which is a real
+    # conflict (council of 2026-08-26: warn, do not compose).
+    deriving: bool = False
+
     # Every non-interface Metadata ever created — used to resolve relative
     # layer-order operations (bringToFront, sendToBack, bringForward, sendBackward).
     metas: list[Metadata] = []
@@ -331,6 +344,8 @@ class Context:
             "call": Context.lastCallFunction,
             "input": inputIndex,
             "keys": {name: (span[0], span[1]) for name, span in touched.items()},
+            # An emission a Group worked out, rather than a line someone wrote.
+            "derived": Context.deriving,
             "offset": offset,
             # Where the element's cursor stands once this statement is done —
             # which is what a statement written on the NEXT line would count its
@@ -343,42 +358,81 @@ class Context:
     @staticmethod
     def contendedKeys() -> list[dict[str, Any]]:
         """
-        Statements that write the same key, on the same input, over frames that
-        overlap — the one case where the order the two lines were TYPED in
+        Statements that claim the same CHANNEL, on the same input, over frames
+        that overlap — the one case where the order the two lines were TYPED in
         decides what the video looks like.
 
-        A frame holds one entry per key, so the second statement does not blend
-        with the first: it ERASES it, wherever the two meet. `moveTo` against
-        `moveBy` over the same second is not a compromise between the two, it is
-        whichever call ran last, and swapping the lines gives a different video.
+        Two claims on one channel cannot both hold: the later call wins the
+        frames they share. `moveTo(x=2)` against `moveTo(x=5)` over the same
+        second is not a compromise between the two, and swapping the lines gives
+        a different video.
 
-        Two things are deliberately NOT reported, because they are how a scene
+        A channel is finer than a shader class — `Position:x`, `Args:fillColor` —
+        because an effect claims only what it was given. Two effects on different
+        channels COMPOSE, whatever their windows, and reporting those would be
+        crying wolf on the very thing the claim model exists to allow.
+
+        Four things are deliberately NOT reported, because they are how a scene
         is written rather than a mistake:
 
+        - Different channels. x against y, `fillColor` against `strokeColor`.
         - A construction call. `position(x=-4)` covers the single instant it
           lands on; `moveTo(x=4, duration=1)` starting there is the animation
           reading its own starting value, not fighting it. Both statements must
           cover more than one frame.
         - A single frame in common. Two animations that meet end-to-start touch
           on the frame they hand over, and the later one is meant to win it.
+        - Two emissions a GROUP worked out. A group re-emits its whole window on
+          every `apply`, so `g.scaleTo(...).rotateBy(...)` looks from outside like
+          two statements fighting — when `_rigidTimeline` has already composed
+          them per channel. A member written by hand during a group's window is
+          still reported: there the two really do disagree.
 
         Nothing here is sent to C++ and nothing is prevented — it is a reading
         of `statements`, which the editor already keeps.
         """
-        byKey: dict[tuple[int, str], list[dict[str, Any]]] = {}
+        # ── One emitter call is ONE statement ─────────────────────────────
+        # `ease()`, and everything built on it — `over()`, `easeTogether`,
+        # `fillIn` — writes a frame at a time, so a 47-frame ramp arrives here as
+        # 47 statements one frame long. Counting those raw made the whole of
+        # paint animation invisible: every span was a single frame, and a single
+        # frame is rightly never contended. Two `over().fillColor` overlapping by
+        # 15 frames reported nothing at all.
+        #
+        # Grouped by (input, file, line, call) — the same grouping the editor
+        # already uses to draw one bar per call (see `serialize.sceneModel`).
+        calls: dict[tuple[Any, ...], dict[str, list[int]]] = {}
         for st in Context.statements:
+            spans = calls.setdefault((st["input"], st["file"], st["line"], st["call"], st.get("derived", False)), {})
             for key, (first, last) in st["keys"].items():
+                held = spans.get(key)
+                if held is None:
+                    spans[key] = [first, last]
+                else:
+                    held[0] = min(held[0], first)
+                    held[1] = max(held[1], last)
+
+        byKey: dict[tuple[int, str], list[dict[str, Any]]] = {}
+        for (inputIndex, file, line, call, derived), spans in calls.items():
+            for key, (first, last) in spans.items():
                 if last - first <= 1:
                     continue
-                byKey.setdefault((st["input"], key), []).append(
-                    {"key": key, "input": st["input"], "first": first, "last": last,
-                     "file": st["file"], "line": st["line"], "call": st["call"]}
+                byKey.setdefault((inputIndex, key), []).append(
+                    {"key": key, "input": inputIndex, "first": first, "last": last,
+                     "file": file, "line": line, "call": call, "derived": derived}
                 )
 
         found: list[dict[str, Any]] = []
         for spans in byKey.values():
             for i, a in enumerate(spans):
                 for b in spans[i + 1:]:
+                    # Two emissions a group worked out are not rivals: they are
+                    # the same transform, composed per channel by `_rigidTimeline`
+                    # before being sent. One derived and one written by hand IS a
+                    # rival — that is the group-versus-member case, and it must
+                    # still be said (council of 2026-08-26: warn, do not compose).
+                    if a["derived"] and b["derived"]:
+                        continue
                     shared = min(a["last"], b["last"]) - max(a["first"], b["first"])
                     if shared > 1:
                         found.append({"key": a["key"], "input": a["input"], "frames": shared,

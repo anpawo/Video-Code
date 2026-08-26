@@ -46,9 +46,28 @@ Key facts:
 - To persist an end state past the animation, emit a stateful shader at the
   end (`wipeOut` yields `hide()` at `start + duration` — a bare animated
   `crop` evaporates after its last frame).
+- **Claim only the channels you were given.** `position`, `scale`, `align` and
+  `translate` each carry two independent axes, and a `None` component means
+  "this effect does not claim that axis" — not zero, and not unchanged by luck.
+  So an effect that only moves in x must yield `position(x, None)`:
+
+  ```python
+  # the caller named x, so y stays unclaimed and something else may own it
+  yield _position(p.x if x is not None else None, None).at(start=…)
+  ```
+
+  Fill the other axis in from `input.meta` and your effect will overwrite it on
+  every frame of its window — including frames another effect was animating.
+  That is the bug `moveTo`/`moveBy` had: a move in x destroyed a move in y.
+  Unclaimed channels are carried forward by the renderer, so leaving one out
+  costs nothing and says something true.
 - Available building blocks: any `VertexShader` (`position`, `scale`,
   `rotation`, `opacity`, `zIndex`, `args(name, value)` for arbitrary
   attributes) and any `FragmentShader` (e.g. per-frame `crop(...)` = wipe).
+- **Two effects on the same channel overwrite**, last writer wins the frames
+  they share — and a run prints a line naming both call sites when it happens.
+  Two effects on different channels compose, whatever their windows. If your
+  effect needs both axes it should claim both; if it needs one, claim one.
 
 ## B. Fragment shader
 

@@ -75,13 +75,17 @@ check("both members report both calls",
       all(sorted(set(called(m))) == ["rotateBy", "scaleTo"] for m in members))
 check("one row per call, not one per shader", len(members[0]["effects"]) == 2)
 kinds = dict((e["call"], e["kinds"]) for e in members[0]["effects"])
-check("scaleTo owns the scale", "Scale" in kinds["scaleTo"])
+# A kind is the CHANNEL a call wrote, axis included — `Scale:x`, not `Scale`.
+# An effect claims only what it was given, so the axis is part of the answer to
+# "what did this call really write": a move in x that says `Position:x` is
+# telling you it left y alone.
+check("scaleTo owns the scale", any(k.startswith("Scale") for k in kinds["scaleTo"]))
 check("rotateBy owns the rotation", "Rotation" in kinds["rotateBy"])
 # A group re-emits position for every member on every frame it touches — that is
 # what keeps them in formation — so both calls carry it. What tells them apart is
 # the row's NAME, which is the call, and the kinds are there to say what a call
 # really wrote when someone asks.
-check("and the group's own bookkeeping is not hidden", "Position" in kinds["rotateBy"])
+check("and the group's own bookkeeping is not hidden", any(k.startswith("Position") for k in kinds["rotateBy"]))
 
 section("a row is the call's own animation, not the group's whole activity")
 shorter = model(

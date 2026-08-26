@@ -216,7 +216,14 @@ class Group(Interface, Generic[_GROUP_T]):
                 shaders.append(scale(*(base.scale + gscale - v2(1.0, 1.0))))
 
             if shaders:
-                m.apply(*shaders, start=start, duration=duration, offset=offset)
+                # Marked as the group's own working-out, not as a line about this
+                # member — see `Context.deriving`.
+                wasDeriving = Context.deriving
+                Context.deriving = True
+                try:
+                    m.apply(*shaders, start=start, duration=duration, offset=offset)
+                finally:
+                    Context.deriving = wasDeriving
 
     # ------------------------------------------------------------------
     # Interface

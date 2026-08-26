@@ -286,6 +286,33 @@ Every `Input` (shape, text, group, ...) has:
 - `apply(*shaders, start, duration, offset)` — low-level: push raw
   `IShader`s onto the action stack (everything above is sugar over this)
 
+**How two of them combine** — an effect CLAIMS the channels it was given, and
+nothing else:
+- **Different channels compose, whatever their windows.** `moveTo(x=2,
+  duration=1)` and `moveBy(y=3, start=0.5, duration=2)` both play: x eases over
+  its second and then HOLDS at 2 while y is still travelling. `x` and `y` are
+  different channels; so are `fillColor` and `strokeColor`, and every other
+  `Args` attribute. Starts, durations and ends do not have to line up.
+- **The same channel does not.** Two effects claiming `Position:x` over shared
+  frames overwrite: the last one to write wins those frames. That is deliberate
+  — there is no sensible average of "go to 2" and "go to 5" — and the run says
+  so out loud rather than letting the video be quietly the wrong one:
+
+  ```
+  [videocode] scene.py:4 moveTo() and scene.py:5 moveBy() both write Position:x
+              on the Square from scene.py:3, over 30 frames from frame 0.
+  ```
+
+  Separate them with `flush()` or a `start=`, or write the one thing you mean.
+- **A channel nobody claims on a frame keeps the value it last had** — a
+  transform holds until the next one, so an effect that ends early does not snap
+  back.
+- **A group's own working-out is not a rival.** `g.scaleTo(...).rotateBy(...)`
+  re-emits position for every member on both calls; `_rigidTimeline` has already
+  composed them per channel, so nothing is reported. A member written BY HAND
+  during a group's window still is — there the group and the line really do
+  disagree.
+
 **Mirroring**:
 - `mirror(*targets)` / `unmirror(*targets)` — replicate every future shader
   applied to this input onto the target inputs too (cycle-safe). See
