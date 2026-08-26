@@ -356,6 +356,77 @@ class Context:
         })
 
     @staticmethod
+    def _callSpans() -> list[dict[str, Any]]:
+        """
+        One span per (emitter call, channel), in the order the calls were WRITTEN.
+
+        `ease()`, and everything built on it, writes a frame at a time: a
+        47-frame ramp is 47 statements one frame long. Counting those raw makes
+        every span a single frame and hides the whole of paint animation. The
+        editor already groups the same way, by (line, call) — see
+        `serialize.sceneModel`.
+        """
+        calls: dict[tuple[Any, ...], dict[str, list[int]]] = {}
+        for st in Context.statements:
+            spans = calls.setdefault((st["input"], st["file"], st["line"], st["call"], st.get("derived", False)), {})
+            for key, (first, last) in st["keys"].items():
+                held = spans.get(key)
+                if held is None:
+                    spans[key] = [first, last]
+                else:
+                    held[0] = min(held[0], first)
+                    held[1] = max(held[1], last)
+
+        out: list[dict[str, Any]] = []
+        for (inputIndex, file, line, call, derived), spans in calls.items():
+            for key, (first, last) in spans.items():
+                out.append({"key": key, "input": inputIndex, "first": first, "last": last,
+                            "file": file, "line": line, "call": call, "derived": derived})
+        return out
+
+    @staticmethod
+    def backdatedWrites() -> list[dict[str, Any]]:
+        """
+        Statements that live EARLIER than one written before them.
+
+        An animation reads its starting value from the CURSOR — where the element
+        stands once everything written so far has been accounted for. That is the
+        right answer as long as the lines are written in the order they play.
+        Give a `start=` that reaches back behind a line already written, and the
+        cursor has been carried past it already: the animation starts from a value
+        that belongs to a moment which has not happened yet.
+
+        Measured: `moveTo(x=5, start=2)` followed by `moveTo(x=2)` sends x from
+        **4.99 down to 2** over the first second, where the same two lines the
+        other way round send it from 0 up to 2. Same intent, two videos, and
+        nothing said so.
+
+        Repairing it means resolving a base against the stack at the frame the
+        window opens — and which statement opens first cannot be known until
+        every line has run. That is a change of when the whole scene is baked, so
+        this names the trap rather than fixing it.
+
+        A group re-emitting its own window reaches back all the time and is
+        supposed to: derived spans are ignored.
+        """
+        byKey: dict[tuple[int, str], list[dict[str, Any]]] = {}
+        for span in Context._callSpans():
+            if span["derived"]:
+                continue
+            byKey.setdefault((span["input"], span["key"]), []).append(span)
+
+        found: list[dict[str, Any]] = []
+        for spans in byKey.values():
+            for i, earlier in enumerate(spans):
+                for later in spans[i + 1:]:
+                    # `later` was written after, and opens before: its base was
+                    # read off a cursor `earlier` had already carried forward.
+                    if later["first"] < earlier["first"]:
+                        found.append({"key": later["key"], "input": later["input"],
+                                      "a": earlier, "b": later})
+        return found
+
+    @staticmethod
     def contendedKeys() -> list[dict[str, Any]]:
         """
         Statements that claim the same CHANNEL, on the same input, over frames
@@ -401,26 +472,11 @@ class Context:
         #
         # Grouped by (input, file, line, call) — the same grouping the editor
         # already uses to draw one bar per call (see `serialize.sceneModel`).
-        calls: dict[tuple[Any, ...], dict[str, list[int]]] = {}
-        for st in Context.statements:
-            spans = calls.setdefault((st["input"], st["file"], st["line"], st["call"], st.get("derived", False)), {})
-            for key, (first, last) in st["keys"].items():
-                held = spans.get(key)
-                if held is None:
-                    spans[key] = [first, last]
-                else:
-                    held[0] = min(held[0], first)
-                    held[1] = max(held[1], last)
-
         byKey: dict[tuple[int, str], list[dict[str, Any]]] = {}
-        for (inputIndex, file, line, call, derived), spans in calls.items():
-            for key, (first, last) in spans.items():
-                if last - first <= 1:
-                    continue
-                byKey.setdefault((inputIndex, key), []).append(
-                    {"key": key, "input": inputIndex, "first": first, "last": last,
-                     "file": file, "line": line, "call": call, "derived": derived}
-                )
+        for span in Context._callSpans():
+            if span["last"] - span["first"] <= 1:
+                continue
+            byKey.setdefault((span["input"], span["key"]), []).append(span)
 
         found: list[dict[str, Any]] = []
         for spans in byKey.values():

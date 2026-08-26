@@ -71,6 +71,32 @@ def _reportContendedKeys() -> None:
         )
 
 
+def _reportBackdatedWrites() -> None:
+    """
+    Say it out loud when a line reaches back behind one already written.
+
+    An animation reads where to start from the CURSOR, which is right as long as
+    the lines are written in the order they play. A `start=` that opens before a
+    line written above it starts from a value belonging to a moment that has not
+    happened yet — and the same two lines the other way round give a different
+    video. Printed rather than fixed: reading the base from the stack instead
+    would need every line to have run first, which is a change of when the whole
+    scene is baked.
+    """
+    for hit in Context.backdatedWrites():
+        a, b = hit["a"], hit["b"]
+        print(
+            f"[videocode] {os.path.basename(b['file'])}:{b['line']} {b['call']}() opens at frame "
+            f"{b['first']}, behind {os.path.basename(a['file'])}:{a['line']} {a['call']}() which was "
+            f"written above it and opens at frame {a['first']}. Both write {hit['key']}.\n"
+            f"            An animation starts from where the element stands once every line above it "
+            f"has been counted — so this one starts from a value that belongs to a LATER moment, and "
+            f"writing the two lines the other way round gives a different video. Put them in the "
+            f"order they play, or give the earlier one its own start= too.",
+            file=sys.stderr,
+        )
+
+
 def _applyBackground(scope: dict) -> None:
     """
     Resolve the scene's optional script-global `BG` — the scene's
@@ -152,6 +178,7 @@ def execScene(filepath: str) -> None:
 
     _applyBackground(scope)
     _reportContendedKeys()
+    _reportBackdatedWrites()
 
 
 def sceneModel() -> dict:
@@ -682,6 +709,7 @@ def execSource(source: str, filepath: str) -> dict:
         exec(code, scope)
         _applyBackground(scope)
         _reportContendedKeys()
+        _reportBackdatedWrites()
     except SyntaxError as error:
         return {
             "ok": False,

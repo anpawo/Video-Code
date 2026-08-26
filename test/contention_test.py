@@ -123,5 +123,46 @@ def grouped(body: str) -> list[dict]:
 check("chained group animations are not a conflict", not grouped("g.scaleTo(2, duration=1).rotateBy(90, duration=1)"))
 check("a member written by hand during a group window IS", len(grouped("g.rotateBy(90, duration=1)\nb.moveBy(y=1, duration=1)")) == 1)
 
+# ── A line that reaches back behind one written above it ────────────────────
+# An animation reads where to start from the CURSOR, which is the right answer
+# as long as the lines are written in the order they play. Give a `start=` that
+# opens behind a line already written and the cursor has been carried past it:
+# measured, `moveTo(x=5, start=2)` then `moveTo(x=2)` sends x from 4.99 DOWN to
+# 2 over the first second, where the same two lines the other way round send it
+# from 0 up to 2. Same intent, two videos.
+section("backdatedWrites — a start= that opens behind a line written above it")
+
+
+def backdated(body: str) -> list[dict]:
+    with contextlib.redirect_stderr(io.StringIO()):
+        execSource("from videocode import *\n\ns = Square(side=1)\n" + body + "\nwait(4)\n", "contention_test_order.py")
+    return Context.backdatedWrites()
+
+
+check("written in the order they play: nothing to say", not backdated("s.moveTo(x=2, duration=1)\ns.moveTo(x=5, start=2, duration=1)"))
+check("written the other way round: reported", len(backdated("s.moveTo(x=5, start=2, duration=1)\ns.moveTo(x=2, duration=1)")) == 1)
+check(
+    "and it names the line that reaches back",
+    backdated("s.moveTo(x=5, start=2, duration=1)\ns.moveTo(x=2, duration=1)")[0]["b"]["line"] == 5,
+)
+check(
+    "a different channel is not affected by it",
+    not backdated("s.moveTo(x=5, start=2, duration=1)\ns.moveTo(y=2, duration=1)"),
+)
+
+# What the two orders actually produce, so the test says why it cares.
+def firstX(body: str) -> float:
+    with contextlib.redirect_stderr(io.StringIO()):
+        execSource("from videocode import *\n\ns = Square(side=1)\n" + body + "\nwait(4)\n", "contention_test_order.py")
+    frames = sorted(f for f in Context.stack[0] if f != -1 and "Position" in Context.stack[0][f])
+    return Context.stack[0][frames[0]]["Position"]["args"]["x"]
+
+
+check(
+    "the two orders really do differ — that is the whole point",
+    abs(firstX("s.moveTo(x=2, duration=1)\ns.moveTo(x=5, start=2, duration=1)")
+        - firstX("s.moveTo(x=5, start=2, duration=1)\ns.moveTo(x=2, duration=1)")) > 1.0,
+)
+
 # ---------------------------------------------------------------------------
 summary()
