@@ -168,12 +168,32 @@ void VC::Core::rebuildInput(size_t idx, const py::dict& inputData, bool reuseExi
         target = dynamic_cast<AInput*>(freshInput.get());
     }
 
-    // Replay Apply entries in the dict's natural (insertion / chronological) order —
-    // AInput::add() is cumulative/order-dependent (Metadata mutation, effect timeline).
+    // Replay Apply entries by INCREASING FRAME, not in the dict's insertion order.
+    //
+    // AInput::add() carries a Metadata forward by copying the last one, so it is
+    // only correct if the frames arrive in order — and the dict's order is the
+    // order the statements were written, which is not the same thing. A frame
+    // added after a later one loses the frames in between.
+    //
+    // It already happens: `scene.py` inserts frame 57 after frame 92 on both of
+    // its members, because `autodestroy` drops a no-op frame on the first pass and
+    // the chained pass re-emits it once the cursor has moved. It is harmless there
+    // only because the late frame carries exactly what the carry would have given
+    // — a coincidence of values, not a protection.
+    //
+    // Sorting costs one pass and closes the whole class. Note the asymmetry it
+    // repairs: the incremental-reload check below compares dicts WITHOUT regard to
+    // insertion order, while this replay depended on it.
+    std::vector<std::pair<ssize_t, py::handle>> byFrame;
+    byFrame.reserve(inputData.size());
     for (auto [rawFrame, rawShaders] : inputData) {
         ssize_t frameIdx = rawFrame.cast<ssize_t>();
         if (frameIdx < 0) continue; // skip Create sentinel at -1
+        byFrame.emplace_back(frameIdx, rawShaders);
+    }
+    std::sort(byFrame.begin(), byFrame.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
 
+    for (auto& [frameIdx, rawShaders] : byFrame) {
         for (auto [rawKey, rawEntry] : rawShaders.cast<py::dict>()) {
             std::string dictKey = rawKey.cast<std::string>();
             // "Args:argName" → shaderName = "Args"; everything else is verbatim.

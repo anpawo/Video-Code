@@ -126,8 +126,18 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
             break;
         }
         case VertexShader::Position: {
-            meta.position.x = config::screenOffset.x + args.at("x").get<float>() * config::worldToPixelRatio;
-            meta.position.y = config::screenOffset.y - args.at("y").get<float>() * config::worldToPixelRatio;
+            // A null component is a channel this effect does not CLAIM — leave it
+            // alone and let the carry hold whatever it already was. That is what
+            // makes a move in x and a move in y able to share an input without
+            // one erasing the other: on a shared frame Python fills the hole from
+            // the neighbouring entry, and on a frame only one of them covers,
+            // there is no neighbour and the hole arrives here.
+            //
+            // `is_null`, not `contains`: pyToJson emits null WITH the key present.
+            if (!args.at("x").is_null())
+                meta.position.x = config::screenOffset.x + args.at("x").get<float>() * config::worldToPixelRatio;
+            if (!args.at("y").is_null())
+                meta.position.y = config::screenOffset.y - args.at("y").get<float>() * config::worldToPixelRatio;
             break;
         }
         case VertexShader::Translate: {

@@ -32,8 +32,23 @@ class position(VertexShader, Generic[_T1, _T2]):
         # TODO: so we could use a setattr(attr) with the VertexShader and so remove the modificators
 
     def autodestroy(self, i: Input) -> bool:
-        return (i.meta.position.x is None or i.meta.position.x == self.x) and (i.meta.position.y is None or i.meta.position.y == self.y)
+        # Judged on the CLAIMED components only. A `None` is not a value that
+        # happens to match — it is the absence of a claim, so it can never be the
+        # reason to keep the shader. Claiming nothing at all is a no-op outright.
+        if self.x is None and self.y is None:
+            return True
+        return (self.x is None or i.meta.position.x == self.x) and (self.y is None or i.meta.position.y == self.y)
 
     def modify(self, i: Input):
-        self.x = i.meta.position.x = self.x if self.x is not None else i.meta.position.x
-        self.y = i.meta.position.y = self.y if self.y is not None else i.meta.position.y
+        # A component left `None` is one this effect does NOT CLAIM, and it must
+        # reach the stack as a hole rather than as a value.
+        #
+        # Filling it in from the cursor is what made `moveTo(x=2)` claim the y it
+        # was never given: every frame of its window then carried a y, and it
+        # overwrote a y animation it knew nothing about. The cursor is still kept
+        # current for the 127 places that read `meta`, but only for what was asked
+        # for.
+        if self.x is not None:
+            i.meta.position.x = self.x
+        if self.y is not None:
+            i.meta.position.y = self.y

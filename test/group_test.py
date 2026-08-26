@@ -102,12 +102,20 @@ def orbit(line: str) -> dict[int, tuple[float, float]]:
     )
     # Through the same door a scene comes in by, which resets the context for us.
     execSource(source, "group_test_scene.py")
-    frames = Context.stack[0]
-    return {
-        f: (entry["Position"]["args"]["x"], entry["Position"]["args"]["y"])
-        for f, entry in frames.items()
-        if f != -1 and "Position" in entry
-    }
+
+    # Resolved with carry, because an entry only carries the channels its effect
+    # CLAIMED — `position(x=-1)` leaves y as None, and the value that renders is
+    # the one the channel last held. See test/composition_test.py.
+    out: dict[int, tuple[float, float]] = {}
+    x, y = 0.0, 0.0
+    for f in sorted(k for k in Context.stack[0] if k != -1):
+        args = Context.stack[0][f].get("Position")
+        if args is not None:
+            claimed = args["args"]
+            x = claimed["x"] if claimed["x"] is not None else x
+            y = claimed["y"] if claimed["y"] is not None else y
+        out[f] = (x, y)
+    return out
 
 
 def sameAnimation(first: str, second: str) -> float:
@@ -182,14 +190,22 @@ def trajectories(line: str, n: int) -> list[dict[int, tuple[float, float]]]:
         "d = Square(side=0.4).position(x=2)\n" + line + "\nwait(1)\n"
     )
     execSource(source, "group_test_nested.py")
-    return [
-        {
-            f: (entry["Position"]["args"]["x"], entry["Position"]["args"]["y"])
-            for f, entry in Context.stack[i].items()
-            if f != -1 and "Position" in entry
-        }
-        for i in range(n)
-    ]
+
+    # Resolved with carry — see `orbit()` above: an entry only carries the
+    # channels its effect claimed.
+    tracks: list[dict[int, tuple[float, float]]] = []
+    for i in range(n):
+        out: dict[int, tuple[float, float]] = {}
+        x, y = 0.0, 0.0
+        for f in sorted(k for k in Context.stack[i] if k != -1):
+            args = Context.stack[i][f].get("Position")
+            if args is not None:
+                claimed = args["args"]
+                x = claimed["x"] if claimed["x"] is not None else x
+                y = claimed["y"] if claimed["y"] is not None else y
+            out[f] = (x, y)
+        tracks.append(out)
+    return tracks
 
 
 def sameAsFlat(nested: str, flat: str, n: int) -> float:
@@ -209,8 +225,13 @@ def sameAsFlat(nested: str, flat: str, n: int) -> float:
 
     worst = 0.0
     for a, b in zip(trajectories(nested, n), trajectories(flat, n)):
+        # From where BOTH have started. A member sitting on its construction
+        # value writes nothing until something moves it, and the two bracketings
+        # need not fall silent on the same frames — before either has spoken,
+        # both are where the source put them, which is the same place.
+        begin = max(min(a), min(b))
         for f in sorted(set(a) | set(b)):
-            if f < min(min(a), min(b)):
+            if f < begin:
                 continue
             worst = max(worst, math.dist(at(a, f), at(b, f)))
     return worst

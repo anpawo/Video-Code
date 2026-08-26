@@ -399,6 +399,21 @@ class Context:
         opposite = Context._EXCLUSIVE.get(dictKey)
         if opposite is not None:
             onFrame.pop(opposite, None)
+        # A component this effect does not CLAIM is a hole, not a value — and the
+        # frame already holds what belongs in it. Filling the hole from the entry
+        # being replaced is what lets two effects share a frame: before this, the
+        # second simply erased the first, whatever channel it had really changed.
+        #
+        # This settles the collision ON a frame. A frame that only one of them
+        # covers has no neighbour to fill from, and its hole travels to C++, where
+        # an absent component means "leave that channel alone" and the carry holds
+        # the value — that is what settles it BETWEEN frames.
+        held = onFrame.get(dictKey)
+        if held is not None:
+            heldArgs = held["args"]
+            for name, value in shaderArgs.items():
+                if value is None and heldArgs.get(name) is not None:
+                    shaderArgs[name] = heldArgs[name]
         onFrame[dictKey] = {
             "type": shaderType,
             "args": shaderArgs,
