@@ -1,0 +1,4 @@
+module VideoCode
+singleton Theme 1.0 Theme.qml
+singleton Layouts 1.0 Layouts.qml
+singleton Keymap 1.0 Keymap.qml

@@ -1,0 +1,1495 @@
+/*
+** EPITECH PROJECT, 2026
+** video-code
+** File description:
+** Editor
+*/
+
+#include "window/Editor.hpp"
+
+#include <QtGui/qpa/qwindowsysteminterface.h>
+#include <QtQml/qqml.h>
+#include <pybind11/embed.h>
+#include <unistd.h>
+
+#include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QDir>
+#include <QFile>
+#include <QFileDialog>
+#include <QFileInfo>
+#include <QGuiApplication>
+#include <QImage>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QKeyEvent>
+#include <QMenu>
+#include <QMouseEvent>
+#include <QPainter>
+#include <QPixmap>
+#include <QQmlContext>
+#include <QQuickStyle>
+#include <QQuickWindow>
+#include <QRegularExpression>
+#include <QSGRendererInterface>
+#include <QStandardPaths>
+#include <QTextCursor>
+#include <QTimer>
+#include <QUrl>
+#include <QUrlQuery>
+#include <chrono>
+#include <format>
+#include <iostream>
+
+#include "agent/AgentSession.hpp"
+#include "lsp/LanguageServer.hpp"
+#include "utils/ImageIO.hpp"
+#include "utils/Logger.hpp"
+
+namespace py = pybind11;
+#include "window/MacApplication.hpp"
+#include "window/PreviewItem.hpp"
+#include "window/PythonHighlighter.hpp"
+#include "window/ThumbProvider.hpp"
+
+#ifndef QML_DIR
+// Set by CMake to <source>/qml.  The fallback keeps a hand-rolled build
+// compiling; it just will not find the chrome.
+    #define QML_DIR "qml"
+#endif
+
+VC::Editor::~Editor()
+{
+}
+
+VC::Editor::Editor(QObject* parent)
+    : QObject(parent)
+{
+    // Controls default to the native macOS style, which would fight a chrome that
+    // paints every surface itself — and would look different on Linux.  Basic
+    // draws almost nothing on its own, which is exactly what we want under our
+    // own Theme, and it keeps the window reproducible across machines.
+    QQuickStyle::setStyle("Basic");
+
+    // The chrome asks the shell for the one thing QML cannot do on its own:
+    // read and write the saved dock layout.
+    _engine.rootContext()->setContextProperty("Shell", this);
+
+    // On the application, not on the window: a key event is delivered to
+    // whatever holds the focus — a text field, a list, a menu — and the side a
+    // modifier is on has to be known wherever it lands.
+    if (qApp != nullptr)
+        qApp->installEventFilter(this);
+
+    // What the code pane asks about Python. Owned by the shell so it outlives a
+    // chrome reload — a language server is slow to start and has nothing to do
+    // with how the window is drawn.
+    _engine.rootContext()->setContextProperty("Lsp", &_language);
+
+    // Claude Code, for the Agent pane. Same arrangement as the language server
+    // and for the same reason — a conversation outlives a chrome reload.
+    _engine.rootContext()->setContextProperty("Agent", &_agent);
+
+    // The preview pane. A C++ item rather than an Image, because a frame is
+    // produced on demand by a Vulkan device that lives here, and there is no URL
+    // to give it.
+    //
+    // Its own URI, not "VideoCode": that module is a directory with a qmldir
+    // listing three singletons, and importing it by name replaces the implicit
+    // directory import the chrome relies on — every sibling `.qml` type then
+    // stops resolving.
+    qmlRegisterType<PreviewItem>("VideoCode.Engine", 1, 0, "PreviewItem");
+
+    // The module lives in qml/VideoCode, so qml/ is what has to be importable
+    // for `import VideoCode` (and for the Theme singleton its qmldir declares).
+    // The bin's pictures come through here rather than off disk as files: no
+    // temporary images to write, no format to encode, and Qt caches what it has
+    // already drawn.  The engine takes ownership.
+    _engine.addImageProvider(QStringLiteral("thumb"), new ThumbProvider);
+
+    _engine.addImportPath(qmlDirectory());
+    _mainFile = QDir(qmlDirectory()).filePath("VideoCode/Main.qml");
+
+    buildMenuBar();
+
+    watchQmlFiles();
+    // `path` is only read by the log, which VC_SLOG compiles out of a quiet build.
+    connect(&_watcher, &QFileSystemWatcher::fileChanged, this, [this]([[maybe_unused]] const QString& path) {
+        VC_SLOG(std::format("[editor] {} changed — reloading chrome\n", path.toStdString()));
+        // A save that goes through a temporary file drops the watch, so it has
+        // to be re-armed on every change.  Doing it on the next tick lets the
+        // editor finish writing before we read.
+        QTimer::singleShot(30, this, [this] {
+            watchQmlFiles();
+            reload();
+        });
+    });
+}
+
+void VC::Editor::buildMenuBar()
+{
+    _menuBar = std::make_unique<QMenuBar>(nullptr);
+
+    // The menu has to hang somewhere for Qt to see it, but macOS relocates an
+    // action carrying PreferencesRole into the application menu and leaves this
+    // one empty — so it is never shown, and never named anything a user reads.
+    QMenu* application = _menuBar->addMenu(QStringLiteral("Video-Code"));
+
+    auto* settings = application->addAction(QStringLiteral("Settings…"));
+    settings->setMenuRole(QAction::PreferencesRole);
+    settings->setShortcut(QKeySequence::Preferences);
+    connect(settings, &QAction::triggered, this, &Editor::settingsRequested);
+
+    // Opening something is the first thing a person looks for, and macOS puts
+    // File immediately after the application menu — so it is declared first and,
+    // being filled here rather than from QML, it is also populated first, which
+    // is what actually decides the order (see below).
+    QMenu* file = _menuBar->addMenu(QStringLiteral("File"));
+
+    // Filled on the first tick of the event loop, not here.
+    //
+    // Qt's Cocoa bridge inserts a menu into the native bar when its contents
+    // CHANGE, and a menu whose every action was added while the bar was being
+    // built never changes afterwards — so it is never inserted and the title
+    // does not appear at all. Every other menu here is filled from QML after
+    // startup, which is why they were visible and this one alone was missing.
+    QTimer::singleShot(0, this, [this, file] { fillFileMenu(file); });
+
+    // ── The order of the menus IS the order they are added in ──────────────
+    // System first, then the dock, then the guide: what you SET, then what you
+    // ARRANGE, then what you READ. The application menu is not part of this —
+    // macOS always keeps it leftmost, whatever we do.
+    //
+    // Two menus rather than one long one because a legend and a preference
+    // answer different questions, and mixing them makes both harder to find.
+    QMenu* system = _menuBar->addMenu(QStringLiteral("System"));
+
+    // Every key the application answers to, and where you change them.  ⌘/
+    // because that is where the rest of the world put it, and because a list of
+    // shortcuts that itself needs a shortcut nobody knows is a list nobody reads.
+    auto* keys = system->addAction(QStringLiteral("Keyboard Shortcuts"));
+    keys->setShortcut(QKeySequence(QStringLiteral("Ctrl+/")));
+    connect(keys, &QAction::triggered, this, &Editor::shortcutsRequested);
+
+    _codeThemesMenu = system->addMenu(QStringLiteral("Code theme"));
+
+    // Settings is NOT repeated here.  Qt recognises the title and macOS moves
+    // any such item into the application menu next to About and Quit, which is
+    // where a Mac user looks for it — a second one would either vanish or, if
+    // renamed to escape the rule, sit in the wrong place on purpose.
+
+    // Named for what it holds rather than borrowed from every other application:
+    // everything in here is about the dock — which arrangement, which panes,
+    // back to the start.  "View" would also collide with the ⋯ menu's Display,
+    // which is about one panel rather than the whole window.
+    //
+    // A panel dragged somewhere silly or closed by accident has to be
+    // recoverable from a place that does not depend on finding that panel again
+    // — which the dock's own ⋯ menu does.
+    QMenu* view = _menuBar->addMenu(QStringLiteral("Dock display"));
+
+    // Layout first: which arrangement you are in decides where everything else
+    // is, so it reads before the list of what is in it.
+    _templatesMenu = view->addMenu(QStringLiteral("Layout"));
+    view->addSeparator();
+    _docksMenu = view->addMenu(QStringLiteral("Docks"));
+
+    view->addSeparator();
+
+    // What the arrangement you are looking at actually IS, in numbers. Beside
+    // the two ways of keeping it, because you measure a display for the same
+    // reason you save one: you are deciding whether it is the one you want.
+    auto* measure = view->addAction(QStringLiteral("Show proportions"));
+    connect(measure, &QAction::triggered, this, &Editor::dockMeasureRequested);
+
+    view->addSeparator();
+
+    // Keeping what you are looking at, two ways round: under the name it already
+    // has, or under a new one.  The first is what you want nine times out of ten
+    // — you dragged the display you were in into better shape — so it goes
+    // first and costs no typing.
+    auto* update = view->addAction(QStringLiteral("Update default"));
+    connect(update, &QAction::triggered, this, &Editor::dockDefaultRequested);
+
+    auto* save = view->addAction(QStringLiteral("Save display…"));
+    connect(save, &QAction::triggered, this, &Editor::dockSaveRequested);
+
+    _displaysMenu = view->addMenu(QStringLiteral("Load display"));
+
+    view->addSeparator();
+    auto* reset = view->addAction(QStringLiteral("Reset UI"));
+    connect(reset, &QAction::triggered, this, &Editor::dockResetRequested);
+
+    // Guide sits beside the dock's menu rather than inside it: it explains the
+    // whole chrome, not the dock, and a legend buried in a panel menu is a
+    // legend nobody opens.
+    QMenu* guide = _menuBar->addMenu(QStringLiteral("Guide"));
+    _colorsMenu = guide->addMenu(QStringLiteral("Colors"));
+
+    // A legend is read, not operated: a size up from the menu default, because
+    // every line of it is a sentence rather than a command.
+    QFont legend = _colorsMenu->font();
+    legend.setPointSizeF(legend.pointSizeF() + 1.5);
+    _colorsMenu->setFont(legend);
+
+    // The menu bar Cocoa draws does not exist yet — Qt hands it over later, when
+    // the window first becomes active. So the name is offered until it is taken,
+    // and the timer stops itself the moment it is.
+    auto* naming = new QTimer(this);
+    naming->setInterval(200);
+    connect(naming, &QTimer::timeout, this, [naming] {
+        if (nameApplication(QStringLiteral("Video-Code")))
+            naming->stop();
+    });
+    naming->start();
+}
+
+void VC::Editor::setGuideColors(const QVariantList& rows)
+{
+    if (!_colorsMenu)
+        return;
+
+    _colorsMenu->clear();
+
+    for (const QVariant& entry : rows) {
+        const QVariantMap row = entry.toMap();
+
+        const QString section = row.value(QStringLiteral("section")).toString();
+        if (!section.isEmpty()) {
+            _colorsMenu->addSection(section);
+            continue;
+        }
+
+        // The swatch is drawn rather than described, because the whole point of
+        // the row is the colour itself.  Rounded and inset to read as the same
+        // chip the chrome paints everywhere else.
+        QPixmap swatch(16, 16);
+        swatch.fill(Qt::transparent);
+        {
+            QPainter painter(&swatch);
+            painter.setRenderHint(QPainter::Antialiasing);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(QColor(row.value(QStringLiteral("color")).toString()));
+            painter.drawRoundedRect(QRectF(1, 1, 14, 14), 3, 3);
+        }
+
+        auto* action = _colorsMenu->addAction(
+            QIcon(swatch),
+            QStringLiteral("%1 — %2")
+                .arg(row.value(QStringLiteral("label")).toString())
+                .arg(row.value(QStringLiteral("meaning")).toString())
+        );
+        // Nothing to do when picked; the row IS the answer. It stays enabled so
+        // macOS draws it in full contrast instead of greying out the legend.
+        connect(action, &QAction::triggered, this, [] {});
+    }
+}
+
+void VC::Editor::setDockDisplays(const QVariantList& displays)
+{
+    if (!_displaysMenu)
+        return;
+
+    _displaysMenu->clear();
+
+    if (displays.isEmpty()) {
+        // An empty submenu is a dead end you can still open. Say why it is empty.
+        auto* nothing = _displaysMenu->addAction(QStringLiteral("Nothing saved yet"));
+        nothing->setEnabled(false);
+        return;
+    }
+
+    for (const QVariant& entry : displays) {
+        const QString name = entry.toMap().value(QStringLiteral("name")).toString();
+        auto*         open = _displaysMenu->addAction(name);
+        connect(open, &QAction::triggered, this, [this, name] { Q_EMIT dockDisplayChosen(name); });
+    }
+}
+
+void VC::Editor::setCodeThemes(const QVariantList& themes)
+{
+    if (!_codeThemesMenu)
+        return;
+
+    _codeThemesMenu->clear();
+
+    for (const QVariant& entry : themes) {
+        const QVariantMap theme = entry.toMap();
+        const QString     key = theme.value(QStringLiteral("key")).toString();
+
+        auto* action = _codeThemesMenu->addAction(theme.value(QStringLiteral("label")).toString());
+        action->setCheckable(true);
+        action->setChecked(theme.value(QStringLiteral("current")).toBool());
+
+        connect(action, &QAction::triggered, this, [this, key] { Q_EMIT codeThemeChosen(key); });
+    }
+}
+
+void VC::Editor::setDockTemplates(const QVariantList& templates)
+{
+    if (!_templatesMenu)
+        return;
+
+    _templatesMenu->clear();
+
+    // Numbered ⌘1, ⌘2, ⌘3 in the order they are declared: switching arrangement
+    // is a thing you do mid-thought, and a menu you have to open for it is a
+    // menu you stop using.  Qt's portable "Ctrl" is ⌘ on macOS.
+    int number = 1;
+
+    for (const QVariant& entry : templates) {
+        const QVariantMap arrangement = entry.toMap();
+        const QString     key = arrangement.value(QStringLiteral("key")).toString();
+
+        auto* action = _templatesMenu->addAction(arrangement.value(QStringLiteral("label")).toString());
+        action->setCheckable(true);
+        action->setChecked(arrangement.value(QStringLiteral("current")).toBool());
+        if (number <= 9)
+            action->setShortcut(QKeySequence(QStringLiteral("Ctrl+%1").arg(number)));
+        ++number;
+
+        connect(action, &QAction::triggered, this, [this, key] { Q_EMIT dockTemplateChosen(key); });
+    }
+}
+
+void VC::Editor::setDockPanels(const QVariantList& panels)
+{
+    if (!_docksMenu)
+        return;
+
+    // Rebuilt rather than reconciled: five items cost nothing to recreate, and
+    // a menu that is rebuilt cannot drift out of step with the dock.
+    _docksMenu->clear();
+
+    for (const QVariant& entry : panels) {
+        const QVariantMap panel = entry.toMap();
+        const QString     key = panel.value(QStringLiteral("key")).toString();
+
+        auto* action = _docksMenu->addAction(panel.value(QStringLiteral("label")).toString());
+        action->setCheckable(true);
+        action->setChecked(panel.value(QStringLiteral("shown")).toBool());
+        connect(action, &QAction::triggered, this, [this, key] { Q_EMIT dockPanelToggled(key); });
+    }
+}
+
+void VC::Editor::configureGraphicsApi()
+{
+    // Leave the platform default alone unless asked otherwise. On macOS that is
+    // Metal, which is the only one of the two that renders this chrome without
+    // stalling the GUI thread for seconds at a time — see the header for the
+    // measurements. An explicit QSG_RHI_BACKEND wins, which is how the Vulkan
+    // path stays testable.
+    if (!qEnvironmentVariableIsEmpty("QSG_RHI_BACKEND"))
+        return;
+
+#if !QT_CONFIG(vulkan)
+    // Nothing to do, but worth saying out loud: without Qt's Vulkan support the
+    // renderer and the chrome can never share a device, whatever we measure.
+    VC_SLOG("[editor] this Qt has no Vulkan support; Quick uses the platform default\n");
+#endif
+}
+
+bool VC::Editor::load()
+{
+    _engine.load(QUrl::fromLocalFile(_mainFile));
+    if (_engine.rootObjects().isEmpty()) {
+        std::cerr << std::format("Failed to load the editor chrome from {}\n", _mainFile.toStdString());
+        return false;
+    }
+    return true;
+}
+
+void VC::Editor::captureHidden(const QString& path)
+{
+    const auto roots = _engine.rootObjects();
+    if (roots.isEmpty())
+        return;
+
+    auto* window = qobject_cast<QQuickWindow*>(roots.first());
+    if (window == nullptr) {
+        std::cerr << "no window object\n";
+        return;
+    }
+
+    // Rendering and DISPLAYING are two different things, and only the second
+    // one lands on a desktop. The scene graph draws into a buffer whether or not
+    // the compositor was ever asked to map the window — so a picture of the
+    // chrome costs nothing but the draw, and interrupts nobody.
+    //
+    // (`QQuickRenderControl` is the documented way to render QML with no window
+    // at all. It is not needed here: measured, `grabWindow()` on a window that
+    // was created and never shown returns a full 2880x1800 frame.)
+    const QImage frame = window->grabWindow();
+    if (frame.isNull()) {
+        std::cerr << "grabWindow() returned nothing on the unshown window.\n";
+        return;
+    }
+
+    // Same road as every other picture this project writes: Qt here is built
+    // without PNG, so the frame goes out through OpenCV.
+    const QImage  argb = frame.convertToFormat(QImage::Format_ARGB32);
+    const cv::Mat bgra(
+        argb.height(), argb.width(), CV_8UC4,
+        const_cast<uchar*>(argb.bits()), argb.bytesPerLine()
+    );
+    if (VC::ImageIO::write(path.toStdString(), bgra))
+        std::cout << std::format("chrome captured ({}x{}) → {}\n", argb.width(), argb.height(), path.toStdString());
+    else
+        std::cerr << std::format("Could not write {}\n", path.toStdString());
+}
+
+void VC::Editor::captureTo(const QString& path)
+{
+    const auto roots = _engine.rootObjects();
+    if (roots.isEmpty())
+        return;
+
+    auto* window = qobject_cast<QQuickWindow*>(roots.first());
+    if (!window) {
+        std::cerr << "The chrome's root object is not a window, so there is nothing to grab.\n";
+        return;
+    }
+
+    // frameSwapped fires once the scene graph has actually presented, which is
+    // the earliest moment a grab returns the finished picture rather than a
+    // half-built one.  Fonts load asynchronously, so we let a couple of frames
+    // go by before reading back.
+    connect(window, &QQuickWindow::frameSwapped, this, [this, window, path] {
+        if (_captured)
+            return;
+        _captured = true;
+
+        // VC_SHOT_DELAY lets a script drive the window — click something, switch
+        // layout — before the picture is taken, which is how the chrome's input
+        // handling gets verified without a human at the mouse.
+        const int delay = qEnvironmentVariableIntValue("VC_SHOT_DELAY") > 0
+                              ? qEnvironmentVariableIntValue("VC_SHOT_DELAY")
+                              : 400;
+
+        // Take the window, before anything is sent to it.
+        //
+        // A `Shortcut` in the default window context is only matched while its
+        // window is the one the platform calls focused, and a window launched
+        // while a browser or the terminal holds the desktop's attention is not.
+        // The keys then vanish with no error anywhere: nothing plays, nothing
+        // has active focus, and the run looks like a bug in the chrome rather
+        // than a window that was never listening. Asked once here, so a scripted
+        // run is not at the mercy of what else is open.
+        // Tell Qt the window is the focus window — and tell nobody else.
+        //
+        // A `Shortcut` in the default window context only matches while its
+        // window is focused, and a window launched from a terminal while another
+        // application owns the desktop never is: the keys vanish with no error
+        // anywhere. The fix is NOT to bring the process to the front. That was
+        // the first version, and it worked: it also meant a scripted run stole
+        // the keyboard from whoever was using the machine, and their typing went
+        // into the scene buffer. Saying it at the QPA layer gives the run its
+        // shortcuts and leaves the desktop alone.
+        QWindowSystemInterface::handleFocusWindowChanged(window, Qt::OtherFocusReason);
+
+        // VC_CLICK="x,y" — or "x1,y1,x2,y2,…" for a sequence, which is how a
+        // scripted run reaches anything behind a menu: opening it and choosing
+        // from it are two clicks, and one of them alone proves nothing.
+        const QStringList probe = qEnvironmentVariable("VC_CLICK").split(',', Qt::SkipEmptyParts);
+        for (int i = 0; i + 1 < probe.size(); i += 2) {
+            const QPointF at(probe[i].toDouble(), probe[i + 1].toDouble());
+            // After the drags, not before: a script that resizes something and
+            // then clicks in it is describing an order, and firing the click
+            // first tests the opposite of what it says.
+            QTimer::singleShot(delay / 2 + 600 + (i / 2) * 200, this, [this, at] { clickAt(at); });
+        }
+
+        // VC_HOVER="x,y" — the pointer coming to REST somewhere, which is a
+        // third kind of input entirely: hovers, tooltips and the language
+        // server's replies only happen when nothing is clicked at all. Sent
+        // twice a few hundred milliseconds apart because a single move tells
+        // the pane nothing has settled yet.
+        const QStringList hovered = qEnvironmentVariable("VC_HOVER").split(',', Qt::SkipEmptyParts);
+        if (hovered.size() == 2) {
+            const QPointF at(hovered[0].toDouble(), hovered[1].toDouble());
+            QTimer::singleShot(delay / 2, this, [this, at] { hoverAt(at); });
+            QTimer::singleShot(delay / 2 + 120, this, [this, at] { hoverAt(at + QPointF(1, 0)); });
+        }
+
+        // VC_TYPE="text" — characters, sent as a person would send them. The
+        // editor's intelligence only ever appears in response to typing, so
+        // without this none of it can be checked without a human at the
+        // keyboard. It runs after the clicks, which is what put the caret
+        // somewhere worth typing.
+        const QString typed = qEnvironmentVariable("VC_TYPE");
+        for (int i = 0; i < typed.size(); ++i) {
+            const QChar c = typed.at(i);
+            QTimer::singleShot(delay / 2 + 400 + i * 90, this, [this, c] { typeCharacter(c); });
+        }
+
+        // VC_KEYS="F12;Ctrl+R;Click:700,455;Drag:10,10,80,10;Text:name" — named keys, clicks,
+        // drags and
+        // literals, in the order written. Typing covers what a
+        // character does; the pane's intelligence answers to keys that have no
+        // character at all, and those are exactly the ones worth checking.
+        const QStringList keys = qEnvironmentVariable("VC_KEYS").split(';', Qt::SkipEmptyParts);
+        for (int i = 0; i < keys.size(); ++i) {
+            const QString spec = keys.at(i);
+            QTimer::singleShot(delay / 2 + 900 + i * 700, this, [this, spec] { pressKey(spec); });
+        }
+
+        // VC_PANEL="settings" | "shortcuts" | "save" | "default" | "measure" | "reset" — one of the
+        // shell's own overlays. They are reached from the NATIVE menu bar, which a synthetic
+        // click cannot touch, so without this neither can ever be checked in a
+        // scripted run.
+        const QString panel = qEnvironmentVariable("VC_PANEL");
+        if (!panel.isEmpty()) {
+            // Before the clicks, not with them: an overlay that opens on the
+            // same tick as the first click opens UNDER it, and the click lands
+            // on whatever was behind.
+            QTimer::singleShot(delay / 2 - 500, this, [this, panel] {
+                if (panel == "settings")
+                    Q_EMIT settingsRequested();
+                else if (panel == "shortcuts")
+                    Q_EMIT shortcutsRequested();
+                else if (panel == "measure")
+                    Q_EMIT dockMeasureRequested();
+                else if (panel == "default")
+                    Q_EMIT dockDefaultRequested();
+                else if (panel == "save")
+                    Q_EMIT dockSaveRequested();
+                else if (panel == "reset")
+                    Q_EMIT dockResetRequested();
+                else
+                    // Anything else is a panel key — the View menu's own list,
+                    // which is native and cannot be clicked by a probe.
+                    Q_EMIT dockPanelToggled(panel);
+            });
+        }
+
+        // VC_OPEN="/path/to/scene.py" — what File → Open Scene… ends with. The
+        // panel itself is the system's and cannot be driven, so the probe skips
+        // it and delivers the answer a person would have given.
+        const QString opened = qEnvironmentVariable("VC_OPEN");
+        if (!opened.isEmpty()) {
+            QTimer::singleShot(delay / 2 - 400, this, [this, opened] {
+                Q_EMIT sceneOpened(QFileInfo(opened).absoluteFilePath());
+            });
+        }
+
+        // VC_RENDER="/tmp/frame.png" — build the scene and write one rendered
+        // frame from inside the EDITOR process, where MoltenVK and Quick's
+        // Metal have never coexisted before. The one thing worth proving before
+        // any of this reaches a pane.
+        const QString rendered = qEnvironmentVariable("VC_RENDER");
+        if (!rendered.isEmpty()) {
+            // After the keys: the scene has to have been executed first.
+            QTimer::singleShot(delay / 2 + 2500, this, [this, rendered] {
+                std::cout << "[preview] frames: " << sceneBuilt() << "\n";
+                const QImage frame = renderFrame(0, 960, 540);
+                std::cout << "[preview] image: " << frame.width() << "x" << frame.height() << "\n";
+                if (!frame.isNull()) {
+                    const QImage  argb = frame.convertToFormat(QImage::Format_ARGB32);
+                    const cv::Mat bgra(argb.height(), argb.width(), CV_8UC4, const_cast<uchar*>(argb.bits()), argb.bytesPerLine());
+                    std::cout << "[preview] written: "
+                              << VC::ImageIO::write(rendered.toStdString(), bgra) << "\n";
+                }
+            });
+        }
+
+        // VC_DROP="/path/to/file.mp4" — what dropping a file from the Finder
+        // ends with. The drag itself belongs to the window server and cannot be
+        // synthesised, so the probe delivers its result.
+        const QString dropped = qEnvironmentVariable("VC_DROP");
+        if (!dropped.isEmpty()) {
+            QTimer::singleShot(delay / 2 + 300, this, [this, dropped] {
+                Q_EMIT mediaDropped(QFileInfo(dropped).absoluteFilePath());
+            });
+        }
+
+        // VC_DRAG="x1,y1,x2,y2" — the same idea for the dock's one gesture, with
+        // an optional fifth field "hold" that leaves the button down.
+        const QStringList dragged = qEnvironmentVariable("VC_DRAG").split(',', Qt::SkipEmptyParts);
+        if (dragged.size() == 4 || dragged.size() == 5) {
+            const bool hold = dragged.size() == 5 && dragged[4].trimmed() == QStringLiteral("hold");
+            QTimer::singleShot(delay / 2, this, [this, dragged, hold] {
+                dragProbe(QPointF(dragged[0].toDouble(), dragged[1].toDouble()), QPointF(dragged[2].toDouble(), dragged[3].toDouble()), hold);
+            });
+        }
+
+        QTimer::singleShot(delay, this, [window, path] {
+            const QImage frame = window->grabWindow();
+            if (frame.isNull()) {
+                std::cerr << "grabWindow() returned nothing — the scene graph refused the readback.\n";
+            } else {
+                // This Qt is built without PNG support (`png` is not among the
+                // qtbase features), so QImage::save can only write bmp/ppm/xbm.
+                // The project already writes images through OpenCV — the same
+                // path the preview window's frame export uses — so the grab goes
+                // out that way instead of rebuilding Qt for one encoder.
+                const QImage  argb = frame.convertToFormat(QImage::Format_ARGB32);
+                const cv::Mat bgra(
+                    argb.height(), argb.width(), CV_8UC4,
+                    const_cast<uchar*>(argb.bits()), argb.bytesPerLine()
+                );
+                if (VC::ImageIO::write(path.toStdString(), bgra))
+                    std::cout << std::format(
+                        "Captured the editor chrome ({}x{}) → {}\n",
+                        argb.width(), argb.height(), path.toStdString()
+                    );
+                else
+                    std::cerr << std::format("Could not write {}\n", path.toStdString());
+            }
+            QCoreApplication::quit();
+        });
+    });
+}
+
+QString VC::Editor::layoutPath()
+{
+    // VC_DOCK_FILE moves the saved layout somewhere else for the duration of a
+    // run.  It exists because a scripted check that wants to see a particular
+    // arrangement has to write one somewhere — and the obvious somewhere is the
+    // file holding the arrangement a person is working in.  That file belongs to
+    // them; a test has no business in it.
+    const QString override = qEnvironmentVariable("VC_DOCK_FILE");
+    if (!override.isEmpty()) {
+        QDir().mkpath(QFileInfo(override).absolutePath());
+        return override;
+    }
+
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    QDir().mkpath(dir);
+
+    // One arrangement PER PROJECT.  Two folders open at once shared a single
+    // file and overwrote each other's dock, and the second window silently
+    // inherited the first one's panes.  The name carries the folder so it can be
+    // read by a person, and a hash of its full path so two folders called `demo`
+    // are still two files.
+    const QString    root = QDir::currentPath();
+    const QByteArray digest =
+        QCryptographicHash::hash(root.toUtf8(), QCryptographicHash::Sha1).toHex().left(8);
+    const QString mine =
+        QDir(dir).filePath(QStringLiteral("dock-%1-%2.json").arg(QFileInfo(root).fileName(), QString::fromUtf8(digest)));
+
+    // A dock saved before this split is adopted once, rather than thrown away.
+    const QString legacy = QDir(dir).filePath(QStringLiteral("dock.json"));
+    if (!QFile::exists(mine) && QFile::exists(legacy))
+        QFile::copy(legacy, mine);
+
+    return mine;
+}
+
+bool VC::Editor::reducedMotion() const
+{
+    return prefersReducedMotion();
+}
+
+void VC::Editor::saveLayout(const QString& json) const
+{
+    QFile file(layoutPath());
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        // A layout that cannot be saved is a nuisance, never a reason to lose
+        // the window the user is working in.
+        VC_SLOG(std::format("[editor] could not write {}\n", layoutPath().toStdString()));
+        return;
+    }
+    file.write(json.toUtf8());
+}
+
+QString VC::Editor::loadLayout() const
+{
+    QFile file(layoutPath());
+    if (!file.open(QIODevice::ReadOnly))
+        return {};
+    return QString::fromUtf8(file.readAll());
+}
+
+void VC::Editor::clearLayout() const
+{
+    QFile::remove(layoutPath());
+}
+
+// The scene the pane should open on. VC_SCENE_FILE names it outright; otherwise
+// the project's own scene, if it has an obvious one.
+QString VC::Editor::editorScenePath()
+{
+    const QString named = qEnvironmentVariable("VC_SCENE_FILE");
+    if (!named.isEmpty())
+        return QFileInfo(named).absoluteFilePath();
+
+    const QDir project(QDir::currentPath());
+    // scene.py first: it is the scene this editor opens on, kept small on
+    // purpose.  eg.py is the project's showcase — every feature at once, and
+    // rendered by CI — which makes it the wrong thing to greet anyone with.
+    for (const QString& candidate : {QStringLiteral("scene.py"), QStringLiteral("eg.py")}) {
+        if (project.exists(candidate))
+            return project.absoluteFilePath(candidate);
+    }
+    return {};
+}
+
+QString VC::Editor::scenePath() const
+{
+    return editorScenePath();
+}
+
+QString VC::Editor::projectRoot() const
+{
+    return QDir::currentPath();
+}
+
+QString VC::Editor::readTextFile(const QString& path) const
+{
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text))
+        return {};
+    return QString::fromUtf8(file.readAll());
+}
+
+bool VC::Editor::writable(const QString& path) const
+{
+    return !path.isEmpty() && QFileInfo(path).absoluteFilePath().startsWith(projectRoot() + "/");
+}
+
+bool VC::Editor::writeTextFile(const QString& path, const QString& text) const
+{
+    // Renaming a symbol edits every file that uses it, and most of those are
+    // not open in the pane — the edit has to reach the disk or the rename is a
+    // lie. Only files inside the project may be written: a language server will
+    // happily return edits in site-packages, and this is the line where that
+    // stops being our business.
+    if (!writable(path)) {
+        std::cerr << std::format("Refused to write outside the project: {}\n", path.toStdString());
+        return false;
+    }
+
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text))
+        return false;
+    return file.write(text.toUtf8()) >= 0;
+}
+
+void VC::Editor::applySemanticTokens(QQuickTextDocument* document, const QVariantList& spans)
+{
+    if (!document || !document->textDocument())
+        return;
+
+    if (auto* highlighter = document->textDocument()->findChild<PythonHighlighter*>())
+        highlighter->setTokens(spans);
+}
+
+void VC::Editor::fillFileMenu(QMenu* file)
+{
+    auto* openScene = file->addAction(QStringLiteral("Open Scene…"));
+    openScene->setShortcut(QKeySequence::Open);
+    connect(openScene, &QAction::triggered, this, [this] {
+        const QString chosen = pickScene(QString());
+        if (!chosen.isEmpty())
+            Q_EMIT sceneOpened(chosen);
+    });
+
+    auto* openFolder = file->addAction(QStringLiteral("Open Folder…"));
+    openFolder->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+O")));
+    connect(openFolder, &QAction::triggered, this, [this] {
+        const QString folder = pickFolder();
+        if (folder.isEmpty())
+            return;
+        // A folder is only useful once something in it is open, so the file
+        // panel comes back rooted there rather than leaving an empty window.
+        const QString chosen = pickScene(folder);
+        if (!chosen.isEmpty())
+            Q_EMIT folderOpened(folder, chosen);
+    });
+}
+
+QVariantMap VC::Editor::executeScene(const QString& source, const QString& path)
+{
+    using Clock = std::chrono::high_resolution_clock;
+    using Ms = std::chrono::duration<double, std::milli>;
+
+    QVariantMap answer;
+    const auto  started = Clock::now();
+
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       serialize = py::module::import("videocode.serialize");
+        const py::dict         result = serialize.attr("execSource")(
+                                                     source.toStdString(), path.toStdString()
+        )
+                                            .cast<py::dict>();
+
+        for (auto item : result)
+            answer.insert(
+                QString::fromStdString(py::str(item.first).cast<std::string>()),
+                QString::fromStdString(py::str(item.second).cast<std::string>())
+            );
+        // Python's bools stringify as True/False; QML wants a bool.
+        answer["ok"] = answer.value("ok").toString() == QLatin1String("True");
+    } catch (const py::error_already_set& error) {
+        // The scene never got as far as reporting for itself — an import that
+        // fails, or the module missing entirely.
+        answer["ok"] = false;
+        answer["line"] = 0;
+        answer["column"] = 0;
+        answer["message"] = QString::fromUtf8(error.what()).section('\n', -2, -2).trimmed();
+    }
+
+    // A successful run leaves a populated `Context`; the engine reads it here,
+    // in the same call, so the preview never has to ask whether the picture and
+    // the timeline are looking at the same execution. A failure to build is not
+    // a failure to run — the buffer executed, the report stands, and the pane
+    // keeps whatever frame it had.
+    if (answer.value("ok").toBool()) {
+        try {
+            answer["frames"] = sceneBuilt();
+        } catch (const std::exception& error) {
+            VC_SLOG(std::format("[preview] scene not built: {}\n", error.what()));
+        }
+    }
+
+    answer["ms"] = std::chrono::duration_cast<Ms>(Clock::now() - started).count();
+    return answer;
+}
+
+int VC::Editor::sceneBuilt()
+{
+    if (!_scene) {
+        _sceneConfig.sourceFile = editorScenePath().toStdString();
+        _sceneConfig.framerate = Config::SCENE_FRAMERATE;
+        _scene = std::make_unique<Core>(_sceneConfig);
+    }
+
+    // The Python side has just run the buffer; this reads what it left.
+    _scene->rebuildFromContext();
+    return static_cast<int>(_scene->_nbFrame);
+}
+
+QImage VC::Editor::renderFrame(int index, int width, int height)
+{
+    if (!_scene || width <= 0 || height <= 0)
+        return {};
+
+    // The renderer is sized to the PANE, not to the output. A 1080p frame is a
+    // 7680x4320 offscreen image at 4x SSAA and an 8 MB readback; the pane is a
+    // fraction of that, and it is what you are looking at.
+    if (!_renderer || _renderWidth != width || _renderHeight != height) {
+        _renderer.reset();
+        _renderer = std::make_unique<VulkanHeadlessRenderer>(
+            static_cast<uint32_t>(width), static_cast<uint32_t>(height)
+        );
+        if (!_renderer->init()) {
+            std::cerr << "[preview] the Vulkan renderer would not start\n";
+            _renderer.reset();
+            return {};
+        }
+        _renderWidth = width;
+        _renderHeight = height;
+        _scene->uploadTextures(
+            [this](const cv::Mat& mat) { return _renderer->uploadTexture(mat); },
+            [this](VkDescriptorSet desc, const cv::Mat& mat) { _renderer->updateTexturePixels(desc, mat); }
+        );
+    }
+
+    _scene->_index = static_cast<size_t>(std::max(0, index));
+    _renderer->setMeshes(_scene->generateMeshes());
+    _renderer->setBackgroundColor(_scene->_bgColor);
+
+    // readFrame() answers with the PREVIOUS submission's pixels — it pipelines,
+    // which is what makes a render loop fast and a single frame wrong. flush()
+    // waits for the one just asked for.
+    _renderer->readFrame();
+    const cv::Mat frame = _renderer->flush();
+    if (frame.empty())
+        return {};
+
+    // Deep copy: the Mat belongs to the renderer's readback buffer and is
+    // overwritten by the next frame.
+    return QImage(frame.data, frame.cols, frame.rows, static_cast<int>(frame.step), QImage::Format_ARGB32).copy();
+}
+
+bool VC::Editor::eventFilter(QObject* watched, QEvent* event)
+{
+    const QEvent::Type type = event->type();
+    if (type == QEvent::KeyPress || type == QEvent::KeyRelease || type == QEvent::ShortcutOverride) {
+        // The device-dependent bits of an NSEvent's modifierFlags, which Qt
+        // passes through as nativeModifiers(). They are not in any public Qt
+        // header — IOKit's <IOKit/hidsystem/IOLLEvent.h> names them
+        // NX_DEVICELCMDKEYMASK and friends — so they are written here with the
+        // names they carry there, once.
+        constexpr quint32 deviceLeftControl = 0x00000001;
+        constexpr quint32 deviceLeftShift = 0x00000002;
+        constexpr quint32 deviceRightShift = 0x00000004;
+        constexpr quint32 deviceLeftCommand = 0x00000008;
+        constexpr quint32 deviceRightCommand = 0x00000010;
+        constexpr quint32 deviceLeftOption = 0x00000020;
+        constexpr quint32 deviceRightOption = 0x00000040;
+        constexpr quint32 deviceRightControl = 0x00002000;
+
+        const auto*   key = static_cast<QKeyEvent*>(event);
+        const quint32 native = static_cast<quint32>(key->nativeModifiers());
+
+        int sides = 0;
+        if (native & deviceLeftCommand) sides |= LeftCommand;
+        if (native & deviceRightCommand) sides |= RightCommand;
+        if (native & deviceLeftOption) sides |= LeftOption;
+        if (native & deviceRightOption) sides |= RightOption;
+        if (native & deviceLeftShift) sides |= LeftShift;
+        if (native & deviceRightShift) sides |= RightShift;
+        if (native & deviceLeftControl) sides |= LeftControl;
+        if (native & deviceRightControl) sides |= RightControl;
+
+        if (sides != _modifierSides) {
+            _modifierSides = sides;
+            Q_EMIT modifierSidesChanged();
+        }
+    }
+
+    // Never consumed: this only watches. A filter that eats a key event here
+    // would eat it for the whole application.
+    return QObject::eventFilter(watched, event);
+}
+
+QVariantList VC::Editor::effects()
+{
+    QVariantList found;
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       serialize = py::module::import("videocode.serialize");
+        for (const auto& item : serialize.attr("effectCatalogue")().cast<py::list>()) {
+            const py::dict one = item.cast<py::dict>();
+
+            // The parameters come across with the name: the pane asks for them
+            // before an effect is placed, and a field list written in QML would
+            // be a copy of a signature, going stale the first time a default
+            // moves.
+            QVariantList params;
+            for (const auto& entry : one["params"].cast<py::list>()) {
+                const py::dict parameter = entry.cast<py::dict>();
+                params.append(QVariantMap{{"name", QString::fromStdString(parameter["name"].cast<std::string>())}, {"value", QString::fromStdString(parameter["default"].cast<std::string>())}, {"kind", QString::fromStdString(parameter["kind"].cast<std::string>())}, {"optional", parameter["optional"].cast<bool>()}});
+            }
+
+            // "form" is how the call is written — a method on the element, a
+            // generator handed the element, or a factory `apply` calls.
+            found.append(QVariantMap{{"name", QString::fromStdString(one["name"].cast<std::string>())}, {"module", QString::fromStdString(one["module"].cast<std::string>())}, {"form", QString::fromStdString(one["form"].cast<std::string>())}, {"params", params}});
+        }
+    } catch (const py::error_already_set&) {
+        // An editor that cannot list the effects simply offers none.
+    }
+    return found;
+}
+
+QVariantList VC::Editor::templates()
+{
+    QVariantList found;
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       serialize = py::module::import("videocode.serialize");
+        for (const auto& item : serialize.attr("templateCatalogue")().cast<py::list>()) {
+            const py::dict one = item.cast<py::dict>();
+
+            QVariantList params;
+            for (const auto& entry : one["params"].cast<py::list>()) {
+                const py::dict parameter = entry.cast<py::dict>();
+                params.append(QVariantMap{
+                    {"name", QString::fromStdString(parameter["name"].cast<std::string>())},
+                    {"value", QString::fromStdString(parameter["default"].cast<std::string>())},
+                    {"kind", QString::fromStdString(parameter["kind"].cast<std::string>())},
+                    {"optional", parameter["optional"].cast<bool>()},
+                });
+            }
+
+            QStringList needs;
+            for (const auto& entry : one["required"].cast<py::list>())
+                needs.append(QString::fromStdString(entry.cast<std::string>()));
+
+            found.append(QVariantMap{
+                {"name", QString::fromStdString(one["name"].cast<std::string>())},
+                {"group", QString::fromStdString(one["group"].cast<std::string>())},
+                {"module", QString::fromStdString(one["module"].cast<std::string>())},
+                {"says", QString::fromStdString(one["says"].cast<std::string>())},
+                {"params", params},
+                {"required", needs},
+            });
+        }
+    } catch (const py::error_already_set&) {
+        // An editor that cannot list them simply offers none.
+    }
+    return found;
+}
+
+QVariantMap VC::Editor::setArgument(
+    const QString& source, int line, const QString& call, const QString& name, const QString& value,
+    int occurrence
+)
+{
+    QVariantMap answer{{"ok", false}, {"source", source}, {"message", QStringLiteral("unavailable")}};
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       edit = py::module::import("videocode.edit");
+        const py::object       result = edit.attr("setArgument")(
+            source.toStdString(), line, call.toStdString(), name.toStdString(), value.toStdString(),
+            occurrence
+        );
+        answer["ok"] = result.attr("changed").cast<bool>();
+        answer["source"] = QString::fromStdString(result.attr("source").cast<std::string>());
+        answer["message"] = QString::fromStdString(result.attr("message").cast<std::string>());
+    } catch (const py::error_already_set& error) {
+        answer["message"] = QString::fromUtf8(error.what());
+    }
+    return answer;
+}
+
+QVariantMap VC::Editor::argumentSpan(
+    const QString& source, int line, const QString& call, const QString& name, const QString& value,
+    int occurrence
+)
+{
+    QVariantMap answer{{"ok", false}, {"start", 0}, {"end", 0}, {"text", QString()}};
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       edit = py::module::import("videocode.edit");
+        const py::object       result = edit.attr("argumentSpan")(
+            source.toStdString(), line, call.toStdString(), name.toStdString(), value.toStdString(),
+            occurrence
+        );
+        if (result.is_none())
+            return answer;
+
+        const py::tuple span = result.cast<py::tuple>();
+        answer["ok"] = true;
+        answer["start"] = span[0].cast<int>();
+        answer["end"] = span[1].cast<int>();
+        answer["text"] = QString::fromStdString(span[2].cast<std::string>());
+    } catch (const py::error_already_set&) {
+    }
+    return answer;
+}
+
+QVariantMap VC::Editor::positionalSpan(
+    const QString& source, int line, const QString& call, int index, const QString& value,
+    int occurrence
+)
+{
+    QVariantMap answer{{"ok", false}, {"start", 0}, {"end", 0}, {"text", QString()}};
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       edit = py::module::import("videocode.edit");
+        const py::object       result = edit.attr("positionalSpan")(
+            source.toStdString(), line, call.toStdString(), index, value.toStdString(), occurrence
+        );
+        if (result.is_none())
+            return answer;
+
+        const py::tuple span = result.cast<py::tuple>();
+        answer["ok"] = true;
+        answer["start"] = span[0].cast<int>();
+        answer["end"] = span[1].cast<int>();
+        answer["text"] = QString::fromStdString(span[2].cast<std::string>());
+    } catch (const py::error_already_set&) {
+    }
+    return answer;
+}
+
+QVariantMap VC::Editor::removeCallSpan(
+    const QString& source, int line, const QString& call, int occurrence
+)
+{
+    QVariantMap answer{{"ok", false}, {"start", 0}, {"end", 0}, {"text", QString()}};
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       edit = py::module::import("videocode.edit");
+        const py::object       result = edit.attr("removeCallSpan")(source.toStdString(), line, call.toStdString(), occurrence);
+        if (result.is_none())
+            return answer;
+
+        const py::tuple span = result.cast<py::tuple>();
+        answer["ok"] = true;
+        answer["start"] = span[0].cast<int>();
+        answer["end"] = span[1].cast<int>();
+        answer["text"] = QString::fromStdString(span[2].cast<std::string>());
+    } catch (const py::error_already_set&) {
+    }
+    return answer;
+}
+
+QString VC::Editor::readArgument(
+    const QString& source, int line, const QString& call, const QString& name, int occurrence
+)
+{
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       edit = py::module::import("videocode.edit");
+        const py::object       result = edit.attr("readArgument")(
+            source.toStdString(), line, call.toStdString(), name.toStdString(), occurrence
+        );
+        if (result.is_none())
+            return {};
+        return QString::fromStdString(result.cast<std::string>());
+    } catch (const py::error_already_set&) {
+        return {};
+    }
+}
+
+QString VC::Editor::readPositional(
+    const QString& source, int line, const QString& call, int index, int occurrence
+)
+{
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       edit = py::module::import("videocode.edit");
+        const py::object       result = edit.attr("readPositional")(source.toStdString(), line, call.toStdString(), index, occurrence);
+        if (result.is_none())
+            return {};
+        return QString::fromStdString(result.cast<std::string>());
+    } catch (const py::error_already_set&) {
+        return {};
+    }
+}
+
+QStringList VC::Editor::callsOnLine(const QString& source, int line)
+{
+    QStringList found;
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       edit = py::module::import("videocode.edit");
+        for (const auto& name : edit.attr("findCalls")(source.toStdString(), line).cast<py::list>())
+            found.append(QString::fromStdString(name.cast<std::string>()));
+    } catch (const py::error_already_set&) {
+    }
+    return found;
+}
+
+QVariantList VC::Editor::inputParams(const QString& className)
+{
+    QVariantList found;
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       serialize = py::module::import("videocode.serialize");
+        for (const auto& entry : serialize.attr("inputSignature")(className.toStdString()).cast<py::list>()) {
+            const py::dict parameter = entry.cast<py::dict>();
+            found.append(QVariantMap{{"name", QString::fromStdString(parameter["name"].cast<std::string>())}, {"value", QString::fromStdString(parameter["default"].cast<std::string>())}, {"kind", QString::fromStdString(parameter["kind"].cast<std::string>())}});
+        }
+    } catch (const py::error_already_set&) {
+    }
+    return found;
+}
+
+QString VC::Editor::pickScene(const QString& startIn) const
+{
+    return QFileDialog::getOpenFileName(
+        nullptr,
+        QStringLiteral("Open scene"),
+        startIn.isEmpty() ? QDir::currentPath() : startIn,
+        QStringLiteral("Python scenes (*.py);;All files (*)")
+    );
+}
+
+QString VC::Editor::pickFolder() const
+{
+    return QFileDialog::getExistingDirectory(
+        nullptr,
+        QStringLiteral("Open folder"),
+        QDir::currentPath()
+    );
+}
+
+QStringList VC::Editor::pickMedia() const
+{
+    return QFileDialog::getOpenFileNames(
+        nullptr,
+        QStringLiteral("Add media"),
+        QStandardPaths::writableLocation(QStandardPaths::MoviesLocation),
+        QStringLiteral(
+            "Media (*.mp4 *.mov *.mkv *.webm *.avi *.wav *.mp3 *.aac *.flac *.m4a *.ogg "
+            "*.png *.jpg *.jpeg *.svg *.gif *.webp);;All files (*)"
+        )
+    );
+}
+
+bool VC::Editor::replaceRange(QQuickTextDocument* document, int start, int end, const QString& text)
+{
+    if (!document || !document->textDocument() || start < 0 || end < start)
+        return false;
+
+    QTextDocument* doc = document->textDocument();
+    if (end > doc->characterCount() - 1)
+        return false;
+
+    QTextCursor cursor(doc);
+    cursor.beginEditBlock();
+    cursor.setPosition(start);
+    cursor.setPosition(end, QTextCursor::KeepAnchor);
+    cursor.insertText(text);
+    cursor.endEditBlock();
+    return true;
+}
+
+void VC::Editor::highlightPython(QQuickTextDocument* document, const QVariantMap& colours)
+{
+    if (!document || !document->textDocument())
+        return;
+
+    // Attaching twice would paint the same document from two highlighters, so a
+    // panel that has one keeps it.  The child is found by type, not remembered
+    // here: the document outlives nothing and the chrome may be rebuilt at any
+    // save.
+    // A document that already has one is REPAINTED rather than given a second:
+    // this is also how switching theme reaches the buffer.
+    if (auto* existing = document->textDocument()->findChild<PythonHighlighter*>()) {
+        existing->recolour(colours);
+        existing->rehighlight();
+        return;
+    }
+
+    new PythonHighlighter(document->textDocument(), colours);
+}
+
+void VC::Editor::clickAt(const QPointF& pos)
+{
+    const auto roots = _engine.rootObjects();
+    if (roots.isEmpty())
+        return;
+    auto* window = qobject_cast<QQuickWindow*>(roots.first());
+    if (!window)
+        return;
+
+    QMouseEvent press(QEvent::MouseButtonPress, pos, window->mapToGlobal(pos), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QMouseEvent release(QEvent::MouseButtonRelease, pos, window->mapToGlobal(pos), Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(window, &press);
+    QCoreApplication::sendEvent(window, &release);
+    std::cout << std::format("Probed a click at ({}, {})\n", pos.x(), pos.y());
+}
+
+void VC::Editor::pressKey(const QString& spec)
+{
+    const auto roots = _engine.rootObjects();
+    if (roots.isEmpty())
+        return;
+    auto* window = qobject_cast<QQuickWindow*>(roots.first());
+    if (!window)
+        return;
+
+    static const QHash<QString, int> named = {
+        {"F2", Qt::Key_F2}, {"F12", Qt::Key_F12}, {"Left", Qt::Key_Left}, {"Right", Qt::Key_Right}, {"Up", Qt::Key_Up}, {"Down", Qt::Key_Down}, {"Return", Qt::Key_Return}, {"Escape", Qt::Key_Escape}, {"Tab", Qt::Key_Tab}, {"Space", Qt::Key_Space}, {"Home", Qt::Key_Home}, {"End", Qt::Key_End}
+    };
+
+    // "Click:x,y" — a click, placed IN THE SEQUENCE.
+    //
+    // VC_CLICK and VC_KEYS run on their own clocks, so a run that must click
+    // after a key cannot say so. Here the order is the list.
+    if (spec.startsWith("Click:")) {
+        const QStringList at = spec.mid(6).split(',', Qt::SkipEmptyParts);
+        if (at.size() == 2)
+            clickAt(QPointF(at[0].toDouble(), at[1].toDouble()));
+        return;
+    }
+
+    // "Panel:default" — one of the shell's own menu actions, IN THE SEQUENCE.
+    //
+    // VC_PANEL fires before the clicks, which is right for an overlay that has
+    // to be open before anything is aimed at it and wrong for everything else:
+    // "change the arrangement, THEN pin it as the default" cannot be said any
+    // other way, and that order is the whole meaning of the gesture.
+    if (spec.startsWith("Panel:")) {
+        const QString which = spec.mid(6);
+        if (which == QStringLiteral("settings"))
+            Q_EMIT settingsRequested();
+        else if (which == QStringLiteral("shortcuts"))
+            Q_EMIT shortcutsRequested();
+        else if (which == QStringLiteral("measure"))
+            Q_EMIT dockMeasureRequested();
+        else if (which == QStringLiteral("default"))
+            Q_EMIT dockDefaultRequested();
+        else if (which == QStringLiteral("save"))
+            Q_EMIT dockSaveRequested();
+        else if (which == QStringLiteral("reset"))
+            Q_EMIT dockResetRequested();
+        else
+            Q_EMIT dockPanelToggled(which);
+        std::cout << std::format("Probed the panel {}\n", which.toStdString());
+        return;
+    }
+
+    // "Hover:x,y" — the pointer coming to rest somewhere, in the sequence.
+    //
+    // VC_HOVER runs before the clicks do, so it cannot reach anything a click
+    // brought on screen — and a card's rows only show their handles under the
+    // pointer. Sent twice, a pixel apart, for the same reason as VC_HOVER: one
+    // move says the pointer is passing through, two say it stopped.
+    if (spec.startsWith("Hover:")) {
+        const QStringList at = spec.mid(6).split(',', Qt::SkipEmptyParts);
+        if (at.size() == 2) {
+            const QPointF where(at[0].toDouble(), at[1].toDouble());
+            hoverAt(where);
+            hoverAt(where + QPointF(1, 0));
+            std::cout << std::format("Probed a hover at ({}, {})\n", where.x(), where.y());
+        }
+        return;
+    }
+
+    // "Drag:x1,y1,x2,y2" (or "…,hold") — a drag, IN THE SEQUENCE.
+    //
+    // Same reason as the click above: VC_DRAG runs on its own clock, so a run
+    // that must open a panel and only then drag something out of it cannot say
+    // so — the drag would land before the panel exists.
+    if (spec.startsWith("Drag:")) {
+        const QStringList at = spec.mid(5).split(',', Qt::SkipEmptyParts);
+        if (at.size() >= 4) {
+            // Anything after the four numbers is a flag: "hold" to keep the
+            // button down at the end, "cmd" to drag with the modifier held —
+            // which is a different gesture, not the same one done differently.
+            bool                  hold = false;
+            Qt::KeyboardModifiers modifiers = Qt::NoModifier;
+            for (int i = 4; i < at.size(); ++i) {
+                const QString flag = at[i].trimmed();
+                if (flag == QStringLiteral("hold"))
+                    hold = true;
+                else if (flag == QStringLiteral("cmd"))
+                    modifiers |= Qt::ControlModifier;
+            }
+            dragProbe(QPointF(at[0].toDouble(), at[1].toDouble()), QPointF(at[2].toDouble(), at[3].toDouble()), hold, modifiers);
+        }
+        return;
+    }
+
+    // "Text:hello" — a literal, so a scripted run can put the keys of a name
+    // into a field that only appeared because of an earlier key in the same
+    // list. Ordering is the whole point: VC_TYPE runs on its own clock.
+    if (spec.startsWith("Text:")) {
+        const QString literal = spec.mid(5);
+        for (const QChar c : literal)
+            typeCharacter(c);
+        std::cout << std::format("Probed the text {}\n", literal.toStdString());
+        return;
+    }
+
+    Qt::KeyboardModifiers modifiers = Qt::NoModifier;
+    QStringList           parts = spec.split('+', Qt::SkipEmptyParts);
+    const QString         name = parts.takeLast();
+    for (const QString& part : parts) {
+        if (part == "Meta") modifiers |= Qt::MetaModifier;
+        if (part == "Shift") modifiers |= Qt::ShiftModifier;
+        if (part == "Ctrl") modifiers |= Qt::ControlModifier;
+    }
+
+    // A single character is its own key code — Qt::Key_A is 'A' — which is how
+    // the chrome's own Keymap resolves them too.  Without this, every letter
+    // shortcut was unreachable from a scripted run and failed silently loud.
+    int key = named.value(name, 0);
+    if (key == 0 && name.size() == 1)
+        key = name.toUpper().at(0).unicode();
+
+    if (key == 0) {
+        std::cerr << std::format("VC_KEYS: no key named {}\n", name.toStdString());
+        return;
+    }
+
+    // With the character the key would have produced, when it has one. A
+    // textless QKeyEvent is a key no text editor can insert, so a probe that
+    // sends one cannot see the fight over Space and the arrows between the code
+    // pane and the transport — the very thing worth checking about them.
+    QString text;
+    if (modifiers == Qt::NoModifier || modifiers == Qt::ShiftModifier) {
+        if (key == Qt::Key_Space)
+            text = QStringLiteral(" ");
+        else if (name.size() == 1)
+            text = modifiers == Qt::ShiftModifier ? name.toUpper() : name.toLower();
+    }
+
+    QKeyEvent press(QEvent::KeyPress, key, modifiers, text);
+    QKeyEvent release(QEvent::KeyRelease, key, modifiers, text);
+    QCoreApplication::sendEvent(window, &press);
+    QCoreApplication::sendEvent(window, &release);
+    std::cout << std::format("Probed the key {}\n", spec.toStdString());
+}
+
+void VC::Editor::typeCharacter(QChar c)
+{
+    const auto roots = _engine.rootObjects();
+    if (roots.isEmpty())
+        return;
+    auto* window = qobject_cast<QQuickWindow*>(roots.first());
+    if (!window)
+        return;
+
+    QKeyEvent press(QEvent::KeyPress, 0, Qt::NoModifier, QString(c));
+    QKeyEvent release(QEvent::KeyRelease, 0, Qt::NoModifier, QString(c));
+    QCoreApplication::sendEvent(window, &press);
+    QCoreApplication::sendEvent(window, &release);
+}
+
+void VC::Editor::hoverAt(const QPointF& pos)
+{
+    const auto roots = _engine.rootObjects();
+    if (roots.isEmpty())
+        return;
+    auto* window = qobject_cast<QQuickWindow*>(roots.first());
+    if (!window)
+        return;
+
+    QMouseEvent move(QEvent::MouseMove, pos, window->mapToGlobal(pos), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(window, &move);
+    std::cout << std::format("Probed a hover at ({}, {})\n", pos.x(), pos.y());
+}
+
+void VC::Editor::dragProbe(const QPointF& from, const QPointF& to, bool hold, Qt::KeyboardModifiers modifiers)
+{
+    const auto roots = _engine.rootObjects();
+    if (roots.isEmpty())
+        return;
+    auto* window = qobject_cast<QQuickWindow*>(roots.first());
+    if (!window)
+        return;
+
+    const auto send = [window, modifiers](QEvent::Type type, const QPointF& at, Qt::MouseButton button, Qt::MouseButtons held) {
+        QMouseEvent event(type, at, window->mapToGlobal(at), button, held, modifiers);
+        QCoreApplication::sendEvent(window, &event);
+    };
+
+    send(QEvent::MouseButtonPress, from, Qt::LeftButton, Qt::LeftButton);
+
+    // One jump would be delivered as a single move, and a drag handler that has
+    // not seen the pointer cross its threshold never becomes active.  Walking
+    // there in steps is what makes this a drag rather than a teleport.
+    constexpr int steps = 12;
+    for (int i = 1; i <= steps; ++i) {
+        const qreal t = static_cast<qreal>(i) / steps;
+        send(QEvent::MouseMove, QPointF(from.x() + (to.x() - from.x()) * t, from.y() + (to.y() - from.y()) * t), Qt::NoButton, Qt::LeftButton);
+    }
+
+    if (!hold)
+        send(QEvent::MouseButtonRelease, to, Qt::LeftButton, Qt::NoButton);
+    std::cout << std::format(
+        "Probed a drag ({}, {}) → ({}, {})\n", from.x(), from.y(), to.x(), to.y()
+    );
+}
+
+void VC::Editor::reload()
+{
+    _engine.clearComponentCache();
+    // Drop the old tree before building the new one: two shells alive at once
+    // would both answer the same shortcuts.
+    const auto roots = _engine.rootObjects();
+    for (QObject* root : roots)
+        root->deleteLater();
+
+    load();
+}
+
+QString VC::Editor::qmlDirectory()
+{
+    return QDir(QString::fromUtf8(QML_DIR)).absolutePath();
+}
+
+void VC::Editor::watchQmlFiles()
+{
+    QDir              dir(QDir(qmlDirectory()).filePath("VideoCode"));
+    const QStringList files = dir.entryList({"*.qml"}, QDir::Files);
+
+    QStringList wanted;
+    for (const QString& file : files)
+        wanted << dir.filePath(file);
+
+    const QStringList already = _watcher.files();
+    for (const QString& path : wanted) {
+        if (!already.contains(path))
+            _watcher.addPath(path);
+    }
+}

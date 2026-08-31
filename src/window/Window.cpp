@@ -14,6 +14,7 @@
 #include <QScreen>
 #include <QStatusBar>
 #include <algorithm>
+#include <argparse/argparse.hpp>
 #include <chrono>
 #include <format>
 #include <iostream>

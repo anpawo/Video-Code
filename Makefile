@@ -16,6 +16,7 @@ CMAKE_FLAGS		=	-G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 VCPKG_FLAGS		= \
 	-DCMAKE_TOOLCHAIN_FILE=$$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
 	-DVCPKG_INSTALLED_DIR=$(PWD)/vcpkg_installed \
+	-DVCPKG_OVERLAY_PORTS=$(PWD)/vcpkg-overlay-ports \
 	-DWITH_FFMPEG=ON
 
 DEBUG_FLAG		=	-DDEBUG=ON
@@ -84,9 +85,21 @@ check:
 		comm -23 /tmp/vc_failed.txt /tmp/vc_known.txt | sed 's/^/  /'; \
 		printf "Look at the render before regenerating: a golden can be recording a bug.\n"; \
 		exit 1; \
-	else \
-		printf "  no new visual regressions\n"; \
 	fi
+	@# And the other direction, which is how `matte` sat unlisted for a month:
+	@# this recipe only ever reported failures it did NOT expect, so a list that
+	@# was too SHORT was invisible, and a list that was too long would have been
+	@# just as invisible. A tolerated failure that starts passing is good news
+	@# nobody hears — and the entry left behind silently disarms that scene for
+	@# the next real regression. The file's own header asks for this; nothing
+	@# enforced it.
+	@ if comm -13 /tmp/vc_failed.txt /tmp/vc_known.txt | grep -q .; then \
+		printf "\033[31mknown_failures.txt is out of date - these pass now:\033[0m\n"; \
+		comm -13 /tmp/vc_failed.txt /tmp/vc_known.txt | sed 's/^/  /'; \
+		printf "Remove them: a stale entry disarms that scene for the next regression.\n"; \
+		exit 1; \
+	fi
+	@ printf "  no new visual regressions, no stale exemptions\n"
 	@ printf "\n→ performance guard\n"
 	@ python3 test/perf/guard.py
 

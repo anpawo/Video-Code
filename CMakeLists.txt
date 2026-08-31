@@ -103,7 +103,12 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE  # strip the trailing newline or the path is invalid
 )
 find_package(pybind11 REQUIRED)
-find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui)
+# Quick/Qml carry the editor chrome, which is described in .qml loaded at
+# runtime — a layout change costs a reload, not a rebuild. See docs/ui/BACKLOG.md.
+find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui Quick Qml)
+# GuiPrivate: the scripted-run probe hands Qt the window activation the platform
+# refuses to a binary launched from a terminal (src/window/Editor.cpp).
+find_package(Qt6 REQUIRED COMPONENTS GuiPrivate)
 find_package(CURL REQUIRED)
 if(APPLE)
     execute_process(COMMAND brew --prefix molten-vk OUTPUT_VARIABLE MVK_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -111,6 +116,21 @@ if(APPLE)
     set(Vulkan_INCLUDE_DIR "${MVK_PREFIX}/libexec/include")
 endif()
 find_package(Vulkan REQUIRED)
+if(APPLE)
+    # Talk to MoltenVK DIRECTLY, never through the loader.
+    #
+    # Enabling qtbase's `vulkan` feature dragged vcpkg's vulkan-loader into the
+    # install tree, and FindVulkan then prefers it over the Vulkan_LIBRARY set
+    # above — which is not a cosmetic difference: this machine has no ICD manifest
+    # anywhere, so the loader finds no driver and vkCreateInstance fails for every
+    # headless render. Forcing the imported target's location keeps our own Vulkan
+    # calls bound to MoltenVK, the way they were before Quick needed Qt's Vulkan
+    # support. Qt is unaffected: Qt6::Gui asks only for WrapVulkanHeaders and
+    # resolves the library itself at runtime.
+    set_target_properties(Vulkan::Vulkan PROPERTIES
+        IMPORTED_LOCATION "${MVK_PREFIX}/lib/libMoltenVK.dylib"
+    )
+endif()
 find_package(glslang CONFIG REQUIRED)
 find_package(Freetype REQUIRED)
 
@@ -136,8 +156,22 @@ set(SOURCES
     include/window/Window.hpp         # MOC Q_OBJECT
     include/window/TimelineWidget.hpp # MOC Q_OBJECT
     include/window/VulkanWidget.hpp   # MOC Q_OBJECT
+    include/window/Editor.hpp         # MOC Q_OBJECT
+    include/window/PreviewItem.hpp    # MOC Q_OBJECT
+    include/window/PythonHighlighter.hpp # MOC Q_OBJECT
+    include/window/ThumbProvider.hpp
+
+    # --- Language server ---
+    include/lsp/LanguageServer.hpp    # MOC Q_OBJECT
+    include/agent/AgentSession.hpp    # MOC Q_OBJECT
     src/window/Window.cpp
     src/window/VulkanWidget.cpp
+    src/window/Editor.cpp
+    src/window/PreviewItem.cpp
+    src/window/PythonHighlighter.cpp
+    src/window/ThumbProvider.cpp
+    src/lsp/LanguageServer.cpp
+    src/agent/AgentSession.cpp
 
     # --- Vulkan ---
     src/vulkan/ShaderCompiler.cpp
@@ -166,16 +200,22 @@ set(SOURCES
 
 if(APPLE)
     list(APPEND SOURCES src/vulkan/MetalSurface.mm)
+    # The application menu's title, which only Cocoa can be told.
+    list(APPEND SOURCES src/window/MacApplication.mm)
 else()
     list(APPEND SOURCES src/vulkan/MetalSurfaceStub.cpp)
+    list(APPEND SOURCES src/window/MacApplicationStub.cpp)
 endif()
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+
 if(APPLE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE VK_USE_PLATFORM_METAL_EXT)
+    target_link_libraries(${PROJECT_NAME} "-framework AppKit")
     set_target_properties(${PROJECT_NAME} PROPERTIES
         MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_BUNDLE_NAME "Video-Code"
         BUILD_RPATH "${MVK_PREFIX}/lib;${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/lib"
         INSTALL_RPATH "${MVK_PREFIX}/lib;${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/lib"
     )
@@ -200,6 +240,10 @@ endif()
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     FONT_DIR="${CMAKE_SOURCE_DIR}/assets/fonts"
     SHADER_DIR="${CMAKE_SOURCE_DIR}/assets/shaders"
+    # The editor chrome is read from here at runtime, so a layout change costs a
+    # reload rather than a rebuild. Point this at a qrc: URL to ship it inside
+    # the binary instead.
+    QML_DIR="${CMAKE_SOURCE_DIR}/qml"
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -210,6 +254,33 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Widgets
     Qt6::Core
     Qt6::Gui
+    Qt6::GuiPrivate
+    Qt6::Quick
+    Qt6::Qml
+    Qt6::QuickControls2
+
+    # Qt here is STATIC, so QML modules are static libraries: there is no plugin
+    # for the engine to discover at runtime, and an `import QtQuick` fails with
+    # "plugin qtquick2plugin not found" unless the plugin is linked in and its
+    # _init object registers it.  qt_import_qml_plugins() cannot work these out
+    # for us — it scans a target's own .qml files, and ours are read from disk at
+    # runtime — so the list is explicit.  Add a line here when a panel reaches
+    # for a module that is not yet in it.
+    Qt6::qtquick2plugin
+    # QtQuick.Window is its own module: a panel torn out of the dock becomes a
+    # real top-level window, and without this the import fails at runtime.
+    Qt6::quickwindow
+    # QtQml, for Instantiator: a Repeater only makes Items, and a floating panel
+    # is a Window.
+    Qt6::qmlplugin
+    Qt6::qquicklayoutsplugin
+    Qt6::qtquicktemplates2plugin
+    Qt6::qtquickcontrols2plugin
+    Qt6::qtquickcontrols2implplugin
+    # The chrome paints its own look, so it asks for the Basic style rather than
+    # the native macOS one, which would fight it (and drift between machines).
+    Qt6::qtquickcontrols2basicstyleplugin
+    Qt6::qtquickcontrols2basicstyleimplplugin
     pybind11::embed
     CURL::libcurl
     Vulkan::Vulkan

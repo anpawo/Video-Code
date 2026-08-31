@@ -6,13 +6,14 @@
     {
       "name": "qtbase",
       "default-features": false,
-      "features": ["gui", "widgets", "opengl"]
+      "features": ["gui", "widgets", "opengl", "vulkan"]
     },
     {
       "name": "qtbase",
       "features": ["xcb"],
       "platform": "linux"
     },
+    "qtdeclarative",
     "nlohmann-json",
     "argparse",
     "ffmpeg",

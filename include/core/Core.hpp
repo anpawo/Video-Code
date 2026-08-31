@@ -10,7 +10,6 @@
 #include <pybind11/pybind11.h>
 #include <vulkan/vulkan.h>
 
-#include <argparse/argparse.hpp>
 #include <array>
 #include <chrono>
 #include <functional>
@@ -25,6 +24,15 @@
 
 namespace py = pybind11;
 
+// argparse is a COMMAND-LINE parser, and it was reaching five headers through
+// this one — 1381 of the 1754 include events of a 75-line ScreenSize.cpp. Every
+// use here is by reference, so a forward declaration is all a header needs; the
+// definition belongs to the .cpp files that actually read a flag.
+namespace argparse
+{
+    class ArgumentParser;
+}
+
 namespace VC
 {
     class VulkanWidget; // forward declaration for uploadTextures
@@ -34,10 +42,25 @@ namespace VC
     public:
 
         Core(const argparse::ArgumentParser& parser, const Config& config);
+
+        ///< The editor's constructor: no command line to read.  `--showstack`
+        ///< and `--showtimeline` are the only things the parser was ever asked
+        ///< for here, and neither means anything in a window with a timeline of
+        ///< its own.  Does NOT execute the scene — see rebuildFromContext().
+        explicit Core(const Config& config);
         ~Core() = default;
 
         ///< Reload the source file, then execute the stack, then add the new frames to the Timeline.
         void reloadSourceFile();
+
+        ///< Rebuild from the Context the CALLER has already populated.
+        ///
+        ///< The editor executes the buffer itself (serialize.execSource) so that
+        ///< what runs is what is on screen rather than what is on disk. Running
+        ///< it a second time here would be a second execution of arbitrary user
+        ///< code with side effects, and the two could disagree — so this reads
+        ///< the stack that execution left behind and does the rest.
+        void rebuildFromContext();
 
         ///< Update the current frame by generating the meshes. Returns a reference
         ///< to the internal cache — valid until the next generateMeshes() /

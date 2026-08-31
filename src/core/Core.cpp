@@ -11,6 +11,7 @@
 #include <pybind11/stl.h>
 
 #include <algorithm>
+#include <argparse/argparse.hpp>
 #include <chrono>
 #include <cstddef>
 #include <format>
@@ -38,6 +39,13 @@ VC::Core::Core(const argparse::ArgumentParser& parser, const Config& config)
     , _config(config)
 {
     reloadSourceFile();
+}
+
+VC::Core::Core(const Config& config)
+    : _showstack(false)
+    , _showtimeline(false)
+    , _config(config)
+{
 }
 
 // Recursively convert a Python object to nlohmann::json.
@@ -81,6 +89,36 @@ static json pyToJson(py::handle h)
         return pyToJson(obj.attr("__dict__"));
     }
     return obj.cast<std::string>();
+}
+
+void VC::Core::rebuildFromContext()
+{
+    const size_t savedIndex = _index;
+
+    try {
+        auto     ctx = py::module_::import("videocode.context").attr("Context");
+        py::dict stack = ctx.attr("stack");
+        py::list events = ctx.attr("events");
+
+        executeStack(stack, events);
+
+        // A Video may outlast the stack's own range.
+        for (const auto& inputPtr : _inputs) {
+            if (const Video* vid = dynamic_cast<const Video*>(inputPtr.get())) {
+                if (vid->_playbackLength > _nbFrame)
+                    _nbFrame = vid->_playbackLength;
+            }
+        }
+
+        _lastRenderedIndex = SIZE_MAX;
+        _cachedMeshes.clear();
+        _anchorBoxes.clear();
+    } catch (const py::error_already_set& e) {
+        std::cerr << "\nError building the scene:\n"
+                  << e.what() << "\n";
+    }
+
+    _index = (_nbFrame > 0) ? std::min(savedIndex, _nbFrame - 1) : 0;
 }
 
 void VC::Core::reloadSourceFile()
