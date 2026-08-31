@@ -43,11 +43,19 @@ def shake(
 
     def _apply(input: Input) -> Generator[IShader, Any, None]:
         src = v2(*input.meta.position)
+        # Only the axis being shaken is CLAIMED. `shake(axis=X)` used to write
+        # `src.y` on every frame, and a `moveTo(y=3)` running alongside was
+        # destroyed by it — y froze at 3.0 from the first frame instead of
+        # ramping. That is a DIFFERENT channel, so it is not the overwrite the
+        # author accepts; it is the over-claim `6895acf` fixed for `moveTo` and
+        # never carried over to the templates.
+        x0 = src.x if axis in (Axis.X, Axis.BOTH) else None
+        y0 = src.y if axis in (Axis.Y, Axis.BOTH) else None
         n = max(int(duration * FRAMERATE), 2)
         for i in range(n):
             t = i / (n - 1)
             if i == n - 1:
-                yield _position(src.x, src.y).at(start=start + i * SINGLE_FRAME)
+                yield _position(x0, y0).at(start=start + i * SINGLE_FRAME)
                 continue
             envelope = (1.0 - t) if decay else 1.0
             angle = 2 * math.pi * frequency * t * duration
@@ -55,6 +63,9 @@ def shake(
             oy = amplitude * math.cos(angle) * envelope if axis in (Axis.Y, Axis.BOTH) else 0.0
             if axis is Axis.Y:
                 oy = amplitude * math.sin(angle) * envelope
-            yield _position(src.x + ox, src.y + oy).at(start=start + i * SINGLE_FRAME)
+            yield _position(
+                None if x0 is None else x0 + ox,
+                None if y0 is None else y0 + oy,
+            ).at(start=start + i * SINGLE_FRAME)
 
     return _apply

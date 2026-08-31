@@ -100,8 +100,24 @@ check:
 		exit 1; \
 	fi
 	@ printf "  no new visual regressions, no stale exemptions\n"
+	@ printf "\n→ C++ unit tests\n"
+	@ cmake --build build --target video-code-tests > /dev/null && ./build/video-code-tests
+	@ printf "\n→ what the scenes ask the renderer to do\n"
+	@ python3 test/perf/digest.py
 	@ printf "\n→ performance guard\n"
-	@ python3 test/perf/guard.py
+	@# --record: this machine is the only one that can measure a millisecond of
+	@# this renderer, so the number is taken here and REMEMBERED in the commit.
+	@# CI reads history.jsonl and draws the curve; it never measures.
+	@ python3 test/perf/guard.py --record
+
+
+# The hooks ship in the repo but git ignores them until it is told where they
+# are, and nothing told it: `.githooks/pre-commit` sat unarmed since the day it
+# was written. One command, per clone.
+.PHONY: arm
+arm:
+	@ git config core.hooksPath .githooks
+	@ printf "pre-commit armed — coverage, types and the QML chrome, ~15s\n"
 
 
 .PHONY: docs

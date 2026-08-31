@@ -31,8 +31,14 @@ b = Rectangle(width=1, height=1).position(1.0, -2.0)
 b.apply(bounceIn(height=2.0, duration=0.8))
 pos = framesWith(b.meta.index, "Position")
 first, last = pos[min(pos)]["args"], pos[max(pos)]["args"]
-check("starts `height` above the landing spot", abs(first["y"] - 0.0) < 0.05 and first["x"] == 1.0)
-check("lands exactly", last["x"] == 1.0 and last["y"] == -2.0)
+# A drop moves y and nothing else, so x travels as a hole: writing it every
+# frame — a constant equal to the base — destroyed any concurrent x animation.
+check("starts `height` above the landing spot", abs(first["y"] - 0.0) < 0.05)
+check("lands exactly", last["y"] == -2.0)
+# Frame 0 still carries an x — the `.position(1.0, -2.0)` of construction lands
+# there too, and the merge fills the drop's hole from it. Only the frames the
+# drop alone touches travel with x absent.
+check("x is not claimed by a drop", last["x"] is None)
 ys = [e["args"]["y"] for _, e in sorted(pos.items())]
 descents = sum(1 for a, c in zip(ys, ys[1:]) if c > a + 1e-9)
 check("bounces back up at least once", descents >= 2)

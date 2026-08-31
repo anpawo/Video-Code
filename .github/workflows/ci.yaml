@@ -1,0 +1,274 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches-ignore: ['ga-ignore-**']
+  push:
+    branches-ignore: ['ga-ignore-**']
+
+# Three pushes in a minute should test the third, not all three. `main` is
+# exempt: its history is what the nightly and the mirror read.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # ── lane A: no compiler, no LaTeX, no Qt. Answers "is this branch sane?" ──
+  fast:
+    name: fast gates
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # coverage_check --pushed reads a commit range
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # Deliberately no apt at all — that is what buys the ~70s. Three tools are
+      # therefore absent here: video-code (not built in this lane), ffmpeg (NOT
+      # preinstalled on ubuntu-24.04 — the build job downloads it) and LaTeX.
+      # VC_REQUIRE_TOOLS is unset, so what needs them skips per SECTION and is
+      # counted by name in the summary — beat_sync's 5 pure-numpy checks still
+      # run here, only its 3 ffmpeg ones stand down. The build job sets the
+      # variable and turns those same skips into hard failures.
+      # Cheap, and it closes the one hole every other gate here shares: they all
+      # read what a change adds, none reads what it forgets.
+      - name: The repository contains what it calls
+        run: python3 test/tracked_check.py
+
+      - name: Python unit tests
+        run: ./test/run_tests.sh
+
+      # `if: !cancelled()` and not the default: these two ran zero times between
+      # 2026-07-04 and today because the step above failed first and GitHub
+      # skipped them. A gate nobody can see is not a gate.
+      - name: Type-check Python API
+        if: ${{ !cancelled() }}
+        run: python3 -m pyright
+
+      - name: Documentation and test coverage of new public API
+        if: ${{ !cancelled() }}
+        run: python3 test/coverage_check.py --pushed
+
+      # The perf memory a shared runner CAN hold. It cannot reproduce a
+      # millisecond — lavapipe against Metal is a 30x gap — but baking every
+      # scene is pure Python, so what the scenes ASK the renderer to do is the
+      # same number here as on the author's Mac, and can be held to zero
+      # tolerance. 1.0s, no apt, no GPU, no window.
+      #
+      # The hash has never been computed on Linux — the floats are rounded to
+      # 1e-6 and the nearest one to a rounding boundary sits 143000 ULP away,
+      # against the 1-2 ULP two libms can disagree by, so it should hold. If
+      # this step is red on its first run, suspect in this order: a dependency
+      # this lane does not install (that is why mathtex.py is excluded — its
+      # geometry comes out of LaTeX), then the rounding, which is PLACES.
+      - name: What the scenes ask the renderer to do
+        if: ${{ !cancelled() }}
+        run: python3 test/perf/digest.py
+
+  # ── lane E: the memory. Runs nothing, remembers everything. ──
+  # The measuring happens on the author's machine (`make check` writes a line
+  # into history.jsonl, which travels in the commit like a golden); this job
+  # only publishes the curve. That split is deliberate: a self-hosted runner
+  # would put the numbers on the right hardware and hand anyone with push
+  # access code execution on that hardware — `workflow_dispatch` runs the
+  # workflow file from the ref it is given, and `main` is not protected.
+  history:
+    name: remember
+    needs: [fast]
+    # The repository check is not optional decoration: this job carries
+    # `contents: write`, and without it anyone who forks and pushes to their
+    # own main starts it. The rule is that a job which writes only runs where
+    # we mean it to write.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.repository == 'anpawo/Video-Code'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # gh-pages only; grants nothing the pusher did not have
+      deployments: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # --verify walks ancestry; a depth-1 clone cannot
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # history.jsonl is a tracked file, so any pull request can write it, and
+      # a row typed by hand looks exactly like a measured one. One bad row
+      # poisons the curve permanently — and the curve IS the memory. So every
+      # row must name a commit that really is an ancestor of main; an invented
+      # measurement has no sha it can produce.
+      - run: python3 test/perf/history.py --verify
+
+      - name: Collect what to remember
+        run: |
+          python3 test/perf/digest.py --emit bench.json
+          python3 test/perf/history.py --append bench.json
+
+      # Pinned to a sha, not a tag: this job holds `contents: write`, and a tag
+      # is a pointer its owner can move.
+      - uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
+        with:
+          tool: customSmallerIsBetter
+          output-file-path: bench.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          alert-threshold: '110%'
+          comment-on-alert: true
+          fail-on-alert: false # already merged: the alert is the record, not a gate
+
+  # ── lane B: the chrome, statically. Catches what --check-chrome cannot. ──
+  qml:
+    name: qmllint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # Deliberately newer than the 6.2.4 the product links against: qmllint is
+      # a checker, not a dependency, and 6.2's does not have syntax.duplicate-ids
+      # — the rule that finds the three real errors sitting in qml/ today.
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.1'
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          modules: qtshadertools
+          cache: true
+
+      - name: qmllint
+        run: qmllint -I qml $(find qml -name '*.qml')
+
+  # ── lane C: formatting. 40s, and the only job that needs a container. ──
+  format:
+    name: clang-format
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    container: fedora:44
+    steps:
+      - uses: actions/checkout@v4
+      - run: dnf install -y clang-tools-extra
+      - run: clang-format --version
+      # `clang-format -n -Werror` with no arguments exits 0. Without this check
+      # an empty `find` is indistinguishable from a clean tree — the same shape
+      # of lie as the `[ -f out.mp4 ]` this workflow removes.
+      - name: Check formatting
+        run: |
+          files=$(find . -regex '.*\.\(cpp\|hpp\)')
+          [ -n "$files" ] || { echo "no C++ sources found - the gate would have passed empty"; exit 1; }
+          clang-format -n -Werror $files
+
+  # ── lane D: the compiler and everything that needs a binary. ──
+  build:
+    name: build + full suite
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # No ccache. Its gain here was never measured, and it would be a third
+      # third-party action on a moving tag. The parallel build below IS
+      # measured: the log shows 17 translation units compiled one at a time.
+      # Take the sure win, skip the unmeasured one.
+
+      # texlive lives here and nowhere else — one test file needs it, and this
+      # is the only job that runs that test.
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config \
+            python3-dev ffmpeg libopencv-dev libcurl4-openssl-dev libvulkan-dev \
+            libfreetype6-dev glslang-dev glslang-tools g++-13 gcc-13 \
+            mesa-vulkan-drivers libxcb1-dev \
+            texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - run: pip install pybind11 -r requirements.txt
+
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.2.4'
+          host: linux
+          target: desktop
+          arch: gcc_64
+          cache: true
+
+      # CMakeLists.txt hard-fails without VCPKG_ROOT even though CI_BUILD=ON
+      # never reads a vcpkg package on Linux — the path is required to exist as
+      # a variable, not as a directory.
+      - name: Configure CMake
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/.vcpkg-unused
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_CXX_COMPILER=g++-13 -DCI_BUILD=ON
+      # `make -C build` with no -j compiled 18k lines of C++ on one core.
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - run: cp build/video-code video-code
+
+      # One translation unit against headers: no Vulkan device, no Qt, no
+      # window, nothing of the application linked in. 1.6s to build from cold,
+      # milliseconds to run — so there is never a reason to skip it.
+      - name: C++ unit tests
+        run: |
+          cmake --build build --target video-code-tests -j"$(nproc)"
+          ./build/video-code-tests
+
+      # 0.6s of qmllint above catches duplicate ids this cannot see; this
+      # catches every parse error in the module and every binding that fails to
+      # resolve on instantiation, which qmllint does not. 1.6s for all the QML.
+      - name: QML chrome loads and every binding resolves
+        run: ./video-code --check-chrome
+
+      # The one lane where every tool exists, so a skip here is a lie:
+      # VC_REQUIRE_TOOLS turns "tool absent" back into a hard failure.
+      - name: Full suite, with every tool present
+        env:
+          VC_REQUIRE_TOOLS: '1'
+        run: ./test/run_tests.sh
+
+      # eg.py is the living showcase. Counting the frames is the point: the step
+      # this replaces asserted only that ffmpeg had created a file, and passed
+      # green on 2026-08-25 having encoded nothing at all.
+      - name: The showcase scene still renders
+        run: |
+          ./video-code --file eg.py --generate eg.mp4
+          frames=$(ffprobe -v error -select_streams v:0 -count_frames \
+                   -show_entries stream=nb_read_frames -of csv=p=0 eg.mp4)
+          echo "eg.mp4: ${frames:-0} frames"
+          if [ "${frames:-0}" -lt 100 ]; then
+            echo "eg.py rendered ${frames:-0} frames, expected at least 100"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: eg-render
+          path: eg.mp4
+          retention-days: 7

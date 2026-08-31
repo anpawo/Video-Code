@@ -61,18 +61,3 @@ class Box(Group):
 
 class TextBox(Group):
     pass
-
-
-# class RedTextBox(TextBox):
-#     def __init__(self, width: wnumber, height: wnumber, text: str):
-#         super().__init__(width, height, text, RED_B)
-
-
-# class GreenTextBox(TextBox):
-#     def __init__(self, width: wnumber, height: wnumber, text: str):
-#         super().__init__(width, height, text, GREEN_A)
-
-
-# class GreenTextBox(TextBox):
-#     def __init__(self, width: wnumber, height: wnumber, text: str):
-#         super().__init__(width, height, text, BLUE_C)

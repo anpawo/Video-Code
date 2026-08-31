@@ -23,7 +23,19 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - uses: pixta-dev/repository-mirroring-action@v1
+      # Pinned by SHA, and this is the one pin in the repository that buys
+      # something. This action is the ONLY thing that ever sees
+      # `GIT_SSH_PRIVATE_KEY`, and it is a *Docker* action — GitHub builds and
+      # runs the third party's own Dockerfile with the key in its environment,
+      # so exfiltrating it would be one line of shell in their repo.
+      #
+      # `@v1` was not a version, it was a moving target: the v1 release was cut
+      # 2021-11-22 and the tag now resolves to a commit dated 2022-11-15. The
+      # repo has been dormant since 2024-05-24 — which is exactly the shape of a
+      # project whose tag someone else could one day come to own.
+      #
+      # Nothing here changes, so the pin costs no maintenance.
+      - uses: pixta-dev/repository-mirroring-action@674e65a7d483ca28dafaacba0d07351bdcc8bd75  # v1.1.1
         with:
           target_repo_url: ${{ env.MIRROR_URL }}
           ssh_private_key: ${{ secrets.GIT_SSH_PRIVATE_KEY }}

@@ -31,7 +31,9 @@ def bounceIn(
         dst = v2(*input.meta.position)
         src = v2(dst.x, dst.y + height)
         for p, i in Easing.Bounce.rangeIdx(src, dst, duration):
-            yield _position(p.x, p.y).at(start=start + i * SINGLE_FRAME)
+            # A drop only claims y. Writing `p.x` — a constant equal to the base —
+            # destroyed any x animation sharing the frames; see `shake`.
+            yield _position(None, p.y).at(start=start + i * SINGLE_FRAME)
         for o, i in Easing.Out.rangeIdx(0.0, 255.0, max(duration * 0.3, SINGLE_FRAME * 2)):
             yield _opacity(o).at(start=start + i * SINGLE_FRAME)
 

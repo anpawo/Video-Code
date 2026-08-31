@@ -1,0 +1,49 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # requirements.txt pins nothing. A pyright release turns the type gate red
+  # with no commit behind it — better learnt at 3am than on someone's push.
+  drift:
+    name: unpinned dependency drift
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: pip freeze
+      - run: ./test/run_tests.sh
+      - if: ${{ !cancelled() }}
+        run: python3 -m pyright
+
+  # macOS is the development platform and the only one with MoltenVK, so it is
+  # the only runner where a Vulkan failure means what it says. It is NOT on the
+  # push path: the first cold vcpkg build is hours, and a 6h job limit is the
+  # thing it will hit. Land it on workflow_dispatch, prove the binary cache
+  # fills, and only then let the schedule reach it.
+  # The macOS job is deliberately absent.
+  #
+  # It was written, and then withdrawn by the seat that proposed it once the
+  # escalation path was verified rather than assumed: a manually dispatched run
+  # executes the workflow file present on the DISPATCHED ref, three accounts
+  # hold push, and `main` is not branch-protected. Any of them — or a leaked
+  # token from any of them — gets a shell on the author's Mac, a machine
+  # carrying a keychain, SSH keys and an authenticated `gh`. A GitHub runner is
+  # thrown away after the job; that one persists.
+  #
+  # What it would have bought is a wall-clock number the author already gets
+  # from `make check`, on the only machine where wall-clock means anything.
+  # The price of having it anyway is three things and not an `if:` — protect
+  # `main`, drop `workflow_dispatch`, and run the agent in a dedicated macOS
+  # account with no keychain access.

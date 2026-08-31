@@ -1,4 +1,4 @@
-# python-chess==1.999
+python-chess==1.999  # ChessBoard template; commented out for 8 weeks, which is how long pyright stayed red
 shapely
 freetype-py
 uharfbuzz
@@ -7,6 +7,9 @@ svgelements
 pygments
 typing_extensions
 pyright
+# The editor's language server. Same analyser as pyright, plus the semantic
+# tokens colouring needs — what a name IS rather than how it is spelled.
+basedpyright
 opencv-python  # optional: only needed for Video.track() (motion tracking)
 numpy  # optional: only needed for Sound.beats() (onset/beat detection)
 faster-whisper  # optional: only needed for Sound.transcribe() (speech-to-text auto-captions)

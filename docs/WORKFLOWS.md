@@ -4,20 +4,25 @@ Three places, split by what each can actually decide. Nothing blocks a push.
 
 | where | what it checks | when | blocks? |
 |---|---|---|---|
-| **GitHub Actions** | types, the 37 suites, docs/test coverage of new API, the build, `eg.py` still renders | every push and PR | the run goes red, the push already landed |
-| **`make check`** | visual regression, performance baseline | when you ask for it | no |
+| **GitHub Actions** | types, the suites, docs/test coverage of new API, qmllint, formatting, the build, the C++ unit tests, the QML chrome, `eg.py` still renders, the bake digest | every push and PR | the run goes red, the push already landed |
+| **`make check`** | visual regression, C++ unit tests, bake digest, performance — and RECORDS the timings into `test/perf/history.jsonl` | when you ask for it | no |
 | **`/ship`** | writes the docs, tests and examples a change owes | before committing | no |
-| `.githooks/pre-commit` | coverage only (~12 s), opt-in | on commit, if armed | yes |
+| `.githooks/pre-commit` | what the repo forgot to commit, coverage, types, the QML chrome (~15 s) — armed with `make arm` | on commit, once armed | yes |
 
 ## GitHub does the waiting
 
-`.github/workflows/ci-build.yaml` already ran the suites and pyright. It now
+The `fast` job of `.github/workflows/ci.yaml` runs the suites and pyright. It
 also runs `test/coverage_check.py --pushed`, which reads every public symbol the
 pushed range adds to the library (`videocode/`, `src/`, `include/`) and asks:
 
 - is there a docstring where it is defined?
 - is it mentioned in `docs/*.md`?
 - is it mentioned in `test/`?
+
+For C++ it reads headers only: a type declared in a `.cpp` is reachable by
+nobody, so it is not surface. Asking a function-local helper for a documentation
+page is a false alarm, and a false alarm on a hook is how a team learns to type
+`--no-verify`.
 
 It never writes anything, and it greps for names — so it cannot see a docstring
 that lies or a test that asserts nothing. It is the floor, not the ceiling. When
@@ -37,7 +42,16 @@ fail, for reasons that have nothing to do with the change. Comparing pixels
 means comparing them against the same renderer.
 
 **Performance.** A shared runner's timings, on software rendering, say nothing
-about a baseline measured on this machine. A threshold there would either never
+about a baseline measured on this machine — measured, the runner renders at
+589 ms/frame against ~8 ms here, which is a different rasterizer rather than a
+noisier one. So the split is: **this machine measures, GitHub remembers.**
+`make check` appends one line per commit to `test/perf/history.jsonl`, which
+travels in the commit like a golden, and the `history` job publishes the curve
+without ever running a benchmark. What CI *can* compute exactly is what the
+scenes ASK the renderer to do — `test/perf/digest.py`, a per-scene hash of the
+bake, held to zero tolerance on any runner.
+
+A threshold on wall time would either never
 fire or fire constantly.
 
 Both live in `make check` instead:

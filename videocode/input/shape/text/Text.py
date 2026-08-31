@@ -342,10 +342,6 @@ class Text(Group[Letter], _hasFillStroke):
             base.position = base.position - origin
         return inst
 
-    def findFirst(self, pattern: str) -> Text:
-        results = self.find(pattern)
-        return results.inputs[0]
-
     def find(self, pattern: str) -> Group[Text]:
         import re
 
@@ -361,59 +357,6 @@ class Text(Group[Letter], _hasFillStroke):
             if letters:
                 result.inputs.append(Text._fromLetters(letters, self))
         return result
-
-    def typeInsert(self, pattern: str, *, start: sec = 0, delay: sec = SINGLE_FRAME) -> Self:
-        """
-        Reveals characters matching `pattern` one by one, shifting everything to
-        their right to make room — as if typed inside existing text.
-        """
-        import re
-
-        charToLetter: dict[int, int] = {}
-        letterIdx = 0
-        for charIdx, char in enumerate(self.text):
-            if not char.isspace():
-                charToLetter[charIdx] = letterIdx
-                letterIdx += 1
-
-        match = re.search(pattern, self.text)
-        if not match:
-            return self
-
-        insertIdxs = [charToLetter[i] for i in range(match.start(), match.end()) if i in charToLetter]
-        pushIdxs = [charToLetter[i] for i in range(match.end(), len(self.text)) if i in charToLetter]
-
-        if not insertIdxs:
-            return self
-
-        data = _helper.buildLetterData(self.text, self.fontSize, self.fontFamily, self.bold, self.italic)
-        xMin = min(x for _, x, _ in data)
-        xMax = max(data[i][1] + self.inputs[i].width for i in range(len(data)))
-        ax = xMin + self.meta.align.x * (xMax - xMin)
-        ay = _helper.lineAnchor(self.fontFamily, self.bold, self.italic, self.fontSize, self.meta.align.y)
-
-        insertXs = [data[li][1] for li in insertIdxs]
-        pushStartX = data[pushIdxs[0]][1] if pushIdxs else (insertXs[-1] + self.inputs[insertIdxs[-1]].width)
-        totalShift = pushStartX - insertXs[0]
-
-        for li in insertIdxs:
-            self.inputs[li].hide()
-        for pli in pushIdxs:
-            px = data[pli][1]
-            py = data[pli][2]
-            self.inputs[pli].apply(position(px - ax - totalShift, py - ay), start=0, duration=SINGLE_FRAME)
-
-        for j, li in enumerate(insertIdxs):
-            t = start + j * delay
-            self.inputs[li].apply(show().at(start=t))
-            nextX = insertXs[j + 1] if j + 1 < len(insertIdxs) else pushStartX
-            partialShift = nextX - insertXs[0]
-            for pli in pushIdxs:
-                px = data[pli][1]
-                py = data[pli][2]
-                self.inputs[pli].apply(position(px - ax - totalShift + partialShift, py - ay), start=t, duration=SINGLE_FRAME)
-
-        return self
 
     def typeIn(
         self,

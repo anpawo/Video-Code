@@ -1,0 +1,1 @@
+{"sha": "4afa83ae1a71ea496de29a10a946d548e650021f", "date": "2026-08-27T01:36:10+02:00", "loadavg": 3.14, "load": 0.5063, "msPerFrame": 6.3273, "total": 2.4045, "rssMb": 463.625, "frames": 300, "scene": "test/perf/stress_text.py"}

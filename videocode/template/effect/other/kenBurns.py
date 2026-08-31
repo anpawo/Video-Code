@@ -41,6 +41,12 @@ def kenBurns(
         dstP = v2(srcP.x + panX, srcP.y + panY)
         for (s, i), (p, _) in zip(easing.rangeIdx(srcS, dstS, duration), easing.rangeIdx(srcP, dstP, duration)):
             yield _scale(*s).at(start=start + i * SINGLE_FRAME)
-            yield _position(p.x, p.y).at(start=start + i * SINGLE_FRAME)
+            # Claim only the axes actually panned: with `panY=0`, writing `p.y`
+            # every frame froze any concurrent y animation. See `shake`.
+            if panX or panY:
+                yield _position(
+                    p.x if panX else None,
+                    p.y if panY else None,
+                ).at(start=start + i * SINGLE_FRAME)
 
     return _apply

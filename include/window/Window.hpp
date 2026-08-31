@@ -10,7 +10,6 @@
 #include <QKeyEvent>
 #include <QMainWindow>
 #include <QTimer>
-#include <argparse/argparse.hpp>
 #include <chrono>
 #include <vector>
 
@@ -20,6 +19,15 @@
 #include "window/VulkanWidget.hpp"
 
 class QLabel;
+
+// argparse is a COMMAND-LINE parser, and it was reaching five headers through
+// this one — 1381 of the 1754 include events of a 75-line ScreenSize.cpp. Every
+// use here is by reference, so a forward declaration is all a header needs; the
+// definition belongs to the .cpp files that actually read a flag.
+namespace argparse
+{
+    class ArgumentParser;
+}
 
 namespace VC
 {

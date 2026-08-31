@@ -36,6 +36,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "shader/IFragmentShader.hpp" // MAX_SHADER_PARAMS, copyShaderParams
 #include "utils/Logger.hpp"
 #include "vulkan/EffectResolver.hpp"
 #include "vulkan/LutAtlas.hpp"
@@ -64,8 +65,12 @@ struct EffectPC
     float texelX;
     float texelY;
     // 24 — see the twin struct in VulkanHeadlessRenderer.cpp.
-    float p[24];
+    float p[MAX_SHADER_PARAMS];
 };
+
+// The comment above says "still inside the 128 every Vulkan implementation
+// guarantees". Nothing checked it, in 18k lines without a single static_assert.
+static_assert(sizeof(EffectPC) <= 128, "EffectPC outgrew the push-constant range Vulkan guarantees");
 
 static void effectBarrier(VkCommandBuffer cb, VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage, VkImage image, VkAccessFlags srcAccess, VkAccessFlags dstAccess, VkImageLayout oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VkImageLayout newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
 {
@@ -3271,8 +3276,7 @@ void VC::VulkanWidget::recordEffectKernelPass(
     EffectPC pc{};
     pc.texelX = texelX;
     pc.texelY = texelY;
-    for (size_t i = 0; i < std::min(params.size(), size_t(24)); i++)
-        pc.p[i] = params[i];
+    copyShaderParams(params, pc.p);
     vkCmdPushConstants(cb, it->second.layout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(EffectPC), &pc);
 
     vkCmdDraw(cb, 6, 1, 0, 0);

@@ -60,7 +60,12 @@ r.apply(shake(amplitude=0.5, duration=0.5))
 pos = framesWith(r.meta.index, "Position")
 last = pos[max(pos)]["args"]
 check("shake emitted per-frame positions", len(pos) >= 10)
-check("final frame back at origin", last["x"] == 2.0 and last["y"] == 1.0)
+# The default shake is on X, so it CLAIMS x and leaves y alone — a `None` is a
+# hole, not a value, and the carry holds whatever y really was. Asserting
+# `last["y"] == 1.0` here was asserting the over-claim: it froze any concurrent
+# y animation (measured: `moveTo(y=3)` alongside it stayed at 3.0 throughout).
+check("final frame back at origin", last["x"] == 2.0)
+check("y is not claimed by an X shake", last["y"] is None)
 moved = any(e["args"]["x"] != 2.0 for e in pos.values())
 check("intermediate frames displaced", moved)
 

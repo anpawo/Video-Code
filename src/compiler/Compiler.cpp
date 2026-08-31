@@ -7,6 +7,7 @@
 
 #include "compiler/Compiler.hpp"
 
+#include <argparse/argparse.hpp>
 #include <chrono>
 #include <cmath>
 #include <condition_variable>

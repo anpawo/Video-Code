@@ -1,20 +1,49 @@
 #!/usr/bin/env bash
-# OPT-IN, and deliberately fast (~12 s). Nothing here runs unless you arm it:
-#   git config core.hooksPath .githooks
-# Bypass once with  git commit --no-verify.
+# Armed with  git config core.hooksPath .githooks  (this repo does it in its
+# Makefile's `arm` target). Bypass once with  git commit --no-verify.
 #
-# The slow gates do NOT live here — pushes must not wait. Types and tests run on
-# GitHub (.github/workflows/ci-build.yaml); the render and performance gates
-# need a real GPU and a local baseline, so they are `make check`, run when you
-# want them, never on your critical path.
+# Deliberately fast — under 15 s — because a hook that costs a minute is a hook
+# everyone learns to bypass. The slow gates do NOT live here: the render and
+# performance gates need a real GPU and a local baseline, so they are
+# `make check`, run when you want them, never on your critical path. Everything
+# else runs on GitHub (.github/workflows/ci.yaml).
 
 set -uo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-printf "→ coverage of new public API\n"
+# Every other gate here reads what the change ADDS. None reads what it FORGETS,
+# and a commit that deletes two workflows while their replacements sit untracked
+# passes all three of them.
+printf "→ the repository contains what it calls\n"
+python3 test/tracked_check.py || {
+    printf "\n\033[31m✗ commit cancelled — a build driver names a file that is not in git\033[0m\n"
+    exit 1
+}
+
+printf "\n→ coverage of new public API\n"
 python3 test/coverage_check.py || {
     printf "\n\033[31m✗ commit cancelled — new public API is missing docs or tests\033[0m\n"
     exit 1
 }
+
+# 4 live errors sat in the tree while this ran nowhere: the CI step that was
+# supposed to catch them was skipped by GitHub whenever the step before it
+# failed, which was every run for eight weeks.
+printf "\n→ types\n"
+python3 -m pyright || {
+    printf "\n\033[31m✗ commit cancelled — pyright\033[0m\n"
+    exit 1
+}
+
+# 1.5 s, and it opens NO window: the QML is instantiated against a hidden
+# window, so every parse error and every binding that fails to resolve is
+# caught without anything appearing on screen. qmllint cannot see those.
+if [ -x ./video-code ]; then
+    printf "\n→ the chrome still loads\n"
+    ./video-code --check-chrome || {
+        printf "\n\033[31m✗ commit cancelled — QML\033[0m\n"
+        exit 1
+    }
+fi
 
 printf "\033[32m✓ pre-commit clean\033[0m\n"

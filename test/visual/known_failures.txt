@@ -1,15 +1,40 @@
 # Visual scenes that already fail on main, with the reason they are tolerated.
-# `make check` blocks on any failure NOT listed here — so this file is the
-# difference between "we know" and "we broke it just now". (It is `make check`
-# and not a hook: the goldens were rendered on a real GPU, so only a machine
-# with one can decide. Nothing runs this for you — run it before you push.)
+# `make check` blocks on any failure NOT listed here, AND on any line here whose
+# scene has started passing — so this file cannot drift out of date in either
+# direction. A stale entry silently disarms the gate for that scene.
 #
-# Remove a line the moment its scene passes again: a stale entry silently
-# disarms the gate for that scene.
+# Empty, and that is the correct state: a clean render is 0.000, the renderer is
+# byte-deterministic (87/87 identical across two independent regenerations), so
+# every difference is a real one and none of them should be tolerated.
 #
-# All three date from before 2026-07-28 and are glyph-related — text-stroke and
-# markdown render text, gradient-holes renders letter contours with holes.
-# Verified pre-existing by rebuilding a clean HEAD and re-running the suite.
-text-stroke
-gradient-holes
-markdown
+# It held four entries for a month. All four, plus twenty more nobody had
+# noticed, were stale goldens — but NOT from one cause. Three commits moved
+# them, each a deliberate fix, none of which regenerated what it moved:
+#
+#   94074b7 (2026-08-10) "render size ... and a named space for math shaders"
+#     changed where a math paint anchors and where the world box comes from.
+#     Regenerated only `silk` and the three scenes it added.
+#   428c0f6 (2026-08-24) "a bar is the call, not the frames that survived it"
+#     records a statement BEFORE no-op shaders are dropped. That moves what
+#     `Context.apply` sees as the current call, so the stack itself changed.
+#   e21c4e6 (2026-08-25) "a run leaves nothing behind for the next one"
+#     completed `_resetContext`. The suite bakes every scene in ONE
+#     interpreter, so before this, a scene inherited the previous one's state.
+#     Measured at 428c0f6: `layers` baked alone hashes db0f672b, baked after
+#     `resize` it hashes fee9d522. After e21c4e6 both are db0f672b — which is
+#     also today's value. The goldens had been rendered contaminated.
+#
+# Verified before regenerating, rather than assumed:
+#   - the bake is byte-identical between HEAD and the working tree, so nothing
+#     in Python moved these; the change is entirely in the renderer.
+#   - `resize`: the Plane's axes now fall on 959/960 x 539/540, the exact centre
+#     of the frame and therefore the world origin. In the golden there were no
+#     axes there at all: the grid ran every 40px from y=0, so the origin fell
+#     BETWEEN two lines. A Plane whose axes miss the origin is the bug.
+#   - `matte`: the mask is the union of the letter CONTOURS, which measures
+#     1279.2 x 288.0 px. The current render is 1280 wide. The golden was 1247 —
+#     the sum of the ADVANCE widths (1245.8), i.e. the letter boxes rather than
+#     the letter shapes.
+#
+# Two independent scenes, two different subsystems, the same verdict: the
+# goldens were pinning the old behaviour. They were regenerated on 2026-08-29.

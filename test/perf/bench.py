@@ -48,8 +48,21 @@ def renderOnce() -> dict:
     total = time.perf_counter() - t0
 
     text = buf.decode(errors="replace")
-    frames = int(re.search(r"\d+/(\d+) frames", text).group(1))
-    rss = int(re.search(r"(\d+)\s+maximum resident set size", text).group(1))
+    # A render that died — the machine ran out of memory, ffmpeg was missing,
+    # the scene raised — leaves no progress line, and `.group(1)` on None threw
+    # an AttributeError that looked exactly like a bug in the benchmark. Say
+    # what actually happened instead, with the child's own words.
+    def read(pattern: str, what: str) -> int:
+        hit = re.search(pattern, text)
+        if hit is None:
+            raise SystemExit(f"the render did not report {what} — it exited {proc.returncode}:\n{text[-1500:]}")
+        return int(hit.group(1))
+
+    frames = read(r"\d+/(\d+) frames", "how many frames it rendered")
+    rss = read(r"(\d+)\s+maximum resident set size", "its peak memory")
+
+    if firstFrame is None:
+        raise SystemExit(f"the render never reached its first frame — it exited {proc.returncode}:\n{text[-1500:]}")
 
     return {
         "load": firstFrame,

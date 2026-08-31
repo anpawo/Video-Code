@@ -56,33 +56,6 @@ class EaseAttributeSimplifier[T: Input]:
         return self._input.ease(self._attr, value, easing=easing, start=start, duration=duration, offset=offset)
 
 
-class timeit:
-    def __init__(self, context: str = "took"):
-        self.context = context
-        self.start: float
-
-    def __enter__(self):
-        self.start = time.perf_counter()
-        return self
-
-    def __exit__(self, *_):
-        elapsed = (time.perf_counter() - self.start) * 1_000
-        DEBUG.log(f"{self.context}: {elapsed:.3f} ms")
-
-    def __call__(self, func):
-        """Allow usage as a decorator"""
-
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            start = time.perf_counter()
-            result = func(*args, **kwargs)
-            elapsed = time.perf_counter() - start
-            DEBUG.log(f"[TIMED] {func.__qualname__}: {elapsed:.6f}s")
-            return result
-
-        return wrapper
-
-
 _MAYBE_T_VAL = TypeVar("_MAYBE_T_VAL")
 _MAYBE_T_RET = TypeVar("_MAYBE_T_RET")
 
@@ -187,3 +160,4 @@ class At(Generic[_AT_T]):
 
     def unpack(self) -> tuple[_AT_T, sec, sec, maybe[frame]]:
         return self.value, self.start, self.duration, self.offset
+

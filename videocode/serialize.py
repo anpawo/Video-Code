@@ -43,6 +43,22 @@ def _resetContext():
     # And the flag a Group raises while it emits toward its members — a run that
     # died mid-emission must not leave the next one marking everything derived.
     Context.deriving = False
+    Context.derivingGroup = None
+
+    # The three counters that live on classes rather than on Context, and were
+    # forgotten here for exactly that reason. They are not cosmetic: a shader
+    # that unions on an auto-assigned group id gets a DIFFERENT id on the second
+    # bake of the same file, so the editor — one process, one bake per gesture —
+    # renders the same scene two different ways, and every incremental reload
+    # sees that input as changed. Measured on video.py: input 288 goes from
+    # group -1 to group -2 with not a character of the scene touched.
+    from videocode.input.interface.Group import Group as _Group
+    from videocode.shader.fragmentShader.lightSweep import lightSweep as _lightSweep
+    from videocode.shader.fragmentShader.mathShader import mathShader as _mathShader
+
+    _Group._serial = 0
+    _lightSweep._nextGroup = 0
+    _mathShader._nextGroup = 0
 
 
 def _reportContendedKeys() -> None:

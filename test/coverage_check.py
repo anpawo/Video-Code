@@ -35,7 +35,13 @@ from pathlib import Path
 
 # Only the library owes documentation. Scenes and tests are readers, not surface.
 LIBRARY = ("videocode/", "src/", "include/")
-CPP_DEF = re.compile(r"^\+\s*(?:class|struct)\s+([A-Za-z]\w*)")
+# A forward declaration is not surface: `class ArgumentParser;` promises a name,
+# not an API, and asking it for documentation sends the author hunting for a type
+# this repository does not own. The rest of the line decides — requiring a body
+# on the SAME line looked equivalent and was not: this project opens its braces
+# on the next line, so that version stopped seeing `struct Rule` entirely. A gate
+# that under-reports is worse than one that over-reports.
+CPP_DEF = re.compile(r"^\+\s*(?:class|struct)\s+([A-Za-z]\w*)(?P<rest>.*)$")
 PY_DEF = re.compile(r"^\+\s*(?:def|class)\s+([A-Za-z]\w*)")
 
 
@@ -82,8 +88,14 @@ def addedSymbols(patch: str) -> dict[str, str]:
             m = PY_DEF.match(line)
             if m and not m.group(1).startswith("_") and m.group(1) in pyDefinitions(current):
                 found.setdefault(m.group(1), current)
-        elif current.endswith((".cpp", ".hpp")):
+        # Headers only: a type declared in a .cpp is reachable by nobody, so it
+        # is not surface. A helper struct local to one function was asking for
+        # a documentation page — a false alarm, and a false alarm on a hook is
+        # how a team learns to type --no-verify.
+        elif current.endswith(".hpp"):
             m = CPP_DEF.match(line)
+            if m and m.group("rest").split("//")[0].strip().startswith(";"):
+                continue
             if m and not m.group(1).startswith("_"):
                 found.setdefault(m.group(1), current)
     return found

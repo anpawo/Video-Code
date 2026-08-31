@@ -107,13 +107,9 @@ class RectangleDimensions(Group):
                 self._rh = new_rh
                 self._syncHeightChanged(*resolved)
 
-        def _on_opacity(s: _Opacity, start: sec, duration: sec, offset: frame) -> None:
-            self._applyResolved(_Opacity(s.opacity), s.resolve(start, duration, offset))
-
         rect.addPostCallback(_Args, _on_args)
         rect.addPostCallback(_Position, _on_position)
         rect.addPostCallback(_Scale, _on_scale)
-        # rect.addPostCallback(_Opacity, _on_opacity)
 
         super().__init__(self.widthArrow, self.widthLabel, self.heightArrow, self.heightLabel)
 

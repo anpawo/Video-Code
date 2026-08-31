@@ -5,8 +5,10 @@ from __future__ import annotations
 import math
 
 
+import os
+
 from videocode.constants import SF
-from videocode.input.media.Image import WebImage
+from videocode.input.media.Image import Image
 from videocode.utils.bezier import Easing
 from videocode.context import wait
 
@@ -26,7 +28,14 @@ PAWN = 5
 BLACK = False
 WHITE = True
 
-BOARD_URL = "https://assets-themes.chess.com/image/9rdwe/200.png"
+# The board and the twelve pieces live in the repository, not on chess.com.
+# They used to be fetched by `WebImage` AT BAKE TIME, which meant this scene
+# could not be built offline, its goldens depended on a third party's server,
+# and it was the one thing keeping the corpus from running anywhere but the
+# author's machine. Provenance of the files, so they can be refreshed:
+#   board  https://assets-themes.chess.com/image/9rdwe/200.png
+#   pieces https://assets-themes.chess.com/image/ejgfv/150/{w|b}{k,q,r,b,n,p}.png
+ASSET_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))), "assets", "chess")
 
 
 class ChessBoard:
@@ -50,8 +59,8 @@ class ChessBoard:
         self.tileSize = 0.835
 
         # Inputs
-        self.boardInput = WebImage(BOARD_URL).scale(0.5).flush()
-        self.pieces: dict[Position, tuple[WebImage, tuple[Color, Piece]]] = {}
+        self.boardInput = Image(os.path.join(ASSET_DIR, "board.png")).scale(0.5).flush()
+        self.pieces: dict[Position, tuple[Image, tuple[Color, Piece]]] = {}
         self.addInputs()
 
     def addInputs(self):
@@ -76,7 +85,7 @@ class ChessBoard:
             color = WHITE if c.isupper() else BLACK
             piece = c.lower()
             self.pieces[(x, y)] = (
-                WebImage(self.getUrl(color, piece))
+                Image(self._pieceFile(color, piece))
                 .position(
                     self.ox + x * self.tileSize,
                     self.oy + y * self.tileSize,
@@ -87,11 +96,9 @@ class ChessBoard:
             )
             x += 1
 
-    def getUrl(self, color: Color, piece: Piece):
-        """
-        https://assets-themes.chess.com/image/ejgfv/150/wb.png
-        """
-        return f"https://assets-themes.chess.com/image/ejgfv/150/{'w' if color == WHITE else 'b'}{piece}.png"
+    def _pieceFile(self, color: Color, piece: Piece) -> str:
+        """assets/chess/wb.png — white bishop, black king is `bk.png`."""
+        return os.path.join(ASSET_DIR, f"{'w' if color == WHITE else 'b'}{piece}.png")
 
     def play(self, nMove: int | None = None):
         import chess  # already loaded by __init__; this is just a name lookup
@@ -136,7 +143,7 @@ class ChessBoard:
                 piece = chess.PIECE_SYMBOLS[move.promotion]
                 target = mover.meta.transformationOffset
                 promoted = (
-                    WebImage(self.getUrl(color, piece))
+                    Image(self._pieceFile(color, piece))
                     .position(self.ox + dx * self.tileSize, self.oy + dy * self.tileSize)
                     .scale(self.defaultScaling)
                 )

@@ -209,6 +209,17 @@ endif()
 
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+# One translation unit against headers only — no Vulkan device, no Qt, no
+# window, and nothing of the application linked in, so it costs a second and a
+# half and cannot be the reason a build is slow. `EXCLUDE_FROM_ALL`: the normal
+# build does not pay for it, `make check` and CI ask for it by name.
+add_executable(video-code-tests EXCLUDE_FROM_ALL test/cpp/unit_test.cpp)
+set_target_properties(video-code-tests PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+target_include_directories(video-code-tests PRIVATE include)
+# Qt6::Core and nothing more: the diff the agent pane draws is QStringList
+# work, and linking Core alone costs a second where linking the application
+# would cost fifteen. No MOC — this header has no Q_OBJECT in it.
+target_link_libraries(video-code-tests PRIVATE nlohmann_json::nlohmann_json Qt6::Core)
 
 if(APPLE)
     target_compile_definitions(${PROJECT_NAME} PRIVATE VK_USE_PLATFORM_METAL_EXT)

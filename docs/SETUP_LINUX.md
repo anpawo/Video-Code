@@ -2,9 +2,8 @@
 
 This is a from-scratch setup guide for building and running the app on
 Ubuntu/Debian-based Linux. The steps mirror the Linux job of
-`.github/workflows/ci-build.yaml`, which is known to build green — if
-something here stops working, that workflow is the reference to diff
-against.
+the `build` job of `.github/workflows/ci.yaml`, which is known to build green
+— if something here stops working, that job is the reference to diff against.
 
 Steps 1-3 (system packages, vcpkg, Python deps) are automated by
 [`scripts/setup-linux.sh`](../scripts/setup-linux.sh) — run it, then jump to

@@ -9,6 +9,7 @@
 
 #include <pybind11/embed.h>
 
+#include <argparse/argparse.hpp>
 #include <format>
 #include <iostream>
 

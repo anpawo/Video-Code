@@ -89,7 +89,12 @@ class WebImage(Image):
 
         if not os.path.exists(filepath):
             result = subprocess.run(
-                ["curl", "-L", "--ssl-reqd", "-o", filepath, url],
+                # `--proto '=https'`, not `--ssl-reqd`: the latter only means
+                # anything to FTP, IMAP, POP3, SMTP and LDAP (man curl), so it
+                # was a flag that read as "require TLS" and enforced nothing —
+                # `WebImage("http://…")` downloaded in the clear. The redirect
+                # form matters as much as the first hop, since `-L` follows.
+                ["curl", "-L", "--proto", "=https", "--proto-redir", "=https", "-o", filepath, url],
                 capture_output=True,
             )
             if result.returncode != 0:

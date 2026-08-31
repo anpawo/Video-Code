@@ -69,7 +69,16 @@ class Group(Interface, Generic[_GROUP_T]):
     """
     # fmt: on
 
+    #: Tells one group's derivations from another's in `Context.statements`.
+    #: A subclass that never calls `super().__init__()` keeps 0 and behaves as
+    #: before — all such groups share an identity, which is what the old
+    #: boolean did for every group.
+    _serial: int = 0
+    _groupId: int = 0
+
     def __init__(self, *inputs: Input):
+        Group._serial += 1
+        self._groupId = Group._serial
         self.inputs: list[_GROUP_T] = cast(list[_GROUP_T], list(inputs))
         self._snapshot()
 
@@ -243,12 +252,12 @@ class Group(Interface, Generic[_GROUP_T]):
             if shaders:
                 # Marked as the group's own working-out, not as a line about this
                 # member — see `Context.deriving`.
-                wasDeriving = Context.deriving
-                Context.deriving = True
+                wasDeriving, wasGroup = Context.deriving, Context.derivingGroup
+                Context.deriving, Context.derivingGroup = True, self._groupId
                 try:
                     m.apply(*shaders, start=start, duration=duration, offset=offset)
                 finally:
-                    Context.deriving = wasDeriving
+                    Context.deriving, Context.derivingGroup = wasDeriving, wasGroup
 
     # ------------------------------------------------------------------
     # Interface
@@ -262,6 +271,40 @@ class Group(Interface, Generic[_GROUP_T]):
             child.broadcast(func)
 
     def apply(self, *shaders: IShader | Effect | GroupEffect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+        # A group built empty and filled afterwards — `Text.find` does exactly
+        # that: `Group()` then `.inputs.append(...)` — never got its bases, so
+        # `_emitRigid` returned at once and `find("12").moveBy(y=1)` did nothing
+        # at all, without an error. Seven groups in the corpus are in that state.
+        if self.inputs and not self._memberBases:
+            self._snapshot()
+
+        # Members at DIFFERENT cursors are not at the same instant, and a rigid
+        # transform is only rigid if they are: `a.fadeIn(); a.flush()` then
+        # `Group(a, b).moveBy(x=5)` moved `a` over frames 30-59 and `b` over 0-29,
+        # stretching the pair from 2.0 to 7.0 apart for a whole second before it
+        # snapped back. A group has no cursor of its own — `meta.transformationOffset`
+        # is never read — so it takes the latest of its members'.
+        #
+        # Two conditions, both learnt the hard way. Only when they disagree:
+        # taking `max()` unconditionally breaks the order-independence of chained
+        # rigid transforms, and four of `group_test.py`'s invariants fail. And
+        # read THROUGH `Context.waitOffset`: a global `wait()` is applied inside
+        # `Input.apply`, after this runs, so comparing the raw cursors saw a
+        # disagreement the wait was about to settle — pinning `offset` here then
+        # overrode the wait, and `scene.py`'s group landed on frame 36 instead
+        # of 57, fighting the circle's own `moveBy`.
+        if offset is None and len(self.inputs) > 1:
+            lo = hi = -1
+
+            def seen(i: Input) -> None:
+                nonlocal lo, hi
+                o = max(i.meta.transformationOffset, Context.waitOffset)
+                lo, hi = (o, o) if lo < 0 else (min(lo, o), max(hi, o))
+
+            self.broadcast(seen)
+            if lo != hi:
+                offset = hi
+
         rigid = False
         for s in shaders:
             if isinstance(s, GroupEffect):

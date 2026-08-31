@@ -67,5 +67,17 @@ pgn
 # the test suite needs them to compare against on a fresh checkout.
 !test/visual/golden/*.png
 
+# And the two assets a scene of the corpus reads. Ignored, they made
+# image_shape.py and chess.py impossible to bake from a clean clone — the repo
+# asked its own test suite for files it did not contain.
+!wb.png
+!pgn
+
+# The chessboard and its twelve pieces. Committed so `chess.py` bakes from a
+# clean clone instead of fetching them from chess.com at bake time.
+!assets/chess/*.png
+
 # WebImage
 webimage/
+build-qml/
+temp/

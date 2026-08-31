@@ -36,12 +36,3 @@ def darken(c: rgba):
 def lighten(c: rgba):
     return c | 0.75 | BLACK | GRAY_10
 
-
-def ppDict(d: dict) -> str:
-    """
-    Pretty Print a Dict
-    """
-    s = ""
-    for k, v in d.items():
-        s += f"{k}:\n\t{v}\n"
-    return s

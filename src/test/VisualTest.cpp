@@ -8,6 +8,7 @@
 #include "test/VisualTest.hpp"
 
 #include <algorithm>
+#include <argparse/argparse.hpp>
 #include <filesystem>
 #include <format>
 #include <iostream>
@@ -22,10 +23,51 @@ namespace fs = std::filesystem;
 
 namespace
 {
+    // MEASURED, and it changes what these two numbers mean: the renderer is
+    // byte-deterministic. Regenerating all 87 goldens twice, fifteen minutes and
+    // a relink apart, produced 87/87 files identical byte for byte — while 24 of
+    // them differ from the goldens committed here.
+    //
+    // So there is no run-to-run noise for a tolerance to absorb, and the two
+    // thresholds below are not noise floors: they are a decision to tolerate 24
+    // real, stable, reproducible differences that nobody has diagnosed. The
+    // honest long-term target is zero, reached by fixing those 24 — not by
+    // tuning a number until they fit under it.
+    //
     // Mean per-pixel BGRA difference. Real renders of the same scene/state are
     // deterministic, so an actual visual regression produces a difference far
     // larger than this — this only absorbs e.g. PNG round-trip rounding.
     constexpr double kMaxMeanDiff = 1.0;
+
+    // What one 64x64 tile is allowed to differ by. Calibrated from the goldens
+    // and from injected damage, not picked round:
+    //
+    //     worst tile among the scenes passing today          65.3  (`text`)
+    //     erasing a scene's content down to its background    89.5 - 91.5
+    //     a 142x142 black square dropped anywhere            102   - 113
+    //
+    // 80 sits in that gap: nothing that passes today starts failing, and every
+    // localised deletion is caught. Deliberately far more permissive per pixel
+    // than the frame-wide mean — the point is to notice a LOCAL catastrophe,
+    // not to police a gradient.
+    //
+    // The two tests are complementary and neither is redundant: erasing every
+    // glyph of `text` scores 1.201 mean (caught) but only 62.7 per tile
+    // (missed), because the damage is spread thin over the whole frame. The
+    // mean sees diffuse loss; the tile sees concentrated loss.
+    constexpr double kMaxTileDiff = 80.0;
+
+    // Scenes that pass but are not clean, worst first. See the block above:
+    // clean means 0.000, so anything here is drift somebody should date.
+    struct Drift
+    {
+        std::string name;
+        double      margin;
+        double      mean;
+        double      tile;
+    };
+
+    std::vector<Drift> drifting;
 
     std::string statusLabel(bool pass)
     {
@@ -43,6 +85,36 @@ namespace
         cv::absdiff(a, b, diff);
         cv::Scalar s = cv::mean(diff);
         return (s[0] + s[1] + s[2] + s[3]) / 4.0;
+    }
+
+    // The worst TILE, beside the mean of the whole frame — because a mean over
+    // two million pixels cannot see a feature disappear.
+    //
+    // Measured against the goldens as they stand: a 142x142 fully black square
+    // dropped anywhere in a frame scores 0.992 and PASSES. So does erasing the
+    // whole subtitle line (0.487), the cropped element of `crop` (0.548), and
+    // the swept element of `lightsweep` (0.592). Every one of those is a
+    // feature vanishing, and the gate that exists to catch exactly that says
+    // nothing — a small area, however wrong, is divided by the whole frame.
+    //
+    // A tile is 64x64, so a change confined to one is judged against 4096
+    // pixels rather than 2 073 600 — the same defect scores ~500x higher. The
+    // frame-wide mean is kept alongside it: broad low-amplitude drift (the
+    // `video` / `layers` / `resize` family, 8-10% of pixels at <=8) is real and
+    // is what the mean is good at.
+    double worstTileDiff(const cv::Mat& a, const cv::Mat& b, int tile = 64)
+    {
+        if (a.size() != b.size() || a.type() != b.type())
+            return 255.0;
+
+        double worst = 0.0;
+        for (int y = 0; y < a.rows; y += tile) {
+            for (int x = 0; x < a.cols; x += tile) {
+                const cv::Rect box(x, y, std::min(tile, a.cols - x), std::min(tile, a.rows - y));
+                worst = std::max(worst, meanAbsDiff(a(box), b(box)));
+            }
+        }
+        return worst;
     }
 
     // Renders frames `frames` (sorted ascending, no duplicates expected) of `core`
@@ -286,8 +358,15 @@ int VC::VisualTest::run(bool updateGolden)
             }
 
             double diff = meanAbsDiff(golden, frames[j]);
-            bool   pass = diff <= kMaxMeanDiff;
-            std::cout << std::format("  [{}] frame {} — mean pixel diff {:.3f} (tolerance {:.1f})\n", statusLabel(pass), c.frames[j], diff, kMaxMeanDiff);
+            double tile = worstTileDiff(golden, frames[j]);
+            bool   pass = diff <= kMaxMeanDiff && tile <= kMaxTileDiff;
+            std::cout << std::format("  [{}] frame {} — mean {:.3f} (max {:.1f}) · worst 64px tile {:.3f} (max {:.1f})\n", statusLabel(pass), c.frames[j], diff, kMaxMeanDiff, tile, kMaxTileDiff);
+            // Kept even when it passes: a threshold you cannot watch being
+            // approached is a threshold that breaks by surprise. `text` sits at
+            // 65.3 of 80 and is declared nowhere — the second worst tile in the
+            // suite, worse than three of the four failures that ARE declared.
+            if (pass && (diff > 0.0 || tile > 0.0))
+                drifting.push_back({c.name, tile / kMaxTileDiff, diff, tile});
             if (!pass)
                 failures++;
         }
@@ -313,11 +392,23 @@ int VC::VisualTest::run(bool updateGolden)
 
         for (size_t j = 0; j < c.frames.size(); ++j) {
             double diff = meanAbsDiff(expected[j], actual[j]);
-            bool   pass = diff <= kMaxMeanDiff;
-            std::cout << std::format("  [{}] frame {} — hot-reload vs fresh-load mean diff {:.3f} (tolerance {:.1f})\n", statusLabel(pass), c.frames[j], diff, kMaxMeanDiff);
+            double tile = worstTileDiff(expected[j], actual[j]);
+            bool   pass = diff <= kMaxMeanDiff && tile <= kMaxTileDiff;
+            std::cout << std::format("  [{}] frame {} — hot-reload vs fresh-load: mean {:.3f} · worst tile {:.3f}\n", statusLabel(pass), c.frames[j], diff, tile);
             if (!pass)
                 failures++;
         }
+    }
+
+    // Said out loud even when everything passes, because this is exactly what
+    // went unnoticed: `matte` failed for a month while `make check` reported
+    // only failures it did not already expect, and seven more scenes drift
+    // under the thresholds with nothing anywhere recording that they do.
+    if (!drifting.empty()) {
+        std::sort(drifting.begin(), drifting.end(), [](const Drift& a, const Drift& b) { return a.margin > b.margin; });
+        std::cout << std::format("\n{}[visual-test]{} passing, but not clean — a clean render is 0.000:\n", VC::Color::CYAN, VC::Color::RESET);
+        for (const Drift& d : drifting)
+            std::cout << std::format("  {:<18} mean {:6.3f}  tile {:6.3f}  ({:.0f}% of the tile budget)\n", d.name, d.mean, d.tile, d.margin * 100.0);
     }
 
     std::cout << std::format("\n{}[visual-test]{} {}\n", VC::Color::CYAN, VC::Color::RESET, failures == 0 ? std::format("{}All checks passed.{}", VC::Color::GREEN, VC::Color::RESET) : std::format("{}{} check(s) FAILED.{}", VC::Color::RED, failures, VC::Color::RESET));

@@ -7,6 +7,9 @@
 
 #pragma once
 
+#include <algorithm>
+#include <cstddef>
+#include <iostream>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <string_view>
@@ -15,6 +18,32 @@
 #include "shader/ShaderSpace.hpp"
 
 using json = nlohmann::json;
+
+// How many floats the effect push constant carries. Written once: it used to
+// be written five times across two files — twice as `float p[24]`, twice as a
+// `std::min(..., size_t(24))` that dropped everything past slot 24 without a
+// word, and nowhere as a check that the struct still fits. A shader missing
+// its last uniforms renders a plausible image, so no golden can catch it.
+inline constexpr std::size_t MAX_SHADER_PARAMS = 24;
+
+// The copy into pc.p[]. Both renderers go through this so the truncation is
+// said out loud instead of being a silent min. Only a growing overflow speaks:
+// this runs once per effect per frame, and a warning printed 300 times is a
+// warning nobody reads either.
+inline void copyShaderParams(const std::vector<float>& params, float (&p)[MAX_SHADER_PARAMS])
+{
+    const std::size_t n = std::min(params.size(), MAX_SHADER_PARAMS);
+    std::copy_n(params.begin(), n, p);
+
+    static std::size_t reported = MAX_SHADER_PARAMS;
+    if (params.size() > reported) {
+        reported = params.size();
+        std::cerr << "[shader] " << params.size() << " params given, " << MAX_SHADER_PARAMS
+                  << " fit — the last " << params.size() - MAX_SHADER_PARAMS
+                  << " never reach the GLSL. Widen p[] in EffectPC (128 bytes is the guaranteed room)."
+                  << std::endl;
+    }
+}
 
 struct IFragmentShader
 {

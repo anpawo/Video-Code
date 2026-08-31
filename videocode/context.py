@@ -151,6 +151,12 @@ class Timestamp(StackAction):
         self.time = time
 
 
+# The library's own directory, with the trailing separator. Recomputed on every
+# `_callSite()` before it was hoisted: 28580 `dirname`, 14288 `abspath` and
+# 14316 `join` calls per bake of the text benchmark, all for one constant.
+_LIBRARY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "videocode") + os.sep
+
+
 class Context:
     """
     Context containing the `Metadata` of the `Scene`.
@@ -204,6 +210,14 @@ class Context:
     # member is written directly during a group's window, which is a real
     # conflict (council of 2026-08-26: warn, do not compose).
     deriving: bool = False
+
+    # WHICH group is deriving, when one is. Two emissions the same group worked
+    # out are not rivals; two DIFFERENT groups writing one member's channel are —
+    # `Text.find` hands the same `Letter` to two groups, and the second silently
+    # overwrote thirty frames of the first (measured: formation 2.000 -> 1.750,
+    # 1.114 of jump in a single frame, and `contendedKeys()` said nothing,
+    # because the `derived and derived` test could not tell the two cases apart).
+    derivingGroup: maybe[int] = None
 
     # Every non-interface Metadata ever created — used to resolve relative
     # layer-order operations (bringToFront, sendToBack, bringForward, sendBackward).
@@ -287,9 +301,6 @@ class Context:
         The innermost library frame's `self` recovers the class the stack
         destroys: `Text`, `Square`, `Circle`.
         """
-        here = os.path.dirname(os.path.dirname(os.path.abspath(__file__))) + os.sep
-        library = os.path.join(here, "videocode") + os.sep
-
         frame = sys._getframe(2)
         cls = ""
         # The last library function crossed on the way out — `moveBy`,
@@ -297,25 +308,34 @@ class Context:
         # shaders it produced do not, and the editor needs it to offer "remove
         # this" on the right call of a chain rather than on the whole line.
         func = ""
+        # The OUTERMOST library frame's `self`, not the innermost: a `Text`
+        # builds `Letter`s, and the letter is an implementation detail of the
+        # word. So the frames are kept and read from the outside in, taking the
+        # first that has one — reading `self` on the way out instead asked every
+        # frame for it and threw all but the last answer away, 57k
+        # FrameLocalsProxy lookups per bake of the text benchmark.
+        crossed = []
         while frame is not None:
             name = frame.f_code.co_filename
-            if not name.startswith(library):
-                Context.lastCallFunction = func
-                return (name, frame.f_lineno, cls)
+            if not name.startswith(_LIBRARY):
+                break
             if not frame.f_code.co_name.startswith("_") and frame.f_code.co_name not in (
                 "apply", "broadcast", "noteStatement", "wrapper", "inner",
             ):
                 func = frame.f_code.co_name
-            # The OUTERMOST library frame's `self`, not the innermost: a
-            # `Text` builds `Letter`s, and the letter is an implementation
-            # detail of the word. Overwriting as the walk goes outward leaves
-            # the last one standing, which is the class the author named.
-            owner = frame.f_locals.get("self")
+            crossed.append(frame)
+            frame = frame.f_back
+
+        for outer in reversed(crossed):
+            owner = outer.f_locals.get("self")
             if owner is not None:
                 cls = type(owner).__name__
-            frame = frame.f_back
+                break
+
         Context.lastCallFunction = func
-        return ("", 0, cls)
+        if frame is None:
+            return ("", 0, cls)
+        return (frame.f_code.co_filename, frame.f_lineno, cls)
 
     # One entry per apply() that reached the stack: which input, which line of
     # the person's file, which shader keys, and the frames it covers. A SIDE
@@ -346,6 +366,7 @@ class Context:
             "keys": {name: (span[0], span[1]) for name, span in touched.items()},
             # An emission a Group worked out, rather than a line someone wrote.
             "derived": Context.deriving,
+            "derivedBy": Context.derivingGroup,
             "offset": offset,
             # Where the element's cursor stands once this statement is done —
             # which is what a statement written on the NEXT line would count its
@@ -368,7 +389,8 @@ class Context:
         """
         calls: dict[tuple[Any, ...], dict[str, list[int]]] = {}
         for st in Context.statements:
-            spans = calls.setdefault((st["input"], st["file"], st["line"], st["call"], st.get("derived", False)), {})
+            spans = calls.setdefault((st["input"], st["file"], st["line"], st["call"],
+                                      st.get("derived", False), st.get("derivedBy")), {})
             for key, (first, last) in st["keys"].items():
                 held = spans.get(key)
                 if held is None:
@@ -378,10 +400,11 @@ class Context:
                     held[1] = max(held[1], last)
 
         out: list[dict[str, Any]] = []
-        for (inputIndex, file, line, call, derived), spans in calls.items():
+        for (inputIndex, file, line, call, derived, derivedBy), spans in calls.items():
             for key, (first, last) in spans.items():
                 out.append({"key": key, "input": inputIndex, "first": first, "last": last,
-                            "file": file, "line": line, "call": call, "derived": derived})
+                            "file": file, "line": line, "call": call, "derived": derived,
+                            "derivedBy": derivedBy})
         return out
 
     @staticmethod
@@ -487,7 +510,7 @@ class Context:
                     # before being sent. One derived and one written by hand IS a
                     # rival — that is the group-versus-member case, and it must
                     # still be said (council of 2026-08-26: warn, do not compose).
-                    if a["derived"] and b["derived"]:
+                    if a["derived"] and b["derived"] and a["derivedBy"] == b["derivedBy"]:
                         continue
                     shared = min(a["last"], b["last"]) - max(a["first"], b["first"])
                     if shared > 1:

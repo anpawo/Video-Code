@@ -68,7 +68,7 @@ from rounding).
 | Class | File | What it is |
 |---|---|---|
 | `Image(filepath, width, height, cornerRadius, strokeColor, strokeWidth, uvMapping, uvAngle)` | `Image.py` | Image file as a (optionally rounded/stroked) textured `Polygon`. No `width`/`height` ⇒ natural size. |
-| `WebImage(url)` | `Image.py` | Downloads an image (via `curl`) then behaves like `Image` |
+| `WebImage(url)` | `Image.py` | Downloads an image over HTTPS (via `curl`, plain HTTP refused) **when the scene is baked**, caches it in the gitignored `webimage/`, then behaves like `Image`. A scene using one is not reproducible: its input lives on someone else's server and can change with no commit behind it. Fine for a video you are making, wrong for a test scene. |
 | `Video(filepath, cuts, startFrame, endFrame, speedRamps, width, height, cornerRadius, strokeColor, strokeWidth, uvMapping, uvAngle)` | `Video.py` | Video file as a textured `Polygon`. `cuts`/`startFrame`/`endFrame` trim/skip source frames during playback. `speedRamps=[(playbackStart, playbackEnd, rate), ...]` retimes windows of the playback timeline: rate `2.0` = sped up, `0.5` = slow-mo, `0.0` = freeze-frame, `-1.0` = reverse. |
 | `Sound(filepath, start, volume, trimStart, trimEnd)` | `Sound.py` | Purely auditory — no visual geometry. `start` = delay (seconds) before it begins playing in the output, `volume` is a 0-1 multiplier, `trimStart`/`trimEnd` cut the source clip. Multiple `Sound`s get mixed together via ffmpeg `amix`. |
 
