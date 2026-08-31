@@ -568,11 +568,7 @@ bool VC::VulkanHeadlessRenderer::createGeometryBuffers()
 
 bool VC::VulkanHeadlessRenderer::createCommandPool()
 {
-    VkCommandPoolCreateInfo ci{};
-    ci.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    ci.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    ci.queueFamilyIndex = m_graphicsFamily;
-    return vkCreateCommandPool(m_device, &ci, nullptr, &m_commandPool) == VK_SUCCESS;
+    return VC::makeCommandPool(m_device, m_graphicsFamily, m_commandPool);
 }
 
 bool VC::VulkanHeadlessRenderer::createCommandBuffer()
@@ -608,13 +604,7 @@ uint32_t VC::VulkanHeadlessRenderer::findMemoryType(uint32_t filter, VkMemoryPro
 
 VkShaderModule VC::VulkanHeadlessRenderer::createShaderModule(const std::vector<uint32_t>& code)
 {
-    VkShaderModuleCreateInfo ci{};
-    ci.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    ci.codeSize = code.size() * sizeof(uint32_t);
-    ci.pCode = code.data();
-    VkShaderModule mod = VK_NULL_HANDLE;
-    vkCreateShaderModule(m_device, &ci, nullptr, &mod);
-    return mod;
+    return VC::makeShaderModule(m_device, code);
 }
 
 void VC::VulkanHeadlessRenderer::transitionImageLayout(VkImage image, VkImageLayout from, VkImageLayout to)
@@ -647,12 +637,7 @@ void VC::VulkanHeadlessRenderer::transitionImageLayout(VkImage image, VkImageLay
 
 void VC::VulkanHeadlessRenderer::copyBufferToImage(VkBuffer buf, VkImage image, uint32_t w, uint32_t h)
 {
-    runOneShot(m_device, m_commandPool, m_graphicsQueue, [&](VkCommandBuffer cb) {
-        VkBufferImageCopy region{};
-        region.imageSubresource = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1};
-        region.imageExtent = {w, h, 1};
-        vkCmdCopyBufferToImage(cb, buf, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-    });
+    VC::copyBufferToImage(m_device, m_commandPool, m_graphicsQueue, buf, image, w, h);
 }
 
 void VC::VulkanHeadlessRenderer::updateUniforms()
@@ -1990,117 +1975,12 @@ bool VC::VulkanHeadlessRenderer::createGlowResources()
 // ===========================================================================
 bool VC::VulkanHeadlessRenderer::createMatteResources()
 {
-    // 2-binding layout: binding 0 = content (input A), binding 1 = matte (B).
-    VkDescriptorSetLayoutBinding bindings[2]{};
-    for (int b = 0; b < 2; ++b) {
-        bindings[b].binding = b;
-        bindings[b].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        bindings[b].descriptorCount = 1;
-        bindings[b].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    }
-    VkDescriptorSetLayoutCreateInfo lci{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    lci.bindingCount = 2;
-    lci.pBindings = bindings;
-    if (vkCreateDescriptorSetLayout(m_device, &lci, nullptr, &m_matteLayout) != VK_SUCCESS) return false;
-
-    // Dedicated pool: 64 combine sets (2 samplers each). Kept separate from the
-    // 128-slot texture pool so matte allocations don't compete with mesh textures.
-    VkDescriptorPoolSize       ps{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 128};
-    VkDescriptorPoolCreateInfo pci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-    pci.maxSets = 64;
-    pci.poolSizeCount = 1;
-    pci.pPoolSizes = &ps;
-    if (vkCreateDescriptorPool(m_device, &pci, nullptr, &m_mattePool) != VK_SUCCESS) return false;
-
-    // Combine pipeline: fullscreen quad, CLEAR pass (m_effectPass), replace
-    // blend (matte/frag.glsl writes final straight-alpha). No push constants.
-    auto vertSrc = loadEffectShader("effects", "vert.glsl");
-    auto fragSrc = loadEffectShader("matte", "frag.glsl");
-    if (vertSrc.empty() || fragSrc.empty()) return false;
-    auto vertSpv = compileGLSL(vertSrc, VK_SHADER_STAGE_VERTEX_BIT);
-    auto fragSpv = compileGLSL(fragSrc, VK_SHADER_STAGE_FRAGMENT_BIT);
-    if (vertSpv.empty() || fragSpv.empty()) return false;
-
-    VkPipelineLayoutCreateInfo plci{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    plci.setLayoutCount = 1;
-    plci.pSetLayouts = &m_matteLayout;
-    if (vkCreatePipelineLayout(m_device, &plci, nullptr, &m_matteCombine.layout) != VK_SUCCESS) return false;
-
-    VkShaderModule vert = createShaderModule(vertSpv);
-    VkShaderModule frag = createShaderModule(fragSpv);
-
-    VkPipelineShaderStageCreateInfo stages[2]{};
-    stages[0] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vert, "main", nullptr};
-    stages[1] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, frag, "main", nullptr};
-
-    VkPipelineVertexInputStateCreateInfo   vi{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-    VkPipelineInputAssemblyStateCreateInfo ia{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
-    ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
-    VkDynamicState                   dynStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-    VkPipelineDynamicStateCreateInfo dyn{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
-    dyn.dynamicStateCount = 2;
-    dyn.pDynamicStates = dynStates;
-
-    VkPipelineViewportStateCreateInfo vs{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
-    vs.viewportCount = 1;
-    vs.scissorCount = 1;
-
-    VkPipelineRasterizationStateCreateInfo rs{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
-    rs.polygonMode = VK_POLYGON_MODE_FILL;
-    rs.cullMode = VK_CULL_MODE_NONE;
-    rs.frontFace = VK_FRONT_FACE_CLOCKWISE;
-    rs.lineWidth = 1.0f;
-
-    VkPipelineMultisampleStateCreateInfo ms{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
-    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    VkPipelineColorBlendAttachmentState blendA{};
-    blendA.blendEnable = VK_FALSE;
-    blendA.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                            VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-
-    VkPipelineColorBlendStateCreateInfo blend{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
-    blend.attachmentCount = 1;
-    blend.pAttachments = &blendA;
-
-    VkGraphicsPipelineCreateInfo gpci{};
-    gpci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    gpci.stageCount = 2;
-    gpci.pStages = stages;
-    gpci.pVertexInputState = &vi;
-    gpci.pInputAssemblyState = &ia;
-    gpci.pViewportState = &vs;
-    gpci.pRasterizationState = &rs;
-    gpci.pMultisampleState = &ms;
-    gpci.pColorBlendState = &blend;
-    gpci.pDynamicState = &dyn;
-    gpci.layout = m_matteCombine.layout;
-    gpci.renderPass = m_effectPass;
-
-    bool ok = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &gpci, nullptr, &m_matteCombine.pipeline) == VK_SUCCESS;
-    vkDestroyShaderModule(m_device, vert, nullptr);
-    vkDestroyShaderModule(m_device, frag, nullptr);
-    if (!ok) {
-        vkDestroyPipelineLayout(m_device, m_matteCombine.layout, nullptr);
-        m_matteCombine.layout = VK_NULL_HANDLE;
-        return false;
-    }
-    return true;
+    return VC::createCombineResources(m_device, m_effectPass, "matte", 0, m_matteLayout, m_mattePool, m_matteCombine.layout, m_matteCombine.pipeline);
 }
 
 bool VC::VulkanHeadlessRenderer::ensureMatteSetCapacity(size_t count)
 {
-    while (m_matteSets.size() < count) {
-        VkDescriptorSet             set = VK_NULL_HANDLE;
-        VkDescriptorSetAllocateInfo ai{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-        ai.descriptorPool = m_mattePool;
-        ai.descriptorSetCount = 1;
-        ai.pSetLayouts = &m_matteLayout;
-        if (vkAllocateDescriptorSets(m_device, &ai, &set) != VK_SUCCESS) return false;
-        m_matteSets.push_back(set);
-    }
-    return true;
+    return VC::ensureSetCapacity(m_device, m_mattePool, m_matteLayout, m_matteSets, count);
 }
 
 void VC::VulkanHeadlessRenderer::recordMatteCombinePass(VkCommandBuffer cb, VkFramebuffer fb, VkDescriptorSet set)
@@ -2133,108 +2013,7 @@ void VC::VulkanHeadlessRenderer::recordMatteCombinePass(VkCommandBuffer cb, VkFr
 // ===========================================================================
 bool VC::VulkanHeadlessRenderer::createLutResources()
 {
-    // 2-binding layout: binding 0 = content, binding 1 = LUT atlas.
-    VkDescriptorSetLayoutBinding bindings[2]{};
-    for (int b = 0; b < 2; ++b) {
-        bindings[b].binding = b;
-        bindings[b].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        bindings[b].descriptorCount = 1;
-        bindings[b].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    }
-    VkDescriptorSetLayoutCreateInfo lci{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    lci.bindingCount = 2;
-    lci.pBindings = bindings;
-    if (vkCreateDescriptorSetLayout(m_device, &lci, nullptr, &m_lutLayout) != VK_SUCCESS) return false;
-
-    VkDescriptorPoolSize       ps{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 128};
-    VkDescriptorPoolCreateInfo pci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
-    pci.maxSets = 64;
-    pci.poolSizeCount = 1;
-    pci.pPoolSizes = &ps;
-    if (vkCreateDescriptorPool(m_device, &pci, nullptr, &m_lutPool) != VK_SUCCESS) return false;
-
-    // Combine pipeline: fullscreen quad, CLEAR pass (m_effectPass), replace
-    // blend (lut/frag.glsl writes final straight-alpha), push constants = EffectPC.
-    auto vertSrc = loadEffectShader("effects", "vert.glsl");
-    auto fragSrc = loadEffectShader("lut", "frag.glsl");
-    if (vertSrc.empty() || fragSrc.empty()) return false;
-    auto vertSpv = compileGLSL(vertSrc, VK_SHADER_STAGE_VERTEX_BIT);
-    auto fragSpv = compileGLSL(fragSrc, VK_SHADER_STAGE_FRAGMENT_BIT);
-    if (vertSpv.empty() || fragSpv.empty()) return false;
-
-    VkPushConstantRange pcRange{};
-    pcRange.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    pcRange.offset = 0;
-    pcRange.size = sizeof(EffectPC);
-
-    VkPipelineLayoutCreateInfo plci{VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO};
-    plci.setLayoutCount = 1;
-    plci.pSetLayouts = &m_lutLayout;
-    plci.pushConstantRangeCount = 1;
-    plci.pPushConstantRanges = &pcRange;
-    if (vkCreatePipelineLayout(m_device, &plci, nullptr, &m_lutCombine.layout) != VK_SUCCESS) return false;
-
-    VkShaderModule vert = createShaderModule(vertSpv);
-    VkShaderModule frag = createShaderModule(fragSpv);
-
-    VkPipelineShaderStageCreateInfo stages[2]{};
-    stages[0] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_VERTEX_BIT, vert, "main", nullptr};
-    stages[1] = {VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, nullptr, 0, VK_SHADER_STAGE_FRAGMENT_BIT, frag, "main", nullptr};
-
-    VkPipelineVertexInputStateCreateInfo   vi{VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
-    VkPipelineInputAssemblyStateCreateInfo ia{VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO};
-    ia.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
-    VkDynamicState                   dynStates[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-    VkPipelineDynamicStateCreateInfo dyn{VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
-    dyn.dynamicStateCount = 2;
-    dyn.pDynamicStates = dynStates;
-
-    VkPipelineViewportStateCreateInfo vs{VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO};
-    vs.viewportCount = 1;
-    vs.scissorCount = 1;
-
-    VkPipelineRasterizationStateCreateInfo rs{VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO};
-    rs.polygonMode = VK_POLYGON_MODE_FILL;
-    rs.cullMode = VK_CULL_MODE_NONE;
-    rs.frontFace = VK_FRONT_FACE_CLOCKWISE;
-    rs.lineWidth = 1.0f;
-
-    VkPipelineMultisampleStateCreateInfo ms{VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO};
-    ms.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-
-    VkPipelineColorBlendAttachmentState blendA{};
-    blendA.blendEnable = VK_FALSE;
-    blendA.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                            VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-
-    VkPipelineColorBlendStateCreateInfo blend{VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO};
-    blend.attachmentCount = 1;
-    blend.pAttachments = &blendA;
-
-    VkGraphicsPipelineCreateInfo gpci{};
-    gpci.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    gpci.stageCount = 2;
-    gpci.pStages = stages;
-    gpci.pVertexInputState = &vi;
-    gpci.pInputAssemblyState = &ia;
-    gpci.pViewportState = &vs;
-    gpci.pRasterizationState = &rs;
-    gpci.pMultisampleState = &ms;
-    gpci.pColorBlendState = &blend;
-    gpci.pDynamicState = &dyn;
-    gpci.layout = m_lutCombine.layout;
-    gpci.renderPass = m_effectPass;
-
-    bool ok = vkCreateGraphicsPipelines(m_device, VK_NULL_HANDLE, 1, &gpci, nullptr, &m_lutCombine.pipeline) == VK_SUCCESS;
-    vkDestroyShaderModule(m_device, vert, nullptr);
-    vkDestroyShaderModule(m_device, frag, nullptr);
-    if (!ok) {
-        vkDestroyPipelineLayout(m_device, m_lutCombine.layout, nullptr);
-        m_lutCombine.layout = VK_NULL_HANDLE;
-        return false;
-    }
-    return true;
+    return VC::createCombineResources(m_device, m_effectPass, "lut", sizeof(EffectPC), m_lutLayout, m_lutPool, m_lutCombine.layout, m_lutCombine.pipeline);
 }
 
 const VC::VulkanHeadlessRenderer::LutResource* VC::VulkanHeadlessRenderer::getOrBuildLut(const std::string& filepath)
@@ -2263,16 +2042,7 @@ const VC::VulkanHeadlessRenderer::LutResource* VC::VulkanHeadlessRenderer::getOr
 
 bool VC::VulkanHeadlessRenderer::ensureLutSetCapacity(size_t count)
 {
-    while (m_lutSets.size() < count) {
-        VkDescriptorSet             set = VK_NULL_HANDLE;
-        VkDescriptorSetAllocateInfo ai{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
-        ai.descriptorPool = m_lutPool;
-        ai.descriptorSetCount = 1;
-        ai.pSetLayouts = &m_lutLayout;
-        if (vkAllocateDescriptorSets(m_device, &ai, &set) != VK_SUCCESS) return false;
-        m_lutSets.push_back(set);
-    }
-    return true;
+    return VC::ensureSetCapacity(m_device, m_lutPool, m_lutLayout, m_lutSets, count);
 }
 
 void VC::VulkanHeadlessRenderer::recordLutCombinePass(VkCommandBuffer cb, VkFramebuffer fb, VkDescriptorSet set, float intensity, float lutSize)
@@ -2434,12 +2204,7 @@ void VC::VulkanHeadlessRenderer::recordMeshRange(
 
 void VC::VulkanHeadlessRenderer::recordCompositeResultQuad(VkCommandBuffer cb, VkPipeline pipeline, VkDescriptorSet resultSet)
 {
-    VkDeviceSize zero = 0;
-    vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-    vkCmdBindVertexBuffers(cb, 0, 1, &m_compVtxBuf, &zero);
-    vkCmdBindIndexBuffer(cb, m_compIdxBuf, 0, VK_INDEX_TYPE_UINT32);
-    vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &resultSet, 0, nullptr);
-    vkCmdDrawIndexed(cb, 6, 1, 0, 0, 0);
+    VC::recordCompositeResultQuad(cb, pipeline, m_pipelineLayout, m_compVtxBuf, m_compIdxBuf, resultSet);
 }
 
 void VC::VulkanHeadlessRenderer::recordAdjustmentFlattenPass(
