@@ -243,7 +243,11 @@ public:
 
     size_t start() const override { return _start; }
 
-    std::string_view shaderName() const override { return "MathShader"; }
+    // Spelled once. AInput reads it too, from the paint path, where there is
+    // no shader object to ask.
+    static constexpr std::string_view kName = "MathShader";
+
+    std::string_view shaderName() const override { return kName; }
 
     const json::object_t& args() const override { return _args; }
 
@@ -278,3 +282,22 @@ const std::map<std::string, std::function<std::unique_ptr<IFragmentShader>(const
                     BIND_SHADERS(Vhs)
                         BIND_SHADERS(MathShader)
 };
+
+// Does a fill of this name draw around a POINT rather than across the frame?
+//
+// There are two ways an effect reaches the renderer and only one of them can
+// ask the question properly. A timeline effect is built by the factory above,
+// so it can be asked `isMathPaint()`. A FILL is built straight from the json —
+// it never becomes an IFragmentShader at all — so it has only a name, and the
+// answer used to be a bare `== "MathShader"` sitting in AInput.cpp, three files
+// away from the class that knows.
+//
+// It is still a name comparison, but it is the ONE name comparison, next to the
+// class it is about: a second math paint is added here and both paths change
+// together. Getting it wrong is invisible to every golden — a shader that
+// misses the 3-float origin head still renders a plausible image, with its
+// uniforms shifted by three slots.
+inline bool isMathPaintName(std::string_view name)
+{
+    return name == MathShader::kName;
+}

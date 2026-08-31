@@ -165,4 +165,30 @@ check(
 )
 
 # ---------------------------------------------------------------------------
+section("channelKey — the name one piece of state answers to, spelled once")
+
+check("an ordinary shader is its own class", Context.channelKey("Position", None) == "Position")
+check("an args shader is named by its attribute", Context.channelKey("Args", "fillColor") == "Args:fillColor")
+check("two attributes are two channels",
+      Context.channelKey("Args", "fillColor") != Context.channelKey("Args", "strokeColor"))
+
+# The reason this function exists rather than the rule being inlined twice: the
+# key a frame is STORED under (Context.apply) and the key two statements are
+# judged rivals by (Input.apply) must be the same string. They used to be two
+# copies of one rule, agreeing by coincidence — so this asserts they agree, not
+# that either is correct in isolation.
+with contextlib.redirect_stderr(io.StringIO()):
+    execSource(
+        "from videocode import *\n\ns = Square(side=1)\n"
+        "s.over(duration=0.5).fillColor = RED_B\ns.over(duration=0.5).strokeColor = BLUE_C\nwait(2)\n",
+        "contention_test_channel.py",
+    )
+stored = {k for f, e in Context.stack[0].items() if f != -1 for k in e}
+claimed = {c for st in Context.statements for c in st["keys"]}
+check("stored keys and claimed channels agree on the args attributes",
+      {k for k in stored if k.startswith("Args:")} == {c for c in claimed if c.startswith("Args:")})
+check("and there are two of them, not one",
+      len({k for k in stored if k.startswith("Args:")}) == 2)
+
+# ---------------------------------------------------------------------------
 summary()

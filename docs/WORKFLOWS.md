@@ -33,6 +33,19 @@ The build job now renders `eg.py` too. That file is the living showcase of every
 feature worth seeing, so if it stops rendering, an example in the docs has gone
 stale — which is the failure mode documentation actually has.
 
+## One rule, one place
+
+Two of the defects this repository was audited for were a rule written twice
+whose copies agreed by coincidence. `Context.channelKey` is the answer to *what
+name does this piece of state answer to*: `Args:<name>` for an `args` shader,
+the class name for everything else. It is asked by `Context.apply`, which
+stores a frame under that key, and by `Input.apply`, which decides from it
+whether two statements are rivals. Had those two ever drifted apart, the editor
+would have warned about the wrong pairs while the stack stored under a
+different name, and nothing would have said so. `test/contention_test.py`
+asserts that they agree — not that either is right on its own, which is the
+part a single-sided test would have missed.
+
 ## What GitHub cannot check, and why
 
 **Visual regression.** The goldens in `test/visual/golden/` were rendered on

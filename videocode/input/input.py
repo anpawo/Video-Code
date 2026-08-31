@@ -159,7 +159,7 @@ class Input(ABC):
             # is that they compose.
             argName = getattr(s, "name", None) if key == "Args" else None
             if argName is not None:
-                channels: tuple[str, ...] = (f"Args:{argName}",)
+                channels: tuple[str, ...] = (Context.channelKey(key, argName),)
             elif hasattr(s, "x") and hasattr(s, "y"):
                 channels = tuple(f"{key}:{c}" for c in ("x", "y") if getattr(s, c) is not None) or (key,)
             else:

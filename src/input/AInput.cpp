@@ -110,10 +110,10 @@ std::vector<ActiveEffect> AInput::getActiveEffectsAtFrame(size_t frame, const Cl
         if (fill != margs.end() && fill->second.is_object() && fill->second.contains("shader")) {
             // A paint is built straight from the json, never through the
             // ShaderFactory, so IFragmentShader::isMathPaint() never gets a say
-            // here — MathShader declares it, and a math shader is nearly
-            // always used AS a paint, so it is recognised by name instead.
+            // here — the question is put to the factory's own answer instead of
+            // to a literal spelled out at this call site.
             const std::string shaderName = fill->second.at("shader").get<std::string>();
-            const bool        isMath = shaderName == "MathShader";
+            const bool        isMath = isMathPaintName(shaderName);
             ActiveEffect      fe{shaderName, {}, false, -1};
             // Numeric args in ALPHABETICAL order (json::object_t sorts keys)
             // — the same p[] contract every effect follows — then the paint's

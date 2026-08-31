@@ -519,10 +519,27 @@ class Context:
         return found
 
     @staticmethod
+    def channelKey(shaderName: str, argName: maybe[str]) -> str:
+        """
+        The name one piece of state answers to.
+
+        `args(name, value)` is a single class for every attribute there is, so
+        its class name alone made `fillColor` and `strokeColor` look like the
+        same thing. Its channel is therefore `Args:<name>`; everything else is
+        its own class.
+
+        Written once because it was written twice: `Input.apply` used it to
+        decide which statements are rivals, and `Context.apply` used it as the
+        key a frame is stored under. They agreed by coincidence, and nothing
+        would have said so if an edit to one had not been made to the other.
+        """
+        return f"Args:{argName}" if argName is not None else shaderName
+
+    @staticmethod
     def apply(inputIndex: int, shaderName: str, shaderType: str, shaderArgs: dict[str, Any]):
         frameIdx = shaderArgs["start"]
         argName = shaderArgs.get("name") if shaderName == "Args" else None
-        dictKey = f"Args:{argName}" if argName is not None else shaderName
+        dictKey = Context.channelKey(shaderName, argName)
         onFrame = Context.stack.setdefault(inputIndex, {}).setdefault(frameIdx, {})
         # One piece of state, two names. Left side by side on a frame, both
         # travelled to C++ and the dict's INSERTION order — the order the two
