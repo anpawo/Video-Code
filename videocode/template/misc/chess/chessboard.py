@@ -35,7 +35,12 @@ WHITE = True
 # author's machine. Provenance of the files, so they can be refreshed:
 #   board  https://assets-themes.chess.com/image/9rdwe/200.png
 #   pieces https://assets-themes.chess.com/image/ejgfv/150/{w|b}{k,q,r,b,n,p}.png
-ASSET_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))), "assets", "chess")
+# Relative, like `Image("wb.png")` and `ChessBoard("pgn")` beside it: a scene
+# is executed from the project root. An absolute path would also work for
+# opening the file and would still be wrong — it travels into Context.stack, so
+# the same scene would hash differently on two machines. The bake digest caught
+# exactly that, from a second checkout of this repository.
+ASSET_DIR = os.path.join("assets", "chess")
 
 
 class ChessBoard:
