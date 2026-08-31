@@ -13,7 +13,7 @@ from videocode.color import ConicGradient, LinearGradient, RadialGradient, rgba
 if TYPE_CHECKING:
     # Only for the lazily-evaluated `paint` alias below — a runtime import
     # would be circular (ishader -> constants -> ty).
-    from videocode.shader.ishader import PaintShader
+    from videocode.shader.ishader import Paint
 
 
 type int8 = int
@@ -39,13 +39,13 @@ is in frame count not sec
 
 type maybe[T] = T | None
 
-type paint = rgba | PaintShader
+type paint = rgba | Paint
 """
-what fillColor accepts: a color (incl. gradients) or a PaintShader — a
-fragment shader that GENERATES pixels (silk/fire/starNest/mathShader), as
-opposed to the filter kind (blur/grayscale/...) which only transforms
-existing pixels and belongs in .apply(). PEP 695 aliases evaluate lazily,
-so the TYPE_CHECKING-only PaintShader import is enough.
+what fillColor accepts: a colour (gradients included) or a `Paint` — a fill
+that GENERATES its pixels (silk/fire/starNest/evilEye/mathShader) rather than
+one that names them. The filter kind (blur/grayscale/...) only transforms
+pixels that already exist and belongs in `.apply()`; a paint is refused there.
+PEP 695 aliases evaluate lazily, so the TYPE_CHECKING-only import is enough.
 """
 type number = int | float
 type unumber = int | float

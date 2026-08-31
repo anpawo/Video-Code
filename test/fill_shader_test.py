@@ -59,6 +59,32 @@ def entriesWith(index: int, key: str) -> dict[int, dict]:
 
 COMMON = "from videocode import *\n"
 
+from videocode.input.shape.Rectangle import Rectangle
+from videocode.input.shape._shapes import Square
+from videocode.serialize import execSource
+from videocode.shader.fragmentShader.silk import silk
+from videocode.shader.ishader import IShader
+
+import contextlib
+import hashlib
+import importlib.util
+import io
+import json
+
+_spec = importlib.util.spec_from_file_location("_digest", "test/perf/digest.py")
+_digest = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_digest)
+
+
+def _refuses(fn) -> bool:
+    try:
+        fn()
+    except TypeError:
+        return True
+    return False
+
+
+
 # ── the fill IS state: create snapshot holds the paint, no effect entries ───
 section("Rectangle(fillColor=fire()) — per-frame state, not a timeline effect")
 
@@ -180,4 +206,30 @@ check("a list of clocks passes through (sorted)", waits[2][2] == ["effects", "vi
 check("freeze() = a wait stopping ALL clocks", waits[3][2] == ["effects", "paints", "videos"])
 
 # ── summary ──────────────────────────────────────────────────────────────────
+section("a paint is a value, and the digest can see inside it")
+
+check("a paint is not a shader", not isinstance(silk(), IShader))
+check("and says so if you try to apply it",
+      _refuses(lambda: Square(side=1).apply(silk())))
+# It used to inherit IShader, which offered timing it silently dropped:
+# `silk().at(start=2)` type-checked, stored the values and serialised without
+# them. Timing a paint is timing the ASSIGNMENT — `over()` does that.
+check("it offers no timing it cannot honour", not hasattr(silk(), "at") and not hasattr(silk(), "start"))
+
+# The gate this closes: a paint reached the bake digest as a live object, so
+# `default=str` hashed its CLASS NAME and every parameter was invisible. Two
+# paints that render differently must not hash the same.
+def _shape(body: str) -> str:
+    with contextlib.redirect_stderr(io.StringIO()):
+        execSource("from videocode import *\n\n" + body + "\nwait(1)\n", "fill_shader_digest.py")
+    return hashlib.sha256(json.dumps(_digest.normalise(Context.stack), default=_digest._reject, sort_keys=True).encode()).hexdigest()
+
+check("the digest sees a paint's parameters",
+      _shape("Rectangle(width=4, height=2, fillColor=silk(speed=1.0))")
+      != _shape("Rectangle(width=4, height=2, fillColor=silk(speed=9.0))"))
+check("and is the same in two runs",
+      _shape("Rectangle(width=4, height=2, fillColor=silk(speed=1.0))")
+      == _shape("Rectangle(width=4, height=2, fillColor=silk(speed=1.0))"))
+
+# ---------------------------------------------------------------------------
 summary()

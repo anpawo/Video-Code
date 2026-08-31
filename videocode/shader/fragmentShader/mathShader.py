@@ -96,7 +96,7 @@ class mathShader(PaintShader):
 
     # Presets that need their own uniforms subclass this (see evilEye) — they
     # are all MathShader to the C++ factory.
-    cppName = "MathShader"
+    generator = "MathShader"
 
     # Auto group ids, like lightSweep's: negative so they can never collide
     # with an explicit (user-chosen, conventionally >= 0) id.

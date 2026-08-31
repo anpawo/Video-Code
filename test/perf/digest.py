@@ -60,7 +60,25 @@ GEOMETRY = {"points", "contourSizes"}
 PLACES = 6
 
 
+class Unhashable(Exception):
+    """Something reached the digest that it cannot see the inside of."""
+
+
+def _reject(node):
+    # `default=str` was here, and it is how this gate went blind. A paint
+    # (fillColor=silk()) reaches the stack as a live Python object; str() turned
+    # it into its class name, so `silk(speed=1)` and `silk(speed=9)` hashed
+    # IDENTICALLY — every parameter of every paint was invisible to a
+    # zero-tolerance gate. Anything the digest cannot open is now an error, not
+    # a name.
+    raise Unhashable(f"{type(node).__module__}.{type(node).__name__} reached the digest unserialised")
+
+
 def normalise(node, key=None):
+    # A value that knows how to write itself down — a paint, a gradient — is
+    # asked to, so its arguments are part of the hash.
+    if hasattr(node, "jsonSerialization"):
+        return normalise(node.jsonSerialization(), key)
     if isinstance(node, float):
         value = round(node, PLACES)
         return 0.0 if value == 0 else value  # -0.0 and 0.0 are one number
@@ -92,7 +110,7 @@ def measure() -> dict:
         calls["n"] = 0
         execScene(scene)
         stack = Context.stack
-        shape = json.dumps(normalise(stack), default=str, sort_keys=True)
+        shape = json.dumps(normalise(stack), default=_reject, sort_keys=True)
         out[scene] = {
             "inputs": len(stack),
             "frameSlots": sum(len(v) for v in stack.values()),

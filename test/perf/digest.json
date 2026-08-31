@@ -6,7 +6,7 @@
   "frameSlots": 583,
   "inputs": 36,
   "lastFrame": 129,
-  "shape": "d33fa34767960cff"
+  "shape": "4a9195cd6cf24862"
  },
  "test/perf/stress_text.py": {
   "applyCalls": 14128,
@@ -15,7 +15,7 @@
   "frameSlots": 14147,
   "inputs": 47,
   "lastFrame": 300,
-  "shape": "464f2d1133236e4a"
+  "shape": "95530705f96834e5"
  },
  "test/visual/scenes/adjustment_layer.py": {
   "applyCalls": 19,
@@ -24,7 +24,7 @@
   "frameSlots": 18,
   "inputs": 9,
   "lastFrame": 30,
-  "shape": "f3a77ff826dbcd11"
+  "shape": "550b356d9967070e"
  },
  "test/visual/scenes/animation.py": {
   "applyCalls": 75,
@@ -33,7 +33,7 @@
   "frameSlots": 62,
   "inputs": 2,
   "lastFrame": 36,
-  "shape": "4f8c21051ed5cbde"
+  "shape": "4a69c3e80e772128"
  },
  "test/visual/scenes/aspect_portrait.py": {
   "applyCalls": 5,
@@ -42,7 +42,7 @@
   "frameSlots": 11,
   "inputs": 6,
   "lastFrame": 1,
-  "shape": "1ecf189d2b28f4b9"
+  "shape": "c190eda2622f2725"
  },
  "test/visual/scenes/background.py": {
   "applyCalls": 2,
@@ -51,7 +51,7 @@
   "frameSlots": 4,
   "inputs": 2,
   "lastFrame": 1,
-  "shape": "2f70e056d975cf2d"
+  "shape": "60c0ceb98bf08d72"
  },
  "test/visual/scenes/blend_modes.py": {
   "applyCalls": 57,
@@ -60,7 +60,7 @@
   "frameSlots": 62,
   "inputs": 31,
   "lastFrame": 1,
-  "shape": "c35259f367aacefa"
+  "shape": "a96f38fafd169c8c"
  },
  "test/visual/scenes/chess.py": {
   "applyCalls": 120,
@@ -69,7 +69,7 @@
   "frameSlots": 121,
   "inputs": 33,
   "lastFrame": 133,
-  "shape": "70c6035edafff745"
+  "shape": "57525f9a0a4bcb70"
  },
  "test/visual/scenes/crop.py": {
   "applyCalls": 34,
@@ -78,7 +78,7 @@
   "frameSlots": 26,
   "inputs": 13,
   "lastFrame": 1,
-  "shape": "ab66163388e0f8c5"
+  "shape": "5e0069efd02f4f40"
  },
  "test/visual/scenes/curve.py": {
   "applyCalls": 11,
@@ -87,7 +87,7 @@
   "frameSlots": 15,
   "inputs": 4,
   "lastFrame": 11,
-  "shape": "80bd9093aeba718f"
+  "shape": "cafb4595fa49ba80"
  },
  "test/visual/scenes/easings.py": {
   "applyCalls": 91,
@@ -96,7 +96,7 @@
   "frameSlots": 93,
   "inputs": 3,
   "lastFrame": 30,
-  "shape": "2aad70783ca4b650"
+  "shape": "68bf7f3d0df6a52d"
  },
  "test/visual/scenes/effect_shaders.py": {
   "applyCalls": 22,
@@ -105,7 +105,7 @@
   "frameSlots": 16,
   "inputs": 8,
   "lastFrame": 30,
-  "shape": "3f6519fdae3f818c"
+  "shape": "b3293ff69e78011f"
  },
  "test/visual/scenes/effect_shaders2.py": {
   "applyCalls": 16,
@@ -114,7 +114,7 @@
   "frameSlots": 12,
   "inputs": 6,
   "lastFrame": 30,
-  "shape": "e4bc1bd8a09bd7d3"
+  "shape": "1e3cc324a3aac20c"
  },
  "test/visual/scenes/effect_shaders3.py": {
   "applyCalls": 10,
@@ -123,7 +123,7 @@
   "frameSlots": 10,
   "inputs": 5,
   "lastFrame": 30,
-  "shape": "85df7ac44a07371d"
+  "shape": "8bc3c343e0309995"
  },
  "test/visual/scenes/effect_shaders4.py": {
   "applyCalls": 5,
@@ -132,7 +132,7 @@
   "frameSlots": 6,
   "inputs": 3,
   "lastFrame": 30,
-  "shape": "e60f16d300e51942"
+  "shape": "fbe2a714ae1f3fc0"
  },
  "test/visual/scenes/effect_templates.py": {
   "applyCalls": 227,
@@ -141,7 +141,7 @@
   "frameSlots": 183,
   "inputs": 16,
   "lastFrame": 30,
-  "shape": "16a85da3d28ef4ec"
+  "shape": "94dcb2c63b277c39"
  },
  "test/visual/scenes/effect_templates2.py": {
   "applyCalls": 328,
@@ -150,7 +150,7 @@
   "frameSlots": 221,
   "inputs": 10,
   "lastFrame": 30,
-  "shape": "06f6740c80e70e04"
+  "shape": "e7d1bed4750c2db0"
  },
  "test/visual/scenes/effect_templates3.py": {
   "applyCalls": 241,
@@ -159,7 +159,7 @@
   "frameSlots": 185,
   "inputs": 8,
   "lastFrame": 30,
-  "shape": "3da831b2a7095249"
+  "shape": "03623383078f1794"
  },
  "test/visual/scenes/glow.py": {
   "applyCalls": 17,
@@ -168,7 +168,7 @@
   "frameSlots": 14,
   "inputs": 7,
   "lastFrame": 30,
-  "shape": "fbfb2b2f97dc7691"
+  "shape": "7a38abc84feb8111"
  },
  "test/visual/scenes/gradient.py": {
   "applyCalls": 9,
@@ -177,7 +177,7 @@
   "frameSlots": 18,
   "inputs": 9,
   "lastFrame": 1,
-  "shape": "cbab62fb6c6886f6"
+  "shape": "6e4112d5748086a0"
  },
  "test/visual/scenes/gradient_conic.py": {
   "applyCalls": 6,
@@ -186,7 +186,7 @@
   "frameSlots": 12,
   "inputs": 6,
   "lastFrame": 1,
-  "shape": "dfe0bb5fbc19388d"
+  "shape": "39735d1720cd5727"
  },
  "test/visual/scenes/gradient_holes.py": {
   "applyCalls": 22,
@@ -195,7 +195,7 @@
   "frameSlots": 20,
   "inputs": 10,
   "lastFrame": 1,
-  "shape": "3b1528fc02499e42"
+  "shape": "4d856686bb9d5316"
  },
  "test/visual/scenes/gradient_percent.py": {
   "applyCalls": 9,
@@ -204,7 +204,7 @@
   "frameSlots": 18,
   "inputs": 9,
   "lastFrame": 1,
-  "shape": "423501d11c74d806"
+  "shape": "731f7af85e8dd09a"
  },
  "test/visual/scenes/groups.py": {
   "applyCalls": 62,
@@ -213,7 +213,7 @@
   "frameSlots": 62,
   "inputs": 2,
   "lastFrame": 30,
-  "shape": "991845dbd67983a3"
+  "shape": "244368375f73505e"
  },
  "test/visual/scenes/image_shape.py": {
   "applyCalls": 4,
@@ -222,7 +222,7 @@
   "frameSlots": 6,
   "inputs": 3,
   "lastFrame": 1,
-  "shape": "a69605eca42a7268"
+  "shape": "6769d673a2dfb48b"
  },
  "test/visual/scenes/layers.py": {
   "applyCalls": 12,
@@ -231,7 +231,7 @@
   "frameSlots": 16,
   "inputs": 7,
   "lastFrame": 92,
-  "shape": "8ce9cffc3aeea0c6"
+  "shape": "94f4a0269a3c749d"
  },
  "test/visual/scenes/lightsweep.py": {
   "applyCalls": 19,
@@ -240,7 +240,7 @@
   "frameSlots": 14,
   "inputs": 7,
   "lastFrame": 30,
-  "shape": "72f9eeb6ee7e191a"
+  "shape": "efc4c4483348acb0"
  },
  "test/visual/scenes/lightsweep_group.py": {
   "applyCalls": 12,
@@ -249,7 +249,7 @@
   "frameSlots": 12,
   "inputs": 6,
   "lastFrame": 30,
-  "shape": "546695139ada6d3e"
+  "shape": "4be1feaffaa9d0aa"
  },
  "test/visual/scenes/lut.py": {
   "applyCalls": 4,
@@ -258,7 +258,7 @@
   "frameSlots": 6,
   "inputs": 3,
   "lastFrame": 30,
-  "shape": "3e2664e2264dac01"
+  "shape": "6a01951255fd5212"
  },
  "test/visual/scenes/markdown.py": {
   "applyCalls": 234,
@@ -267,7 +267,7 @@
   "frameSlots": 156,
   "inputs": 78,
   "lastFrame": 1,
-  "shape": "d3ccb0a5d38ab661"
+  "shape": "778f187075a475bd"
  },
  "test/visual/scenes/matte.py": {
   "applyCalls": 1,
@@ -276,7 +276,7 @@
   "frameSlots": 3,
   "inputs": 2,
   "lastFrame": 1,
-  "shape": "9a23c79024315797"
+  "shape": "9621075e2a5fe3b4"
  },
  "test/visual/scenes/reload_a.py": {
   "applyCalls": 34,
@@ -285,7 +285,7 @@
   "frameSlots": 35,
   "inputs": 2,
   "lastFrame": 18,
-  "shape": "1dfdb43216e095bd"
+  "shape": "51585a4c85277b64"
  },
  "test/visual/scenes/reload_b.py": {
   "applyCalls": 46,
@@ -294,7 +294,7 @@
   "frameSlots": 47,
   "inputs": 2,
   "lastFrame": 39,
-  "shape": "d8be8096b168f462"
+  "shape": "12249cffe289c96e"
  },
  "test/visual/scenes/resize.py": {
   "applyCalls": 62,
@@ -303,7 +303,7 @@
   "frameSlots": 66,
   "inputs": 4,
   "lastFrame": 30,
-  "shape": "7efa1bf864ea7d24"
+  "shape": "6013bdd5864b1c7a"
  },
  "test/visual/scenes/shader_space.py": {
   "applyCalls": 95,
@@ -312,7 +312,7 @@
   "frameSlots": 97,
   "inputs": 5,
   "lastFrame": 30,
-  "shape": "f04ed2ebc7286230"
+  "shape": "5ffd7fdc22480e60"
  },
  "test/visual/scenes/shadow.py": {
   "applyCalls": 21,
@@ -321,7 +321,7 @@
   "frameSlots": 20,
   "inputs": 10,
   "lastFrame": 1,
-  "shape": "671aca5de69d85ec"
+  "shape": "7f4729dd99e3488f"
  },
  "test/visual/scenes/shapes.py": {
   "applyCalls": 3,
@@ -330,7 +330,7 @@
   "frameSlots": 6,
   "inputs": 3,
   "lastFrame": 1,
-  "shape": "a5c2eda8f4394f96"
+  "shape": "4d02003bdb051aac"
  },
  "test/visual/scenes/silk.py": {
   "applyCalls": 4,
@@ -339,7 +339,7 @@
   "frameSlots": 6,
   "inputs": 3,
   "lastFrame": 31,
-  "shape": "37a069e7cfb4cfb3"
+  "shape": "cbf3fe393c904f64"
  },
  "test/visual/scenes/sound.py": {
   "applyCalls": 1,
@@ -348,7 +348,7 @@
   "frameSlots": 3,
   "inputs": 2,
   "lastFrame": 1,
-  "shape": "121be9b252d184b0"
+  "shape": "178f3765d5effc72"
  },
  "test/visual/scenes/split_rows.py": {
   "applyCalls": 19,
@@ -357,7 +357,7 @@
   "frameSlots": 22,
   "inputs": 11,
   "lastFrame": 1,
-  "shape": "270d126aba8eb2b4"
+  "shape": "fb0b8804a3e64737"
  },
  "test/visual/scenes/stateful_group_scale.py": {
   "applyCalls": 120,
@@ -366,7 +366,7 @@
   "frameSlots": 62,
   "inputs": 2,
   "lastFrame": 30,
-  "shape": "2dafa7845d4ee404"
+  "shape": "077096be367ca401"
  },
  "test/visual/scenes/subtitles.py": {
   "applyCalls": 195,
@@ -375,7 +375,7 @@
   "frameSlots": 156,
   "inputs": 39,
   "lastFrame": 219,
-  "shape": "19f7932d05597a12"
+  "shape": "de0d6a0939a06f4b"
  },
  "test/visual/scenes/svg.py": {
   "applyCalls": 12,
@@ -384,7 +384,7 @@
   "frameSlots": 12,
   "inputs": 6,
   "lastFrame": 1,
-  "shape": "e6ae0f3164a2a196"
+  "shape": "d2c708aae18e7c89"
  },
  "test/visual/scenes/text.py": {
   "applyCalls": 42,
@@ -393,7 +393,7 @@
   "frameSlots": 42,
   "inputs": 21,
   "lastFrame": 1,
-  "shape": "e6ca2efa04905c52"
+  "shape": "deee8c266c8d2208"
  },
  "test/visual/scenes/text_gradient.py": {
   "applyCalls": 357,
@@ -402,7 +402,7 @@
   "frameSlots": 329,
   "inputs": 14,
   "lastFrame": 44,
-  "shape": "d7a2692e22129443"
+  "shape": "006a463ffb1a6632"
  },
  "test/visual/scenes/text_stroke.py": {
   "applyCalls": 36,
@@ -411,7 +411,7 @@
   "frameSlots": 36,
   "inputs": 18,
   "lastFrame": 1,
-  "shape": "333d759e55982a81"
+  "shape": "3234788e0a723486"
  },
  "test/visual/scenes/transitions.py": {
   "applyCalls": 85,
@@ -420,7 +420,7 @@
   "frameSlots": 82,
   "inputs": 6,
   "lastFrame": 16,
-  "shape": "f839a580a07530aa"
+  "shape": "4e847007eddb7b39"
  },
  "test/visual/scenes/uv_mapping.py": {
   "applyCalls": 2,
@@ -429,7 +429,7 @@
   "frameSlots": 5,
   "inputs": 3,
   "lastFrame": 1,
-  "shape": "100887099e81ac3c"
+  "shape": "47ac5b6243297518"
  },
  "test/visual/scenes/video.py": {
   "applyCalls": 6,
@@ -438,6 +438,6 @@
   "frameSlots": 9,
   "inputs": 5,
   "lastFrame": 1,
-  "shape": "b4c6e6a7675ed827"
+  "shape": "a15d5ffe92028e37"
  }
 }

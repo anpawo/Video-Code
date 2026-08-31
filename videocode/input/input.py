@@ -10,7 +10,7 @@ from videocode.template.effect.core.fadeTo import fadeTo
 from videocode.template.effect.core.moveTo import moveTo, moveBy
 from videocode.template.effect.core.rotateTo import rotateBy, rotateTo
 from videocode.template.effect.core.scaleTo import scaleBy, scaleTo
-from videocode.shader.ishader import Effect, GroupEffect, IShader, PaintShader, VertexShader
+from videocode.shader.ishader import Effect, GroupEffect, IShader, Paint, VertexShader
 from videocode.context import *
 from videocode.constants import *
 from videocode.utils.funcutils import *
@@ -98,19 +98,21 @@ class Input(ABC):
 
         flatten: list[IShader] = []
         for s in shaders:
+            # Checked BEFORE the IShader test, and that ordering is the point: a
+            # paint is a VALUE, not a shader, so it falls into the `Effect`
+            # branch below and gets CALLED. The author would see "object is not
+            # callable" instead of being told what to do.
+            if isinstance(s, Paint):
+                raise TypeError(
+                    f"{type(s).__name__} is a PAINT and can't be applied as an "
+                    f"effect — set it as the fill instead: fillColor={type(s).__name__}(...)"
+                )
             if not isinstance(s, IShader):
                 flatten.extend(s(self))
             else:
                 flatten.append(s)
 
         for s in flatten:
-            # Paints GENERATE pixels — they are fill state, not effects:
-            # fillColor=silk() is the one way to use them.
-            if isinstance(s, PaintShader):
-                raise TypeError(
-                    f"{type(s).__name__} is a PAINT and can't be applied as an "
-                    f"effect — set it as the fill instead: fillColor={type(s).__name__}(...)"
-                )
 
             # Pre-callbacks: fire before resolve/modify/stack-push. Mutate shader fields to rewrite
             # values, or return True to drop the shader entirely. Return False to let it through.

@@ -107,36 +107,59 @@ class FragmentShader(IShader):
     _type = "FragmentShader"
 
 
-class PaintShader(IShader):
+class Paint:
     """
-    The third shader kind, independent of the other two: a `PaintShader`
-    GENERATES pixels from position and time, ignoring what's underneath
-    (only the shape's coverage is kept) — silk, fire, starNest, any
-    mathShader.
+    A fill that GENERATES its pixels from position and time, ignoring what is
+    underneath — only the shape's coverage is kept. silk, fire, starNest,
+    evilEye, any mathShader.
 
-    A paint is FILL STATE, nothing else: `fillColor=fire()` rides
-    `args["fillColor"]` exactly like a color (via `jsonSerialization`, like
-    gradients do) and persists until reassigned — the C++ injects it into
-    the effect chain on every frame it is active
-    (`AInput::getActiveEffectsAtFrame`). It can NOT be `.apply()`d
-    (`Input.apply` rejects it), and the `paint` alias (`rgba | PaintShader`)
-    can never admit a `FragmentShader` — the three shader kinds don't
-    overlap.
+    A paint is a VALUE, not a shader, and that is the whole of its design.
+    `fillColor=fire()` goes exactly where a colour goes: it rides
+    `args["fillColor"]`, it is serialised beside `rgba` and `LinearGradient`,
+    and it persists until something reassigns it. The C++ reads it as per-frame
+    state and injects it into the effect chain on every frame it is active
+    (`AInput::getActiveEffectsAtFrame`).
+
+    It used to inherit `IShader`, and that was a lie the type system told:
+    a paint uses NOTHING `IShader` provides. `start`, `duration` and `offset`
+    were always None, `_rigidKind` always 0, and the one thing an `IShader`
+    exists for — being `.apply()`d — is the one thing a paint is explicitly
+    forbidden to do. The inheritance also handed the author an API that does
+    not work: `silk().at(start=2)` type-checked, stored the values, and then
+    dropped them at serialisation. No error, no effect.
+
+    Timing a paint is timing the ASSIGNMENT, which is what `over()` already
+    does and what a colour does too:
+
+        rect.over(duration=0.6).fillColor = silk()
+
+    Adding a new paint needs no new machinery: a `.glsl` in assets/mathshaders
+    and a function returning `mathShader(filepath=...)`. Only a preset with its
+    own uniform needs a subclass, and only that case needs `generator`.
     """
 
-    # C++ effect name, when it is not this class's own name. A preset that
-    # subclasses a paint to add args (a mathShader with its own uniforms) is
-    # still that paint on the C++ side — the factory only binds the base.
-    cppName: maybe[str] = None
+    # The name the C++ factory knows this paint by, when it is not this class's
+    # own name. A preset that subclasses one to add uniforms (evilEye) is still
+    # that paint on the C++ side — the factory binds the base, not the preset.
+    generator: maybe[str] = None
 
     def jsonSerialization(self) -> dict:
-        # {"shader": <effect name>, <its args>} — the "shader" key is what the
-        # C++ fillColor parsing/injection discriminates on; numeric args reach
-        # the GLSL alphabetically (the usual p[] contract), "filepath" rides
-        # ActiveEffect::strParam.
-        return {"shader": self.cppName or upperFirst(type(self).__name__)} | {
-            k: v for k, v in vars(self).items() if k not in ("start", "duration", "offset")
-        }
+        # {"shader": <generator>, <its args>}. The C++ discriminates the fill
+        # slot on the PRESENCE of the "shader" key — a solid colour is a number,
+        # a gradient is a list, a paint is an object with this key — so the wire
+        # format is already the three-way union this class now matches. Numeric
+        # args reach the GLSL alphabetically (the usual p[] contract) and
+        # "filepath" rides ActiveEffect::strParam.
+        return {"shader": self.generator or upperFirst(type(self).__name__)} | dict(vars(self))
+
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}()"
+
+
+# The old name, kept so nothing outside has to change at once. A paint was
+# never a shader; it is spelled that way in scenes written before this.
+PaintShader = Paint
 
 
 class VertexShader(IShader):
