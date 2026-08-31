@@ -2674,6 +2674,19 @@ ApplicationWindow {
         if (answer.ok) {
             execText = source.text;
             execState = "fresh";
+            // Two lines writing the same channel over the same frames is not an
+            // error — the scene runs — but swapping them gives a different
+            // video, and that is worth seeing where the line is rather than on
+            // a stderr the editor never reads. Severity 2 = warning.
+            source.diagnostics = (answer.warnings || []).map(function (w) {
+                return {
+                    range: { start: { line: w.line, character: 0 },
+                             end:   { line: w.line, character: 200 } },
+                    severity: 2,
+                    source: "execute",
+                    message: w.message
+                };
+            });
             liveScene = buildLiveScene(JSON.parse(answer.scene));
             // Anything looking at the scene has to be looking at THIS one.
             elementCard.rebind(liveScene.elements);

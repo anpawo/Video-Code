@@ -38,8 +38,14 @@ python3 -m pyright || {
 # 1.5 s, and it opens NO window: the QML is instantiated against a hidden
 # window, so every parse error and every binding that fails to resolve is
 # caught without anything appearing on screen. qmllint cannot see those.
-if [ -x ./video-code ]; then
-    printf "\n→ the chrome still loads\n"
+printf "\n→ the chrome still loads\n"
+if [ ! -x ./video-code ]; then
+    # Said out loud rather than skipped. This block used to be wrapped in the
+    # test, so on a checkout that has not been built the whole thing vanished —
+    # heading included — and the hook printed "clean" having never looked at the
+    # QML. That is the one case where nobody had checked it yet.
+    printf "\033[33m  skipped — ./video-code is not built. Run \`make\` and commit again to have the QML checked.\033[0m\n"
+else
     ./video-code --check-chrome || {
         printf "\n\033[31m✗ commit cancelled — QML\033[0m\n"
         exit 1

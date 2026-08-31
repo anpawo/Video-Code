@@ -2,3 +2,4 @@
 {"sha": "3bf0b9d7e8b40c46e82318c6bb48aa021173a129", "date": "2026-08-31T12:01:25+02:00", "loadavg": 3.86, "load": 0.5076, "msPerFrame": 6.1283, "total": 2.3461, "rssMb": 464.3125, "frames": 300, "scene": "test/perf/stress_text.py"}
 {"sha": "b58d8e685ef1c06edef23248add308dacbb0d1ac", "date": "2026-08-31T12:06:58+02:00", "loadavg": 4.76, "load": 0.4954, "msPerFrame": 8.4274, "total": 3.0236, "rssMb": 463.4375, "frames": 300, "scene": "test/perf/stress_text.py"}
 {"sha": "b02d0d1ddaa6f3f7b81a1618c17e6c13a08fd65d", "date": "2026-08-31T18:07:40+02:00", "loadavg": 4.4, "load": 0.4968, "msPerFrame": 8.7494, "total": 3.1216, "rssMb": 465.2969, "frames": 300, "scene": "test/perf/stress_text.py"}
+{"sha": "a8a2295df65cce4b3c0ed61559c078d0ab5a4081", "date": "2026-08-31T19:45:53+02:00", "loadavg": 3.09, "load": 0.5184, "msPerFrame": 6.3186, "total": 2.414, "rssMb": 469.75, "frames": 300, "scene": "test/perf/stress_text.py"}

@@ -66,7 +66,16 @@ def _resetContext():
     _glitch._nextSeed = 0
 
 
-def _reportContendedKeys() -> None:
+def _oneLine(hit: dict) -> str:
+    """The gutter has one line, not a paragraph — the paragraph stays on stderr."""
+    a, b = hit["a"], hit["b"]
+    return (
+        f"{b['call']}() and {a['call']}() (line {a['line']}) both write {hit['key']} over "
+        f"{hit['frames']} shared frames — the later call wins them."
+    )
+
+
+def _reportContendedKeys() -> list[dict]:
     """
     Say it out loud when two statements write the same key over the same frames.
 
@@ -76,6 +85,7 @@ def _reportContendedKeys() -> None:
     it says nothing at all, which is the point: it is silent until the ambiguity
     is real.
     """
+    out: list[dict] = []
     for hit in Context.contendedKeys():
         a, b = hit["a"], hit["b"]
         origin = Context.origin.get(hit["input"])
@@ -90,9 +100,10 @@ def _reportContendedKeys() -> None:
             f"against y, fillColor against strokeColor — compose, and are never reported here.)",
             file=sys.stderr,
         )
+        out.append({"line": b["line"] - 1, "file": b["file"], "message": _oneLine(hit)})
+    return out
 
-
-def _reportBackdatedWrites() -> None:
+def _reportBackdatedWrites() -> list[dict]:
     """
     Say it out loud when a line reaches back behind one already written.
 
@@ -104,6 +115,7 @@ def _reportBackdatedWrites() -> None:
     would need every line to have run first, which is a change of when the whole
     scene is baked.
     """
+    out: list[dict] = []
     for hit in Context.backdatedWrites():
         a, b = hit["a"], hit["b"]
         print(
@@ -116,7 +128,8 @@ def _reportBackdatedWrites() -> None:
             f"order they play, or give the earlier one its own start= too.",
             file=sys.stderr,
         )
-
+        out.append({"line": b["line"] - 1, "file": b["file"], "message": _oneLine(hit)})
+    return out
 
 def _applyBackground(scope: dict) -> None:
     """
@@ -729,8 +742,14 @@ def execSource(source: str, filepath: str) -> dict:
         code = compile(source, filepath, "exec")
         exec(code, scope)
         _applyBackground(scope)
-        _reportContendedKeys()
-        _reportBackdatedWrites()
+        # Collected as well as printed. These two ran on every keystroke in the
+        # editor and spoke only to stderr, which the editor does not read — the
+        # one mechanism built to say "swapping these two lines gives a different
+        # video" reached nobody who was editing. `Editor::executeScene` copies
+        # every key of this dict through to QML, so returning them is the whole
+        # of the wiring.
+        warnings = _reportContendedKeys() + _reportBackdatedWrites()
+        warnings = [w for w in warnings if w["file"] == filepath]
     except SyntaxError as error:
         return {
             "ok": False,
@@ -757,6 +776,7 @@ def execSource(source: str, filepath: str) -> dict:
 
     return {
         "ok": True,
+        "warnings": warnings,
         "inputs": len(Context.stack),
         "frames": max(Context.lastEverAffectedFrame, 1),
         "fps": FRAMERATE,
