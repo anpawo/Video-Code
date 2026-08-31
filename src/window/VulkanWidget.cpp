@@ -40,25 +40,12 @@
 #include "utils/Logger.hpp"
 #include "vulkan/EffectResolver.hpp"
 #include "vulkan/LutAtlas.hpp"
+#include "vulkan/VulkanHelpers.hpp"
 #if defined(__APPLE__)
     #include "vulkan/MetalSurface.hpp" // CAMetalLayer bridge (macOS only)
 #endif
 #include "vulkan/ShaderCompiler.hpp" // Runtime GLSL → SPIR-V via glslang
 #include "vulkan/Vertex.hpp"
-
-// ---------------------------------------------------------------------------
-// loadEffectShader — read GLSL from assets/shaders/{folder}/{file}
-// ---------------------------------------------------------------------------
-
-static std::string loadEffectShader(const std::string& folder, const std::string& file)
-{
-    std::string   path = std::string(SHADER_DIR) + "/" + folder + "/" + file;
-    std::ifstream f(path);
-    if (!f.is_open()) return {};
-    std::ostringstream ss;
-    ss << f.rdbuf();
-    return ss.str();
-}
 
 struct EffectPC
 {
@@ -71,21 +58,6 @@ struct EffectPC
 // The comment above says "still inside the 128 every Vulkan implementation
 // guarantees". Nothing checked it, in 18k lines without a single static_assert.
 static_assert(sizeof(EffectPC) <= 128, "EffectPC outgrew the push-constant range Vulkan guarantees");
-
-static void effectBarrier(VkCommandBuffer cb, VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage, VkImage image, VkAccessFlags srcAccess, VkAccessFlags dstAccess, VkImageLayout oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VkImageLayout newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-{
-    VkImageMemoryBarrier b{};
-    b.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    b.srcAccessMask = srcAccess;
-    b.dstAccessMask = dstAccess;
-    b.oldLayout = oldLayout;
-    b.newLayout = newLayout;
-    b.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    b.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    b.image = image;
-    b.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    vkCmdPipelineBarrier(cb, srcStage, dstStage, 0, 0, nullptr, 0, nullptr, 1, &b);
-}
 
 static void effectBarrier2(VkCommandBuffer cb, VkImage readImg, VkImage writeImg)
 {
@@ -1416,37 +1388,6 @@ void VC::VulkanWidget::updateUniforms()
 // Texture upload helpers
 // ============================================================================
 
-// Run a single one-shot command buffer synchronously on the graphics queue.
-static void runOneShot(VkDevice device, VkCommandPool pool, VkQueue queue, const std::function<void(VkCommandBuffer)>& fn)
-{
-    VkCommandBufferAllocateInfo ai{};
-    ai.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    ai.commandPool = pool;
-    ai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    ai.commandBufferCount = 1;
-
-    VkCommandBuffer cb = VK_NULL_HANDLE;
-    vkAllocateCommandBuffers(device, &ai, &cb);
-
-    VkCommandBufferBeginInfo bi{};
-    bi.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    bi.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    vkBeginCommandBuffer(cb, &bi);
-
-    fn(cb);
-
-    vkEndCommandBuffer(cb);
-
-    VkSubmitInfo si{};
-    si.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    si.commandBufferCount = 1;
-    si.pCommandBuffers = &cb;
-    vkQueueSubmit(queue, 1, &si, VK_NULL_HANDLE);
-    vkQueueWaitIdle(queue);
-
-    vkFreeCommandBuffers(device, pool, 1, &cb);
-}
-
 void VC::VulkanWidget::transitionImageLayout(VkImage image, VkImageLayout from, VkImageLayout to)
 {
     runOneShot(m_device, m_commandPool, m_graphicsQueue, [&](VkCommandBuffer cb) {
@@ -2518,17 +2459,6 @@ bool VC::VulkanWidget::createEffectPipeline(const std::string& name)
     if (fragSrc.empty()) return false;
 
     return createEffectPipelineFromSource(lower, fragSrc);
-}
-
-// Cache key for a runtime-loaded MathShader pipeline — see the headless
-// renderer's mathPipelineKey for the full rationale (namespaced against
-// folder-name collisions, pre-lowercased to survive recordEffectKernelPass's
-// name transform; only the KEY is lowercased, the file is read as given).
-static std::string mathPipelineKey(const std::string& path)
-{
-    std::string key = "math:" + path;
-    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
-    return key;
 }
 
 // MathShader pipelines: user-supplied fragment GLSL (eff.strParam is the file
