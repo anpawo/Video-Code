@@ -76,9 +76,16 @@ format:
 .PHONY: check
 check:
 	@ printf "\n→ visual regression (new failures only)\n"
-	@ ./video-code --visual-test 2>&1 | tr '\r' '\n' | perl -pe 's/\e\[[0-9;]*m//g' \
+	@# The run and the PARSE are two steps on purpose. They used to be one
+	@# pipeline ending in `|| true`, so make saw awk's exit code and then
+	@# discarded even that: a renderer that died on SIGSEGV printing nothing
+	@# produced an empty failure list, which compares clean against an empty
+	@# known_failures.txt. Measured — the recipe called 87 goldens green having
+	@# rendered no pixels at all.
+	@ ./video-code --visual-test > /tmp/vc_out.txt 2>&1; status=$$?; 		if [ $$status -gt 1 ]; then 			cat /tmp/vc_out.txt; 			printf "\033[31m--visual-test died (exit %s) — it did not finish, so nothing below means anything.\033[0m\n" "$$status"; 			exit 1; 		fi
+	@ tr '\r' '\n' < /tmp/vc_out.txt | perl -pe 's/\e\[[0-9;]*m//g' \
 		| awk '/^\[visual-test\]/ { scene = $$2 } /\[FAIL\]/ { print scene }' | sort -u \
-		> /tmp/vc_failed.txt || true
+		> /tmp/vc_failed.txt
 	@ grep -v '^\#' test/visual/known_failures.txt | grep -v '^[[:space:]]*$$' | sort -u > /tmp/vc_known.txt
 	@ if comm -23 /tmp/vc_failed.txt /tmp/vc_known.txt | grep -q .; then \
 		printf "\033[31mgoldens moved that were passing:\033[0m\n"; \

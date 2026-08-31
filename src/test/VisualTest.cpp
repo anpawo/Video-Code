@@ -412,5 +412,9 @@ int VC::VisualTest::run(bool updateGolden)
     }
 
     std::cout << std::format("\n{}[visual-test]{} {}\n", VC::Color::CYAN, VC::Color::RESET, failures == 0 ? std::format("{}All checks passed.{}", VC::Color::GREEN, VC::Color::RESET) : std::format("{}{} check(s) FAILED.{}", VC::Color::RED, failures, VC::Color::RESET));
-    return failures;
+    // 0 or 1, never the count. A POSIX exit code is truncated mod 256, so a
+    // suite that grew to 256 simultaneous failures would have exited 0 —
+    // "everything broke" and "nothing broke" being the same byte. The count is
+    // printed on the line above, which is where a human reads it.
+    return failures == 0 ? 0 : 1;
 }

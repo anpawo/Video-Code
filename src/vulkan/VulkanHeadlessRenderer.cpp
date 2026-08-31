@@ -15,6 +15,7 @@
 #include <fstream>
 #include <functional>
 #include <iostream>
+#include <set>
 #include <sstream>
 
 #include "shader/IFragmentShader.hpp" // MAX_SHADER_PARAMS, copyShaderParams
@@ -2261,7 +2262,17 @@ void VC::VulkanHeadlessRenderer::recordEffectKernelPass(
     std::transform(lower.begin(), lower.end(), lower.begin(), ::tolower);
 
     auto it = m_effectPipelines.find(lower);
-    if (it == m_effectPipelines.end()) return;
+    if (it == m_effectPipelines.end()) {
+        // Silently returning here is worse than drawing nothing: the caller
+        // still flips the ping-pong buffer, so the UNWRITTEN half is read as if
+        // it were the effect's output. `Sharpen` is registered in the factory
+        // with no assets/shaders/sharpen/ folder, and rendered magenta on a red
+        // rectangle — exit 0, stderr empty, no golden covering it.
+        static std::set<std::string> said;
+        if (said.insert(lower).second)
+            std::cerr << std::format("[shader] no pipeline named '{}' — the effect draws nothing and the pass below reads whatever was in the buffer.\n", lower);
+        return;
+    }
 
     VkClearValue clear = {{{0.f, 0.f, 0.f, 0.f}}};
     VkViewport   vp{0, 0, (float)m_extent.width, (float)m_extent.height, 0, 1};

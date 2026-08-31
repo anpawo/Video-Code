@@ -275,7 +275,15 @@ class Group(Interface, Generic[_GROUP_T]):
         # that: `Group()` then `.inputs.append(...)` — never got its bases, so
         # `_emitRigid` returned at once and `find("12").moveBy(y=1)` did nothing
         # at all, without an error. Seven groups in the corpus are in that state.
-        if self.inputs and not self._memberBases:
+        # Count, not emptiness. `not self._memberBases` only caught the group
+        # built empty and filled later; a group built with three members and
+        # then appended to kept its three bases, and the appended member was
+        # invisible to every rigid transform — it did not move, did not turn,
+        # and nothing said so. `videocode/template/misc/example/marius.py:55`
+        # is in exactly that state.
+        # ponytail: a member REPLACED one-for-one keeps the count and is still
+        # missed; compare identities if that ever happens.
+        if len(self.inputs) != len(self._memberBases):
             self._snapshot()
 
         # Members at DIFFERENT cursors are not at the same instant, and a rigid

@@ -54,11 +54,16 @@ def _resetContext():
     # group -1 to group -2 with not a character of the scene touched.
     from videocode.input.interface.Group import Group as _Group
     from videocode.shader.fragmentShader.lightSweep import lightSweep as _lightSweep
+    from videocode.shader.fragmentShader.glitch import glitch as _glitch
     from videocode.shader.fragmentShader.mathShader import mathShader as _mathShader
 
     _Group._serial = 0
     _lightSweep._nextGroup = 0
     _mathShader._nextGroup = 0
+    # The fourth counter, and the only one that changes PIXELS rather than an
+    # id: glitch derives its slice noise from the seed, so two bakes of one
+    # unchanged scene rendered differently. The editor bakes on every gesture.
+    _glitch._nextSeed = 0
 
 
 def _reportContendedKeys() -> None:
