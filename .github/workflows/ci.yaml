@@ -250,8 +250,12 @@ jobs:
       # 0.6s of qmllint above catches duplicate ids this cannot see; this
       # catches every parse error in the module and every binding that fails to
       # resolve on instantiation, which qmllint does not. 1.6s for all the QML.
+      # offscreen, not xcb: this runner has no display, and the point of
+      # --check-chrome is that a window never has to open for the QML to load
+      # and bind. xcb was the default and aborted with "could not connect to
+      # display" the first time the Linux build got far enough to run it.
       - name: QML chrome loads and every binding resolves
-        run: ./video-code --check-chrome
+        run: QT_QPA_PLATFORM=offscreen ./video-code --check-chrome
 
       # The one lane where every tool exists, so a skip here is a lie:
       # VC_REQUIRE_TOOLS turns "tool absent" back into a hard failure.
