@@ -8,7 +8,7 @@
 #include "window/Editor.hpp"
 
 #ifdef VC_HAS_QPA_FOCUS
-#include <QtGui/qpa/qwindowsysteminterface.h>
+    #include <QtGui/qpa/qwindowsysteminterface.h>
 #endif
 #include <QtQml/qqml.h>
 #include <pybind11/embed.h>
