@@ -62,6 +62,26 @@ class Input(ABC):
     @abstractmethod
     def __init__(self) -> None: ...
 
+    @property
+    def placed(self) -> bool:
+        """
+        Whether this input has a slot of its own in the stack C++ renders.
+
+        The axis the codebase kept asking about sideways. A `Group` is not a
+        different kind of thing because it has a pivot — a `Text` letter has
+        one too — but because it never reaches `Context.stack`: no index, no
+        slot, nothing of it is drawn. What is drawn are the members it moves.
+        A leaf built inside `Context.noRegister()` is on the same side of the
+        line for the same reason, which is why the question is asked about the
+        slot and not about the class.
+        """
+        return self.meta.index is not None
+
+    @property
+    def composite(self) -> bool:
+        """The other end of `placed`: worked out from what it holds, never drawn itself."""
+        return self.meta.index is None
+
     def flush(self) -> Self:
         """
         Advance the transformation index offset to the latest frame ever modified.
@@ -128,9 +148,10 @@ class Input(ABC):
             __duration = round(_d * FRAMERATE)
             __end = __start + __duration
 
-            # no-register members (created inside Context.noRegister()) have index=None.
-            # Still run modify() so meta.position etc. get updated, but skip the stack.
-            registered = self.meta.index is not None
+            # A composite has no slot of its own — a group, or a member built
+            # inside `Context.noRegister()`. Still run modify() so meta.position
+            # etc. get updated, but skip the stack.
+            registered = self.placed
 
             # Update lastEverAffectedFrame
             if registered and Context.lastEverAffectedFrame < __end:

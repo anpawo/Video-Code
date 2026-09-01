@@ -170,4 +170,12 @@ check(
     all(near(x.x, y.x, 1e-12) and near(x.y, y.y, 1e-12) for x, y in zip(settled, again)),
 )
 
+section("placed vs composite — the axis that actually separates a group from a leaf")
+
+leafInput = Rectangle(width=1, height=1)
+groupInput = Group(leafInput)
+check("a leaf has a slot of its own in the stack", leafInput.placed and not leafInput.composite)
+check("a group has none — what is drawn are the members it moves", groupInput.composite and not groupInput.placed)
+check("and a Text carved out of letters is composite too", Text("ab").find("a").inputs[0].composite)
+
 summary()

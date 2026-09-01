@@ -296,6 +296,11 @@ Every `Input` (shape, text, group, ...) has:
   pivot is a rule resolved at emission: `CHARACTER` spins every glyph where it
   stands, `WORD` turns each whitespace-separated run as a whole, `LINE` splits
   on newlines, `ALL` (default) is the single group pivot. `about=` outranks it.
+- `input.placed` / `input.composite` — whether an input has a slot of its own in
+  the stack C++ renders. A `Group` is composite: it never reaches the stack, and
+  what is drawn are the members it moves. That, not the pivot, is what makes it
+  a different kind of thing; a leaf built inside `Context.noRegister()` is on
+  the same side of the line.
 - Generic: `ease(attr, to, ...)` / `easeTogether(...)` — animate *any*
   `@prop` attribute frame-by-frame (e.g. `Rectangle.ease("width", 5,
   duration=1)`, used for #125's width/height/radius animation)

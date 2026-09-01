@@ -39,9 +39,9 @@ def _ownPositions(member: Input, derived: dict[int, set[int]]) -> dict[int, v2]:
     An axis absent from a frame is a hole meaning "leave that channel alone",
     so it carries from the frame before — the same rule C++ reads the stack by.
     """
-    index = member.meta.index
-    if index is None:
+    if member.composite:
         return {}
+    index = member.meta.index
     skip = derived.get(index, set())
     frames = Context.stack.get(index, {})
     track: dict[int, v2] = {}
