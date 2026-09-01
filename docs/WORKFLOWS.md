@@ -46,7 +46,7 @@ different name, and nothing would have said so. `test/contention_test.py`
 asserts that they agree — not that either is right on its own, which is the
 part a single-sided test would have missed.
 
-## Decided and deliberately postponed: the pivot is a query, not a value
+## Done (2026-09-01): the pivot was a query, and is now a value
 
 A council of six seats (2026-08-31, `~/.claude/councils/2026-08-31-videocode-semantique-groupes/`)
 compared Manim, After Effects, Blender, Figma/SVG, Lottie and glTF against this
@@ -66,8 +66,11 @@ failures:
 | pivot frozen (today, `_MemberBase._snapshot`) | a group transform overwrites a member's own animation — **29 frames of 30**, silently, and it hits a plain leaf exactly as hard as a nested group |
 | pivot live (sampling restored) | `Group(Group(a,b),c).rotateBy(90)` → **58 distinct pivots**, formation diverging by **~960×** over 30 frames |
 
-**What to do, in this order.** Item 1 is the one that matters; the rest follow
-from it and are cosmetic on their own.
+**What was done, in this order.** Item 1 is the one that mattered; the rest
+followed from it and were cosmetic on their own. All five landed on
+2026-09-01, each byte-identical on the corpus except item 4, which changed
+nothing there either — the three single-frame collisions counted below turned
+out to compose to the same numbers.
 
 1. **An author-placed pivot.** `about_point` on `rotate`/`scale`, plus a named
    granularity for `Text` in the shape of After Effects' `Anchor Point
@@ -87,15 +90,24 @@ from it and are cosmetic on their own.
    `meta.index is None` and never reaches `Context.stack`, and that, not the
    pivot, is what makes it a different kind of thing.
 
-**Why it is postponed.** Zero animations are actually lost anywhere in the
-55-scene corpus: the three real channel collisions are single-frame placements
-a parent legitimately replaces. The defect is reproducible in three lines and
-has bitten nobody. Item 1 changes the public API and deserves to be decided
-when someone needs it, not because a council named it.
+**Why it had been postponed.** Zero animations were actually lost anywhere in
+the 55-scene corpus: the three real channel collisions are single-frame
+placements a parent legitimately replaced. The defect was reproducible in three
+lines and had bitten nobody. Item 1 changes the public API and deserved to be
+decided when someone needed it, not because a council named it. That decision
+was reversed on 2026-09-01 and the five items were done in order.
 
-**Do not do item 2 on its own.** It passes every gate and teaches the codebase
-that groups and leaves are the same kind of thing, which is the one conclusion
-the council rejected.
+**Item 2 was never done on its own.** It passes every gate while teaching the
+codebase that groups and leaves are the same kind of thing, which is the one
+conclusion the council rejected — item 1 landed before it, and item 5 named the
+axis that does separate them: `placed` vs `composite`, a slot in the stack
+rather than a pivot.
+
+**What the API gained.** `rotateTo`/`rotateBy`/`scaleTo`/`scaleBy` take
+`about=v2(x, y)`; `Text.anchor` takes `Anchor.CHARACTER | WORD | LINE | ALL`,
+After Effects' Anchor Point Grouping, resolved at emission because a `Letter`
+has nothing an author could hold. `test/pivot_about_test.py` and
+`test/group_defect_test.py` hold both ends.
 
 ## What GitHub cannot check, and why
 
