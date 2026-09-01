@@ -11,7 +11,8 @@ What counts as owed, for every public symbol the diff adds to the LIBRARY:
 
   1. a docstring / doc comment where it is defined (.py, .cpp, .hpp)
   2. a mention in docs/*.md — the file a new user actually opens
-  3. a mention in test/ — something that would fail if the symbol broke
+  3. a USE in test/ — for Python, the name has to appear as an identifier in a
+     file that parses, not as text a grep found in a comment
 
 Private names (leading underscore) are exempt: they are not surface. Scene
 files at the repo root (video.py, eg.py, feat.py) are exempt too — they are
@@ -31,6 +32,7 @@ import ast
 import re
 import subprocess
 import sys
+from functools import cache
 from pathlib import Path
 
 # Only the library owes documentation. Scenes and tests are readers, not surface.
@@ -101,8 +103,47 @@ def addedSymbols(patch: str) -> dict[str, str]:
     return found
 
 
+@cache
+def testIdentifiers() -> frozenset[str]:
+    """Every name the Python tests actually USE — prose and comments excluded."""
+    names: set[str] = set()
+    for path in Path("test").rglob("*.py"):
+        try:
+            tree = ast.parse(path.read_text())
+        except (OSError, SyntaxError):
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name):
+                names.add(node.id)
+            elif isinstance(node, ast.Attribute):
+                names.add(node.attr)
+            elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                names.add(node.name)
+    return frozenset(names)
+
+
 def mentioned(symbol: str, where: str) -> bool:
-    return bool(run("grep", "-rl", symbol, where).strip())
+    # -w, not a bare match: without it `Scen` is "mentioned" by every page that
+    # says Scene, and a symbol named after a common word is documented by
+    # accident. Three docs pages pass the substring and none of them the word.
+    return bool(run("grep", "-rlw", symbol, where).strip())
+
+
+def tested(symbol: str, path: str) -> bool:
+    """Is the symbol exercised by a test, rather than merely named in one?
+
+    For Python the tests are Python, so this is answerable: the symbol has to
+    appear as an identifier in a file that parses. A grep also said yes to the
+    symbol sitting in a comment, in a docstring, or in a `# TODO: test this`
+    — which is precisely the thing the report is supposed to catch.
+
+    C++ surface is exercised from test/cpp, and parsing C++ to find out costs
+    more than this gate is worth. The word-boundary grep is the honest bar
+    there, and it is weaker: it cannot tell a use from a mention.
+    """
+    if path.endswith(".py"):
+        return symbol in testIdentifiers()
+    return mentioned(symbol, "test")
 
 
 def documented(symbol: str, path: str) -> bool:
@@ -121,7 +162,18 @@ def documented(symbol: str, path: str) -> bool:
     return True
 
 
+def selftest() -> int:
+    assert not mentioned("Scen", "docs"), "a substring of Scene should not count as a mention of Scen"
+    assert mentioned("Scene", "docs"), "Scene is named in docs and should count"
+    assert "coverage_check" not in testIdentifiers(), "a module name in prose is not a use"
+    assert "print" in testIdentifiers(), "print is used all over test/ and should be seen"
+    print("coverage_check: word boundaries hold, and a use is told apart from a mention")
+    return 0
+
+
 def main() -> int:
+    if "--selftest" in sys.argv:
+        return selftest()
     symbols = addedSymbols(diff("--pushed" in sys.argv))
     if not symbols:
         print("coverage: nothing public added to the library")
@@ -134,7 +186,7 @@ def main() -> int:
             missing.append("a docstring where it is defined")
         if not mentioned(symbol, "docs"):
             missing.append("a mention in docs/*.md")
-        if not mentioned(symbol, "test"):
+        if not tested(symbol, path):
             missing.append("a test that would fail if it broke")
         if missing:
             owed.append(f"  {symbol}  ({path})\n" + "".join(f"      needs {m}\n" for m in missing))
