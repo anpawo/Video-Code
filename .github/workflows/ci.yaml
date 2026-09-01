@@ -208,9 +208,15 @@ jobs:
 
       - run: pip install pybind11 -r requirements.txt
 
+      # 6.2.4 is from 2022 and does not expose the GuiPrivate CMake component
+      # that CMakeLists.txt:111 requires — the first Linux configure of this
+      # workflow died on "Failed to find Qt component GuiPrivate". The local
+      # build is on 6.11.1 via vcpkg; this is the nearest LTS the action serves.
+      # Qt comes from this action, NOT from apt: adding qt6-base-private-dev to
+      # the package list above would have installed a second, unrelated Qt.
       - uses: jurplel/install-qt-action@v4
         with:
-          version: '6.2.4'
+          version: '6.8.3'
           host: linux
           target: desktop
           arch: gcc_64

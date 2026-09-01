@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
-from helpers import check, section, summary
+from helpers import check, needsTool, section, summary
 
 from videocode import MathTex, Tex, Context, WHITE, RED_A, BLUE_A
 from videocode.input.shape.tex import _TexHelper
@@ -23,6 +23,9 @@ def pushedArg(index: int, key: str) -> bool:
 
 # ── MathTex: shape generation ────────────────────────────────────────────────
 section("MathTex — compiles LaTeX to a group of non-empty SVGPath shapes")
+if not needsTool("latex", "MathTex compiles its formula with a real LaTeX distribution"):
+    summary()
+    sys.exit(0)
 formula = MathTex(r"\frac{1}{2} + \int_0^1 x^2 \, dx")
 
 check("at least one shape was produced", len(formula.inputs) > 0)

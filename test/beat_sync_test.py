@@ -30,7 +30,7 @@ import wave
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
-from helpers import check, section, summary
+from helpers import check, needsTool, section, summary
 
 from videocode import Sound
 from videocode.input.media.Sound import _spectralFluxOnsets
@@ -90,6 +90,9 @@ check("minInterval=0.2s collapses two 20ms-apart bursts into one onset", len(ons
 
 # ── Sound.beats() — real end-to-end verification against a synthetic WAV ───
 section("Sound.beats() — real ffmpeg decode + detection matches synthetic ground truth")
+if not needsTool("ffmpeg", "decoding a real audio file to detect its beats"):
+    summary()
+    sys.exit(0)
 
 SR2 = 44100
 DURATION = 4.0
