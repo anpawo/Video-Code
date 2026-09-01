@@ -116,7 +116,13 @@ class Group(Interface, Generic[_GROUP_T]):
     #: effect may claim one without the other, and `align` is here because it
     #: decides the PIVOT: a pivot is what every emission was computed from, so a
     #: later `align` must not reach back and change frames already written.
-    _RIGID_CHANNELS = ("pos.x", "pos.y", "rot", "scl.x", "scl.y", "align.x", "align.y")
+    #:
+    #: `about` is the author's answer to the same question `align` asks: it
+    #: names the pivot outright instead of deriving it from the bounding box.
+    #: On the timeline for the same reason `align` is — a pivot is what every
+    #: emission was computed from, so placing one must not reach back into
+    #: frames already written.
+    _RIGID_CHANNELS = ("pos.x", "pos.y", "rot", "scl.x", "scl.y", "align.x", "align.y", "about.x", "about.y")
 
     def _rigidDefaults(self) -> dict[str, Any]:
         """Where each channel stands when the timeline says nothing about it."""
@@ -125,6 +131,9 @@ class Group(Interface, Generic[_GROUP_T]):
             "rot": self.meta.rotation,
             "scl.x": self.meta.scale.x, "scl.y": self.meta.scale.y,
             "align.x": self.meta.align.x, "align.y": self.meta.align.y,
+            # No author-placed pivot until one is asked for; the group falls
+            # back to the point `align` derives.
+            "about.x": None, "about.y": None,
         }
 
     @staticmethod
@@ -135,18 +144,26 @@ class Group(Interface, Generic[_GROUP_T]):
             "rot": channels["rot"],
             "scl": v2(channels["scl.x"], channels["scl.y"]),
             "align": v2(channels["align.x"], channels["align.y"]),
+            "about": None if channels["about.x"] is None else v2(channels["about.x"], channels["about.y"]),
         }
 
-    def _pivot(self, align: maybe[v2] = None) -> v2:
+    def _pivot(self, align: maybe[v2] = None, about: maybe[v2] = None) -> v2:
         """
-        Pivot point in member-base space, determined by the group's alignment.
+        Pivot point in member-base space.
 
-        Default align (0.5, 0.5) = center of the group's bounding box.
-        This is the point that stays fixed when the group is rotated or scaled.
+        `about` is the point the author placed, and it wins outright: it is a
+        location, not a question about the content, so an empty group has one
+        just as much as a full one.
+
+        Otherwise the group's alignment answers — default align (0.5, 0.5) =
+        center of the bounding box. This is the point that stays fixed when the
+        group is rotated or scaled.
 
         `align` is the alignment for the frame being emitted, which is not always
         the group's current one — see `_RIGID_CHANNELS`.
         """
+        if about is not None:
+            return v2(about.x, about.y)
         if not self._memberBases:
             return v2(0.0, 0.0)
         ax, ay = align if align is not None else self.meta.align
@@ -217,7 +234,7 @@ class Group(Interface, Generic[_GROUP_T]):
         grot_deg = state["rot"]
         gscale = state["scl"]
 
-        C = self._pivot(state.get("align"))
+        C = self._pivot(state.get("align"), state.get("about"))
         # C++ renders a positive degree as a clockwise spin on screen (the
         # rotation matrix is applied in pixel space, which is Y-flipped vs
         # world space) — the orbit must turn the same way or members shear
@@ -348,8 +365,22 @@ class Group(Interface, Generic[_GROUP_T]):
                 # Resolve the shader's own timing (.at(start=t) per animation frame)
                 # before recording — each frame in a moveTo animation carries its own t.
                 ts, td, to = s.resolve(start, duration, offset)
+                # Read before the record for this frame exists: a pivot placed
+                # after frames have already been written must not be handed back
+                # to them. The fold carries a channel backward from its FIRST
+                # record, so the opening frame has to say "no placed pivot here"
+                # out loud — the same rewrite `align` had to be taught about.
+                about = getattr(s, "about", None)
+                if about is not None and self._rigidTimeline and not any(k.startswith("about.") for f in self._rigidTimeline for k in self._rigidTimeline[f]):
+                    opening = self._rigidTimeline[sorted(self._rigidTimeline)[0]]
+                    opening.setdefault("about.x", None)
+                    opening.setdefault("about.y", None)
+
                 rec = self._rigidTimeline.setdefault(round(ts * FRAMERATE), {})
                 rec["t"] = (ts, td, to)
+                if about is not None:
+                    rec["about.x"] = float(about.x)
+                    rec["about.y"] = float(about.y)
                 # Only the components the shader CLAIMED, for the same reason a
                 # leaf records only those: `g.moveTo(x=2)` followed by
                 # `g.moveBy(y=3, start=0.5)` used to make x jump to its

@@ -10,11 +10,16 @@ class rotation(VertexShader):
     """
     `Rotation` is set to degree.
 
-    The rotation can take place from another place than the center by using Offset.
+    `about` places the point the turn happens around, in world units. Left
+    None, a group derives it from its `align` — a fraction of its own bounding
+    box, which can only ever name a point the content already has.
     """
 
-    def __init__(self, degree: number):
+    def __init__(self, degree: number, *, about: maybe[v2] = None):
         self.degree = degree
+        #: Where the turn happens. None = the centre the group derives from its
+        #: `align`, which is the only answer this engine used to have.
+        self.about = about
 
     def autodestroy(self, i: Input) -> bool:
         return i.meta.rotation == self.degree

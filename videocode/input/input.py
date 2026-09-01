@@ -537,11 +537,12 @@ class Input(ABC):
         easing: easing = Easing.InOut,
         start: sec = 0,
         duration: sec = 0.4,
+        about: maybe[v2] = None,
     ) -> Self:
         if factor is not None:
             x = factor
             y = factor
-        return self.apply(*scaleTo(self, x=x, y=y, easing=easing, start=start, duration=duration))
+        return self.apply(*scaleTo(self, x=x, y=y, easing=easing, start=start, duration=duration, about=about))
 
     def scaleBy(
         self,
@@ -552,17 +553,25 @@ class Input(ABC):
         easing: easing = Easing.InOut,
         start: sec = 0,
         duration: sec = 0.4,
+        about: maybe[v2] = None,
     ) -> Self:
         if factor is not None:
             x = factor
             y = factor
-        return self.apply(*scaleBy(self, x=x, y=y, easing=easing, start=start, duration=duration))
+        return self.apply(*scaleBy(self, x=x, y=y, easing=easing, start=start, duration=duration, about=about))
 
-    def rotateTo(self, degree: number, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        return self.apply(*rotateTo(self, dst=degree, easing=easing, start=start, duration=duration))
+    def rotateTo(self, degree: number, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4, about: maybe[v2] = None) -> Self:
+        """
+        Turn to an absolute angle. `about` places the pivot in world units;
+        without one a group turns around the point its `align` derives.
+        """
+        return self.apply(*rotateTo(self, dst=degree, easing=easing, start=start, duration=duration, about=about))
 
-    def rotateBy(self, degree: number, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        return self.apply(*rotateBy(self, dst=degree, easing=easing, start=start, duration=duration))
+    def rotateBy(self, degree: number, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4, about: maybe[v2] = None) -> Self:
+        """
+        Turn by an angle relative to the current one — see `rotateTo` for `about`.
+        """
+        return self.apply(*rotateBy(self, dst=degree, easing=easing, start=start, duration=duration, about=about))
 
     def alignTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         return self.apply(*alignTo(self, x=x, y=y, easing=easing, start=start, duration=duration))

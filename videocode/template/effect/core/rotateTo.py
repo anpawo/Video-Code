@@ -20,10 +20,11 @@ def rotateTo(
     start: sec = 0,
     duration: sec = 0.4,
     easing: easing = Easing.Linear,
+    about: maybe[v2] = None,
 ) -> Generator[rotation, Any, None]:
     src = input.meta.rotation
     for o, i in easing.rangeIdx(src, dst, duration):
-        yield rotation(o).at(start=start + i * SINGLE_FRAME)
+        yield rotation(o, about=about).at(start=start + i * SINGLE_FRAME)
 
 
 def rotateBy(
@@ -33,7 +34,8 @@ def rotateBy(
     start: sec = 0,
     duration: sec = 0.4,
     easing: easing = Easing.Linear,
+    about: maybe[v2] = None,
 ) -> Generator[rotation, Any, None]:
     src = input.meta.rotation
     for o, i in easing.rangeIdx(src, src + dst, duration):
-        yield rotation(o).at(start=start + i * SINGLE_FRAME)
+        yield rotation(o, about=about).at(start=start + i * SINGLE_FRAME)

@@ -12,9 +12,11 @@ class scale(VertexShader):
     `Scale` up or down an `Input`'s size.
     """
 
-    def __init__(self, x: maybe[number], y: maybe[number]):
+    def __init__(self, x: maybe[number], y: maybe[number], *, about: maybe[v2] = None):
         self.x = x
         self.y = y
+        #: Where the scaling happens from — see `rotation.about`.
+        self.about = about
 
     def autodestroy(self, i: Input) -> bool:
         # Claiming nothing at all is a no-op outright — same rule as `position`.

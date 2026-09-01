@@ -285,6 +285,12 @@ Every `Input` (shape, text, group, ...) has:
 **Eased animations** (`start`, `duration`, `easing: RateFunc`):
 - `moveTo`/`moveBy`, `scaleTo`/`scaleBy`, `rotateTo`/`rotateBy`,
   `alignTo`, `fadeIn`/`fadeOut`
+- `rotateTo`/`rotateBy`/`scaleTo`/`scaleBy` take `about=v2(x, y)` — the pivot,
+  placed by hand. Without it a group derives one from `align`, a fraction of
+  its own bounding box, so it can only ever name a point its content already
+  has: `g.rotateBy(90, about=v2(0, 0))` turns the group around the origin
+  whether or not anything is there. It rides on the timeline like `align`, so
+  placing one mid-animation does not re-pivot the frames already written.
 - Generic: `ease(attr, to, ...)` / `easeTogether(...)` — animate *any*
   `@prop` attribute frame-by-frame (e.g. `Rectangle.ease("width", 5,
   duration=1)`, used for #125's width/height/radius animation)
