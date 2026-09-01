@@ -29,7 +29,9 @@ class _MemberBase:
     it on every emission.
     """
 
-    #: The pivot of a MEMBER GROUP, or None for a leaf.
+    #: Blender's `matrix_parent_inverse`: the standing correction between where
+    #: the parent wants this member and what the member reads as its position.
+    #: Zero for a leaf, whose position IS a location.
     #:
     #: A group is not AT its `meta.position`: that field is a displacement it
     #: adds to members it holds around its own pivot, so zero means "wherever
@@ -39,14 +41,17 @@ class _MemberBase:
     #: 1 / 0.707 / 1.581 apart when they had started 1 / 1 / 2.
     #:
     #: So the base position of a member group is its pivot plus that
-    #: displacement, and `_emitRigid` hands it back the displacement that lands
-    #: the pivot where the parent wants it.
-    pivot: maybe[v2]
+    #: displacement, and `_emitRigid` hands the correction back. As a stored
+    #: number rather than a branch: "leaf or group?" was asked at every
+    #: emission to answer a question whose answer never changes, and a zero
+    #: subtracts as correctly as a skipped subtraction.
+    parentInverse: v2
 
     def __init__(self, member: Input) -> None:
         meta = member.meta
-        self.pivot = member._pivot() if isinstance(member, Group) else None
-        self.position = v2(*meta.position) if self.pivot is None else self.pivot + v2(*meta.position)
+        pivotOf = getattr(member, "_pivot", None)
+        self.parentInverse = cast(v2, pivotOf()) if callable(pivotOf) else v2(0.0, 0.0)
+        self.position = self.parentInverse + v2(*meta.position)
         self.rotation = meta.rotation
         self.scale = v2(*meta.scale)
         self.width = member.width
@@ -273,11 +278,9 @@ class Group(Interface, Generic[_GROUP_T]):
                 wx = rx * cos_r - ry * sin_r + C.x + gx
                 wy = rx * sin_r + ry * cos_r + C.y + gy
                 # A member group reads a position as a displacement from its own
-                # pivot — see `_MemberBase.pivot`.
-                if base.pivot is None:
-                    shaders.append(position(wx, wy))
-                else:
-                    shaders.append(position(wx - base.pivot.x, wy - base.pivot.y))
+                # pivot; a leaf reads it as a location, and its correction is
+                # zero — see `_MemberBase.parentInverse`.
+                shaders.append(position(wx - base.parentInverse.x, wy - base.parentInverse.y))
 
             if rot:
                 shaders.append(rotation(base.rotation + grot_deg))
@@ -573,7 +576,8 @@ class Group(Interface, Generic[_GROUP_T]):
     def _anchorOf(inp: Input) -> v2:
         """Where an input's content sits — for a group, not its `meta.position`."""
         p = v2(inp.meta.position.x or 0, inp.meta.position.y or 0)
-        return p + inp._pivot() if isinstance(inp, Group) else p
+        pivotOf = getattr(inp, "_pivot", None)
+        return (p + cast(v2, pivotOf())) if callable(pivotOf) else p
 
     @property
     def width(self) -> wnumber:
