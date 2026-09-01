@@ -79,4 +79,15 @@ else
     }
 fi
 
+# The bake digest — what the scenes ASK the renderer to do, hashed. It lived
+# only in CI, and that cost a round trip today: giving the rotation shader an
+# `about` field put an `about: null` on every rotation entry in the corpus, nine
+# scenes drifted, and the visual suite stayed green the whole time because not
+# one pixel moved. 1s here against three minutes of CI to learn the same thing.
+printf "\n→ the work the scenes ask for\n"
+python3 test/perf/digest.py || {
+    printf "\n\033[31m✗ commit cancelled — the bake digest moved. If that is what the change meant: python3 test/perf/digest.py --update\033[0m\n"
+    exit 1
+}
+
 printf "\033[32m✓ pre-commit clean\033[0m\n"
