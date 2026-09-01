@@ -203,7 +203,15 @@ class Input(ABC):
                 s.modify(self)
 
             # Args w/ Start & Duration
-            args = {k: v for k, v in vars(s).items() if k not in ("start", "duration", "offset")} | {"start": __start, "duration": __duration}
+            #
+            # `about` is excluded for the same reason the timing fields are: it
+            # is read by the engine, not by C++. Where a turn happens is
+            # resolved here — a group orbits its members, a leaf orbits itself —
+            # and what crosses is the rotation and the position it produced.
+            # Left in, every rotation and scale on the stack grew an `about:
+            # null` it had never had, and nine scenes changed the work they ask
+            # for without changing a pixel.
+            args = {k: v for k, v in vars(s).items() if k not in ("start", "duration", "offset", "about")} | {"start": __start, "duration": __duration}
 
             # Add step to the stack
             Context.apply(self.meta.index, key, s._type, args)
