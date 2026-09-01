@@ -219,7 +219,7 @@ jobs:
           version: '6.8.1'
           host: linux
           target: desktop
-          arch: gcc_64
+          arch: linux_gcc_64
           cache: true
 
       # CMakeLists.txt hard-fails without VCPKG_ROOT even though CI_BUILD=ON
