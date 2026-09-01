@@ -24,7 +24,7 @@ import numpy as np
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
-from helpers import check, section, summary
+from helpers import check, needsRenderer, section, summary
 
 FRAMES_PER_SEGMENT = 30
 OUTPUT_WIDTH = 160
@@ -94,6 +94,9 @@ with tempfile.TemporaryDirectory() as tmp:
         f.write(SCENE)
 
     section("render")
+    if not needsRenderer("wait/freeze needs a rendered video to measure frame differences"):
+        summary()
+        sys.exit(0)
     try:
         render_scene(scene_path, output_path)
         frames = load_frames(output_path)
