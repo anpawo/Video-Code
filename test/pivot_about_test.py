@@ -79,4 +79,27 @@ opening = g._rigidTimeline[sorted(g._rigidTimeline)[0]]
 check("the opening frame says 'no placed pivot here' out loud", opening.get("about.x", "missing") is None)
 check("the frames written before it kept the derived pivot", near(firstHalf.x, 1.0) and near(firstHalf.y, -1.0))
 
+section("a leaf turns and scales about the placed point too")
+
+leaf = Rectangle(width=1, height=1)
+leaf.moveTo(x=2, y=0, duration=0.4)
+leaf.rotateBy(90, about=v2(0.0, 0.0), duration=0.4)
+check("it travelled — nothing downstream would have moved it", near(leaf.meta.position.x, 0.0) and near(leaf.meta.position.y, -2.0))
+check("and it still spun on itself", near(leaf.meta.rotation, 90.0))
+
+still = Rectangle(width=1, height=1)
+still.moveTo(x=2, y=0, duration=0.4)
+still.rotateBy(90, duration=0.4)
+check("without a placed pivot a leaf turns where it stands", near(still.meta.position.x, 2.0) and near(still.meta.position.y, 0.0))
+
+grown = Rectangle(width=1, height=1)
+grown.moveTo(x=2, y=0, duration=0.4)
+grown.scaleTo(2, about=v2(0.0, 0.0), duration=0.4)
+check("scaling about a point pushes the leaf away from it", near(grown.meta.position.x, 4.0) and near(grown.meta.position.y, 0.0))
+
+oneAxis = Rectangle(width=1, height=1)
+oneAxis.moveTo(x=2, y=3, duration=0.4)
+oneAxis.scaleTo(x=2, about=v2(0.0, 0.0), duration=0.4)
+check("an axis nobody claimed does not drag the leaf along it", near(oneAxis.meta.position.x, 4.0) and near(oneAxis.meta.position.y, 3.0))
+
 summary()
