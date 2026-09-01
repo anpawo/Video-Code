@@ -81,10 +81,25 @@ def main() -> int:
             if not subprocess.run(["git", "ls-files", name], capture_output=True, text=True).stdout.strip():
                 missing.append(f"  {driver} names {name}/, and the repository knows no file inside it")
 
+    # A scene on disk that no case names is a scene no golden ever renders.
+    #
+    # `digest.py` finds scenes by glob, so a new one is picked up automatically
+    # and, once `--update` has run, accepted forever — its stack shape is
+    # checked and its PIXELS are not. `kGoldenCases` is a hand-kept C++ list;
+    # the two agreed at 49/49 when this was written, and nothing made them.
+    scenes = {p.name for p in Path("test/visual/scenes").glob("*.py")}
+    cases = {Path(m).name for m in re.findall(r"test/visual/scenes/[\w.]+\.py", code(Path("src/test/VisualTest.cpp").read_text()))}
+    for orphan in sorted(scenes - cases):
+        missing.append(f"  test/visual/scenes/{orphan} is rendered by no case in VisualTest.cpp — the digest sees it, no golden does")
+    for ghost in sorted(cases - scenes):
+        missing.append(f"  VisualTest.cpp names test/visual/scenes/{ghost}, which is not on disk")
+
     if missing:
-        print("these files exist on this machine and nowhere else:")
+        print("what this repository names and what it holds have come apart:")
         print("\n".join(missing))
-        print("\nCommit them, or the gate that calls them is red for everyone but you.")
+        print("\nCommit what is missing, or register what is unregistered — a driver")
+        print("that calls a file nobody has is red for everyone but you, and a scene")
+        print("no case names is a scene no golden ever renders.")
         return 1
 
     print(f"every path the build drivers name is in the repository ({len(DRIVERS)} drivers)")
