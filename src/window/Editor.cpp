@@ -7,7 +7,9 @@
 
 #include "window/Editor.hpp"
 
+#ifdef VC_HAS_QPA_FOCUS
 #include <QtGui/qpa/qwindowsysteminterface.h>
+#endif
 #include <QtQml/qqml.h>
 #include <pybind11/embed.h>
 #include <unistd.h>
@@ -486,7 +488,14 @@ void VC::Editor::captureTo(const QString& path)
         // the keyboard from whoever was using the machine, and their typing went
         // into the scene buffer. Saying it at the QPA layer gives the run its
         // shortcuts and leaves the desktop alone.
+#ifdef VC_HAS_QPA_FOCUS
         QWindowSystemInterface::handleFocusWindowChanged(window, Qt::OtherFocusReason);
+#else
+        // Built against a Qt with no private headers. The run still happens; its
+        // shortcuts do not, and saying so beats a scripted run that silently
+        // does nothing when a key is sent.
+        qWarning() << "VC_CLICK: built without Qt6::GuiPrivate — this window cannot be given focus, so shortcuts will not fire.";
+#endif
 
         // VC_CLICK="x,y" — or "x1,y1,x2,y2,…" for a sequence, which is how a
         // scripted run reaches anything behind a menu: opening it and choosing

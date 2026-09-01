@@ -107,8 +107,19 @@ find_package(pybind11 REQUIRED)
 # runtime — a layout change costs a reload, not a rebuild. See docs/ui/BACKLOG.md.
 find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui Quick Qml)
 # GuiPrivate: the scripted-run probe hands Qt the window activation the platform
-# refuses to a binary launched from a terminal (src/window/Editor.cpp).
-find_package(Qt6 REQUIRED COMPONENTS GuiPrivate)
+# refuses to a binary launched from a terminal (src/window/Editor.cpp). OPTIONAL,
+# and the one call behind it is compiled out when it is absent — the prebuilt Qt
+# that CI installs ships no private headers, and a build that never opens a
+# window has no use for them. Said at configure time rather than skipped, so a
+# developer who loses the probe learns it here and not by wondering why VC_CLICK
+# stopped working.
+find_package(Qt6 QUIET COMPONENTS GuiPrivate)
+if(Qt6GuiPrivate_FOUND)
+    add_compile_definitions(VC_HAS_QPA_FOCUS)
+else()
+    message(STATUS "Qt6 GuiPrivate not found — the scripted-run focus probe is compiled out; VC_CLICK runs will not receive keyboard shortcuts.")
+endif()
+
 find_package(CURL REQUIRED)
 if(APPLE)
     execute_process(COMMAND brew --prefix molten-vk OUTPUT_VARIABLE MVK_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -265,7 +276,7 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Widgets
     Qt6::Core
     Qt6::Gui
-    Qt6::GuiPrivate
+    $<$<BOOL:${Qt6GuiPrivate_FOUND}>:Qt6::GuiPrivate>
     Qt6::Quick
     Qt6::Qml
     Qt6::QuickControls2
