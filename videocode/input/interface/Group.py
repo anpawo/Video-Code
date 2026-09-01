@@ -13,6 +13,54 @@ from videocode.shader.ishader import Effect, GroupEffect
 _GROUP_T = TypeVar("_GROUP_T", bound=Input, default=Input)
 
 
+def _derivedPositionFrames() -> dict[int, set[int]]:
+    """
+    Which frames of which input hold a position a GROUP worked out.
+
+    `Context.statements` already records, per statement, whether it was derived
+    and what it covered — the editor needs that — so telling a member's own
+    animation from a parent's working-out costs a pass over a table that is
+    already kept, and nothing new has to be written down.
+    """
+    out: dict[int, set[int]] = {}
+    for st in Context.statements:
+        if not st["derived"]:
+            continue
+        for name, span in st["keys"].items():
+            if name.startswith("Position"):
+                out.setdefault(st["input"], set()).update(range(span[0], span[1] + 1))
+    return out
+
+
+def _ownPositions(member: Input, derived: dict[int, set[int]]) -> dict[int, v2]:
+    """
+    Every position a member wrote for ITSELF, by frame.
+
+    An axis absent from a frame is a hole meaning "leave that channel alone",
+    so it carries from the frame before — the same rule C++ reads the stack by.
+    """
+    index = member.meta.index
+    if index is None:
+        return {}
+    skip = derived.get(index, set())
+    frames = Context.stack.get(index, {})
+    track: dict[int, v2] = {}
+    x = y = None
+    for f in sorted(frames):
+        # -1 is the creation entry, not a moment.
+        if f < 0 or f in skip:
+            continue
+        entry = frames[f].get("Position")
+        if entry is None:
+            continue
+        args = entry["args"]
+        x = args["x"] if args.get("x") is not None else x
+        y = args["y"] if args.get("y") is not None else y
+        if x is not None and y is not None:
+            track[f] = v2(float(x), float(y))
+    return track
+
+
 class _MemberBase:
     """
     A member as it stood when the group was formed.
@@ -47,8 +95,15 @@ class _MemberBase:
     #: subtracts as correctly as a skipped subtraction.
     parentInverse: v2
 
-    def __init__(self, member: Input) -> None:
+    def __init__(self, member: Input, derived: maybe[dict[int, set[int]]] = None) -> None:
         meta = member.meta
+        #: The member's OWN position, frame by frame, as it stood when the group
+        #: was formed. A group transform used to write over it — measured at 29
+        #: frames of 30 — because it only ever knew the member's final position
+        #: and orbited that. Composing means orbiting where the member had put
+        #: ITSELF at that frame.
+        self.ownTrack = _ownPositions(member, derived if derived is not None else {})
+        self.ownFrames = sorted(self.ownTrack)
         pivotOf = getattr(member, "_pivot", None)
         self.parentInverse = cast(v2, pivotOf()) if callable(pivotOf) else v2(0.0, 0.0)
         self.position = self.parentInverse + v2(*meta.position)
@@ -56,6 +111,15 @@ class _MemberBase:
         self.scale = v2(*meta.scale)
         self.width = member.width
         self.height = member.height
+
+    def at(self, frame: int) -> v2:
+        """Where the member had put itself by this frame; its frozen base if never."""
+        held = None
+        for f in self.ownFrames:
+            if f > frame:
+                break
+            held = f
+        return self.ownTrack[held] if held is not None else self.position
 
 
 class Group(Interface, Generic[_GROUP_T]):
@@ -92,7 +156,8 @@ class Group(Interface, Generic[_GROUP_T]):
 
     def _snapshot(self) -> None:
         """Snapshot current member position/rotation/scale as the rigid-body base."""
-        self._memberBases: list[tuple[Input, _MemberBase]] = [(m, _MemberBase(m)) for m in self.inputs]
+        derived = _derivedPositionFrames()
+        self._memberBases: list[tuple[Input, _MemberBase]] = [(m, _MemberBase(m, derived)) for m in self.inputs]
         # Per-frame rigid state recorded during the current time window, keyed by
         # relative frame (round(start * FRAMERATE)). It is what lets concurrent
         # chained rigid animations — `g.rotateBy(...).scaleTo(...)` — combine:
@@ -296,8 +361,12 @@ class Group(Interface, Generic[_GROUP_T]):
             if pos or scl:
                 # Member offsets scale with the group (rigid scaling) and
                 # rotate with it — a scale change moves off-pivot members too.
-                rx = (base.position.x - C.x) * gscale.x
-                ry = (base.position.y - C.y) * gscale.y
+                # The member's own timeline, composed with the group's rather
+                # than replaced by it: `at` gives where the member had put
+                # itself on this frame, and the group turns THAT.
+                local = base.at(round(start * FRAMERATE) + (offset if offset is not None else m.meta.transformationOffset))
+                rx = (local.x - C.x) * gscale.x
+                ry = (local.y - C.y) * gscale.y
                 wx = rx * cos_r - ry * sin_r + C.x + gx
                 wy = rx * sin_r + ry * cos_r + C.y + gy
                 # A member group reads a position as a displacement from its own

@@ -1,21 +1,19 @@
 #!/usr/bin/env python3
 
 """
-The group defect, named rather than pinned in a golden.
+The group defect, closed — and now asserted the other way round.
 
-A group re-emits an absolute two-axis `position()` to every member on every
-frame of its window. A member that was animating ITSELF over those same frames
-has its animation overwritten — measured at 29 frames out of 30 — with no error
-and no warning, and it happens to a plain leaf exactly as it happens to a
-nested group. `docs/WORKFLOWS.md` records the redesign that closes it and why it
-is deliberately postponed.
+A group re-emitted an absolute two-axis `position()` to every member on every
+frame of its window, so a member animating ITSELF over those same frames had
+its animation overwritten: 29 frames out of 30, no error, no warning, a plain
+leaf hit exactly as hard as a nested group. Item 4 of the redesign in
+`docs/WORKFLOWS.md` composes the two timelines instead, and these checks are
+what that means: the member keeps its own climb AND takes the group's move.
 
-These checks assert what the code does TODAY. When the redesign lands they will
-fail, and that failure is the point: it is the signal that the defect is gone,
-and the moment to rewrite this file into the assertion of the fixed behaviour.
-Recording it as a golden instead would have pinned the bug in a picture — which
-is how twenty-four goldens came to describe behaviour that three commits had
-deliberately replaced.
+The file was written to fail the day the redesign landed, and it did. That was
+the whole point of naming the defect here rather than pinning it in a golden —
+a golden would have recorded the bug as a picture, which is how twenty-four of
+them came to describe behaviour three commits had deliberately replaced.
 """
 
 import contextlib
@@ -44,7 +42,7 @@ def positions(body: str, index: int) -> list[tuple]:
     return out
 
 
-section("a group overwrites a member's own POSITION animation (the open defect)")
+section("a member's own animation composes with its group's (item 4, closed)")
 
 ALONE = "a = Square(side=1).position(-1, 0)\na.moveBy(y=4, duration=1)"
 UNDER = ALONE + "\nb = Square(side=1).position(1, 0)\nGroup(a, b).moveBy(x=6, duration=1)"
@@ -54,17 +52,21 @@ under = positions(UNDER, 0)
 
 check("on its own, the member climbs across its whole window",
       len({y for _, y in alone if y is not None}) > 20)
-# The defect: under a group, those distinct y values collapse to the handful the
-# group's own emission carries. If this check ever fails, the member kept its
-# climb — the redesign landed, and this file should be rewritten.
-check("under a group, that climb is gone (THIS FAILING IS GOOD NEWS)",
-      len({y for _, y in under if y is not None}) < len({y for _, y in alone if y is not None}))
+# The defect was that these collapsed to the handful of values the group's own
+# emission carried. Composed, the climb survives the group untouched and the
+# group's move arrives on the other axis.
+check("under a group, the climb survives whole",
+      len({y for _, y in under if y is not None}) == len({y for _, y in alone if y is not None}))
+check("and the group's move arrives on top of it",
+      under[-1] == (5.0, 4.0))
+check("the group moved it on every frame it covered, not just at the end",
+      len({x for x, _ in under if x is not None}) > 20)
 
-section("rotation survives, and that asymmetry is the shape of the defect")
+section("rotation composed all along — position has caught up")
 
-# A group always writes `pos`; it writes `rot`/`scl` only when the author asked
-# it to. So a member's rotation composes with a group's move, and its position
-# does not — the same call, two answers.
+# Rotation composed before position did, and that asymmetry was the shape of
+# the defect: the same call, two answers. It stays asserted because it is the
+# behaviour position has now been brought into line with.
 ROT = "a = Square(side=1).position(-1, 0)\na.rotateBy(180, duration=1)\nb = Square(side=1).position(1, 0)\nGroup(a, b).moveBy(x=6, duration=1)"
 with contextlib.redirect_stderr(io.StringIO()):
     execSource("from videocode import *\n\n" + ROT + "\nwait(2)\n", "g.py")
