@@ -72,6 +72,21 @@ class Polygon(Input):
     @prop(onSet=updatePoints)
     def cornerRadius() -> percent: ...
 
+    @prop(onSet=updatePoints)
+    def open() -> bool:
+        """
+        Whether the path stops at its last vertex instead of wrapping back.
+
+        Both a cppAttr and a geometry rebuild: C++ needs the flag (it drops
+        the wrap segment and draws no fill) AND an open path lays its control
+        points out differently, so flipping it rebuilds them. Setting a
+        cppAttr routes through args.modify, whose object.__setattr__ reaches
+        this descriptor — the flag reaches C++ and the geometry follows it in
+        the same statement. Without the hook the shape was told it was open
+        while still holding closed-path points.
+        """
+        ...
+
     def fill(self, color: rgba, *, easing=Easing.InOut, start: sec = 0, duration: sec = 0.4, offset: maybe[frame] = None) -> Self:
         return self.ease("fillColor", color, easing=easing, start=start, duration=duration, offset=offset)
 

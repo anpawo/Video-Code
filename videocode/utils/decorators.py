@@ -36,11 +36,28 @@ def inputCreation(f: Callable[Concatenate[_T, _P], None]) -> Callable[Concatenat
         if Context._noRegister:
             return
 
+        # __dict__ order, not cppAttrs order: cppAttrs is a set, and iterating
+        # it would reorder the creation args differently on every interpreter
+        # start. A `prop` stores under `_name`, so a cppAttr that also has a
+        # python-side hook (Polygon.open) is looked up under both spellings and
+        # read through the descriptor.
+        def cppKey(attr: str) -> str | None:
+            if attr in self.cppAttrs:
+                return attr
+            public = attr[1:]
+            return public if attr.startswith("_") and public in self.cppAttrs else None
+
+        creationArgs = {}
+        for attr in self.__dict__:
+            key = cppKey(attr)
+            if key is not None:
+                creationArgs[key] = getattr(self, key)
+
         # Generate the stack creation
         Context.create(
             inputIndex=self.meta.index,
             inputType=self.cppName,
-            inputArgs={k: v for k, v in self.__dict__.items() if k in self.cppAttrs},
+            inputArgs=creationArgs,
         )
 
         if Context._noHiding:
