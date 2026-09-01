@@ -38,6 +38,33 @@ python3 -m pyright || {
 # 1.5 s, and it opens NO window: the QML is instantiated against a hidden
 # window, so every parse error and every binding that fails to resolve is
 # caught without anything appearing on screen. qmllint cannot see those.
+printf "\n→ formatting\n"
+if ! command -v clang-format > /dev/null 2>&1; then
+    printf "\033[33m  skipped — no clang-format here; the CI lane will check it.\033[0m\n"
+else
+    # The one gate that lived only in CI, which is how a formatting violation
+    # got pushed: the hook said clean, the lane said no, and the round trip was
+    # a push and three minutes. Same list the workflow uses.
+    # `-name` twice, not `-regex '.*\.\(cpp\|hpp\)'`. That regex is GNU
+    # syntax; BSD find matches NOTHING with it, so `$files` came out empty, the
+    # `[ -n ]` guard short-circuited, and this check printed success having
+    # looked at zero files — the exact failure it was added to prevent, inside
+    # the fix for it. Counted now, and an empty list is an error.
+    files=$(find . \( -name '*.cpp' -o -name '*.hpp' \) \
+        -not -path './build/*' -not -path './build-qml/*' -not -path './vcpkg_installed/*')
+    count=$(printf '%s\n' "$files" | grep -c . || true)
+    if [ "$count" -lt 50 ]; then
+        printf "\n\033[31m✗ commit cancelled — the formatting check found %s files, which cannot be right\033[0m\n" "$count"
+        exit 1
+    fi
+    if ! clang-format -n -Werror $files 2> /tmp/vc_fmt.txt; then
+        head -20 /tmp/vc_fmt.txt
+        printf "\n\033[31m✗ commit cancelled — run \`clang-format -i\` on the files above\033[0m\n"
+        exit 1
+    fi
+    printf "  %s .cpp/.hpp files, all formatted\n" "$count"
+fi
+
 printf "\n→ the chrome still loads\n"
 if [ ! -x ./video-code ]; then
     # Said out loud rather than skipped. This block used to be wrapped in the
