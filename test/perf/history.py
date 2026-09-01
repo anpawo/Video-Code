@@ -17,8 +17,12 @@ Why verify at all
 typed by hand is indistinguishable by eye from a measured one. One wrong row
 poisons the curve for good — and the curve IS the memory this exists to build.
 So every row must name the commit it measured, and that commit must be a real
-ancestor of the branch being published. A number nobody measured has no commit
-it can point at.
+ancestor of the branch being published. That much only proves the commit
+exists — every commit in the history does. The row that is about to be
+published must also have *travelled* with its measurement: the commit carrying
+the line is a child of the commit the line names, which is what `--record`
+followed by a commit produces and what a number typed into a later pull request
+cannot.
 
 Only numbers cross into the published file: the labels are literals written
 here, never text read from the record.
@@ -91,6 +95,42 @@ def verify() -> int:
     return 0
 
 
+def introduced_by(sha: str) -> str:
+    """The commit that added this row to the record, or "" if none did."""
+    out = subprocess.run(
+        ["git", "log", "--format=%H", "-S", sha, "--", str(HISTORY)],
+        capture_output=True,
+        text=True,
+    )
+    return out.stdout.split()[-1] if out.stdout.split() else ""
+
+
+def measured(row: dict) -> str:
+    """Empty if the row was really produced by a run; the reason otherwise.
+
+    Ancestry alone proves nothing: every commit in the history is an ancestor,
+    so a hand-typed row can name any of them and pass. What a fabricator cannot
+    do is choose where the row *lands*. `guard.py --record` writes the number
+    for the checkout it just measured, and that line then travels in the very
+    next commit — so the commit holding the row is a child of the commit the
+    row names. A row invented in a later pull request is added by a commit
+    somewhere else entirely, and says so.
+    """
+    sha = str(row.get("sha", ""))
+    adder = introduced_by(sha)
+    if not adder:
+        return f"{sha[:9]}: no commit ever added this line — it is not in the history it claims"
+    parent = subprocess.run(["git", "rev-parse", f"{adder}^"], capture_output=True, text=True)
+    if parent.returncode:
+        return f"{sha[:9]}: added by the root commit {adder[:9]}, which measured nothing"
+    if not parent.stdout.strip().startswith(sha):
+        return (
+            f"{sha[:9]}: added by {adder[:9]}, whose parent is {parent.stdout.strip()[:9]} — "
+            "a measurement travels in the commit right after the one it measured, this one did not"
+        )
+    return ""
+
+
 def append(path: Path) -> int:
     kept = [r for r in rows() if ancestor(str(r.get("sha", "")))]
     if not kept:
@@ -98,6 +138,15 @@ def append(path: Path) -> int:
         return 0
 
     last = kept[-1]
+    # Only the row about to be published is held to this: it is the one that
+    # reaches gh-pages, and every row faces the check on the push that
+    # publishes it. Rows already on the curve are past the gate, for good or
+    # ill.
+    if reason := measured(last):
+        print("the measurement about to be published was not measured here:")
+        print(f"  {HISTORY.name}: {reason}")
+        return 1
+
     published = json.loads(path.read_text()) if path.exists() else []
     published += [
         {"name": "render/msPerFrame", "unit": "ms", "value": float(last["msPerFrame"])},
@@ -110,7 +159,22 @@ def append(path: Path) -> int:
     return 0
 
 
+def selftest() -> int:
+    known = {str(r.get("sha", "")) for r in rows()}
+    victim = next(
+        s
+        for s in subprocess.run(["git", "rev-list", "-50", "HEAD"], capture_output=True, text=True).stdout.split()
+        if s not in known
+    )
+    assert measured({"sha": victim}), f"{victim[:9]} never travelled with a measurement, and was accepted anyway"
+    assert not measured(rows()[-1]), f"the recorded row was refused: {measured(rows()[-1])}"
+    print("history: a row naming a commit it did not travel with is refused; the recorded one is not")
+    return 0
+
+
 def main() -> int:
+    if "--selftest" in sys.argv:
+        return selftest()
     if "--verify" in sys.argv:
         return verify()
     if "--append" in sys.argv:

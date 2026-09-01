@@ -110,9 +110,11 @@ jobs:
 
       # history.jsonl is a tracked file, so any pull request can write it, and
       # a row typed by hand looks exactly like a measured one. One bad row
-      # poisons the curve permanently — and the curve IS the memory. So every
-      # row must name a commit that really is an ancestor of main; an invented
-      # measurement has no sha it can produce.
+      # poisons the curve permanently — and the curve IS the memory. Every row
+      # must name a commit that really is an ancestor of main, and the row that
+      # --append is about to publish must have travelled with its measurement:
+      # carried by a child of the commit it names. Naming an ancestor is free;
+      # landing in the right commit is not.
       - run: python3 test/perf/history.py --verify
 
       - name: Collect what to remember
