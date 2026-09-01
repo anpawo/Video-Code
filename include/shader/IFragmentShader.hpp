@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -35,9 +36,12 @@ inline void copyShaderParams(const std::vector<float>& params, float (&p)[MAX_SH
     const std::size_t n = std::min(params.size(), MAX_SHADER_PARAMS);
     std::copy_n(params.begin(), n, p);
 
-    static std::size_t reported = MAX_SHADER_PARAMS;
-    if (params.size() > reported) {
-        reported = params.size();
+    // Keyed on the SIZE, not on a high-water mark. `reported` used to hold the
+    // worst overflow seen in the process, so a SECOND shader overflowing by
+    // less stayed silent — the guard failing exactly where it was most useful,
+    // on the case nobody had already been told about.
+    static std::set<std::size_t> reported;
+    if (params.size() > MAX_SHADER_PARAMS && reported.insert(params.size()).second) {
         std::cerr << "[shader] " << params.size() << " params given, " << MAX_SHADER_PARAMS
                   << " fit — the last " << params.size() - MAX_SHADER_PARAMS
                   << " never reach the GLSL. Widen p[] in EffectPC (128 bytes is the guaranteed room)."

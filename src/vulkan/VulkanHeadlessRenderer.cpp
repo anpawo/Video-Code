@@ -2026,7 +2026,12 @@ const VC::VulkanHeadlessRenderer::LutResource* VC::VulkanHeadlessRenderer::getOr
     cv::Mat atlas;
     int     N = 0;
     if (!parseCubeToAtlas(filepath, atlas, N)) {
-        std::cerr << "LUT: failed to parse .cube '" << filepath << "'\n";
+        // Remembered, like ensureMathPipeline does with m_mathFailed. Without
+        // this the file was re-opened and re-parsed on EVERY frame, and the same
+        // line printed 30 times for a 30-frame render — mixed into the progress
+        // bar, which is where a warning goes to be missed.
+        if (m_lutFailed.insert(filepath).second)
+            std::cerr << "LUT: failed to parse .cube '" << filepath << "' — the layer stays ungraded.\n";
         return nullptr;
     }
 

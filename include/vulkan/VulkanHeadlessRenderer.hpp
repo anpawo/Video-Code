@@ -11,6 +11,7 @@
 
 #include <array>
 #include <opencv2/core/mat.hpp>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -298,7 +299,8 @@ namespace VC
             int         size = 0; // N
         };
 
-        std::unordered_map<std::string, LutResource> m_lutCache; // filepath → atlas
+        std::unordered_map<std::string, LutResource> m_lutCache;  ///< filepath → atlas
+        std::set<std::string>                        m_lutFailed; ///< Parsed once, refused once — not once per frame.
 
         // ── Init helpers ──────────────────────────────────────────────────────
         bool createInstance();
