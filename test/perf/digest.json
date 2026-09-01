@@ -1,12 +1,12 @@
 {
  "eg.py": {
-  "applyCalls": 583,
+  "applyCalls": 581,
   "entries": 653,
   "events": 1,
   "frameSlots": 583,
   "inputs": 36,
   "lastFrame": 129,
-  "shape": "4a9195cd6cf24862"
+  "shape": "d6cb350ebd285794"
  },
  "test/perf/stress_text.py": {
   "applyCalls": 14128,
@@ -15,7 +15,7 @@
   "frameSlots": 14147,
   "inputs": 47,
   "lastFrame": 300,
-  "shape": "95530705f96834e5"
+  "shape": "60104c605cd0cc4e"
  },
  "test/visual/scenes/adjustment_layer.py": {
   "applyCalls": 19,
@@ -60,7 +60,7 @@
   "frameSlots": 62,
   "inputs": 31,
   "lastFrame": 1,
-  "shape": "a96f38fafd169c8c"
+  "shape": "0cd7ee2f3340d7f6"
  },
  "test/visual/scenes/chess.py": {
   "applyCalls": 120,
@@ -78,7 +78,7 @@
   "frameSlots": 26,
   "inputs": 13,
   "lastFrame": 1,
-  "shape": "5e0069efd02f4f40"
+  "shape": "711dc65df5a4529a"
  },
  "test/visual/scenes/curve.py": {
   "applyCalls": 11,
@@ -105,7 +105,7 @@
   "frameSlots": 16,
   "inputs": 8,
   "lastFrame": 30,
-  "shape": "b3293ff69e78011f"
+  "shape": "3e2c42f6c1a79a73"
  },
  "test/visual/scenes/effect_shaders2.py": {
   "applyCalls": 16,
@@ -114,7 +114,7 @@
   "frameSlots": 12,
   "inputs": 6,
   "lastFrame": 30,
-  "shape": "1e3cc324a3aac20c"
+  "shape": "ea47c8fc603cc489"
  },
  "test/visual/scenes/effect_shaders3.py": {
   "applyCalls": 10,
@@ -141,7 +141,7 @@
   "frameSlots": 183,
   "inputs": 16,
   "lastFrame": 30,
-  "shape": "94dcb2c63b277c39"
+  "shape": "0c95f2a2339c9dc9"
  },
  "test/visual/scenes/effect_templates2.py": {
   "applyCalls": 328,
@@ -150,7 +150,7 @@
   "frameSlots": 221,
   "inputs": 10,
   "lastFrame": 30,
-  "shape": "e7d1bed4750c2db0"
+  "shape": "a9d1020be438e09f"
  },
  "test/visual/scenes/effect_templates3.py": {
   "applyCalls": 241,
@@ -159,7 +159,7 @@
   "frameSlots": 185,
   "inputs": 8,
   "lastFrame": 30,
-  "shape": "03623383078f1794"
+  "shape": "6e3d9a6c969be11c"
  },
  "test/visual/scenes/glow.py": {
   "applyCalls": 17,
@@ -168,7 +168,7 @@
   "frameSlots": 14,
   "inputs": 7,
   "lastFrame": 30,
-  "shape": "7a38abc84feb8111"
+  "shape": "7c9e7c02c27bbedb"
  },
  "test/visual/scenes/gradient.py": {
   "applyCalls": 9,
@@ -195,7 +195,7 @@
   "frameSlots": 20,
   "inputs": 10,
   "lastFrame": 1,
-  "shape": "4d856686bb9d5316"
+  "shape": "ca8aa3b7c0e7b328"
  },
  "test/visual/scenes/gradient_percent.py": {
   "applyCalls": 9,
@@ -249,7 +249,7 @@
   "frameSlots": 14,
   "inputs": 7,
   "lastFrame": 30,
-  "shape": "efc4c4483348acb0"
+  "shape": "6fd5e9ec87b3f8c5"
  },
  "test/visual/scenes/lightsweep_group.py": {
   "applyCalls": 12,
@@ -276,7 +276,7 @@
   "frameSlots": 156,
   "inputs": 78,
   "lastFrame": 1,
-  "shape": "778f187075a475bd"
+  "shape": "b0e92692baf2e48a"
  },
  "test/visual/scenes/matte.py": {
   "applyCalls": 1,
@@ -285,7 +285,7 @@
   "frameSlots": 3,
   "inputs": 2,
   "lastFrame": 1,
-  "shape": "9621075e2a5fe3b4"
+  "shape": "247a35d291e11c1a"
  },
  "test/visual/scenes/reload_a.py": {
   "applyCalls": 34,
@@ -348,7 +348,7 @@
   "frameSlots": 6,
   "inputs": 3,
   "lastFrame": 31,
-  "shape": "cbf3fe393c904f64"
+  "shape": "8e0d991c822b6a8c"
  },
  "test/visual/scenes/sound.py": {
   "applyCalls": 1,
@@ -360,13 +360,13 @@
   "shape": "178f3765d5effc72"
  },
  "test/visual/scenes/split_rows.py": {
-  "applyCalls": 19,
+  "applyCalls": 20,
   "entries": 40,
   "events": 0,
   "frameSlots": 22,
   "inputs": 11,
   "lastFrame": 1,
-  "shape": "fb0b8804a3e64737"
+  "shape": "c5b4bf0e88c3d416"
  },
  "test/visual/scenes/stateful_group_scale.py": {
   "applyCalls": 120,
@@ -384,7 +384,7 @@
   "frameSlots": 156,
   "inputs": 39,
   "lastFrame": 219,
-  "shape": "de0d6a0939a06f4b"
+  "shape": "1475617e54c8a3bf"
  },
  "test/visual/scenes/svg.py": {
   "applyCalls": 12,
@@ -402,7 +402,7 @@
   "frameSlots": 42,
   "inputs": 21,
   "lastFrame": 1,
-  "shape": "deee8c266c8d2208"
+  "shape": "88e3ed8be2f21dfe"
  },
  "test/visual/scenes/text_gradient.py": {
   "applyCalls": 357,
@@ -411,7 +411,7 @@
   "frameSlots": 329,
   "inputs": 14,
   "lastFrame": 44,
-  "shape": "006a463ffb1a6632"
+  "shape": "da5bb53acfa9f7d7"
  },
  "test/visual/scenes/text_stroke.py": {
   "applyCalls": 36,
@@ -420,7 +420,7 @@
   "frameSlots": 36,
   "inputs": 18,
   "lastFrame": 1,
-  "shape": "3234788e0a723486"
+  "shape": "a30ab486a4384228"
  },
  "test/visual/scenes/transitions.py": {
   "applyCalls": 85,

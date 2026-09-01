@@ -216,7 +216,7 @@ jobs:
       # the package list above would have installed a second, unrelated Qt.
       - uses: jurplel/install-qt-action@v4
         with:
-          version: '6.8.3'
+          version: '6.8.1'
           host: linux
           target: desktop
           arch: gcc_64

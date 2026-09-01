@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from videocode.input.shape.text.Text import Letter
 
 
-_FONT_DIR = Path(__file__).parents[3] / "assets" / "fonts"
+_FONT_DIR = Path(__file__).parents[4] / "assets" / "fonts"
 _STEPS = 4
 _TAB_SIZE = 4
 _FT_FLAGS = 1 | 2 | 8  # FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP

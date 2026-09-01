@@ -6,3 +6,4 @@
 {"sha": "9710c8081fae005c434bfe3a6fb11ee729c9784f", "date": "2026-09-01T11:21:46+02:00", "loadavg": 4.14, "load": 0.5258, "msPerFrame": 8.94, "total": 3.2078, "rssMb": 463.25, "frames": 300, "scene": "test/perf/stress_text.py"}
 {"sha": "c8c640d19b540224d1ba458479263ea3818acbe5", "date": "2026-09-01T11:29:18+02:00", "loadavg": 7.02, "load": 0.5238, "msPerFrame": 7.0754, "total": 2.6465, "rssMb": 464.6094, "frames": 300, "scene": "test/perf/stress_text.py"}
 {"sha": "6a7ad212082a5f28ba866289fcf645c24e7aff7d", "date": "2026-09-01T11:42:27+02:00", "loadavg": 7.87, "load": 0.5259, "msPerFrame": 9.7966, "total": 3.4649, "rssMb": 464.0, "frames": 300, "scene": "test/perf/stress_text.py"}
+{"sha": "486d4e67c62656a81da51a49ed2bfe41add8218f", "date": "2026-09-01T13:41:17+02:00", "loadavg": 3.39, "load": 0.4939, "msPerFrame": 7.0909, "total": 2.6211, "rssMb": 469.0, "frames": 300, "scene": "test/perf/stress_text.py"}
