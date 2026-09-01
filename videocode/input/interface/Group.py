@@ -180,6 +180,16 @@ class Group(Interface, Generic[_GROUP_T]):
     # ------------------------------------------------------------------
     # Rigid-body emission
 
+    def _memberPivots(self, pivot: v2) -> maybe[list[v2]]:
+        """
+        One pivot per member, or None to turn the whole group around `pivot`.
+
+        None is the answer for every group but a `Text` asked for a finer
+        anchor grouping, and it is not the same as a list of identical pivots:
+        it says the question was never split.
+        """
+        return None
+
     def _stateAt(self, at: int) -> dict[str, Any]:
         """
         The group's position, rotation and scale at a frame.
@@ -235,6 +245,14 @@ class Group(Interface, Generic[_GROUP_T]):
         gscale = state["scl"]
 
         C = self._pivot(state.get("align"), state.get("about"))
+        # One pivot for the whole group is the default and the only thing this
+        # engine could express; a subclass may hand back one per member instead
+        # — see `Text.anchor`, where a letter has no downstream identity to
+        # parent to and its pivot has to be a rule resolved here, at emission.
+        groupPivot = C
+        # A point the author placed is an answer, and it is the whole answer:
+        # it outranks any per-member rule a subclass would otherwise apply.
+        pivots = None if state.get("about") is not None else self._memberPivots(C)
         # C++ renders a positive degree as a clockwise spin on screen (the
         # rotation matrix is applied in pixel space, which is Y-flipped vs
         # world space) — the orbit must turn the same way or members shear
@@ -243,8 +261,9 @@ class Group(Interface, Generic[_GROUP_T]):
         cos_r = math.cos(rad)
         sin_r = math.sin(rad)
 
-        for m, base in self._memberBases:
+        for index, (m, base) in enumerate(self._memberBases):
             shaders: list[IShader] = []
+            C = pivots[index] if pivots is not None else groupPivot
 
             if pos or scl:
                 # Member offsets scale with the group (rigid scaling) and

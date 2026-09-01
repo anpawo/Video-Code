@@ -291,6 +291,11 @@ Every `Input` (shape, text, group, ...) has:
   has: `g.rotateBy(90, about=v2(0, 0))` turns the group around the origin
   whether or not anything is there. It rides on the timeline like `align`, so
   placing one mid-animation does not re-pivot the frames already written.
+- `Text.anchor = Anchor.CHARACTER | WORD | LINE | ALL` — After Effects' Anchor
+  Point Grouping. A `Letter` has no downstream identity to parent to, so its
+  pivot is a rule resolved at emission: `CHARACTER` spins every glyph where it
+  stands, `WORD` turns each whitespace-separated run as a whole, `LINE` splits
+  on newlines, `ALL` (default) is the single group pivot. `about=` outranks it.
 - Generic: `ease(attr, to, ...)` / `easeTogether(...)` — animate *any*
   `@prop` attribute frame-by-frame (e.g. `Rectangle.ease("width", 5,
   duration=1)`, used for #125's width/height/radius animation)

@@ -102,4 +102,48 @@ oneAxis.moveTo(x=2, y=3, duration=0.4)
 oneAxis.scaleTo(x=2, about=v2(0.0, 0.0), duration=0.4)
 check("an axis nobody claimed does not drag the leaf along it", near(oneAxis.meta.position.x, 4.0) and near(oneAxis.meta.position.y, 3.0))
 
+section("Text — the anchor grouping After Effects has and this engine did not")
+
+
+def implied(text: str, mode, degree=180):
+    """
+    Where each letter turned around, recovered from the motion itself.
+
+    A half-turn about P maps x to 2P - x, so the midpoint of a letter's before
+    and after IS the pivot it used — without asking the implementation what it
+    thinks it did.
+    """
+    t = Text(text)
+    t.anchor = mode
+    before = [v2(*l.meta.position) for l in t.inputs]
+    t.rotateBy(degree, duration=0.4)
+    after = [v2(*l.meta.position) for l in t.inputs]
+    return t, [(round((a.x + b.x) / 2, 9), round((a.y + b.y) / 2, 9)) for a, b in zip(before, after)], before, after
+
+
+t, pivots, before, after = implied("ab cd", Anchor.WORD)
+check("both letters of a word turn around the same point", pivots[0] == pivots[1] and pivots[2] == pivots[3])
+check("and the two words do not share it", pivots[0] != pivots[2])
+
+t, pivots, before, after = implied("ab cd", Anchor.ALL)
+check("ALL keeps one pivot for the whole text", len(set(pivots)) == 1)
+
+t, pivots, before, after = implied("ab cd", Anchor.CHARACTER)
+check("CHARACTER moves nothing — every glyph spins where it stands", all(near(a.x, b.x) and near(a.y, b.y) for a, b in zip(before, after)))
+check("while still turning", near(t.inputs[0].meta.rotation, 180.0))
+
+lineWise = implied("ab\ncd", Anchor.LINE)[1]
+allWise = implied("ab\ncd", Anchor.ALL)[1]
+check("LINE splits a two-line text where ALL does not", len(set(lineWise)) == 2 and len(set(allWise)) == 1)
+check("one line of text makes LINE and ALL the same question", implied("abcd", Anchor.LINE)[1] == implied("abcd", Anchor.ALL)[1])
+
+section("about still wins over the anchor grouping")
+
+t = Text("ab cd")
+t.anchor = Anchor.CHARACTER
+before = [v2(*l.meta.position) for l in t.inputs]
+t.rotateBy(180, about=v2(0.0, 0.0), duration=0.4)
+after = [v2(*l.meta.position) for l in t.inputs]
+check("a placed point is an answer, not a question about the content", all(near(a.x, -b.x) and near(a.y, -b.y) for a, b in zip(before, after)))
+
 summary()

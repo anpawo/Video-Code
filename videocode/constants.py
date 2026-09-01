@@ -259,6 +259,41 @@ class Split(StrEnum):
     ROWS = "rows"
 
 
+class Anchor(StrEnum):
+    """
+    What a per-letter transform on a `Text` turns around — After Effects' Anchor
+    Point Grouping, and for the same reason it exists there: a `Letter` has no
+    downstream identity to parent to, so its pivot has to be a rule the engine
+    resolves when it emits, not an object an author can hold.
+
+        Anchor.ALL          Anchor.WORD         Anchor.CHARACTER
+        one pivot for       one per word,       one per letter, so
+        the whole line      words spin as       each spins in place
+                            wholes
+
+    - `ALL` (default): the group's own pivot — what a `Text` has always done.
+    - `LINE`: one pivot per line, split on newlines.
+    - `WORD`: one per whitespace-separated run.
+    - `CHARACTER`: each letter turns and scales about its own centre, so
+      nothing travels and every glyph spins where it stands.
+
+    Set it on the text, the way After Effects sets it on the layer, rather
+    than per call:
+
+        t = Text("hello world")
+        t.anchor = Anchor.WORD
+        t.rotateBy(20)
+
+    `about=` still wins over all of it: a point the author placed by hand is
+    an answer, not a question about the content.
+    """
+
+    ALL = "all"
+    LINE = "line"
+    WORD = "word"
+    CHARACTER = "character"
+
+
 class Space(StrEnum):
     """
     Which space a math-shader paint (`fillColor=starNest()`, `silk()`, ...)

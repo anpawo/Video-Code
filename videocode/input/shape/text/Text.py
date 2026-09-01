@@ -220,6 +220,50 @@ class Text(Group[Letter], _hasFillStroke):
         fill = self.fillColor if isinstance(self.fillColor, rgba) else WHITE
         return (self.fontSize, self.fontFamily, fill, self.strokeColor, self.strokeWidth, self.bold, self.italic)
 
+
+    #: What a per-letter transform turns around — see `Anchor`. Set on the
+    #: text, the way After Effects sets it on the layer.
+    anchor: Anchor = Anchor.ALL
+
+    def _memberPivots(self, pivot: v2) -> maybe[list[v2]]:
+        """
+        A pivot per letter, per word or per line — resolved here because a
+        `Letter` has nothing an author could hold and parent to.
+
+        Only in letters mode: a shader-mode `Text` holds [canvas, word], not
+        one member per character, and there is nothing to group.
+        """
+        # Whitespace makes no `Letter` — `find` walks the text the same way.
+        if self.anchor is Anchor.ALL or len(self._memberBases) != sum(1 for c in self.text if not c.isspace()):
+            return None
+
+        # Which cluster each letter belongs to. CHARACTER opens one per letter,
+        # WORD one per whitespace-separated run, LINE one per newline.
+        cluster: list[int] = []
+        key = 0
+        for char in self.text:
+            if char.isspace():
+                if self.anchor is Anchor.WORD or char == "\n":
+                    key += 1
+                continue
+            if self.anchor is Anchor.CHARACTER:
+                key += 1
+            cluster.append(key)
+
+        ax, ay = self.meta.align
+        boxes: dict[int, list[float]] = {}
+        for k, (_, base) in zip(cluster, self._memberBases):
+            left, right = base.position.x - base.width / 2, base.position.x + base.width / 2
+            bottom, top = base.position.y - base.height / 2, base.position.y + base.height / 2
+            box = boxes.get(k)
+            if box is None:
+                boxes[k] = [left, right, bottom, top]
+            else:
+                box[0], box[1] = min(box[0], left), max(box[1], right)
+                box[2], box[3] = min(box[2], bottom), max(box[3], top)
+
+        return [v2(boxes[k][0] + ax * (boxes[k][1] - boxes[k][0]), boxes[k][2] + ay * (boxes[k][3] - boxes[k][2])) for k in cluster]
+
     def apply(self, *shaders, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
         # Everything the group handles goes down in ONE call.
         #
