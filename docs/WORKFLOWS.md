@@ -46,6 +46,57 @@ different name, and nothing would have said so. `test/contention_test.py`
 asserts that they agree — not that either is right on its own, which is the
 part a single-sided test would have missed.
 
+## Decided and deliberately postponed: the pivot is a query, not a value
+
+A council of six seats (2026-08-31, `~/.claude/councils/2026-08-31-videocode-semantique-groupes/`)
+compared Manim, After Effects, Blender, Figma/SVG, Lottie and glTF against this
+repository. Its conclusion, and the reason it is written here rather than acted
+on: **the redesign is decided, the urgency is not.**
+
+**What is wrong.** `Group._pivot(align)` is a function of `(content, align)`
+re-evaluated at read time. There is no way for an author to place the point by
+hand — `videocode/shader/vertexShader/` has no `pivot`, no `anchor`, no
+`about_point`, and `align(x, y)` is itself a fraction of the derived bounding
+box. Every other engine on the table lets the author answer that question;
+this one only lets them ask it. So the code is stuck between two measured
+failures:
+
+| | measured |
+|---|---|
+| pivot frozen (today, `_MemberBase._snapshot`) | a group transform overwrites a member's own animation — **29 frames of 30**, silently, and it hits a plain leaf exactly as hard as a nested group |
+| pivot live (sampling restored) | `Group(Group(a,b),c).rotateBy(90)` → **58 distinct pivots**, formation diverging by **~960×** over 30 frames |
+
+**What to do, in this order.** Item 1 is the one that matters; the rest follow
+from it and are cosmetic on their own.
+
+1. **An author-placed pivot.** `about_point` on `rotate`/`scale`, plus a named
+   granularity for `Text` in the shape of After Effects' `Anchor Point
+   Grouping` (Character / Word / Line / All) — a `Letter` has no downstream
+   identity to parent to, so its pivot has to be a rule the engine resolves at
+   emission. This one retires the `isinstance` tests **and** the freeze **and**
+   the re-emission.
+2. `_MemberBase.parentInverse: v2`, zero for a leaf, replacing
+   `pivot: maybe[v2]`. This is Blender's `matrix_parent_inverse`: a stored
+   correction rather than a branch. Measured byte-identical on 49/49 scenes and
+   43/43 test files — free, and **cosmetic if done alone**.
+3. The emitted frame carries a pivot resolved to a number, never a
+   `_pivot(align)` re-read.
+4. Compose a member's timeline with the group's instead of overwriting it.
+   Closes the whole class. The large piece.
+5. Name the axis *placed vs composite* in the code — a `Group` has
+   `meta.index is None` and never reaches `Context.stack`, and that, not the
+   pivot, is what makes it a different kind of thing.
+
+**Why it is postponed.** Zero animations are actually lost anywhere in the
+55-scene corpus: the three real channel collisions are single-frame placements
+a parent legitimately replaces. The defect is reproducible in three lines and
+has bitten nobody. Item 1 changes the public API and deserves to be decided
+when someone needs it, not because a council named it.
+
+**Do not do item 2 on its own.** It passes every gate and teaches the codebase
+that groups and leaves are the same kind of thing, which is the one conclusion
+the council rejected.
+
 ## What GitHub cannot check, and why
 
 **Visual regression.** The goldens in `test/visual/golden/` were rendered on
