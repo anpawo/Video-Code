@@ -422,14 +422,14 @@ bool VC::VulkanHeadlessRenderer::createDescriptorSets()
     uboB.descriptorCount = 1;
     uboB.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     VkDescriptorSetLayoutCreateInfo uboLci{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, nullptr, 0, 1, &uboB};
-    vkCreateDescriptorSetLayout(m_device, &uboLci, nullptr, &m_uboLayout);
+    if (vkCreateDescriptorSetLayout(m_device, &uboLci, nullptr, &m_uboLayout) != VK_SUCCESS) return false;
 
     VkDescriptorPoolSize       uboPs{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1};
     VkDescriptorPoolCreateInfo uboPci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr, 0, 1, 1, &uboPs};
-    vkCreateDescriptorPool(m_device, &uboPci, nullptr, &m_uboPool);
+    if (vkCreateDescriptorPool(m_device, &uboPci, nullptr, &m_uboPool) != VK_SUCCESS) return false;
 
     VkDescriptorSetAllocateInfo uboAi{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, nullptr, m_uboPool, 1, &m_uboLayout};
-    vkAllocateDescriptorSets(m_device, &uboAi, &m_uboSet);
+    if (vkAllocateDescriptorSets(m_device, &uboAi, &m_uboSet) != VK_SUCCESS) return false;
 
     struct UBO
     {
@@ -447,11 +447,11 @@ bool VC::VulkanHeadlessRenderer::createDescriptorSets()
     texB.descriptorCount = 1;
     texB.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
     VkDescriptorSetLayoutCreateInfo texLci{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO, nullptr, 0, 1, &texB};
-    vkCreateDescriptorSetLayout(m_device, &texLci, nullptr, &m_texLayout);
+    if (vkCreateDescriptorSetLayout(m_device, &texLci, nullptr, &m_texLayout) != VK_SUCCESS) return false;
 
     VkDescriptorPoolSize       texPs{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 128};
     VkDescriptorPoolCreateInfo texPci{VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO, nullptr, VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT, 128, 1, &texPs};
-    vkCreateDescriptorPool(m_device, &texPci, nullptr, &m_texPool);
+    if (vkCreateDescriptorPool(m_device, &texPci, nullptr, &m_texPool) != VK_SUCCESS) return false;
 
     return true;
 }
@@ -529,7 +529,7 @@ bool VC::VulkanHeadlessRenderer::createPipeline()
     layoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layoutCI.setLayoutCount = 2;
     layoutCI.pSetLayouts = setLayouts;
-    vkCreatePipelineLayout(m_device, &layoutCI, nullptr, &m_pipelineLayout);
+    if (vkCreatePipelineLayout(m_device, &layoutCI, nullptr, &m_pipelineLayout) != VK_SUCCESS) return false;
 
     VkGraphicsPipelineCreateInfo cis[kBlendModeCount]{};
     for (int m = 0; m < kBlendModeCount; ++m) {
@@ -656,8 +656,11 @@ void VC::VulkanHeadlessRenderer::updateUniforms()
     ubo.res[1] = (float)m_extent.height;
     ubo.pixelSize = 1.f / (float)std::min(m_extent.width, m_extent.height);
 
-    void* data;
-    vkMapMemory(m_device, m_uniformMemory, 0, sizeof(ubo), 0, &data);
+    void* data = nullptr;
+    if (vkMapMemory(m_device, m_uniformMemory, 0, sizeof(ubo), 0, &data) != VK_SUCCESS) {
+        std::cerr << "VulkanHeadlessRenderer: uniform buffer would not map, this frame keeps the previous values\n";
+        return;
+    }
     memcpy(data, &ubo, sizeof(ubo));
     vkUnmapMemory(m_device, m_uniformMemory);
 }
@@ -676,8 +679,13 @@ VkDescriptorSet VC::VulkanHeadlessRenderer::uploadTexture(const cv::Mat& mat)
     VkDeviceMemory stagingMem = VK_NULL_HANDLE;
     makeBuffer(m_device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingBuf, stagingMem, [this](uint32_t f, VkMemoryPropertyFlags p) { return findMemoryType(f, p); });
 
-    void* data;
-    vkMapMemory(m_device, stagingMem, 0, imageSize, 0, &data);
+    void* data = nullptr;
+    if (vkMapMemory(m_device, stagingMem, 0, imageSize, 0, &data) != VK_SUCCESS) {
+        std::cerr << "VulkanHeadlessRenderer::uploadTexture: staging buffer would not map\n";
+        vkDestroyBuffer(m_device, stagingBuf, nullptr);
+        vkFreeMemory(m_device, stagingMem, nullptr);
+        return VK_NULL_HANDLE;
+    }
     std::memcpy(data, mat.data, (size_t)imageSize);
     vkUnmapMemory(m_device, stagingMem);
 
@@ -736,7 +744,13 @@ VkDescriptorSet VC::VulkanHeadlessRenderer::uploadTexture(const cv::Mat& mat)
     dsAi.descriptorSetCount = 1;
     dsAi.pSetLayouts = &m_texLayout;
     VkDescriptorSet descSet = VK_NULL_HANDLE;
-    vkAllocateDescriptorSets(m_device, &dsAi, &descSet);
+    if (vkAllocateDescriptorSets(m_device, &dsAi, &descSet) != VK_SUCCESS) {
+        std::cerr << "VulkanHeadlessRenderer::uploadTexture: the texture pool holds 128 sets and has none left\n";
+        // Tracked anyway: cleanup() frees what is in m_textures, and the image
+        // exists whether or not a descriptor ever pointed at it.
+        m_textures.push_back(tex);
+        return VK_NULL_HANDLE;
+    }
 
     VkDescriptorImageInfo imgInfo{tex.sampler, tex.view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
     VkWriteDescriptorSet  dsW{};
@@ -769,8 +783,13 @@ void VC::VulkanHeadlessRenderer::updateTexturePixels(VkDescriptorSet desc, const
     VkDeviceMemory stagingMem = VK_NULL_HANDLE;
     makeBuffer(m_device, imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, stagingBuf, stagingMem, fm);
 
-    void* data;
-    vkMapMemory(m_device, stagingMem, 0, imageSize, 0, &data);
+    void* data = nullptr;
+    if (vkMapMemory(m_device, stagingMem, 0, imageSize, 0, &data) != VK_SUCCESS) {
+        std::cerr << "VulkanHeadlessRenderer::updateTexturePixels: staging buffer would not map\n";
+        vkDestroyBuffer(m_device, stagingBuf, nullptr);
+        vkFreeMemory(m_device, stagingMem, nullptr);
+        return;
+    }
     std::memcpy(data, mat.data, static_cast<size_t>(imageSize));
     vkUnmapMemory(m_device, stagingMem);
 
