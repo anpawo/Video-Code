@@ -215,6 +215,11 @@ namespace
         {"transitions", "test/visual/scenes/transitions.py", {0, 8, 15}},
         {"blend-modes", "test/visual/scenes/blend_modes.py", {0}},
         {"glow", "test/visual/scenes/glow.py", {0}},
+        // Three frames: the middle one is the point. A group's trajectory was
+        // never covered — `groups.py` moves a group whose members are still, so
+        // a member's own animation being overwritten was invisible to the whole
+        // suite for its entire life.
+        {"group-composition", "test/visual/scenes/group_composition.py", {0, 15, 29}},
         {"matte", "test/visual/scenes/matte.py", {0}},
         {"lut", "test/visual/scenes/lut.py", {0}},
         {"adjustment-layer", "test/visual/scenes/adjustment_layer.py", {0}},

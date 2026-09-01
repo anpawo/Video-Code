@@ -206,6 +206,15 @@
   "lastFrame": 1,
   "shape": "731f7af85e8dd09a"
  },
+ "test/visual/scenes/group_composition.py": {
+  "applyCalls": 3807,
+  "entries": 345,
+  "events": 1,
+  "frameSlots": 248,
+  "inputs": 8,
+  "lastFrame": 60,
+  "shape": "0be3bff25e7f89d6"
+ },
  "test/visual/scenes/groups.py": {
   "applyCalls": 62,
   "entries": 64,
