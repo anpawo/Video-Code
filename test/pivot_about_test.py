@@ -146,4 +146,28 @@ t.rotateBy(180, about=v2(0.0, 0.0), duration=0.4)
 after = [v2(*l.meta.position) for l in t.inputs]
 check("a placed point is an answer, not a question about the content", all(near(a.x, -b.x) and near(a.y, -b.y) for a, b in zip(before, after)))
 
+section("the emitted frame carries its pivot as a number, never a re-read")
+
+a = Rectangle(width=1, height=1)
+b = Rectangle(width=1, height=1)
+b.moveTo(x=2, y=0, duration=0.4)
+g = Group(a, b)
+g.rotateBy(90, duration=0.4)
+check("every recorded frame carries one", all("pivot.x" in rec for rec in g._rigidTimeline.values()))
+
+settled = (v2(*a.meta.position), v2(*b.meta.position))
+# `width` feeds the DERIVED pivot and nothing else in the orbit, so moving it
+# changes the answer `_pivot` would give without touching the arithmetic that
+# places a member. Re-emitting used to ask again and get the new answer.
+# One member only: widening both symmetrically leaves the midpoint where it
+# was, and the probe would pass against the very code it is meant to catch.
+g._memberBases[0][1].width = 9.0
+g._rigidWritten = ()
+g._emitTimeline()
+again = (v2(*a.meta.position), v2(*b.meta.position))
+check(
+    "re-emitting a written window cannot re-pivot it",
+    all(near(x.x, y.x, 1e-12) and near(x.y, y.y, 1e-12) for x, y in zip(settled, again)),
+)
+
 summary()

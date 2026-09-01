@@ -127,7 +127,7 @@ class Group(Interface, Generic[_GROUP_T]):
     #: On the timeline for the same reason `align` is — a pivot is what every
     #: emission was computed from, so placing one must not reach back into
     #: frames already written.
-    _RIGID_CHANNELS = ("pos.x", "pos.y", "rot", "scl.x", "scl.y", "align.x", "align.y", "about.x", "about.y")
+    _RIGID_CHANNELS = ("pos.x", "pos.y", "rot", "scl.x", "scl.y", "align.x", "align.y", "about.x", "about.y", "pivot.x", "pivot.y")
 
     def _rigidDefaults(self) -> dict[str, Any]:
         """Where each channel stands when the timeline says nothing about it."""
@@ -139,6 +139,10 @@ class Group(Interface, Generic[_GROUP_T]):
             # No author-placed pivot until one is asked for; the group falls
             # back to the point `align` derives.
             "about.x": None, "about.y": None,
+            # Resolved when the frame is RECORDED, not when it is emitted — see
+            # `_recordPivot`. None means no record ever carried one, and the
+            # emission falls back to asking.
+            "pivot.x": None, "pivot.y": None,
         }
 
     @staticmethod
@@ -150,6 +154,7 @@ class Group(Interface, Generic[_GROUP_T]):
             "scl": v2(channels["scl.x"], channels["scl.y"]),
             "align": v2(channels["align.x"], channels["align.y"]),
             "about": None if channels["about.x"] is None else v2(channels["about.x"], channels["about.y"]),
+            "pivot": None if channels["pivot.x"] is None else v2(channels["pivot.x"], channels["pivot.y"]),
         }
 
     def _pivot(self, align: maybe[v2] = None, about: maybe[v2] = None) -> v2:
@@ -184,6 +189,20 @@ class Group(Interface, Generic[_GROUP_T]):
 
     # ------------------------------------------------------------------
     # Rigid-body emission
+
+    def _recordPivot(self, rec: dict[str, Any], align: v2, about: maybe[v2]) -> None:
+        """
+        Write the pivot this frame was computed with, as a number.
+
+        `_pivot` is a function of the member bases, and the bases move: every
+        `_regroup()` re-measures them, and `_emitTimeline` re-emits the whole
+        window on each pass. Asking again at emission meant a frame written
+        before a re-snapshot could be re-written afterwards around a different
+        point — the transform deriving its centre from its own result, one pass
+        removed. A resolved number cannot drift.
+        """
+        point = self._pivot(align, about)
+        rec["pivot.x"], rec["pivot.y"] = point.x, point.y
 
     def _memberPivots(self, pivot: v2) -> maybe[list[v2]]:
         """
@@ -254,6 +273,10 @@ class Group(Interface, Generic[_GROUP_T]):
         # engine could express; a subclass may hand back one per member instead
         # — see `Text.anchor`, where a letter has no downstream identity to
         # parent to and its pivot has to be a rule resolved here, at emission.
+        # The frame carries its own pivot when one was recorded with it; asking
+        # again is the fallback for a caller outside the rigid passes.
+        recorded = state.get("pivot")
+        C = C if recorded is None else recorded
         groupPivot = C
         # A point the author placed is an answer, and it is the whole answer:
         # it outranks any per-member rule a subclass would otherwise apply.
@@ -397,12 +420,15 @@ class Group(Interface, Generic[_GROUP_T]):
                     opening = self._rigidTimeline[sorted(self._rigidTimeline)[0]]
                     opening.setdefault("about.x", None)
                     opening.setdefault("about.y", None)
+                    if "pivot.x" not in opening:
+                        self._recordPivot(opening, v2(*self.meta.align), None)
 
                 rec = self._rigidTimeline.setdefault(round(ts * FRAMERATE), {})
                 rec["t"] = (ts, td, to)
                 if about is not None:
                     rec["about.x"] = float(about.x)
                     rec["about.y"] = float(about.y)
+                self._recordPivot(rec, v2(*self.meta.align), about)
                 # Only the components the shader CLAIMED, for the same reason a
                 # leaf records only those: `g.moveTo(x=2)` followed by
                 # `g.moveBy(y=3, start=0.5)` used to make x jump to its
@@ -448,6 +474,8 @@ class Group(Interface, Generic[_GROUP_T]):
                         opening = self._rigidTimeline[written[0]]
                         opening.setdefault("align.x", previousAlign.x)
                         opening.setdefault("align.y", previousAlign.y)
+                        if "pivot.x" not in opening:
+                            self._recordPivot(opening, previousAlign, None)
 
                     rec = self._rigidTimeline.setdefault(round(ts * FRAMERATE), {})
                     rec.setdefault("t", (ts, td, to))
@@ -455,6 +483,7 @@ class Group(Interface, Generic[_GROUP_T]):
                         rec["align.x"] = float(s.x)
                     if s.y is not None:
                         rec["align.y"] = float(s.y)
+                    self._recordPivot(rec, v2(rec.get("align.x", self.meta.align.x), rec.get("align.y", self.meta.align.y)), None)
                     rigid = True
                 # All other shaders (color, opacity, args, translate, hide, …) broadcast
                 # as-is to every member. i.apply() makes its own shallow copy for
