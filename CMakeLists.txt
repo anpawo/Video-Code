@@ -105,7 +105,7 @@ execute_process(
 find_package(pybind11 REQUIRED)
 # Quick/Qml carry the editor chrome, which is described in .qml loaded at
 # runtime — a layout change costs a reload, not a rebuild. See docs/ui/BACKLOG.md.
-find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui Quick Qml)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui Quick Qml QuickControls2)
 # GuiPrivate: the scripted-run probe hands Qt the window activation the platform
 # refuses to a binary launched from a terminal (src/window/Editor.cpp). OPTIONAL,
 # and the one call behind it is compiled out when it is absent — the prebuilt Qt
@@ -281,28 +281,6 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Qml
     Qt6::QuickControls2
 
-    # Qt here is STATIC, so QML modules are static libraries: there is no plugin
-    # for the engine to discover at runtime, and an `import QtQuick` fails with
-    # "plugin qtquick2plugin not found" unless the plugin is linked in and its
-    # _init object registers it.  qt_import_qml_plugins() cannot work these out
-    # for us — it scans a target's own .qml files, and ours are read from disk at
-    # runtime — so the list is explicit.  Add a line here when a panel reaches
-    # for a module that is not yet in it.
-    Qt6::qtquick2plugin
-    # QtQuick.Window is its own module: a panel torn out of the dock becomes a
-    # real top-level window, and without this the import fails at runtime.
-    Qt6::quickwindow
-    # QtQml, for Instantiator: a Repeater only makes Items, and a floating panel
-    # is a Window.
-    Qt6::qmlplugin
-    Qt6::qquicklayoutsplugin
-    Qt6::qtquicktemplates2plugin
-    Qt6::qtquickcontrols2plugin
-    Qt6::qtquickcontrols2implplugin
-    # The chrome paints its own look, so it asks for the Basic style rather than
-    # the native macOS one, which would fight it (and drift between machines).
-    Qt6::qtquickcontrols2basicstyleplugin
-    Qt6::qtquickcontrols2basicstyleimplplugin
     pybind11::embed
     CURL::libcurl
     Vulkan::Vulkan
@@ -311,6 +289,35 @@ target_link_libraries(${PROJECT_NAME}
     glslang::SPIRV
     Freetype::Freetype
 )
+
+# A static Qt turns QML modules into static libraries: there is no plugin for the
+# engine to discover at runtime, and an `import QtQuick` fails with "plugin
+# qtquick2plugin not found" unless the plugin is linked in and its _init object
+# registers it.  qt_import_qml_plugins() cannot work these out for us — it scans
+# a target's own .qml files, and ours are read from disk at runtime — so the list
+# is explicit.  Add a line here when a panel reaches for a module that is not yet
+# in it.  A shared Qt (what CI installs) defines none of these targets and loads
+# the plugins itself, so the whole list is skipped there.
+if(NOT QT6_IS_SHARED_LIBS_BUILD)
+    target_link_libraries(${PROJECT_NAME}
+        Qt6::qtquick2plugin
+        # QtQuick.Window is its own module: a panel torn out of the dock becomes
+        # a real top-level window, and without this the import fails at runtime.
+        Qt6::quickwindow
+        # QtQml, for Instantiator: a Repeater only makes Items, and a floating
+        # panel is a Window.
+        Qt6::qmlplugin
+        Qt6::qquicklayoutsplugin
+        Qt6::qtquicktemplates2plugin
+        Qt6::qtquickcontrols2plugin
+        Qt6::qtquickcontrols2implplugin
+        # The chrome paints its own look, so it asks for the Basic style rather
+        # than the native macOS one, which would fight it (and drift between
+        # machines).
+        Qt6::qtquickcontrols2basicstyleplugin
+        Qt6::qtquickcontrols2basicstyleimplplugin
+    )
+endif()
 
 if(APPLE)
     target_link_libraries(${PROJECT_NAME}
