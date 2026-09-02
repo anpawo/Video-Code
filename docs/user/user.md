@@ -11,8 +11,11 @@ Video-Code is a project designed to create videos programmatically. It allows us
 1. **Clone the repository:**
     ```sh
     git clone git@github.com:anpawo/Video-Code.git
-    cd video-code
+    cd Video-Code
     ```
+
+    The directory is `Video-Code`, with the capitals. macOS does not care;
+    Linux does, and `cd video-code` is where a tester on Linux stops.
 
 2. **Install dependencies:**
     Ensure you have 'python3' and 'pip' installed. Then run:
@@ -22,8 +25,14 @@ Video-Code is a project designed to create videos programmatically. It allows us
 
     Ensure you have `vcpkg` installed and set up in **manifest** mode. Then run:
     ```sh
+    export VCPKG_ROOT="path/to/vcpkg"   # required, see below
     vcpkg install
     ```
+
+    `VCPKG_ROOT` is not optional and not inferred: `CMakeLists.txt` stops at
+    `VCPKG_ROOT environment variable not set` before it looks for anything
+    else. Export it in your shell profile, not just in the terminal you build
+    in.
 
 3. **install qt6**
 
@@ -34,16 +43,31 @@ go to [qt6](https://www.qt.io/download) and download the latest version of qt6.
    - Set the `Qt6_DIR` to the Qt installation path
    - For example:
      ```sh
-     export Qt6_DIR="path/to/qt6/6.x.x/gcc_64/lib/cmake/Qt6"
+     export Qt6_DIR="path/to/qt6/6.x.x/linux_gcc_64/lib/cmake/Qt6"
      ```
+
+     Qt renamed that folder in 6.7: it is `linux_gcc_64` on recent versions and
+     `gcc_64` on older ones. Look at what your install actually contains — the
+     wrong one fails with `Could not find a package configuration file
+     provided by "Qt6"`. On macOS it is `macos` instead.
 
 4. **Build the project:**
     Ensure you have CMake installed. Then run:
     ```sh
     cmake -B build
     make -C build
-    cp build/video-code video-code
+    cp build/video-code video-code            # Linux
     ```
+
+    On macOS the build produces an app bundle instead, and the binary lives
+    inside it:
+
+    ```sh
+    cp build/video-code.app/Contents/MacOS/video-code video-code
+    ```
+
+    `make` from the repository root does the whole thing, including the copy
+    for the right platform.
 
 ### Launch
 
