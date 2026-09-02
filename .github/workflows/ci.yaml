@@ -61,6 +61,14 @@ jobs:
         if: ${{ !cancelled() }}
         run: python3 test/coverage_check.py --pushed
 
+      # What the codebase says twice, and what it says to nobody. Both numbers
+      # are pre-existing — 992 repeated lines, 22 public names nothing reaches —
+      # so this refuses GROWTH rather than the debt itself: a gate that fails
+      # the day it is written gets disabled by the end of the week. 1.2s.
+      - name: Repetition and surface nobody reaches
+        if: ${{ !cancelled() }}
+        run: python3 test/repetition_check.py
+
       # The perf memory a shared runner CAN hold. It cannot reproduce a
       # millisecond — lavapipe against Metal is a 30x gap — but baking every
       # scene is pure Python, so what the scenes ASK the renderer to do is the
@@ -177,6 +185,70 @@ jobs:
           files=$(find . -regex '.*\.\(cpp\|hpp\)')
           [ -n "$files" ] || { echo "no C++ sources found - the gate would have passed empty"; exit 1; }
           clang-format -n -Werror $files
+
+  # ── lane E: the same build, on the other platform. ──
+  #
+  # NOT A GATE YET, and the `continue-on-error` says so out loud. This file has
+  # never run on a macOS runner: Vulkan there is MoltenVK through Homebrew
+  # rather than a system loader, and until a green run proves the recipe, a red
+  # X on every push would teach everyone to stop reading the X. Remove the flag
+  # on the first success — the value of a gate is that its failure means
+  # something.
+  #
+  # What it is worth, honestly: less than it looks. The developer builds on
+  # macOS every day, so a break there is found in minutes; the Linux lane is
+  # the one that rotted unnoticed for months, which is exactly why it is the
+  # one that had four separate faults in it this week. This lane earns its keep
+  # on the day someone else contributes, or the day the Mac build breaks in a
+  # commit its author never compiled.
+  macos:
+    name: build (macOS)
+    runs-on: macos-14
+    continue-on-error: true
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # No vcpkg: CI_BUILD=ON fetches argparse and nlohmann_json itself, and
+      # everything else comes from Homebrew. molten-vk IS the Vulkan driver on
+      # this platform — there is no system loader to find.
+      - name: Install dependencies
+        run: |
+          brew install --quiet ninja opencv ffmpeg freetype glslang \
+                               molten-vk vulkan-headers vulkan-loader
+          python3 -m pip install --break-system-packages pybind11 -r requirements.txt
+
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.1'
+          host: mac
+          target: desktop
+          arch: clang_64
+          cache: true
+
+      # Required as a variable, never read: same reason as the Linux lane.
+      - name: Configure CMake
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/.vcpkg-unused
+        run: cmake -S . -B build -G Ninja -DCI_BUILD=ON
+
+      - name: Build
+        run: cmake --build build -j"$(sysctl -n hw.ncpu)"
+
+      # macOS produces an app bundle, Linux a bare binary. The docs say both;
+      # this is the line that keeps the docs honest.
+      - run: cp build/video-code.app/Contents/MacOS/video-code video-code
+
+      - name: C++ unit tests
+        run: |
+          cmake --build build --target video-code-tests -j"$(sysctl -n hw.ncpu)"
+          ./build/video-code-tests
+
+      # No offscreen platform here: a macOS runner has a window server, and
+      # `--check-chrome` never shows a window anyway.
+      - name: QML chrome loads and every binding resolves
+        run: ./video-code --check-chrome
 
   # ── lane D: the compiler and everything that needs a binary. ──
   build:

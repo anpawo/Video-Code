@@ -79,6 +79,16 @@ else
     }
 fi
 
+printf "\n\342\206\222 repetition and unreachable surface\n"
+python3 test/repetition_check.py || {
+    # No backticks in a double-quoted string: they would RUN the command
+    # rather than name it, which is how a help message becomes a second
+    # execution of the thing that just failed.
+    printf "\n\033[31m\342\234\227 commit cancelled \342\200\224 this adds repetition or dead surface.\033[0m\n"
+    printf "  python3 test/repetition_check.py --list  says where.\n"
+    exit 1
+}
+
 # The bake digest — what the scenes ASK the renderer to do, hashed. It lived
 # only in CI, and that cost a round trip today: giving the rotation shader an
 # `about` field put an `about: null` on every rotation entry in the corpus, nine
