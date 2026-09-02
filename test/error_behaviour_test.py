@@ -92,4 +92,29 @@ if needsRenderer("the missing-file message comes from the renderer"):
         if os.path.exists(out.name):
             os.remove(out.name)
 
+section("a script that does not run must not report a video")
+
+if needsRenderer("a failed scene still reaching the encoder is a renderer question"):
+    broken = tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w")
+    broken.write("from videocode import *\nthis is not python(\n")
+    broken.close()
+    out = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
+    out.close()
+    try:
+        done = subprocess.run(
+            ["./video-code", "--file", broken.name, "--generate", out.name],
+            capture_output=True, text=True, timeout=300,
+        )
+        said = done.stdout + done.stderr
+        # It printed the SyntaxError all along. Nothing read it: the encoder ran
+        # on an empty scene, the progress bar reached 100% of nothing, and the
+        # process exited 0 holding 261 bytes of container with no stream in it.
+        check("the syntax error is named", "SyntaxError" in said)
+        check("and the render refuses instead of exiting 0", done.returncode != 0)
+        check("no file is passed off as a video", os.path.getsize(out.name) < 1024)
+    finally:
+        os.remove(broken.name)
+        if os.path.exists(out.name):
+            os.remove(out.name)
+
 summary()

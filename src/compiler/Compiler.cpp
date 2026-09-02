@@ -11,6 +11,7 @@
 #include <chrono>
 #include <cmath>
 #include <condition_variable>
+#include <cstdlib>
 #include <deque>
 #include <format>
 #include <iostream>
@@ -212,6 +213,15 @@ VC::Compiler::~Compiler() = default;
 
 int VC::Compiler::generateVideo()
 {
+    // The scene never ran. Rendering it produces a file no player will open —
+    // 261 bytes of container and no stream — and the progress bar reaches 100%
+    // of nothing and prints its tick. The error is already on stderr; this is
+    // what makes it count.
+    if (_core._sceneFailed) {
+        std::cerr << "video-code: the scene did not run, so there is nothing to render.\n";
+        return EXIT_FAILURE;
+    }
+
     VulkanHeadlessRenderer renderer(
         (uint32_t)config.screenWidth,
         (uint32_t)config.screenHeight

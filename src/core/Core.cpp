@@ -140,6 +140,7 @@ void VC::Core::reloadSourceFile()
     auto _step = [](const char*) {};
 #endif
 
+    _sceneFailed = false;
     try {
         auto serialize = py::module_::import("videocode.serialize");
         VC_TIME("execScene (in-process)", serialize.attr("execScene")(_config.sourceFile));
@@ -172,6 +173,10 @@ void VC::Core::reloadSourceFile()
     } catch (const py::error_already_set& e) {
         std::cerr << "\nError in source file '" << _config.sourceFile << "':\n"
                   << e.what() << "\n";
+        // Said, and remembered. Printing it was never the problem — nothing was
+        // reading it, so `--generate` went on to encode nothing and call it a
+        // success.
+        _sceneFailed = true;
     }
 
     _index = (_nbFrame > 0) ? std::min(savedIndex, _nbFrame - 1) : 0;

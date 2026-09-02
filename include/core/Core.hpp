@@ -94,6 +94,12 @@ namespace VC
         size_t _index{0};
         size_t _nbFrame{0}; // Starting at 1 forces the first frame to be generated even without any transformations.
 
+        //: Whether the last attempt to run the scene threw. The editor keeps
+        //: going on a broken edit — that is the point of the catch, it leaves
+        //: the last good render on screen — but a batch render must not encode
+        //: zero frames, print a green tick and exit 0, which is what it did.
+        bool _sceneFailed{false};
+
         ///< Information display
         const bool _showstack;
         const bool _showtimeline;
