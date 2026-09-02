@@ -6,6 +6,7 @@ import math
 
 from videocode.input.shape.Polygon import Polygon, paint
 from videocode.utils.decorators import prop
+from videocode.utils.funcutils import size
 from videocode.ty import *
 from videocode.constants import *
 
@@ -24,7 +25,7 @@ class Circle(Polygon):
         strokeColor: rgba = WHITE,
         strokeWidth: wufloat = 0.05,
     ):
-        self.radius = radius
+        self.radius = size("Circle", "radius", radius)
         super().__init__(
             vertices=self.generateVertices(),
             fillColor=fillColor,

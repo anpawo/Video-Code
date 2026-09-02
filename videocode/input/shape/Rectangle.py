@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from videocode.input.shape.Polygon import *
 from videocode.utils.decorators import prop
+from videocode.utils.funcutils import size
 from videocode.utils.logger import *
 
 
@@ -17,8 +18,10 @@ class Rectangle(Polygon):
         strokeWidth: wunumber = 0.05,
         cornerRadius: percent = 0,  # percent 0-100, 100 = circle on a square
     ):
-        self.width = width
-        self.height = height
+        # Square and HorizontalLine route through here, so this is the one
+        # place a negative side has to be caught.
+        self.width = size(type(self).__name__, "width", width)
+        self.height = size(type(self).__name__, "height", height)
 
         super().__init__(
             vertices=self.generateVertices(),
@@ -52,6 +55,10 @@ class Square(Rectangle):
         strokeColor: rgba = GREEN_A | WHITE,
         cornerRadius: percent = 0,
     ):
+        # Checked here rather than left to Rectangle: the author wrote `side`,
+        # and being told about a `width` they never typed sends them looking
+        # for a line they did not write.
+        side = size("Square", "side", side)
         super().__init__(
             width=side,
             height=side,

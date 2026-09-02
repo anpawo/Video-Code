@@ -37,9 +37,14 @@ class RateFunc(ABC):
     @overload
     def rangeIdx[T: Arithmetic](self, start: T, end: T, duration: sec) -> Generator[tuple[T, index], Any, None]: ...
     def rangeIdx(self, start: Any, end: Any, duration: sec) -> Generator[tuple[Any, index], Any, None]:
-        n = int(duration * FRAMERATE)
+        # An animation of n frames must ARRIVE on its last one. At n == 1 that
+        # last frame is also the first, so it carries the destination, not the
+        # start — the old 0.0 meant a one-frame move emitted where it began and
+        # never got anywhere, and `duration=0` produced n == 0 and no frames at
+        # all: an author asking for an instant move got silence.
+        n = max(1, int(duration * FRAMERATE))
         for i in range(0, n):
-            t = i / (n - 1) if n > 1 else 0.0
+            t = i / (n - 1) if n > 1 else 1.0
             yield start + (end - start) * self(t), i
 
 

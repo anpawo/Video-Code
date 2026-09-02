@@ -158,38 +158,13 @@ namespace
     }
 } // namespace
 
-int main(int argc, char *argv[])
+// Everything main does once the arguments are understood, so that one
+// try/catch can stand in front of all of it. A scene that names a file it
+// does not have throws from deep in the render, and with nothing catching
+// it the process aborted: `libc++abi: terminating due to uncaught exception`
+// in front of a message that was actually useful.
+static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
 {
-    // Initialize the Python interpreter once for the whole process.
-    // false = don't override Qt's signal handlers.
-    py::scoped_interpreter guard{false};
-    py::exec("import sys; sys.path.insert(0, '')");
-
-    // Suppress the spurious Qt/macOS fullscreen position warning
-    // Message: "qt.qpa.window: Window position QRect(-1,0 1470x826) outside any known screen, using primary screen"
-    qInstallMessageHandler([](QtMsgType type, const QMessageLogContext &, const QString &msg) {
-        if (type == QtWarningMsg && msg.contains("outside any known screen"))
-            return;
-        fprintf(stderr, "%s\n", msg.toLocal8Bit().constData());
-    });
-
-    // Hide OpenCV logs
-    cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_SILENT);
-
-    // Parse the arguments
-    argparse::ArgumentParser parser(
-        "./videocode",
-        "A video editing software made by Marius Rousset and Hippolyte Lefer.",
-        argparse::default_arguments::help
-    );
-    setParserArgument(parser);
-    try {
-        parser.parse_args(argc, argv);
-    } catch (const std::exception &e) {
-        std::cerr << e.what() << std::endl;
-        return EXIT_FAILURE;
-    }
-
     // Visual regression suite (headless — no window, no Qt event loop)
     if (parser.get<bool>("--visual-test")) {
         VC::VisualTest visualTest(parser);
@@ -253,6 +228,48 @@ int main(int argc, char *argv[])
     // Preview the video
     VC::Window window(parser);
     return app.exec();
+}
+
+int main(int argc, char *argv[])
+{
+    // Initialize the Python interpreter once for the whole process.
+    // false = don't override Qt's signal handlers.
+    py::scoped_interpreter guard{false};
+    py::exec("import sys; sys.path.insert(0, '')");
+
+    // Suppress the spurious Qt/macOS fullscreen position warning
+    // Message: "qt.qpa.window: Window position QRect(-1,0 1470x826) outside any known screen, using primary screen"
+    qInstallMessageHandler([](QtMsgType type, const QMessageLogContext &, const QString &msg) {
+        if (type == QtWarningMsg && msg.contains("outside any known screen"))
+            return;
+        fprintf(stderr, "%s\n", msg.toLocal8Bit().constData());
+    });
+
+    // Hide OpenCV logs
+    cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_SILENT);
+
+    // Parse the arguments
+    argparse::ArgumentParser parser(
+        "./videocode",
+        "A video editing software made by Marius Rousset and Hippolyte Lefer.",
+        argparse::default_arguments::help
+    );
+    setParserArgument(parser);
+    try {
+        parser.parse_args(argc, argv);
+    } catch (const std::exception &e) {
+        std::cerr << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
+
+    try {
+        return run(parser, argc, argv);
+    } catch (const std::exception &e) {
+        // The message the throw carried, and nothing else: a person reading
+        // it wants the file they got wrong, not the runtime's opinion of it.
+        std::cerr << "video-code: " << e.what() << std::endl;
+        return EXIT_FAILURE;
+    }
 }
 
 // binding python / cpp
