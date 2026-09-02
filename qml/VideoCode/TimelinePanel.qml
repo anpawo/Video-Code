@@ -840,7 +840,7 @@ Item {
                 // that wrote it: `wait(0.3)` is one number in one call, which is
                 // the smallest edit this timeline can make.
                 Rectangle {
-                    id: stamp
+                    id: gapStamp
                     x: 4
                     y: join.height - height - 4
                     width: stampText.implicitWidth + 12
@@ -857,7 +857,7 @@ Item {
                     Text {
                         id: stampText
                         anchors.centerIn: parent
-                        visible: !stamp.editing
+                        visible: !gapStamp.editing
                         text: "wait " + join.modelData.says.toFixed(1) + "s"
                         color: Qt.rgba(0.878, 0.376, 0.361, 0.85)
                         font.family: Theme.mono
@@ -868,7 +868,7 @@ Item {
                         id: stampEntry
                         anchors { fill: parent; leftMargin: 6; rightMargin: 6 }
                         verticalAlignment: TextInput.AlignVCenter
-                        visible: stamp.editing
+                        visible: gapStamp.editing
                         color: Qt.rgba(0.945, 0.541, 0.525, 1)
                         font.family: Theme.mono
                         font.pixelSize: 10
@@ -879,7 +879,7 @@ Item {
                             root.editingWait = -1;
                         }
                         Keys.onEscapePressed: root.editingWait = -1;
-                        onActiveFocusChanged: if (!activeFocus && stamp.editing) root.editingWait = -1;
+                        onActiveFocusChanged: if (!activeFocus && gapStamp.editing) root.editingWait = -1;
                     }
 
                     MouseArea {
@@ -887,7 +887,7 @@ Item {
                         anchors.fill: parent
                         anchors.margins: -3
                         hoverEnabled: true
-                        enabled: !stamp.editing
+                        enabled: !gapStamp.editing
                         cursorShape: Qt.IBeamCursor
                         onClicked: {
                             root.editingWait = join.modelData.line;

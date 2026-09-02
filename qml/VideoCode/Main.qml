@@ -2678,7 +2678,7 @@ ApplicationWindow {
             // error — the scene runs — but swapping them gives a different
             // video, and that is worth seeing where the line is rather than on
             // a stderr the editor never reads. Severity 2 = warning.
-            source.diagnostics = (answer.warnings || []).map(function (w) {
+            source.diagnostics = JSON.parse(answer.warnings || "[]").map(function (w) {
                 return {
                     range: { start: { line: w.line, character: 0 },
                              end:   { line: w.line, character: 200 } },

@@ -853,7 +853,7 @@ Item {
                     // that cursor is — only how much further along the person
                     // just asked for.
                     MouseArea {
-                        id: bar
+                        id: dragBar
                         enabled: row.editable && !row.off
                         anchors.fill: span
                         hoverEnabled: true
@@ -1255,12 +1255,12 @@ Item {
             Text {
                 anchors.right: parent.right
                 text: root.picked === null ? root.effectNames.length : "back"
-                color: back.containsMouse ? Theme.live : Theme.inkDim
+                color: backLink.containsMouse ? Theme.live : Theme.inkDim
                 font.family: Theme.mono
                 font.pixelSize: 11
 
                 MouseArea {
-                    id: back
+                    id: backLink
                     anchors.fill: parent
                     anchors.margins: -6
                     enabled: root.picked !== null

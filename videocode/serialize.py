@@ -776,7 +776,13 @@ def execSource(source: str, filepath: str) -> dict:
 
     return {
         "ok": True,
-        "warnings": warnings,
+        # JSON, like `scene` below, because the bridge to the editor stringifies
+        # every value it is handed: a plain list arrived in QML as the TEXT
+        # "[]", which is truthy and has no `.map`, so every single execution
+        # raised a TypeError and the diagnostics were never assigned. The
+        # warnings this collects — two lines writing the same channel over the
+        # same frames — had therefore never once been shown to anyone.
+        "warnings": json.dumps(warnings),
         "inputs": len(Context.stack),
         "frames": max(Context.lastEverAffectedFrame, 1),
         "fps": FRAMERATE,
