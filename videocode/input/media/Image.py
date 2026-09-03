@@ -19,6 +19,22 @@ __all__ = [
 ]
 
 
+def _fitToRatio(
+    width: maybe[wunumber], height: maybe[wunumber], natW: number, natH: number
+) -> tuple[wunumber, wunumber]:
+    """
+    The size a media file is drawn at when the caller left a number out: one
+    dimension given fixes the other through the source's own proportions,
+    neither given falls back to its natural pixel size. Shared with `Video`,
+    which asks ffprobe for `natW`/`natH` where this file asks PIL.
+    """
+    if width is not None:
+        return width, width * natH / natW
+    if height is not None:
+        return height * natW / natH, height
+    return natW / WORLD_TO_SCREEN_RATIO, natH / WORLD_TO_SCREEN_RATIO
+
+
 class Image(Polygon):
     cppName = "Image"
     cppAttrs = Polygon.cppAttrs | {"filepath", "uvMapping", "uvAngle"}
@@ -38,19 +54,25 @@ class Image(Polygon):
         `uvMapping` controls how the texture is wrapped onto the shape —
         see the `UVMapping` enum for the mode semantics; `uvAngle` (degrees)
         rotates the angular origin of the polar modes.
+
+        `width`/`height` together stretch the picture to that exact box;
+        giving only one derives the other from the file's aspect ratio, and
+        giving neither draws it at its natural pixel size.
         """
         self.filepath = filepath
         self.uvMapping = uvMapping
         self.uvAngle = uvAngle
 
-        # Rounding/stroking needs a known shape — if the caller didn't give
-        # one, fall back to the image's natural size (read from its header,
-        # no full decode).
-        if cornerRadius and width is None and height is None:
+        # A shape needs both numbers, so the file's header answers (no full
+        # decode) whenever one is missing and something depends on it: one
+        # dimension given fixes the other through the image's own proportions,
+        # and rounding/stroking with neither given falls back to its natural
+        # size. Neither given and nothing to round reads no file at all — C++
+        # draws the raw pixel quad from the texture.
+        if (width is None) != (height is None) or (cornerRadius and width is None and height is None):
             with PILImage.open(filepath) as img:
-                width, height = img.size
-            width /= WORLD_TO_SCREEN_RATIO
-            height /= WORLD_TO_SCREEN_RATIO
+                natW, natH = img.size
+            width, height = _fitToRatio(width, height, natW, natH)
 
         self.width = width
         self.height = height

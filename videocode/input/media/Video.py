@@ -6,6 +6,7 @@ import subprocess
 
 from videocode.input.shape.Polygon import *
 from videocode.constants import WORLD_TO_SCREEN_RATIO
+from videocode.input.media.Image import _fitToRatio
 from videocode.input.media.TrackedPath import TrackedPath
 
 
@@ -96,6 +97,13 @@ class Video(Polygon):
         `uvMapping` controls how the texture is wrapped onto the shape —
         see the `UVMapping` enum for the mode semantics; `uvAngle` (degrees)
         rotates the angular origin of the polar modes.
+
+        `width`/`height` together stretch the frame to that exact box; giving
+        only one derives the other from the source's aspect ratio, and giving
+        neither draws the video at its natural pixel size. Deriving one (like
+        `cornerRadius` already did) runs `ffprobe` here, at construction — so
+        a missing or unreadable file raises while the scene is being baked
+        rather than at render time.
         """
         self.filepath = filepath
         self.uvMapping = uvMapping
@@ -118,18 +126,20 @@ class Video(Polygon):
                 )
         self.speedRamps = speedRamps
 
-        # Rounding/stroking needs a known shape — if the caller didn't give
-        # one, fall back to the video's natural frame size (ffprobe metadata,
-        # no frame decode).
-        if cornerRadius and width is None and height is None:
+        # A shape needs both numbers, so ffprobe answers (metadata only, no
+        # frame decode) whenever one is missing and something depends on it:
+        # one dimension given fixes the other through the video's own
+        # proportions, and rounding/stroking with neither given falls back to
+        # its natural frame size. Neither given and nothing to round spawns
+        # nothing — C++ draws the raw pixel quad from the texture.
+        if (width is None) != (height is None) or (cornerRadius and width is None and height is None):
             out = subprocess.run(
                 ["ffprobe", "-v", "error", "-select_streams", "v:0",
                  "-show_entries", "stream=width,height", "-of", "csv=p=0", filepath],
                 capture_output=True, text=True, check=True,
             )
             w, h = out.stdout.strip().split(",")
-            width = float(w) / WORLD_TO_SCREEN_RATIO
-            height = float(h) / WORLD_TO_SCREEN_RATIO
+            width, height = _fitToRatio(width, height, float(w), float(h))
 
         self.width = width
         self.height = height
