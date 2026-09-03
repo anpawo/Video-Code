@@ -48,11 +48,32 @@ def _offsets(source: str) -> list[int]:
     return offsets
 
 
+def _chars(source: str, lineno: int, byteCol: int) -> int:
+    """
+    A column as `ast` reports it — UTF-8 BYTES — as a count of characters.
+
+    `col_offset` is documented in bytes, and the rest of this file counts
+    characters, so an accent earlier on the line pushes every span one too far
+    right: `Text("Bonjour à tous", fontSize=1)` had its closing bracket eaten
+    and the scene stopped parsing. The person writes French; the first `Text`
+    any gesture touched broke.
+
+    Characters, not UTF-16 units — that is this conversion's ceiling. QML's
+    document positions are UTF-16, so a character above the BMP (an emoji)
+    earlier on the same line is still off by one in the editor. The place for
+    that second conversion is `src/window/Editor.cpp`, where the span is
+    applied to the document; it is not needed for accents.
+    """
+    offsets = _offsets(source)
+    line = source[offsets[lineno] : offsets[lineno + 1]]
+    return len(line.encode("utf-8")[:byteCol].decode("utf-8", "ignore"))
+
+
 def _span(source: str, node: ast.AST) -> tuple[int, int]:
     """The character range a node covers, in the whole source."""
     offsets = _offsets(source)
-    start = offsets[node.lineno] + node.col_offset  # type: ignore[attr-defined]
-    end = offsets[node.end_lineno] + node.end_col_offset  # type: ignore[attr-defined]
+    start = offsets[node.lineno] + _chars(source, node.lineno, node.col_offset)  # type: ignore[attr-defined]
+    end = offsets[node.end_lineno] + _chars(source, node.end_lineno, node.end_col_offset)  # type: ignore[attr-defined]
     return start, end
 
 

@@ -203,5 +203,47 @@ check("a call that is not there", removeCallSpan(SOURCE, 10, "moveBy") is None)
 check("the call that MADE the element", removeCallSpan(SOURCE, 5, "Square") is None)
 check("broken source", removeCallSpan("square.fadeIn(\n", 1, "fadeIn") is None)
 
+# ── Accents ────────────────────────────────────────────────────────────────
+section("non-ASCII on the line — bytes are not characters")
+ACCENTED = 'titre = Text("Bonjour à tous", fontSize=1).fadeIn(duration=0.4)\nwait(0.3)  # à\n'
+
+edit = setArgument(ACCENTED, 1, "Text", "fontSize", "2")
+check("the value changes, not the bracket after it",
+      edit.source == 'titre = Text("Bonjour à tous", fontSize=2).fadeIn(duration=0.4)\nwait(0.3)  # à\n')
+check("the file still parses", isinstance(compile(edit.source, "scene.py", "exec"), object))
+
+check("a value read past an accent", readArgument(ACCENTED, 1, "fadeIn", "duration") == "0.4")
+check("a positional read past an accent", readPositional(ACCENTED, 1, "Text", 0) == '"Bonjour à tous"')
+
+span = argumentSpan(ACCENTED, 1, "fadeIn", "duration", "1.5")
+check("the span is in characters, not bytes", span == (59, 62, "1.5"))
+if span is not None:
+    start, end, text = span
+    spliced = ACCENTED[:start] + text + ACCENTED[end:]
+    check("splicing it gives what the gesture meant",
+          spliced == 'titre = Text("Bonjour à tous", fontSize=1).fadeIn(duration=1.5)\nwait(0.3)  # à\n')
+    check("the file still parses", isinstance(compile(spliced, "scene.py", "exec"), object))
+
+span = removeCallSpan(ACCENTED, 1, "fadeIn")
+check("a span was given", span is not None)
+if span is not None:
+    start, end, text = span
+    check("the link goes whole, dot included",
+          ACCENTED[:start] + text + ACCENTED[end:] == 'titre = Text("Bonjour à tous", fontSize=1)\nwait(0.3)  # à\n')
+
+check("an argument taken out leaves empty brackets",
+      removeArgument(ACCENTED, 1, "fadeIn", "duration").source.splitlines()[0].endswith(".fadeIn()"))
+
+# An accent AFTER the value it is not part of must not move it either: the
+# comment on line 2 is the case that would hide a fix that just shifted lines.
+check("an accent later on the line changes nothing",
+      positionalSpan(ACCENTED, 2, "wait", 0, "0.5") == (69, 72, "0.5"))
+
+# Four UTF-8 bytes for one character. Spans come out in Python code points —
+# the editor's document counts UTF-16 units, so an astral character is still
+# off by one there; that conversion belongs in `src/window/Editor.cpp`.
+astral = 'Text("🙂 hi", fontSize=1)\n'
+check("an astral character counts as one", argumentSpan(astral, 1, "Text", "fontSize", "2") == (22, 23, "2"))
+
 # ── summary ────────────────────────────────────────────────────────────────
 summary()
