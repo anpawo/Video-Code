@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
+from math import atan2, degrees
 from typing import Any
 
 import svgelements as se
@@ -30,23 +32,101 @@ def _pt(p: Any) -> point:
     return (float(p[0]), float(p[1]))
 
 
-def _colorToRgba(el: "se.Shape", attr: str) -> rgba:
+def _stopField(stop: ET.Element, name: str, fallback: str) -> str:
+    """`style="stop-color:red"` beats the presentation attribute — every exporter writes one or the other."""
+    style = dict(
+        (k.strip(), v.strip()) for k, _, v in (d.partition(":") for d in stop.get("style", "").split(";"))
+    )
+    return style.get(name) or stop.get(name) or fallback
+
+
+def _percent(raw: str) -> float:
+    raw = raw.strip()
+    return float(raw[:-1]) if raw.endswith("%") else float(raw) * 100
+
+
+def _parseGradients(filepath: str) -> dict[str, rgba]:
     """
-    `el.fill`/`el.stroke` resolve to a `Color` whose `.value is None` both for
-    an explicit `"none"` and for an absent attribute (CSS default already
-    applied by svgelements) — in both cases there's nothing to paint, so the
-    default is `TRANSPARENT`. The one exception is an unresolvable
-    `url(#gradient)` reference (not yet supported — falls back to `BLACK`,
-    SVG's own fallback for unresolvable paints).
+    Maps every `<linearGradient>`/`<radialGradient>` id in the file to the
+    engine gradient it means, so `fill="url(#sunset)"` can be resolved.
+
+    `svgelements` is no help here: it has no gradient class at all, never
+    yields `<defs>` children from `elements()`, and hands back a `Color`
+    already flattened to opaque black for any `url(...)` paint — so the stops
+    have to be read off the raw XML, once per file.
+
+    A gradient whose id is missing from this map is one this parser refuses:
+    the caller warns and falls back to `BLACK`, SVG's own fallback for an
+    unresolvable paint.
+
+    Ceiling worth knowing even for what IS supported: the engine spreads a
+    gradient across the shape's extent along its axis, which equals SVG's
+    `objectBoundingBox` only when the axis is horizontal or vertical. A
+    diagonal gradient lands slightly off what a browser draws.
     """
-    color = getattr(el, attr)
-    if color is not None and color.value is not None:
-        return rgba(color.red, color.green, color.blue, color.alpha)
+    gradients: dict[str, rgba] = {}
+    for el in ET.parse(filepath).getroot().iter():
+        kind = el.tag.rsplit("}", 1)[-1]
+        if kind not in ("linearGradient", "radialGradient"):
+            continue
+        gid = el.get("id")
+        # ponytail: `gradientTransform`, user-space coordinates and `href` stop
+        # inheritance are dropped rather than half-honoured — a gradient placed
+        # in the wrong space is a worse lie than an admitted black. Resolve the
+        # transform into the stop axis if a real file ever needs it.
+        if gid is None or el.get("gradientTransform") is not None:
+            continue
+        if el.get("gradientUnits", "objectBoundingBox") != "objectBoundingBox":
+            continue
+        if el.get("href") is not None or el.get("{http://www.w3.org/1999/xlink}href") is not None:
+            continue
+
+        stops: list[rgba | tuple[rgba, percent]] = []
+        for stop in el:
+            if stop.tag.rsplit("}", 1)[-1] != "stop":
+                continue
+            # `stop-color="none"` is not a color: svgelements answers None to
+            # every component, which would crash the multiply below.
+            color: Any = se.Color(_stopField(stop, "stop-color", "#000000"))
+            if color.value is None:
+                color = se.Color("#000000")
+            alpha = round(color.alpha * float(_stopField(stop, "stop-opacity", "1")))
+            stops.append((rgba(color.red, color.green, color.blue, alpha), _percent(stop.get("offset", "0"))))
+        if len(stops) < 2:
+            continue
+
+        if kind == "radialGradient":
+            gradients[gid] = RadialGradient(*stops)
+        else:
+            x1, y1 = _percent(el.get("x1", "0")) / 100, _percent(el.get("y1", "0")) / 100
+            x2, y2 = _percent(el.get("x2", "1")) / 100, _percent(el.get("y2", "0")) / 100
+            # SVG's y points down, the engine's 90 is bottom -> top: flip dy.
+            gradients[gid] = LinearGradient(*stops, angle=degrees(atan2(y1 - y2, x2 - x1)))
+    return gradients
+
+
+def _colorToRgba(el: "se.Shape", attr: str, gradients: dict[str, rgba]) -> rgba:
+    """
+    The raw attribute is read before `el.fill`/`el.stroke` because svgelements
+    resolves `url(#g)` to an opaque black `Color` — indistinguishable from a
+    real `fill="#000"` by the time the property is asked.
+
+    Otherwise: a `Color` whose `.value is None` means both an explicit `"none"`
+    and an absent attribute (CSS default already applied by svgelements) — in
+    both cases there's nothing to paint, so the default is `TRANSPARENT`.
+    """
     values: Any = getattr(el, "values", None)
     raw = values.get(attr, "") if values is not None else ""
     if isinstance(raw, str) and raw.strip().lower().startswith("url("):
-        _WARN(f"unsupported {attr}={raw!r} (gradient/pattern reference) — using BLACK")
+        reference = raw.strip()[4:].split(")")[0].strip().strip("\"'").lstrip("#")
+        gradient = gradients.get(reference)
+        if gradient is not None:
+            return gradient
+        _WARN(f"unsupported {attr}={raw!r} (unresolved gradient/pattern reference) — using BLACK")
         return BLACK
+    color = getattr(el, attr)
+    if color is not None and color.value is not None:
+        return rgba(color.red, color.green, color.blue, color.alpha)
     return TRANSPARENT
 
 
@@ -113,6 +193,7 @@ def _segmentsToContours(segments: list) -> list[list[point]]:
 
 
 def parseSVG(filepath: str, width: maybe[wunumber], height: maybe[wunumber]) -> list[ShapeData]:
+    gradients = _parseGradients(filepath)
     svg = se.SVG.parse(filepath)
     svgWidth = float(svg.width or 1)
     svgHeight = float(svg.height or 1)
@@ -142,8 +223,8 @@ def parseSVG(filepath: str, width: maybe[wunumber], height: maybe[wunumber]) -> 
             for c in rawContours
         ]
 
-        fillColor = _colorToRgba(el, "fill")
-        strokeColor = _colorToRgba(el, "stroke")
+        fillColor = _colorToRgba(el, "fill", gradients)
+        strokeColor = _colorToRgba(el, "stroke", gradients)
         strokeWidth = float(el.stroke_width or 0) * (scaleX + scaleY) / 2
 
         shapes.append((contours, fillColor, strokeColor, strokeWidth))

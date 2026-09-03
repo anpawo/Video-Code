@@ -158,7 +158,16 @@ speed (occasional misheard words); first use downloads ~75MB; CPU-only.
 | `SVG(filepath, width, height)` | `SVG.py` | Parses an SVG (via `svgelements`) into one `SVGPath` `Polygon` per shape element, each `Offset` to its position within the SVG canvas — `Group[Offset[SVGPath]]` |
 | `SVGPath` | `SVGPath.py` | Static `Polygon` holding one precomputed shape's contours |
 
-**Example**: `test/visual/scenes/svg.py`.
+A shape painted with a gradient — `fill="url(#sunset)"` or `stroke="url(#sunset)"`,
+what an icon exporter writes — becomes a `LinearGradient`/`RadialGradient`, stops,
+opacity and direction included, instead of the flat black it used to be silently
+painted. `logo.fillColor = WHITE` still overrides the file. Not supported, and
+warned about rather than guessed at: `gradientTransform`, `gradientUnits="userSpaceOnUse"`,
+`<pattern>`, and gradients that inherit their stops through `href` — those still
+fall back to `BLACK`. A diagonal gradient is spread across the shape's extent along
+its axis, so it lands slightly off what a browser draws.
+
+**Example**: `test/visual/scenes/svg.py`; `test/svg_gradient_test.py`.
 
 ---
 
