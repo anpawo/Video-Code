@@ -33,14 +33,12 @@ Group(square, circle).scaleTo(0.5, duration=1.2).rotateBy(180, duration=1.2)
 
 wait(0.5)
 
-# ── Two faults to uncomment, to see what the editor says about them ──────────
-#
-# A WARNING. The scene still runs; the two lines fight over the same channel on
-# the same frames, and the later one wins them. Orange in the code, orange on
-# the element in the timeline.
-# square.moveBy(x=1, duration=1)
-# square.moveBy(x=-1, duration=1)
-#
-# An ERROR. The scene does not run at all: the message lands on the line, and
-# the picture keeps the last frame that worked rather than going blank.
+# Two lines claiming x over the same frames. The later one wins them, and the
+# editor says so in orange — on the line, on the element in the timeline, and on
+# the call in its effect tree. Comment them out for a clean scene.
+square.moveBy(x=1, duration=1)
+square.moveBy(x=-1, duration=1)
+
+# And a fault that stops the scene running at all. Uncomment it to watch the
+# picture keep the last frame that worked while the message lands on the line.
 # Circle(radius=-1)
