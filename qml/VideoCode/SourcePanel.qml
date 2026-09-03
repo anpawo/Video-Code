@@ -1245,6 +1245,12 @@ Item {
             // Code is not prose: a wrapped line lies about where the line ends,
             // and every editor a person has used before this one scrolls instead.
             wrapMode: TextEdit.NoWrap
+            // Clicking under the last line is still clicking in the file. A
+            // TextArea only as tall as its text leaves that band to the
+            // Flickable, which takes the press and does nothing with it; one at
+            // least as tall as the viewport hands it to the text, which puts the
+            // caret on the nearest character — the end of the last line.
+            height: Math.max(implicitHeight, view.availableHeight)
             selectionColor: Qt.alpha(Theme.ai, 0.35)
             selectedTextColor: Theme.ink
             persistentSelection: true
