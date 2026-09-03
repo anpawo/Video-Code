@@ -794,6 +794,65 @@ Item {
                                : root.fxHue
                         clip: true
 
+                        // What the run said about THIS call, or "". The timeline
+                        // says which element is at fault; this says which of its
+                        // lines earned it, which is the only place the two ever
+                        // needed to be told apart.
+                        readonly property string flaw: row.modelData.flaw !== undefined
+                                                       ? row.modelData.flaw : ""
+
+                        ToolTip.visible: hover.hovered && span.flaw.length > 0
+                        ToolTip.delay: 250
+                        ToolTip.text: span.flaw
+
+                        Item {
+                            id: fxHazard
+                            anchors.fill: parent
+                            clip: true
+                            visible: span.flaw.length > 0
+
+                            Repeater {
+                                model: fxHazard.visible
+                                       ? Math.ceil((fxHazard.width + fxHazard.height) / 12) : 0
+
+                                Rectangle {
+                                    required property int index
+                                    width: 4
+                                    height: fxHazard.height * 2
+                                    x: index * 12 - fxHazard.height
+                                    y: -fxHazard.height / 2
+                                    rotation: -45
+                                    color: Qt.alpha(Theme.flaw, 0.40)
+                                }
+                            }
+                        }
+
+                        Text {
+                            id: fxMark
+                            visible: span.flaw.length > 0
+                            anchors {
+                                left: parent.left; leftMargin: 9
+                                verticalCenter: parent.verticalCenter
+                            }
+                            text: "\u26A0"
+                            color: span.ink
+                            font.pixelSize: 12
+                            transformOrigin: Item.Center
+
+                            SequentialAnimation on scale {
+                                running: fxMark.visible
+                                loops: Animation.Infinite
+                                NumberAnimation {
+                                    from: 1.0; to: 1.20
+                                    duration: 460; easing.type: Easing.InOutSine
+                                }
+                                NumberAnimation {
+                                    from: 1.20; to: 1.0
+                                    duration: 460; easing.type: Easing.InOutSine
+                                }
+                            }
+                        }
+
                         // Every complement on the wheel lands on the light, warm
                         // side, so dark ink beats white on an effect — and it
                         // separates what animates from what is animated, which
@@ -808,7 +867,7 @@ Item {
 
                         Text {
                             anchors {
-                                left: parent.left; leftMargin: 11
+                                left: parent.left; leftMargin: fxMark.visible ? 26 : 11
                                 right: length.left; rightMargin: 12
                                 verticalCenter: parent.verticalCenter
                             }

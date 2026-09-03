@@ -2048,8 +2048,13 @@ ApplicationWindow {
         };
     }
 
-    function buildLiveScene(model) {
+    // `flaws` is what the run said about the scene it just made — the warnings
+    // `execSource` collects. They are joined in HERE, once, so that the timeline
+    // and the effect tree each read a fault off the row they already draw
+    // instead of holding a second list and matching line numbers against it.
+    function buildLiveScene(model, flaws) {
         const fps = model.fps;
+        const said = flaws !== undefined ? flaws : [];
         // Where the scene's time joins. A `wait()` is the only place the
         // language lets a change push what follows, so the timeline draws them
         // rather than inventing a rule of its own about what ripples.
@@ -2066,6 +2071,9 @@ ApplicationWindow {
         let byLine = ({});
 
         for (const element of model.elements) {
+            // Joined on the element's INDEX, not on its line: a warning names
+            // the input it is about, and one line can carry several elements.
+            const mine = said.filter((w) => w.input === element.index);
             const one = {
                 n: labelFor(element),
                 kind: kindOf(element.kind),
@@ -2077,6 +2085,9 @@ ApplicationWindow {
                 // CALL, and the call is spelled with this.
                 cls: element.kind,
                 index: element.index,
+                // Empty on a clean element, which is how the timeline knows
+                // whether to stripe the bar at all.
+                flaws: mine,
                 // The lines that already say something about this element, and
                 // the cursor each one leaves behind. What a gesture needs to
                 // write a NEW statement — see trimElement.
@@ -2092,6 +2103,9 @@ ApplicationWindow {
                     d: (fx.end - fx.start + 1) / fps,
                     call: fx.call !== undefined ? fx.call : "",
                     line: fx.line !== undefined ? fx.line : 0,
+                    // The message that landed on THIS call, or "". The timeline
+                    // says which element; this says which line of it.
+                    flaw: app.flawOn(mine, fx.line !== undefined ? fx.line : 0),
                     kinds: fx.kinds !== undefined ? fx.kinds : [fx.name]
                 })),
                 members: []
@@ -2107,6 +2121,7 @@ ApplicationWindow {
                 if (parent.members.length === 0)
                     parent.members.push(partOf(parent, 1));
                 parent.members.push(partOf(one, parent.members.length + 1));
+                parent.flaws = parent.flaws.concat(one.flaws);
                 parent.l = Math.min(parent.l, one.l);
                 parent.d = Math.max(parent.d, one.l + one.d - parent.l);
                 continue;
@@ -2116,6 +2131,14 @@ ApplicationWindow {
         }
 
         return { duration: model.frames / fps, elements: rows, waits: waits };
+    }
+
+    // The message a warning left on one source line, or "".
+    function flawOn(said, line) {
+        for (const w of said)
+            if (w.sourceLine === line)
+                return w.message;
+        return "";
     }
 
     // Every effect the library exposes, asked for once.
@@ -2678,7 +2701,8 @@ ApplicationWindow {
             // error — the scene runs — but swapping them gives a different
             // video, and that is worth seeing where the line is rather than on
             // a stderr the editor never reads. Severity 2 = warning.
-            source.diagnostics = JSON.parse(answer.warnings || "[]").map(function (w) {
+            const flaws = JSON.parse(answer.warnings || "[]");
+            source.runFlaws = flaws.map(function (w) {
                 return {
                     range: { start: { line: w.line, character: 0 },
                              end:   { line: w.line, character: 200 } },
@@ -2687,7 +2711,7 @@ ApplicationWindow {
                     message: w.message
                 };
             });
-            liveScene = buildLiveScene(JSON.parse(answer.scene));
+            liveScene = buildLiveScene(JSON.parse(answer.scene), flaws);
             // Anything looking at the scene has to be looking at THIS one.
             elementCard.rebind(liveScene.elements);
             execInputs = parseInt(answer.inputs);
@@ -2704,7 +2728,7 @@ ApplicationWindow {
         execState = "failed";
         const line = parseInt(answer.line);
         const column = parseInt(answer.column);
-        source.diagnostics = [{
+        source.runFlaws = [{
             range: {
                 start: { line: line, character: column },
                 end: { line: line, character: column + 200 }

@@ -100,7 +100,12 @@ def _reportContendedKeys() -> list[dict]:
             f"against y, fillColor against strokeColor — compose, and are never reported here.)",
             file=sys.stderr,
         )
-        out.append({"line": b["line"] - 1, "file": b["file"], "message": _oneLine(hit)})
+        # `line` is what the code pane needs (LSP counts from zero); `sourceLine`
+        # and `input` are what the timeline and the effect tree need, so that the
+        # bar and the row carrying the fault are found by identity rather than by
+        # comparing numbers that count from different places.
+        out.append({"line": b["line"] - 1, "sourceLine": b["line"], "input": hit["input"],
+                    "file": b["file"], "message": _oneLine(hit)})
     return out
 
 def _reportBackdatedWrites() -> list[dict]:
@@ -128,7 +133,12 @@ def _reportBackdatedWrites() -> list[dict]:
             f"order they play, or give the earlier one its own start= too.",
             file=sys.stderr,
         )
-        out.append({"line": b["line"] - 1, "file": b["file"], "message": _oneLine(hit)})
+        # `line` is what the code pane needs (LSP counts from zero); `sourceLine`
+        # and `input` are what the timeline and the effect tree need, so that the
+        # bar and the row carrying the fault are found by identity rather than by
+        # comparing numbers that count from different places.
+        out.append({"line": b["line"] - 1, "sourceLine": b["line"], "input": hit["input"],
+                    "file": b["file"], "message": _oneLine(hit)})
     return out
 
 def _applyBackground(scope: dict) -> None:

@@ -36,6 +36,11 @@ QtObject {
 
     readonly property color ok:       "#4fbe86"
     readonly property color warn:     "#d9a94e"
+
+    // A scene that RAN but says something wrong. Hotter than `warn`, which is
+    // the gold of "stale" and "read-only", and short of `bad`, which says the
+    // scene never ran at all — the two states have to stay apart at a glance.
+    readonly property color flaw:     "#e07a3a"
     readonly property color bad:      "#e0605c"
     readonly property color ai:       "#6aa6e0"
 

@@ -9,6 +9,7 @@ Run directly: `python3 test/contention_test.py`
 
 import contextlib
 import io
+import json
 import sys
 
 sys.path.insert(0, ".")
@@ -189,6 +190,26 @@ check("stored keys and claimed channels agree on the args attributes",
       {k for k in stored if k.startswith("Args:")} == {c for c in claimed if c.startswith("Args:")})
 check("and there are two of them, not one",
       len({k for k in stored if k.startswith("Args:")}) == 2)
+
+# ---------------------------------------------------------------------------
+section("what a warning carries — the editor joins on identity, not on a number")
+
+# The timeline stripes the ELEMENT and the effect tree marks the CALL, so a
+# warning has to name both. Line numbers alone could not do it: `line` counts
+# from zero because the code pane speaks LSP, every other line in the editor
+# counts from one, and one line can hold several elements.
+with contextlib.redirect_stderr(io.StringIO()):
+    answer = execSource(
+        "from videocode import *\n\ns = Square(side=1)\n"
+        "s.moveBy(x=1, duration=1)\ns.moveBy(x=-1, duration=1)\n",
+        "contention_test_fields.py",
+    )
+flaws = json.loads(answer["warnings"])
+check("the run reports exactly one", len(flaws) == 1)
+check("it names the element it is about", flaws[0]["input"] == 0)
+check("it lands on the later of the two calls", flaws[0]["sourceLine"] == 5)
+check("and the code pane's copy counts from zero",
+      flaws[0]["line"] == flaws[0]["sourceLine"] - 1)
 
 # ---------------------------------------------------------------------------
 summary()

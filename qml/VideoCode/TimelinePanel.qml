@@ -402,6 +402,37 @@ Item {
                                          ? Theme.live
                                          : Qt.rgba(1.000, 1.000, 1.000, 0.149))
 
+                        // ── A fault the run found on this element ────────
+                        // Hazard hatching, the mark every editing tool uses for
+                        // "do not trust this yet". Diagonal because nothing else
+                        // in a timeline runs diagonally: it cannot be mistaken
+                        // for a clip, a waveform or a boundary, and it survives
+                        // being drawn over any of them.
+                        Item {
+                            id: hazard
+                            anchors.fill: parent
+                            anchors.margins: 1
+                            clip: true
+                            visible: !bar.away
+                                     && lane.modelData.flaws !== undefined
+                                     && lane.modelData.flaws.length > 0
+
+                            Repeater {
+                                model: hazard.visible
+                                       ? Math.ceil((hazard.width + hazard.height) / 14) : 0
+
+                                Rectangle {
+                                    required property int index
+                                    width: 5
+                                    height: hazard.height * 2
+                                    x: index * 14 - hazard.height
+                                    y: -hazard.height / 2
+                                    rotation: -45
+                                    color: Qt.alpha(Theme.flaw, 0.28)
+                                }
+                            }
+                        }
+
                         // The waveform is one bar per tenth of a second, so each
                         // bar is exactly one snap step wide and the whole row
                         // reads as the same grid everything else is measured on.
@@ -474,6 +505,37 @@ Item {
                                 anchors.right: parent.right
                                 anchors.rightMargin: 6
                                 spacing: 5
+
+                                // It breathes rather than blinks. A blink is a
+                                // notification — something that just happened and
+                                // wants answering; this is a state the scene is
+                                // in, and it has to be able to sit there for an
+                                // hour without becoming unbearable. The glyph
+                                // scales, never the band: a row that changed
+                                // height sixty times a second would move every
+                                // clip under it.
+                                Text {
+                                    id: hazardMark
+                                    visible: hazard.visible
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "\u26A0"
+                                    color: Theme.flaw
+                                    font.pixelSize: 11
+                                    transformOrigin: Item.Center
+
+                                    SequentialAnimation on scale {
+                                        running: hazardMark.visible
+                                        loops: Animation.Infinite
+                                        NumberAnimation {
+                                            from: 1.0; to: 1.20
+                                            duration: 460; easing.type: Easing.InOutSine
+                                        }
+                                        NumberAnimation {
+                                            from: 1.20; to: 1.0
+                                            duration: 460; easing.type: Easing.InOutSine
+                                        }
+                                    }
+                                }
 
                                 // Something animates this element, and clicking
                                 // opens it. Effects are never drawn on the

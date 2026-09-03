@@ -67,6 +67,13 @@ Item {
     // translated, so that adding a field never means touching a converter.
     property var diagnostics: []
 
+    // What the RUN said — the warnings `execSource` collects, and the failure
+    // when a scene does not run at all. Kept in a list of its own because the
+    // analyser publishes a WHOLE list on every pause in typing: anything written
+    // into `diagnostics` beside it is erased a second later, which is how the
+    // run's warnings were drawn and then quietly dropped before anyone read one.
+    property var runFlaws: []
+
     // ── Not while you are still writing it ────────────────────────────────
     // A half-typed line is not a mistake, and being told it is one is noise you
     // learn to ignore — which is how a real error later goes unread.
@@ -101,9 +108,10 @@ Item {
 
     // What is actually shown: everything, minus what is being written.
     readonly property var shownDiagnostics: {
+        const all = root.diagnostics.concat(root.runFlaws);
         if (!root.settling || root.writingLine < 0)
-            return root.diagnostics;
-        return root.diagnostics.filter((d) => d.range.start.line !== root.writingLine);
+            return all;
+        return all.filter((d) => d.range.start.line !== root.writingLine);
     }
 
     // One size for everything that shows code or sits beside it. VS Code's
@@ -399,7 +407,7 @@ Item {
 
     function severityColor(severity) {
         if (severity === 1) return Theme.bad;
-        if (severity === 2) return Theme.warn;
+        if (severity === 2) return Theme.flaw;
         return Theme.ai;
     }
 
