@@ -33,7 +33,7 @@ already ran is worse than no guide.
 | `--hwencode` | Encode with `h264_videotoolbox` instead of libx264 — faster, different quality curve |
 | `--showstack` | Show the scene's steps while it renders |
 | `--showtimeline` | Show the timeline while it renders |
-| `--editor` | Open the editing shell |
+| `--editor` | Open the editing shell — on `--file`, or on `scene.py` where the flag is absent |
 | `--screenshot <png>` | With `--editor`, write the first painted frame and exit |
 | `--visual-test` | Run the visual regression suite |
 | `--update-golden` | With `--visual-test`, rewrite the golden images instead of comparing |
@@ -212,7 +212,7 @@ on this page was checked.
 | `VC_TYPE="text"` | Characters, typed |
 | `VC_KEYS="F12;Ctrl+Left;Text:name"` | Named keys in order, and literals |
 | `VC_PANEL="settings"` \| `"shortcuts"` | Open an overlay reached only from the native menu bar |
-| `VC_SCENE_FILE` | The scene the code pane opens |
+| `VC_SCENE_FILE` | The scene the code pane opens, when `--file` does not say |
 | `VC_DOCK_FILE` | Use another dock file, so a test never touches yours |
 
 ---

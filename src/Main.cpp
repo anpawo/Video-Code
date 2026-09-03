@@ -194,6 +194,14 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
     quitOnSignal(app);
 
     if (wantsEditor) {
+        // `--file` names the scene here too. It used to be read by the renderer
+        // alone, so `--editor --file x.py` opened whatever the working directory
+        // happened to hold and said nothing about it — a flag accepted and then
+        // dropped. Typed now, it outranks an exported VC_SCENE_FILE, the way a
+        // flag on the line always outranks the environment it inherited.
+        if (parser.is_used("--file"))
+            qputenv("VC_SCENE_FILE", QByteArray::fromStdString(parser.get<std::string>("--file")));
+
         VC::Editor editor;
         editor.setHeadless(checksChrome);
         if (!editor.load())
