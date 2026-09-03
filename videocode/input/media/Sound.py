@@ -6,6 +6,8 @@ import subprocess
 import tempfile
 from typing import TYPE_CHECKING
 
+from videocode.constants import FRAMERATE
+from videocode.context import Context
 from videocode.input.input import Input
 from videocode.utils.decorators import inputCreation
 from videocode.ty import *
@@ -126,12 +128,24 @@ class Sound(Input):
     """
     A purely auditory input — adds an audio track to the output video.
 
-    `start` is when the track begins playing in the output timeline (seconds).
+    `start` is seconds AFTER the script's cursor, exactly like `hide(start=…)`
+    and exactly like every shape written on that line, which appears where the
+    cursor stands. A `Sound` written after `wait(2)` therefore plays at 2s, and
+    `Sound(..., start=0.5)` there plays at 2.5s. Before any `wait()` the cursor
+    is 0 and `start` is the plain output-timeline offset it always was.
+
     `trimStart`/`trimEnd` cut the source file's own audio to `[trimStart, trimEnd)`
     (seconds, `trimEnd=None` plays to the end of the source).
     `volume` is a linear multiplier (1.0 = unchanged).
 
     Multiple `Sound` inputs are mixed together in the output.
+
+    `beats()` is unaffected: it reads the SOURCE file and returns
+    source-relative seconds, for `start=` on effects, not on the `Sound`.
+
+    A sound whose delay lands past the end of the scene still lengthens the
+    output by its tail — the mux has no `-shortest`. The cursor only makes that
+    easier to reach; it is not new.
     """
 
     cppName = "Sound"
@@ -155,7 +169,12 @@ class Sound(Input):
         trimEnd: maybe[sec] = None,
     ) -> None:
         self.filepath = filepath
-        self.delay = start
+        # Read off the FRAME cursor, not the seconds the author typed at the
+        # `wait()` — that one truncates with int(n * FRAMERATE), so the two
+        # differ. Untouched at cursor 0, so a scene with no `wait()` keeps the
+        # exact number it wrote: the bake digest hashes it, and 1 is not 1.0.
+        cursor = Context.waitOffset / FRAMERATE
+        self.delay = start + cursor if cursor else start
         self.volume = volume
         self.trimStart = trimStart
         self.trimEnd = trimEnd
