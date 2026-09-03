@@ -193,15 +193,21 @@ class Text(Group[Letter], _hasFillStroke):
 
     @text.setter
     def textSetter(self, value: str) -> None:
+        # Whitespace makes no `Letter` (`find` and `_memberPivots` walk the text
+        # the same way), so the members line up with the NON-SPACE characters,
+        # never with `value` itself. Counting `value` handed the space to a
+        # letter, which built an empty polygon, and the next alignLetters asked
+        # it for a width: "max() iterable argument is empty" on `Text("ab cd")`.
+        chars = [c for c in value if not c.isspace()]
         l = len(self.inputs)
-        r = len(value)
+        r = len(chars)
         if l > r:
             for i in range(l - r):
                 self.inputs[-i - 1].hide()
         elif l < r:
             target = self.inputs[0].meta.transformationOffset if self.inputs else 0
             for i in range(r - l):
-                newLetter = Letter(value[l + i], *self.config())
+                newLetter = Letter(chars[l + i], *self.config())
                 if target > newLetter.meta.transformationOffset:
                     newLetter.hide()
                     newLetter.waitTo(target)
@@ -210,7 +216,7 @@ class Text(Group[Letter], _hasFillStroke):
 
         for i in range(min(l, r)):
             self.inputs[i].show()
-            self.inputs[i].char = value[i]
+            self.inputs[i].char = chars[i]
 
         self.alignLetters()
 

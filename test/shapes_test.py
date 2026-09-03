@@ -15,7 +15,7 @@ sys.path.insert(0, ".")
 sys.path.insert(0, "test")
 from helpers import check, section, summary
 
-from videocode import Rectangle, Square, Circle, Triangle, EquilateralTriangle, RightTriangle, Curve, Context
+from videocode import Rectangle, Square, Circle, Triangle, EquilateralTriangle, RightTriangle, Curve, Context, Text
 
 def approx(a: float, b: float, eps: float = 1e-6) -> bool:
     return abs(a - b) <= eps
@@ -115,6 +115,12 @@ section("Polygon.contains — point-in-polygon hit test")
 r5 = Rectangle(width=4, height=2)  # local bbox: x in [0,4], y in [0,2]; default align=(0.5,0.5) -> pivot (2,1)
 check("center of the rectangle is contained", r5.contains(0, 0))
 check("far-away point is not contained", not r5.contains(100, 100))
+
+# ── Text.text setter counts letters, not characters ──────────────────────────
+section("Text.text — reassigning a text that contains a space")
+t = Text("ab cd")
+t.text = "ab ce"  # raised ValueError: max() iterable argument is empty
+check("space makes no Letter, so the letters follow the non-space characters", [l.char for l in t.inputs] == ["a", "b", "c", "e"])
 
 # ── summary ────────────────────────────────────────────────────────────────
 summary()
