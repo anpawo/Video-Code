@@ -347,13 +347,14 @@ class Input(ABC):
         duration: sec = 0.4,
         offset: maybe[frame] = None,
     ) -> Self:
-        n = int(duration * FRAMERATE)
+        # Same arrival rule as `rangeIdx`: one frame at least, carrying the destination.
+        n = max(1, int(duration * FRAMERATE))
 
         # Snapshot all sources before scheduling anything
         snapshot = {attr: getattr(self, attr) for (attr, _, *_) in anims}
 
         for i in range(n):
-            t = i / (n - 1)
+            t = i / (n - 1) if n > 1 else 1.0
 
             for anim in anims:
                 attr, to, *rest = anim

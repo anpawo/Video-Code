@@ -226,9 +226,12 @@ type easing = RateFunc
 
 
 def animate(duration: sec, easing: easing, apply: Callable[[number, int], None]):
-    n = int(duration * FRAMERATE)
+    # Same arrival rule as `rangeIdx`, for the same reason: `duration=0` is an
+    # author asking for an instant change, not for silence, and the one frame it
+    # gets carries the destination.
+    n = max(1, int(duration * FRAMERATE))
 
     for i in range(n):
-        t = i / (n - 1)
+        t = i / (n - 1) if n > 1 else 1.0
         m = easing(t)
         apply(m, i)

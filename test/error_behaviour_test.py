@@ -69,6 +69,39 @@ check("duration=0 moves at once instead of doing nothing", travelled(0))
 check("a one-frame animation reaches its destination", travelled(SINGLE_FRAME))
 check("and so do the longer ones", travelled(2 * SINGLE_FRAME) and travelled(0.4))
 
+# Moving was fixed alone, so the program disagreed with itself: the same request
+# through the eased-attribute paths did nothing at `duration=0` and divided by
+# zero at one frame.
+
+
+def eased(duration) -> bool:
+    r = Rectangle(width=3, height=2)
+    r.ease("width", 5, duration=duration)
+    return r.width == 5 and 0 in Context.stack.get(r.meta.index, {})
+
+
+check("an instant ease lands the value, and writes the frame carrying it", eased(0))
+check("a one-frame ease arrives too, rather than dividing by zero", eased(SINGLE_FRAME))
+
+instant = Rectangle(width=3, height=2)
+instant.over(duration=0).fillColor = RED
+check("a colour assigned through `over(duration=0)` is the colour asked for", instant.fillColor == RED)
+
+together = Rectangle(width=3, height=2)
+together.easeTogether(("width", 5), ("height", 1), duration=SINGLE_FRAME)
+check("`easeTogether` arrives on every attribute it was given", (together.width, together.height) == (5, 1))
+
+curve = Curve(points=[(0, 0), (1, 1), (2, 0), (3, 1)])
+curve.animate(duration=0)
+check("a curve drawn in no time is drawn whole", len(curve.vertices) == 4)
+
+longer = Rectangle(width=3, height=2)
+longer.ease("width", 5, duration=0.4)
+# 12 frames of animation, of which the first repeats the width the rectangle
+# already had and so never reaches the stack: 11 entries, the last one arriving.
+written = sorted(f for f in Context.stack.get(longer.meta.index, {}) if f >= 0)
+check("and a 0.4 s ease still spans its frames, unchanged", written == list(range(1, 12)) and longer.width == 5)
+
 
 section("a file the scene does not have is reported, not aborted on")
 

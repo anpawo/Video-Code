@@ -314,7 +314,8 @@ Every `Input` (shape, text, group, ...) has:
   the same side of the line.
 - Generic: `ease(attr, to, ...)` / `easeTogether(...)` — animate *any*
   `@prop` attribute frame-by-frame (e.g. `Rectangle.ease("width", 5,
-  duration=1)`, used for #125's width/height/radius animation)
+  duration=1)`, used for #125's width/height/radius animation). `duration=0`
+  lands the value at once, like `moveTo` — one frame carrying the destination.
 
 **Timeline control**:
 - Module-level `wait(seconds, stop=None)` — a scheduling gap: nothing new

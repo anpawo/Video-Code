@@ -42,11 +42,12 @@ class Curve(Polygon):
 
     def animate(self, duration: sec = 0.4, easing=Easing.InOut) -> Self:
         allPoints = list(self.vertices)
-        n = int(duration * FRAMERATE)
+        # Same arrival rule as `rangeIdx`: one frame at least, carrying the whole curve.
+        n = max(1, int(duration * FRAMERATE))
         lastCount = 0
 
         for i in range(n):
-            t = i / (n - 1)
+            t = i / (n - 1) if n > 1 else 1.0
             count = max(2, round(easing(t) * len(allPoints)))
             if count != lastCount:
                 self.vertices = allPoints[:count]
