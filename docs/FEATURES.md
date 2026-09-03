@@ -209,9 +209,30 @@ is loaded through the same `_SVGHelper`/`SVGPath`/`Offset`/`Group` pipeline as
 | `Arrow(length, bodyLength, bodyWidth, tipLength, tipHeight, bodyInTip, fillColor, strokeColor, strokeWidth, cornerRadius)` | `Arrow.py` | Single-`Polygon` arrow shape |
 | `Cursor()` | `Arrow.py` | Pre-shaped `Arrow` styled as a mouse cursor |
 | `SplitView(ratio, split, marginX, marginY, padding, ...)` / `Panel` | `SplitView.py` | Two panels dividing the frame — see below |
+| `Row(*inputs, gap, align)` / `Column(*inputs, gap, align)` | `Layout.py` | Inputs side by side / stacked, `gap` measured **edge to edge**, centred on the group — see below |
+| `Grid(*inputs, cols, gap, rowGap, colGap)` | `Layout.py` | Inputs in reading order over `cols` columns, each column as wide as its widest member, each row as tall as its tallest |
 
 **Examples**: `test/visual/scenes/shadow.py`, `test/visual/scenes/groups.py`,
 `test/visual/scenes/chess.py` (chessboard built from these primitives).
+
+### Edge-to-edge layouts — `Row`, `Column`, `Grid`
+
+```python
+Row(Rectangle(width=4, height=2), Circle(radius=1), gap=0.5)   # circle's left edge 0.5 right of the rectangle's right edge
+Column(Rectangle(width=3, height=0.5), Row(a, b, gap=0.3), gap=0.2, align="start").position(-4, 2)
+Grid(*[Square(0.8) for _ in range(7)], cols=3, gap=0.25)         # three rows, the last one flush left
+```
+
+`gap` is the distance between two neighbours' EDGES, in world units (120 px;
+the 1080p world is 16 x 9) — `XAlign`'s `gap` is a centre-to-centre pitch that
+ignores widths, and it is off-centre for even counts. `align` picks the
+cross-axis edge to flush: `"start"` (top of a `Row`, left of a `Column`),
+`"center"` (default), `"end"`. Nesting works: a `Row` inside a `Column` is
+measured by its content. **Ceiling**: the layout is computed once, at
+construction — a member that grows or is replaced afterwards does not reflow
+the formation; build a new one.
+
+**Examples**: `test/layout_test.py`.
 
 ### Two-panel layouts — `SplitView(split=Split.…)`
 

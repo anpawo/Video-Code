@@ -25,3 +25,4 @@ from videocode.template.input.Code import *
 from videocode.template.input.RectangleDimensions import *
 from videocode.template.input.XAlign import *
 from videocode.template.input.CardStack import *
+from videocode.template.input.Layout import *
