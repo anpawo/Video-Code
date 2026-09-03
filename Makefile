@@ -34,6 +34,7 @@ cmake:
 	cmake -B $(BUILD_DIR) -DDEBUG=OFF -DVC_VERBOSE=OFF $(VCPKG_FLAGS) $(CMAKE_FLAGS)
 	cmake --build $(BUILD_DIR)
 	@ cp -f $(BUILD_DIR)/$(BINARY_NAME).app/Contents/MacOS/$(BINARY_NAME) .
+	@ command -v codesign > /dev/null && codesign -f -s - $(BINARY_NAME) > /dev/null 2>&1 || true
 	@ cp -f $(BUILD_DIR)/compile_commands.json .
 
 
@@ -42,6 +43,7 @@ debug:
 	cmake -B $(BUILD_DIR) $(DEBUG_FLAG) $(VCPKG_FLAGS) $(CMAKE_FLAGS)
 	cmake --build $(BUILD_DIR)
 	@ cp $(BUILD_DIR)/$(BINARY_NAME).app/Contents/MacOS/$(BINARY_NAME) .
+	@ command -v codesign > /dev/null && codesign -f -s - $(BINARY_NAME) > /dev/null 2>&1 || true
 	@ cp -f $(BUILD_DIR)/compile_commands.json .
 
 
@@ -50,6 +52,7 @@ verbose:
 	cmake -B $(BUILD_DIR) -DDEBUG=OFF $(VERBOSE_FLAG) $(VCPKG_FLAGS) $(CMAKE_FLAGS)
 	cmake --build $(BUILD_DIR)
 	@ cp -f $(BUILD_DIR)/$(BINARY_NAME).app/Contents/MacOS/$(BINARY_NAME) .
+	@ command -v codesign > /dev/null && codesign -f -s - $(BINARY_NAME) > /dev/null 2>&1 || true
 	@ cp -f $(BUILD_DIR)/compile_commands.json .
 
 
