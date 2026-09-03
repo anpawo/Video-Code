@@ -1419,12 +1419,24 @@ Item {
                 hoverEnabled: true
 
                 onPressed: (mouse) => {
-                    if (!(mouse.modifiers & Qt.ControlModifier) || root.path.length === 0) {
-                        mouse.accepted = false;
+                    if ((mouse.modifiers & Qt.ControlModifier) && root.path.length > 0) {
+                        const at = root.locationAt(editor.positionAt(mouse.x, mouse.y));
+                        Lsp.definition(root.path, at.line, at.character, function (reply) { root.follow(reply); });
                         return;
                     }
-                    const at = root.locationAt(editor.positionAt(mouse.x, mouse.y));
-                    Lsp.definition(root.path, at.line, at.character, function (reply) { root.follow(reply); });
+
+                    // Under the last line is still in the file. The band down
+                    // there belongs to the editor now — see the TextArea's
+                    // height — but a TextEdit moves its caret only for a press
+                    // it reads as being on a line, so one below them all is
+                    // answered here rather than dropped.
+                    if (mouse.y > editor.topPadding + editor.contentHeight) {
+                        editor.forceActiveFocus();
+                        editor.cursorPosition = editor.length;
+                        return;
+                    }
+
+                    mouse.accepted = false;
                 }
 
                 property real lastX: 0
