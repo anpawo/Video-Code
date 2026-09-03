@@ -1253,12 +1253,13 @@ Item {
             // Code is not prose: a wrapped line lies about where the line ends,
             // and every editor a person has used before this one scrolls instead.
             wrapMode: TextEdit.NoWrap
-            // Clicking under the last line is still clicking in the file. A
-            // TextArea only as tall as its text leaves that band to the
-            // Flickable, which takes the press and does nothing with it; one at
-            // least as tall as the viewport hands it to the text, which puts the
-            // caret on the nearest character — the end of the last line.
-            height: Math.max(implicitHeight, view.availableHeight)
+            // Clicking under the last line is still clicking in the file. The
+            // room to scroll past the end is the Flickable's margin, and a
+            // TextArea only as tall as its text leaves every press down there
+            // to the Flickable, which has nothing to do with it. Stretched over
+            // the margin, the press reaches the text and lands on the nearest
+            // character — the end of the last line.
+            height: implicitHeight + (view.contentItem as Flickable).bottomMargin
             selectionColor: Qt.alpha(Theme.ai, 0.35)
             selectedTextColor: Theme.ink
             persistentSelection: true
@@ -1422,17 +1423,6 @@ Item {
                     if ((mouse.modifiers & Qt.ControlModifier) && root.path.length > 0) {
                         const at = root.locationAt(editor.positionAt(mouse.x, mouse.y));
                         Lsp.definition(root.path, at.line, at.character, function (reply) { root.follow(reply); });
-                        return;
-                    }
-
-                    // Under the last line is still in the file. The band down
-                    // there belongs to the editor now — see the TextArea's
-                    // height — but a TextEdit moves its caret only for a press
-                    // it reads as being on a line, so one below them all is
-                    // answered here rather than dropped.
-                    if (mouse.y > editor.topPadding + editor.contentHeight) {
-                        editor.forceActiveFocus();
-                        editor.cursorPosition = editor.length;
                         return;
                     }
 
