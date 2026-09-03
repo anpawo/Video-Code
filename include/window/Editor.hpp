@@ -180,6 +180,16 @@ namespace VC
         //: is either fine or returns nothing, with no way to know but to ask.
         void captureHidden(const QString& path);
 
+        // probeClicks() — the clicks a scripted run asks for, on its own clock.
+        //
+        // Both capture paths need them and only one had them: `captureTo` hangs
+        // its scripting off `frameSwapped`, which a window that is never
+        // presented never emits. So the hidden path — the one that leaves the
+        // desktop alone, and therefore the only one an agent may use — was
+        // photographing a window nothing had ever been sent to, and every click
+        // it appeared to test proved nothing.
+        void probeClicks(int delay);
+
         bool headless() const { return _headless; }
 
         void setHeadless(bool headless) { _headless = headless; }

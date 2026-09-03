@@ -222,6 +222,7 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
             const int     settle = qEnvironmentVariableIntValue("VC_SETTLE") > 0
                                        ? qEnvironmentVariableIntValue("VC_SETTLE")
                                        : 1500;
+            editor.probeClicks(settle);
             QTimer::singleShot(settle, &editor, [&editor, shot] {
                 editor.captureHidden(shot);
                 QCoreApplication::quit();

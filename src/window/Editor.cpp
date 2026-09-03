@@ -497,17 +497,7 @@ void VC::Editor::captureTo(const QString& path)
         qWarning() << "VC_CLICK: built without Qt6::GuiPrivate — this window cannot be given focus, so shortcuts will not fire.";
 #endif
 
-        // VC_CLICK="x,y" — or "x1,y1,x2,y2,…" for a sequence, which is how a
-        // scripted run reaches anything behind a menu: opening it and choosing
-        // from it are two clicks, and one of them alone proves nothing.
-        const QStringList probe = qEnvironmentVariable("VC_CLICK").split(',', Qt::SkipEmptyParts);
-        for (int i = 0; i + 1 < probe.size(); i += 2) {
-            const QPointF at(probe[i].toDouble(), probe[i + 1].toDouble());
-            // After the drags, not before: a script that resizes something and
-            // then clicks in it is describing an order, and firing the click
-            // first tests the opposite of what it says.
-            QTimer::singleShot(delay / 2 + 600 + (i / 2) * 200, this, [this, at] { clickAt(at); });
-        }
+        probeClicks(delay);
 
         // VC_HOVER="x,y" — the pointer coming to REST somewhere, which is a
         // third kind of input entirely: hovers, tooltips and the language
@@ -1248,6 +1238,22 @@ void VC::Editor::highlightPython(QQuickTextDocument* document, const QVariantMap
     }
 
     new PythonHighlighter(document->textDocument(), colours);
+}
+
+// VC_CLICK="x,y" — or "x1,y1,x2,y2,…" for a sequence, which is how a scripted
+// run reaches anything behind a menu: opening it and choosing from it are two
+// clicks, and one of them alone proves nothing.
+//
+// The clicks land after the drags, never before: a script that resizes something
+// and then clicks in it is describing an order, and firing the click first tests
+// the opposite of what it says.
+void VC::Editor::probeClicks(int delay)
+{
+    const QStringList probe = qEnvironmentVariable("VC_CLICK").split(',', Qt::SkipEmptyParts);
+    for (int i = 0; i + 1 < probe.size(); i += 2) {
+        const QPointF at(probe[i].toDouble(), probe[i + 1].toDouble());
+        QTimer::singleShot(delay / 2 + 600 + (i / 2) * 200, this, [this, at] { clickAt(at); });
+    }
 }
 
 void VC::Editor::clickAt(const QPointF& pos)
