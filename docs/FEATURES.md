@@ -55,11 +55,13 @@ from rounding).
 |---|---|---|
 | `Letter(char, font, fontSize, ...)` | `Letter.py` | A single glyph outline as a `Polygon` (FreeType + HarfBuzz). Multi-contour glyphs (holes, e.g. "o") handled via earcut-with-holes. |
 | `Text(text, fontSize, fontFamily, fillColor, strokeColor, strokeWidth, bold, italic)` | `Text.py` | A line of text — `Group[Offset[Letter]]`, each letter individually positioned |
-| `Markdown(filepath, fontSize, fillColor, strokeColor, strokeWidth, x, y, lineSpacing)` | `Markdown.py` | Renders a `.md` file as a stack of `Text` blocks. v1 (block-level only): `#`...`######` headings (size-scaled), `- `/`* ` bullets (rendered "• "), whole-line `**bold**`/`*italic*`, plain paragraphs. See `_MarkdownHelper.py` for `parseMarkdown()`. |
-| `Subtitles(filepath, fontSize, fillColor, strokeColor, strokeWidth, y, lineSpacing)` | `Subtitles.py` | Parses a `.srt` file (`_SubtitleHelper.parseSRT()`) into `Text` blocks that `hide()`/`show()` themselves at each cue's start/end time |
+| `MarkupText(markup, fontSize, fontFamily, fillColor, strokeColor, strokeWidth, bold, italic)` | `Text.py` | A `Text` whose style changes INSIDE the line: `<b>`, `<i>`, `<font color="#hex">`/`<span color=…>` style the run they wrap, each run shaped with its own face so a bold word advances by bold widths. Every other tag (`<u>`, a subtitle's `{\an8}`, an unknown name) is stripped, never drawn. `.text` is the plain text, so `find()`/`typeIn()`/`anchor`/gradients are unchanged, and assigning `.fillColor` still overrides every run. See `_TextHelper.py` for `parseMarkup()`. Kerning across a run boundary is lost. |
+| `Markdown(filepath, fontSize, fillColor, strokeColor, strokeWidth, x, y, lineSpacing)` | `Markdown.py` | Renders a `.md` file as a stack of `MarkupText` blocks. v1: `#`...`######` headings (size-scaled), `- `/`* ` bullets (rendered "• "), whole-line `**bold**`/`*italic*`, plain paragraphs — plus inline `**bold**`/`*italic*` mixed within a line. See `_MarkdownHelper.py` for `parseMarkdown()`. |
+| `Subtitles(filepath, fontSize, fillColor, strokeColor, strokeWidth, y, lineSpacing)` | `Subtitles.py` | Parses a `.srt` file (`_SubtitleHelper.parseSRT()`) into `MarkupText` blocks that `hide()`/`show()` themselves at each cue's start/end time — a cue's `<i>`/`<b>`/`<font color>` styles the line, `{\anN}` and `<u>` are dropped |
 
 **Examples**: `test/visual/scenes/text.py`, `text_stroke.py`, `text_gradient.py`,
-`markdown.py` (uses `test/test.md`), `subtitles.py` (uses `test/test.srt`).
+`markdown.py` (uses `test/test.md`), `subtitles.py` (uses `test/test.srt`);
+`test/markup_text_test.py` (uses `test/test_tags.srt`).
 
 ---
 

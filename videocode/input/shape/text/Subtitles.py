@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import videocode.input.shape.text._SubtitleHelper as _helper
 from videocode.input.interface.Group import Group
-from videocode.input.shape.text.Text import Text
+from videocode.input.shape.text.Text import MarkupText, Text
 from videocode.ty import *
 from videocode.constants import *
 
@@ -15,11 +15,15 @@ __all__ = [
 
 
 class Subtitles(Group[Text]):
-    """
+    r"""
     Render a `.srt` subtitle file as timed `Text` inputs, one per cue line.
 
     Each line is hidden by default and only shown between its cue's start
     and end timestamps (in seconds, as read from the file).
+
+    A cue's markup is styling, not text: `<i>`/`<b>`/`<font color=…>` style
+    the run they wrap and every other tag (`<u>`, `{\an8}`) is dropped —
+    see `MarkupText`. They used to be shaped as glyphs and drawn on screen.
     """
 
     def __init__(
@@ -38,7 +42,7 @@ class Subtitles(Group[Text]):
             lines = cue.text.splitlines()
             for i, line in enumerate(lines):
                 texts.append(
-                    Text(line, fontSize=fontSize, fillColor=fillColor, strokeColor=strokeColor, strokeWidth=strokeWidth)
+                    MarkupText(line, fontSize=fontSize, fillColor=fillColor, strokeColor=strokeColor, strokeWidth=strokeWidth)
                     .position(x=0, y=y + (len(lines) - 1 - i) * lineSpacing)
                     .hide(start=0)
                     .show(start=cue.start)

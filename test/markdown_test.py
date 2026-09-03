@@ -14,7 +14,7 @@ sys.path.insert(0, "test")
 from helpers import check, section, summary
 
 from videocode import Markdown
-from videocode.input.shape.text._MarkdownHelper import parseMarkdown
+from videocode.input.shape.text._MarkdownHelper import _toMarkup, parseMarkdown
 
 # ── parseMarkdown ────────────────────────────────────────────────────────────
 section("parseMarkdown — block-level parsing")
@@ -37,6 +37,13 @@ check("all left-aligned", all(t.meta.align.x == 0 for t in md.inputs))
 ys = [t.meta.position.y for t in md.inputs]
 check("blocks stack downward", all(ys[i] > ys[i + 1] for i in range(len(ys) - 1)))
 check("bold/italic flags propagate", md.inputs[5].bold and md.inputs[6].italic)
+
+# ── inline styling ───────────────────────────────────────────────────────────
+section("parseMarkdown — inline **bold**/*italic* become markup, not asterisks")
+check("inline bold", _toMarkup("Hello **bold**") == "Hello <b>bold</b>")
+check("inline italic", _toMarkup("a *soft* word") == "a <i>soft</i> word")
+check("both mixed in one line", _toMarkup("**b** and *i*") == "<b>b</b> and <i>i</i>")
+check("a whole-line bold is still a block flag, untouched here", blocks[5].text == "Bold paragraph")
 
 # ── summary ──────────────────────────────────────────────────────────────────
 summary()

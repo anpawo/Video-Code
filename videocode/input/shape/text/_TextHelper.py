@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 import subprocess
 from functools import cache
 
@@ -19,6 +20,16 @@ _FONT_DIR = Path(__file__).parents[4] / "assets" / "fonts"
 _STEPS = 4
 _TAB_SIZE = 4
 _FT_FLAGS = 1 | 2 | 8  # FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITMAP
+
+# An opening or closing tag, or an ASS override block (`{\an8}`) — a subtitle
+# file is full of both and means neither to be drawn.
+_TAG_RE = re.compile(r"<(/?)(\w+)([^>]*)>|\{\\[^}]*\}")
+_COLOR_RE = re.compile(r"""color\s*=\s*["']?(#[0-9A-Fa-f]{3,8})""")
+
+#: (bold, italic, color) — what one run of characters is shaped and painted with.
+type runStyle = tuple[bool, bool, maybe[rgba]]
+type run = tuple[int, int, bool, bool, maybe[rgba]]
+_PLAIN: runStyle = (False, False, None)
 
 
 @cache
@@ -223,6 +234,97 @@ def reversePairs(pairs: list[tuple[float, float]]) -> list[tuple[float, float]]:
     return out
 
 
+def _markupColor(attributes: str) -> maybe[rgba]:
+    """`color="#FF6A00"` out of a tag's attributes — anything else is no colour."""
+    match = _COLOR_RE.search(attributes)
+    if match is None:
+        return None
+    hexa = match.group(1).lstrip("#")
+    if len(hexa) == 3:  # #f00, what a hand-written cue writes
+        hexa = "".join(c * 2 for c in hexa)
+    return rgba(f"#{hexa}") if len(hexa) in (6, 8) else None
+
+
+def parseMarkup(markup: str) -> tuple[str, tuple[run, ...]]:
+    r"""
+    Split `<b>`/`<i>`/`<font color=…>` markup into plain text and styled runs.
+
+    A run is (start, end, bold, italic, color) in PLAIN-character indices —
+    the indices `buildLetterData` needs, the tags themselves being gone by
+    then. `<span color=…>` reads like `<font>`, and the two nest.
+
+    Everything else that looks like a tag — `<u>`, `{\an8}`, an unknown name —
+    is STRIPPED rather than drawn: a subtitle file saying `{\an8}<b>Loud</b>`
+    never means the braces to reach the screen, and a `Text` drew all 48
+    characters of that cue as glyphs.
+    """
+    plain: list[str] = []
+    runs: list[run] = []
+    colors: list[maybe[rgba]] = []
+    bold = italic = 0
+    length = start = 0
+    current: runStyle = _PLAIN
+    pos = 0
+
+    for tag in _TAG_RE.finditer(markup):
+        chunk = markup[pos : tag.start()]
+        plain.append(chunk)
+        length += len(chunk)
+        pos = tag.end()
+
+        closing, name = tag.group(1) == "/", (tag.group(2) or "").lower()
+        if name == "b":
+            bold = max(bold - 1, 0) if closing else bold + 1
+        elif name == "i":
+            italic = max(italic - 1, 0) if closing else italic + 1
+        elif name in ("font", "span"):
+            # Pushed even when the tag names no colour, so its `</font>` pops
+            # its own entry and not the one an enclosing tag opened.
+            if closing:
+                if colors:
+                    colors.pop()
+            else:
+                colors.append(_markupColor(tag.group(3)))
+
+        new: runStyle = (bold > 0, italic > 0, next((c for c in reversed(colors) if c is not None), None))
+        if new != current:
+            if length > start and current != _PLAIN:
+                runs.append((start, length, current[0], current[1], current[2]))
+            start, current = length, new
+
+    plain.append(markup[pos:])
+    length += len(markup) - pos
+    if length > start and current != _PLAIN:
+        runs.append((start, length, current[0], current[1], current[2]))
+
+    return "".join(plain), tuple(runs)
+
+
+def _runSegments(line: str, offset: int, runs: maybe[tuple[run, ...]], bold: bool, italic: bool) -> list[tuple[str, runStyle]]:
+    """
+    The line cut where a run starts or ends — one shaping call per piece.
+
+    `offset` is where the line begins in the text the runs were measured
+    against. No runs means one piece, which is what keeps a plain `Text`
+    shaping exactly the string it always shaped.
+    """
+    if not runs:
+        return [(line, (bold, italic, None))]
+
+    styles: list[runStyle] = [(bold, italic, None)] * len(line)
+    for begin, end, b, i, color in runs:
+        for k in range(max(begin - offset, 0), min(end - offset, len(line))):
+            styles[k] = (bold or b, italic or i, color)
+
+    pieces: list[tuple[list[str], runStyle]] = []
+    for char, st in zip(line, styles):
+        if pieces and pieces[-1][1] == st:
+            pieces[-1][0].append(char)
+        else:
+            pieces.append(([char], st))
+    return [("".join(chars), st) for chars, st in pieces]
+
+
 @cache
 def buildLetterData(
     text: str,
@@ -230,39 +332,59 @@ def buildLetterData(
     fontFamily: str,
     bold: bool,
     italic: bool,
-) -> list[tuple[str, float, float]]:
+    runs: maybe[tuple[run, ...]] = None,
+) -> list[tuple[str, float, float, runStyle]]:
     """
-    Returns (char, x_offset, y_offset) for each rendered glyph.
+    Returns (char, x_offset, y_offset, style) for each rendered glyph.
     Newlines split the text into lines; each subsequent line is offset downward
     by one line height (ascender − descender, scaled). Tabs expand to the next
     _TAB_SIZE-column stop before shaping — fonts carry no U+0009 glyph, so
     HarfBuzz would otherwise map a tab to .notdef and draw a tofu box.
+
+    `runs` (see `parseMarkup`) restyles slices of the text: each one is shaped
+    with its OWN face, the pen carrying across, so a bold word inside a regular
+    line advances by bold widths. The line's height and baseline stay on the
+    base face, so a run never moves the line it sits in.
     """
     path = fontPath(fontFamily, bold, italic)
-    _, hbFont, _, capH, (desc, asc) = loadFaces(path)
-    scale = fontSize / capH
-    lineHeight = (asc - desc) * scale
+    _, baseFont, _, capH, (desc, asc) = loadFaces(path)
+    baseScale = fontSize / capH
+    lineHeight = (asc - desc) * baseScale
 
-    result: list[tuple[str, float, float]] = []
+    result: list[tuple[str, float, float, runStyle]] = []
 
+    lineStart = 0
     for lineIdx, rawLine in enumerate(text.split("\n")):
-        # Expanded before shaping so info.cluster keeps indexing the same string.
-        line = rawLine.expandtabs(_TAB_SIZE)
-        if not line:
-            continue
         yBase = -lineIdx * lineHeight
-        infos, positions = shape(line, hbFont)
         cx = 0.0
 
-        for info, pos in zip(infos, positions):
-            xOff = cx + pos.x_offset * scale
-            yOff = yBase + pos.y_offset * scale
-            cached = _glyphVerts(path, info.codepoint)
-            if cached:
-                verts = [(x * scale, y * scale) for x, y in cached]
-                char = line[info.cluster] if info.cluster < len(line) else ""
-                result.append((char, xOff + min(v[0] for v in verts), yOff + min(v[1] for v in verts)))
-            cx += pos.x_advance * scale
+        for segment, st in _runSegments(rawLine, lineStart, runs, bold, italic):
+            # Expanded before shaping so info.cluster keeps indexing the same string.
+            line = segment.expandtabs(_TAB_SIZE)
+            if not line:
+                continue
+            if (st[0], st[1]) == (bold, italic):
+                segPath, hbFont, scale = path, baseFont, baseScale
+            else:
+                # A run scales by its OWN capH — the one `Letter` will scale
+                # its outline by. Off the base face's, a bold run came out
+                # subtly mis-sized against its own glyphs.
+                segPath = fontPath(fontFamily, st[0], st[1])
+                _, hbFont, _, segCapH, _ = loadFaces(segPath)
+                scale = fontSize / segCapH
+            infos, positions = shape(line, hbFont)
+
+            for info, pos in zip(infos, positions):
+                xOff = cx + pos.x_offset * scale
+                yOff = yBase + pos.y_offset * scale
+                cached = _glyphVerts(segPath, info.codepoint)
+                if cached:
+                    verts = [(x * scale, y * scale) for x, y in cached]
+                    char = line[info.cluster] if info.cluster < len(line) else ""
+                    result.append((char, xOff + min(v[0] for v in verts), yOff + min(v[1] for v in verts), st))
+                cx += pos.x_advance * scale
+
+        lineStart += len(rawLine) + 1
 
     return result
 
@@ -284,18 +406,19 @@ def buildLetters(
     fillColor: rgba,
     strokeColor: rgba,
     strokeWidth: float,
+    runs: maybe[tuple[run, ...]] = None,
 ) -> list[Letter]:
     from videocode.input.shape.text.Text import Letter
 
     letters: list[Letter] = []
-    for char, _x, _y in buildLetterData(text, fontSize, fontFamily, bold, italic):
+    for char, _x, _y, (isBold, isItalic, color) in buildLetterData(text, fontSize, fontFamily, bold, italic, runs=runs):
         letter = Letter(
             char=char,
             fontSize=fontSize,
             fontFamily=fontFamily,
-            bold=bold,
-            italic=italic,
-            fillColor=fillColor,
+            bold=isBold,
+            italic=isItalic,
+            fillColor=fillColor if color is None else color,
             strokeColor=strokeColor,
             strokeWidth=strokeWidth,
         )

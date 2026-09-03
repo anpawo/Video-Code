@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import videocode.input.shape.text._MarkdownHelper as _helper
 from videocode.input.interface.Group import Group
-from videocode.input.shape.text.Text import Text
+from videocode.input.shape.text.Text import MarkupText, Text
 from videocode.ty import *
 from videocode.constants import *
 
@@ -17,10 +17,10 @@ class Markdown(Group[Text]):
     """
     Render a Markdown file as a vertical stack of left-aligned `Text` blocks.
 
-    v1 scope (block-level only, see `_MarkdownHelper.parseMarkdown`):
-    headings (`#`..`######`), `- `/`* ` bullet items, a whole line wrapped in
-    `**bold**`/`*italic*`, and plain paragraphs. No inline mixed styling
-    within a single line.
+    v1 scope (see `_MarkdownHelper.parseMarkdown`): headings (`#`..`######`),
+    `- `/`* ` bullet items, a whole line wrapped in `**bold**`/`*italic*`, and
+    plain paragraphs. Inline `**bold**`/`*italic*` mixed inside a line are
+    styled too — each block is a `MarkupText`.
     """
 
     def __init__(
@@ -39,7 +39,7 @@ class Markdown(Group[Text]):
         currentY = y
         for block in _helper.parseMarkdown(filepath, fontSize):
             texts.append(
-                Text(
+                MarkupText(
                     block.text,
                     fontSize=block.fontSize,
                     fillColor=fillColor,

@@ -10,16 +10,25 @@ _HEADING_RE = re.compile(r"^(#{1,6})\s+(.*)$")
 _BULLET_RE = re.compile(r"^[-*]\s+(.*)$")
 _BOLD_RE = re.compile(r"^\*\*(.*)\*\*$")
 _ITALIC_RE = re.compile(r"^\*(.*)\*$")
+_INLINE_BOLD_RE = re.compile(r"\*\*(.+?)\*\*")
+_INLINE_ITALIC_RE = re.compile(r"\*(.+?)\*")
 
 # fontSize multipliers for heading levels 1-6, relative to the base paragraph size.
 _HEADING_SCALE = {1: 2.0, 2: 1.7, 3: 1.4, 4: 1.2, 5: 1.1, 6: 1.0}
+
+
+def _toMarkup(text: str) -> str:
+    """`**x**`/`*x*` become `<b>x</b>`/`<i>x</i>` — tags a `MarkupText` styles, not asterisks it draws."""
+    return _INLINE_ITALIC_RE.sub(r"<i>\1</i>", _INLINE_BOLD_RE.sub(r"<b>\1</b>", text))
 
 
 class MarkdownBlock:
     __slots__ = ("text", "fontSize", "bold", "italic")
 
     def __init__(self, text: str, fontSize: wnumber, bold: bool, italic: bool) -> None:
-        self.text = text
+        # The one point every branch of `parseMarkdown` routes through, so a
+        # heading, a bullet and a paragraph all get their inline styling.
+        self.text = _toMarkup(text)
         self.fontSize = fontSize
         self.bold = bold
         self.italic = italic
@@ -36,7 +45,8 @@ def parseMarkdown(filepath: str, fontSize: wnumber) -> list[MarkdownBlock]:
     - anything else — a plain paragraph
 
     Blank lines are skipped (they only affect spacing between blocks, handled
-    by the caller). No inline mixed styling within a single line.
+    by the caller). Inline `**bold**`/`*italic*` inside a block come out as
+    `<b>`/`<i>` markup for `MarkupText` to style — a `Text` drew the asterisks.
     """
     with open(filepath, "r", encoding="utf-8") as file:
         lines = file.read().splitlines()

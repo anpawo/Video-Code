@@ -35,5 +35,11 @@ ys = [t.meta.position.y for t in sub.inputs]
 check("multi-line cue stacks vertically", ys[1] != ys[2])
 check("single-line cue shares the base y with the last line of cue 2", ys[0] == ys[2])
 
+# ── markup ───────────────────────────────────────────────────────────────────
+section("Subtitles — a cue's tags style the line instead of being drawn in it")
+tagged = Subtitles("test/test_tags.srt")
+check("`<i>Hello</i> world` is 10 letters, not 17", tagged.inputs[0].text == "Hello world" and len(tagged.inputs[0].inputs) == 10)
+check("the italic run is the wrapped word", [l.italic for l in tagged.inputs[0].inputs] == [True] * 5 + [False] * 5)
+
 # ── summary ──────────────────────────────────────────────────────────────────
 summary()

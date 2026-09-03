@@ -27,6 +27,7 @@ from videocode.utils.mixins import _hasFillStroke
 
 __all__ = [
     "Letter",
+    "MarkupText",
     "Text",
 ]
 
@@ -38,6 +39,10 @@ _SHADER_CANVAS_MARGIN = 0.3
 
 
 class Text(Group[Letter], _hasFillStroke):
+    #: Styled slices of `text`, or None for a text shaped in one piece — only
+    #: `MarkupText` sets it, on the instance, before this `__init__` runs.
+    _runs: maybe[tuple[_helper.run, ...]] = None
+
     def __init__(
         self,
         text: str,
@@ -121,6 +126,7 @@ class Text(Group[Letter], _hasFillStroke):
                     fillColor=fillColor,
                     strokeColor=strokeColor,
                     strokeWidth=strokeWidth,
+                    runs=self._runs,
                 )
                 if len(text) != 0
                 else []
@@ -154,7 +160,7 @@ class Text(Group[Letter], _hasFillStroke):
                 setattr(l, attr, color)
             return
 
-        data = _helper.buildLetterData(self.text, self.fontSize, self.fontFamily, self.bold, self.italic)
+        data = _helper.buildLetterData(self.text, self.fontSize, self.fontFamily, self.bold, self.italic, runs=self._runs)
 
         angleRad = math.radians(color.angle)
         dx, dy = math.cos(angleRad), math.sin(angleRad)
@@ -163,7 +169,7 @@ class Text(Group[Letter], _hasFillStroke):
             projs = (x * dx + y * dy, (x + w) * dx + y * dy, x * dx + (y + h) * dy, (x + w) * dx + (y + h) * dy)
             return min(projs), max(projs)
 
-        ranges = [projRange(x, y, l.width, l.height) for l, (_, x, y) in zip(letters, data)]
+        ranges = [projRange(x, y, l.width, l.height) for l, (_, x, y, _s) in zip(letters, data)]
         globalMin = min(r[0] for r in ranges)
         globalMax = max(r[1] for r in ranges)
         globalRange = globalMax - globalMin
@@ -318,15 +324,16 @@ class Text(Group[Letter], _hasFillStroke):
             fontFamily=self.fontFamily,
             bold=self.bold,
             italic=self.italic,
+            runs=self._runs,
         )
 
-        xMin = min(0.0, min(x for _, x, _ in data))
-        xMax = max(x + l.width for (_, x, _), l in zip(data, letters))
+        xMin = min(0.0, min(x for _, x, _, _s in data))
+        xMax = max(x + l.width for (_, x, _, _s), l in zip(data, letters))
         ax = xMin + self.meta.align.x * (xMax - xMin)
 
         ay = _helper.lineAnchor(self.fontFamily, self.bold, self.italic, self.fontSize, self.meta.align.y)
 
-        for letter, (_, x, y) in zip(letters, data):
+        for letter, (_, x, y, _s) in zip(letters, data):
             letter.apply(align(0, 0))
             # Set text-local position directly on meta (no C++ push) so _regroup()
             # captures group-relative coords; _emitRigid below emits world positions.
@@ -431,3 +438,45 @@ class Text(Group[Letter], _hasFillStroke):
 
     def __str__(self) -> str:
         return f"Text({self.text})"
+
+
+class MarkupText(Text):
+    r"""
+    A `Text` whose style CHANGES INSIDE THE LINE — the tags style the
+    glyphs instead of being drawn as glyphs:
+
+        MarkupText('Hello <b>world</b>, <font color="#FF6A00">on fire</font>')
+
+    `<b>`, `<i>`, `<font color="#hex">` and `<span color=…>` are honoured
+    and nest, a run's bold/italic ORing with the `bold=`/`italic=` given
+    here. Every other tag — `<u>`, a subtitle's `{\an8}`, an unknown name —
+    is STRIPPED, never drawn.
+
+    The members are `Letter`s like any other text's, and `.text` is the
+    PLAIN text, so `find()`, `typeIn()`, `anchor` and gradients keep
+    working on what the reader sees. Assigning `.fillColor` afterwards
+    still repaints every letter, a coloured run included — the same rule
+    an SVG's own fills follow.
+
+    ponytail: each run is shaped on its own, so kerning ACROSS a run
+    boundary is lost (and a tab inside one restarts its column there).
+    Shaping the whole line once and re-running it per style would fix it;
+    no subtitle or Markdown line has asked yet.
+    """
+
+    def __init__(
+        self,
+        markup: str,
+        fontSize: wnumber = 0.5,
+        fontFamily: str = "Inter",
+        fillColor: paint = WHITE,
+        strokeColor: rgba = TRANSPARENT,
+        strokeWidth: wufloat = 0,
+        bold: bool = False,
+        italic: bool = False,
+    ):
+        plain, runs = _helper.parseMarkup(markup)
+        # None, not (): a text with no run at all must take the shaping path a
+        # plain `Text` takes, character for character.
+        self._runs = runs or None
+        super().__init__(plain, fontSize, fontFamily, fillColor, strokeColor, strokeWidth, bold, italic)
