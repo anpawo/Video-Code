@@ -68,8 +68,8 @@
   "events": 12,
   "frameSlots": 121,
   "inputs": 33,
-  "lastFrame": 133,
-  "shape": "57525f9a0a4bcb70"
+  "lastFrame": 131,
+  "shape": "f0b131f41c82190d"
  },
  "test/visual/scenes/crop.py": {
   "applyCalls": 34,
@@ -347,7 +347,7 @@
   "events": 1,
   "frameSlots": 6,
   "inputs": 3,
-  "lastFrame": 31,
+  "lastFrame": 30,
   "shape": "8e0d991c822b6a8c"
  },
  "test/visual/scenes/sound.py": {

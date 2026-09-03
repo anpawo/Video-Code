@@ -182,6 +182,16 @@ class Context:
     # Last ever affected frame
     lastEverAffectedFrame: frame = 0
 
+    # Where the scene's time stands: the frame after the last one still
+    # changing anything. `lastEverAffectedFrame` cannot answer that — it is the
+    # exclusive end of the last WRITE, and an instant (`hide()`, `fillColor =`,
+    # a creation's `show`) is a one-frame write, so it sits one past the frame
+    # it lands on. `wait()` used to start from there, and every instant after a
+    # `wait()` stretched the scene by a frame: `wait(1); Circle(); wait(1)`
+    # measured 61. An instant takes no time, so it leaves the cursor where it
+    # was written; only a span moves it to its end.
+    cursor: frame = 0
+
     # Wait creates an offset affecting the start of any transformation
     waitOffset: frame = 0
 
@@ -596,8 +606,11 @@ def wait(n: sec = 0, stop: Clock | Iterable[Clock] | None = None) -> None:
         stopped = sorted(c.value for c in stop)
 
     # Python
-    startFrame = max(Context.lastEverAffectedFrame, Context.waitOffset)
-    Context.waitOffset = Context.lastEverAffectedFrame = startFrame + n
+    startFrame = max(Context.cursor, Context.waitOffset)
+    Context.waitOffset = Context.cursor = startFrame + n
+    # The gap still has to be rendered — and `wait(0)` right after an instant
+    # must not shorten the scene to before that instant's frame.
+    Context.lastEverAffectedFrame = max(Context.lastEverAffectedFrame, startFrame + n)
 
     Context.events.append(Wait(startFrame, n, stopped, Context._callSite()[1]))
 
@@ -612,4 +625,4 @@ def freeze(n: sec = 0) -> None:
 
 
 def timestamp(name: str) -> None:
-    Context.events.append(Timestamp(name, Context.lastEverAffectedFrame))
+    Context.events.append(Timestamp(name, Context.cursor))

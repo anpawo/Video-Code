@@ -19,6 +19,7 @@ def _resetContext():
     Context.events = []
     Context.inputCounter = 0
     Context.lastEverAffectedFrame = 0
+    Context.cursor = 0
     Context.waitOffset = 0
     Context.backgroundColor = None
     Context.origin = {}

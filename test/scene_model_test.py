@@ -154,6 +154,34 @@ again = model(
 check("the clip covers the whole of it",
       again["elements"][0]["last"] == again["frames"] - 1)
 
+# ── An instant takes no time ───────────────────────────────────────────────
+section("an instant written after a wait does not cost a frame")
+# Measured before the fix: 61 frames, the second wait starting at 31. A `show`
+# is a one-frame write, and `wait()` counted from the frame AFTER it.
+created = model("from videocode import *\nwait(1)\nCircle()\nwait(1)\n")
+check("wait(1); Circle(); wait(1) is two seconds", created["frames"] == 2 * FPS)
+check("and the second wait starts where the first ended",
+      [w["start"] for w in created["waits"]] == [0, FPS])
+
+# Not a creation: any one-frame write did it — hide, a colour, a position.
+hidden_late = model("from videocode import *\nr = Rectangle()\nwait(1)\nr.hide()\nwait(1)\n")
+check("wait(1); r.hide(); wait(1) is two seconds", hidden_late["frames"] == 2 * FPS)
+check("the hide sits on the first frame of the second wait",
+      [w["start"] for w in hidden_late["waits"]] == [0, FPS])
+
+steps = model("from videocode import *\n" + "wait(1)\nRectangle()\n" * 10 + "wait(1)\n")
+check("ten `wait(1); Rectangle()` steps and a last wait are eleven seconds, not 340 frames",
+      steps["frames"] == 11 * FPS)
+
+# What must NOT move: a span still carries the cursor to its end, and a scene
+# with no instant after a wait is what it always was.
+spanned = model("from videocode import *\nr = Rectangle()\nwait(1)\nr.fadeOut(duration=1)\nwait(1)\n")
+check("a one-second fade after a wait still pushes the next wait a second",
+      spanned["frames"] == 3 * FPS and [w["start"] for w in spanned["waits"]] == [0, 2 * FPS])
+plain = model("from videocode import *\nr = Rectangle()\nr.fadeOut(duration=1)\nwait(1)\n")
+check("nothing instant after the wait: unchanged",
+      plain["frames"] == 2 * FPS and [w["start"] for w in plain["waits"]] == [FPS])
+
 # ── Where a new statement can go ───────────────────────────────────────────
 section("every element carries the lines that touched it")
 points = model(

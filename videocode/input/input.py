@@ -242,6 +242,15 @@ class Input(ABC):
                 callback(s, start, duration, offset if offset is not None else self.meta.transformationOffset)
 
         if touched:
+            # Judged per STATEMENT, not per shader: an animation is n one-frame
+            # writes whose last already shows the arrival, so shader by shader
+            # every write would look like an instant and a 30-frame fade would
+            # settle on 29. A statement that spans one frame takes no time and
+            # leaves the cursor on that frame; one that spans more ends at its end.
+            first = min(span[0] for span in touched.values())
+            last = max(span[1] for span in touched.values())
+            Context.cursor = max(Context.cursor, first if last - first <= 1 else last)
+
             # The cursor this statement counted from, so the editor can write a
             # `start=` for a statement it inserts NEXT to this one: `start` is
             # seconds after the element's own cursor, and nothing in the buffer
