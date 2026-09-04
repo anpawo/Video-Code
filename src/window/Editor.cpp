@@ -474,17 +474,6 @@ void VC::Editor::captureTo(const QString& path)
             QTimer::singleShot(delay / 2 + 400 + i * 90, this, [this, c] { typeCharacter(c); });
         }
 
-        // VC_KEYS="F12;Ctrl+R;Click:700,455;Drag:10,10,80,10;Text:name" — named keys, clicks,
-        // drags and
-        // literals, in the order written. Typing covers what a
-        // character does; the pane's intelligence answers to keys that have no
-        // character at all, and those are exactly the ones worth checking.
-        const QStringList keys = qEnvironmentVariable("VC_KEYS").split(';', Qt::SkipEmptyParts);
-        for (int i = 0; i < keys.size(); ++i) {
-            const QString spec = keys.at(i);
-            QTimer::singleShot(delay / 2 + 900 + i * 700, this, [this, spec] { pressKey(spec); });
-        }
-
         // VC_OPEN="/path/to/scene.py" — what File → Open Scene… ends with. The
         // panel itself is the system's and cannot be driven, so the probe skips
         // it and delivers the answer a person would have given.
@@ -1209,6 +1198,18 @@ void VC::Editor::probeClicks(int delay)
     for (int i = 0; i + 1 < probe.size(); i += 2) {
         const QPointF at(probe[i].toDouble(), probe[i + 1].toDouble());
         QTimer::singleShot(delay / 2 + 600 + (i / 2) * 200, this, [this, at] { clickAt(at); });
+    }
+
+    // VC_KEYS="F12;Ctrl+R;Click:700,455;Drag:10,10,80,10;Text:name" — named keys,
+    // clicks, drags and literals, in the order written. Typing covers what a
+    // character does; the pane's intelligence answers to keys that have no
+    // character at all, and those are exactly the ones worth checking — Escape
+    // closing a panel, for one, which the windowless path could not send until
+    // this moved here beside the clicks.
+    const QStringList keys = qEnvironmentVariable("VC_KEYS").split(';', Qt::SkipEmptyParts);
+    for (int i = 0; i < keys.size(); ++i) {
+        const QString spec = keys.at(i);
+        QTimer::singleShot(delay / 2 + 900 + i * 700, this, [this, spec] { pressKey(spec); });
     }
 
     // VC_PANEL="settings" | "shortcuts" | "colors" | "save" | "default" | "measure" | "reset" — one of the

@@ -994,6 +994,12 @@ Item {
         id: hint
         visible: false
         z: 11
+
+        // The line it was asked about. A signature is only true of the call it
+        // describes, and nothing was closing it when the caret left: typing `)`
+        // hid it, moving away did not, so it sat over the code until the next
+        // `(` replaced it.
+        property int forLine: -1
         width: Math.min(shape.implicitWidth + 18, root.width - 24)
         height: shape.implicitHeight + 12
         color: Theme.codeSkin.hover
@@ -1012,6 +1018,7 @@ Item {
                 return;
             }
             shape.text = hint.emphasised(chosen, reply.activeParameter);
+            hint.forLine = editor.currentLine;
             const at = editor.mapToItem(root, editor.cursorRectangle.x, editor.cursorRectangle.y);
             hint.x = Math.max(8, Math.min(at.x - 20, root.width - hint.width - 8));
             // Above the caret, always: below is where the completion list goes,
@@ -1339,7 +1346,11 @@ Item {
             // Arrowing away, or clicking elsewhere, is the same statement as
             // moving the mouse away: the bubble is about somewhere you no
             // longer are.
-            onCursorPositionChanged: probe.dismiss()
+            onCursorPositionChanged: {
+                probe.dismiss();
+                if (hint.visible && editor.currentLine !== hint.forLine)
+                    hint.visible = false;
+            }
 
             onTextChanged: {
                 // A hover describes the word it was asked about, and typing has
