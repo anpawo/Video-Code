@@ -39,6 +39,10 @@ Item {
         { key: "shape", label: "SHAPES" },
         { key: "media", label: "MEDIA" },
         { key: "template", label: "TEMPLATES" },
+        // What the project's own templates/ folder holds — its own heading,
+        // because "did I write this or did it ship?" is the first thing you ask
+        // of a name you do not recognise.
+        { key: "yours", label: "YOUR TEMPLATES" },
         { key: "effect", label: "EFFECTS" },
         { key: "interface", label: "INTERFACE" }
     ]

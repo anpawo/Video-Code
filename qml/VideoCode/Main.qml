@@ -2177,7 +2177,10 @@ ApplicationWindow {
                 group: "effect",
                 module: effect.module,
                 form: effect.form,
-                says: "",
+                // An effect drops on a clip whichever folder it came from, so a
+                // preset of yours stays in the EFFECTS group — and says where it
+                // lives instead, since it cannot have its own heading.
+                says: effect.module.indexOf("templates.") === 0 ? "yours — templates/" : "",
                 params: effect.params,
                 required: []
             });

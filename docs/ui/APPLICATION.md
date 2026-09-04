@@ -171,6 +171,23 @@ The row's background carries the kind's colour — polygon, image, sound, video,
 subtitles — rather than a dot beside it. **+ Add media** opens the system's own
 file panel.
 
+### Library — what a scene can be given
+
+Every shape, piece of media, template and effect the language exposes, by
+group, each with its fields; set them, then carry the thing to the moment on the
+timeline where it should appear. The list is discovered from the code, never
+written in the panel.
+
+The project's own go in too. Put `templates/*.py` at the project root — a
+`Group` subclass per component, a plain function per effect preset — and each
+appears under its own heading, **YOUR TEMPLATES**, with the fields its `__init__`
+takes and the first line of its docstring as description; a preset of yours sits
+among the effects and says `yours — templates/` beside its name. Dropping one
+writes `from templates.LowerThird import LowerThird`, which resolves because the
+project root is where the scene runs. A file that does not import is named on
+stderr and skipped, and the others still show. The folder is plain files: commit
+it and the pack travels with the project.
+
 ### Agent — the conversation
 
 A column that shows what the agent ran, what it read and what it found, because
@@ -226,6 +243,7 @@ on this page was checked.
 | `scene.py` | The scene the editor opens on |
 | `eg.py` | The project's showcase — every feature at once, rendered by CI |
 | `videocode/` | The Python API |
+| `templates/` | Your own templates and effect presets, listed in the Library panel |
 | `qml/VideoCode/` | The chrome, read at run time |
 | `src/window/Editor.cpp` | The shell: menus, persistence, file access, probes |
 | `src/lsp/LanguageServer.cpp` | The LSP client |
