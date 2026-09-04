@@ -71,14 +71,18 @@ go to [qt6](https://www.qt.io/download) and download the latest version of qt6.
 
 ### Launch
 
-To launch the project, run:
+To preview a scene in a bare window, run:
 ```sh
 ./video-code --file path/to/your/script.py
 ```
+To open the editing shell — dock, timeline, properties and the scene's own
+buffer — instead of the bare preview:
+```sh
+./video-code --file path/to/your/script.py --editor
+```
 If you want to generate a video directly, use:
 ```sh
-./video-code --file path/to/your/script.py --generate
-
+./video-code --file path/to/your/script.py --generate out.mp4
 ```
 Videos are 1920x1080 by default. Pass `-w`/`--width` and `--height` to change
 it — the preview window and the rendered video both follow, and your script
@@ -94,9 +98,9 @@ needs no edit:
 
 To create a video with Video-Code, follow these steps:
 
-1. **Import or Create Inputs**: Inputs can be images, videos, or text. These are the basic building blocks of your video.
-2. **Apply Transformations**: Modify the inputs using various transformations such as translate, fade, overlay, etc.
-3. **Add to Timeline**: Add the transformed inputs to the timeline to create the final video sequence.
+1. **Create Inputs**: an input is a shape, a text, an image, a video or a sound — `Rectangle(...)`, `Text(...)`, `Image(...)`, `Video(...)`. Creating one puts it on screen: there is no separate "add" step.
+2. **Transform them**: call methods on the input — `position`, `fadeIn`, `moveTo`, `scaleTo`, `apply(shader, duration=)` — each one an animation or a state written on the timeline.
+3. **Let time pass**: `wait(n)` waits for every running animation, then holds the picture for `n` seconds.
 
 
 ## Principles
@@ -109,44 +113,48 @@ The timeline is a sequence of frames that represent the video. Inputs such as im
 
 ### Example
 
+`docs/by-example/firstRectangle.py` is the smallest scene there is:
+
 ```python
-from videocode.VideoCode import *
+from videocode import *
 
-# Create a video input
-v = video("path/to/video.mp4")
+Rectangle(width=3, height=2, fillColor=BLUE_C, strokeColor=WHITE).fadeIn()
 
-# Apply the grayscale transformation
-v.apply(grayscale())
-
-# Add the video to the timeline
-v.add()
+wait(1)
 ```
 
-### methods
+The same with a video, drawn at its natural size and turned grey:
 
-- `add()`: Adds the input to the timeline.
+```python
+from videocode import *
 
-- `apply(transformation)`: Applies a transformation to the input. The transformation can be any of the available transformations such as `grayscale()`, `fade()`, etc.
+clip = Video("path/to/video.mp4").position(x=0, y=0)
+clip.apply(grayscale(), duration=1)
 
-- `keep()`: Keeps the last frame of the input on the timeline after the input ends.
+wait(1)
+```
+
+Both render with `./video-code --file <scene.py> --generate out.mp4`.
+
+### Methods
+
+Every input shares the same methods (`videocode/input/input.py`). The ones a
+first scene needs:
+
+- `position(x, y)`: place the input — world units, one unit is 120 px, `(0, 0)` is the centre of the frame, Y is up.
+- `apply(shader, duration=n)`: run a fragment shader on the input for `n` seconds — `grayscale()`, `blur(5)`, `lightSweep()`, etc. Without `duration` it lasts one frame.
+- `fadeIn()` / `fadeOut()`: animate the opacity, 0.4 s by default.
+- `moveTo(x, y)` / `moveBy(x, y)` / `scaleTo(factor)` / `rotateBy(degrees)`: smooth animations, `duration=` and `easing=` on each.
+- `wait(n)`: not a method — a free function that waits for every animation and then holds `n` seconds.
 
 ## Detailed Documentation
 
-For more detailed usage instructions, refer to the following user documentation:
-
-- [Inputs](inputs/inputs.md)
-  - [Video](inputs/video.md)
-  - [Image](inputs/image.md)
-  - [Text](inputs/text.md)
-- [Transformations](transformation/transformation.md)
-  - [Fade](transformation/fade.md)
-  - [Grayscale](transformation/grayscale.md)
-  - [Translate](transformation/translate.md)
-  - [Move](transformation/move.md)
-  - [Overlay](transformation/overlay.md)
-  - [Repeat](transformation/repeat.md)
-  - [Scale](transformation/scale.md)
+The complete map of what the API can do — every input, every transformation,
+every effect, with the file it lives in and a runnable scene for each — is
+[docs/FEATURES.md](../FEATURES.md). Longer worked examples live in
+[docs/by-example/](../by-example/): `firstRectangle.py`, `layouts.py`,
+`4_animations.py`, and the README's `tuto.py`.
 
 ## Conclusion
 
-Video-Code provides a powerful way to create videos programmatically. By understanding the principles of inputs, transformations, and the timeline, you can create complex and precise video content. For more detailed information, refer to the linked user documentation sections.
+Video-Code provides a powerful way to create videos programmatically. By understanding the principles of inputs, transformations, and the timeline, you can create complex and precise video content. For more detailed information, refer to the feature map linked above.
