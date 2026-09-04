@@ -869,6 +869,28 @@ Item {
         // The gap the wait leaves is drawn as well as the join: `wait(0.5)` is
         // half a second in which nothing is scheduled, and a bare line would say
         // it was instantaneous.
+        //
+        // The gap is painted UNDER the lanes, not over them. Over them it had
+        // to be faint enough to leave a clip's name readable through it, and at
+        // 10% it was faint enough to miss altogether. On the ground it can be
+        // twice as strong and cover nothing: a bar is 30% of its hue, so the
+        // wait shows through it as a warmer bar, and the name band at 92% is
+        // simply on top. What still crosses the lanes is the join line, the
+        // stamp, and the clocks — all of them thin or see-through.
+        Repeater {
+            model: root.scene.waits !== undefined ? root.scene.waits : []
+
+            Rectangle {
+                required property var modelData
+                x: root.pad + modelData.at * root.pxPerSecond
+                y: flick.contentY
+                width: modelData.d * root.pxPerSecond
+                height: flick.height
+                z: -1
+                color: Qt.rgba(0.878, 0.376, 0.361, 0.20)
+            }
+        }
+
         Repeater {
             model: root.scene.waits !== undefined ? root.scene.waits : []
 
@@ -880,13 +902,6 @@ Item {
                 width: Math.max(modelData.d * root.pxPerSecond, 1)
                 height: flick.height
                 z: 4
-
-                // The gap itself, faint: time nobody filled.
-                Rectangle {
-                    anchors.fill: parent
-                    color: Qt.rgba(0.878, 0.376, 0.361, 0.10)
-                    visible: join.modelData.d > 0
-                }
 
                 // The join, on the instant everything before it ended.
                 Rectangle {
@@ -971,6 +986,83 @@ Item {
                             stampEntry.text = join.modelData.says.toFixed(2);
                             stampEntry.forceActiveFocus();
                             stampEntry.selectAll();
+                        }
+                    }
+                }
+
+                // ── Clocks, rising ────────────────────────────────────────
+                // Two or three small clocks drift up the gap, faint, and gone
+                // by the ruler: the band is a pause, and this is what says so
+                // from across the room, before the stamp is read. Their hands
+                // do not turn — a pause is exactly a clock whose hands are
+                // still.
+                //
+                // Circles and two lines, no image and no shader: the band is
+                // the picture, these are a hint laid over it, and they must
+                // lose to a clip's name every time they cross one — half
+                // opacity at their brightest, one pixel of stroke.
+                //
+                // None at all when they cannot be seen: while the band is
+                // scrolled out of the pane, while it is too narrow to hold one,
+                // and when the system asked for less movement — a still clock
+                // sitting on a clip for an hour is not a quieter version of
+                // this, it is a smudge.
+                Repeater {
+                    id: clocks
+                    model: !Theme.reducedMotion
+                           && join.x < flick.contentX + flick.width
+                           && join.x + join.width > flick.contentX
+                           ? Math.min(3, Math.floor(join.width / 20)) : 0
+
+                    Item {
+                        id: clock
+                        required property int index
+                        width: 14
+                        height: 14
+                        x: (index + 0.5) * join.width / clocks.count - width / 2
+
+                        // 0 at the foot of the pane, 1 just under the ruler.
+                        property real climb: 0
+                        readonly property real foot: join.height - 26
+                        readonly property real head: ruler.height + 6
+                        y: foot - climb * (foot - head)
+                        opacity: Math.sin(climb * Math.PI) * 0.5
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: width / 2
+                            color: "transparent"
+                            border.width: 1
+                            border.color: Qt.rgba(0.878, 0.376, 0.361, 1)
+                        }
+
+                        Rectangle {
+                            x: parent.width / 2 - 0.5
+                            y: 3
+                            width: 1
+                            height: parent.height / 2 - 3
+                            color: Qt.rgba(0.878, 0.376, 0.361, 1)
+                        }
+
+                        Rectangle {
+                            x: parent.width / 2
+                            y: parent.height / 2 - 0.5
+                            width: parent.width / 2 - 3
+                            height: 1
+                            color: Qt.rgba(0.878, 0.376, 0.361, 1)
+                        }
+
+                        // Each starts later and climbs slower than the one
+                        // before it, so they never line up into a row — a row
+                        // is a pattern, and a pattern is something to read.
+                        SequentialAnimation on climb {
+                            running: true
+                            PauseAnimation { duration: clock.index * 2100 }
+                            NumberAnimation {
+                                from: 0; to: 1
+                                duration: 6000 + clock.index * 900
+                                loops: Animation.Infinite
+                            }
                         }
                     }
                 }
