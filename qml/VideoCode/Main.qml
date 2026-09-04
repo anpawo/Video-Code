@@ -3203,6 +3203,21 @@ ApplicationWindow {
                 saveDisplay.close();
             else if (menu.visible)
                 menu.visible = false;
+            // The overlays, before anything under them. Each one answers Escape
+            // itself through `Keys.onEscapePressed`, which is enough until
+            // something inside it takes the keyboard: the moment a hex field in
+            // Colors is clicked, the panel's root no longer has focus and the
+            // key never reaches it. This shortcut sees it whatever holds focus.
+            //
+            // It has to live in THIS ladder and not in a shortcut of its own:
+            // two Shortcuts on one sequence in one window are an ambiguous
+            // overload, and Qt fires neither.
+            else if (colors.visible)
+                colors.visible = false;
+            else if (shortcuts.visible)
+                shortcuts.visible = false;
+            else if (settings.visible)
+                settings.visible = false;
             else if (app.measuring)
                 app.measuring = false;
             else if (elementCard.element !== null)

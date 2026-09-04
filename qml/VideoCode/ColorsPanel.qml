@@ -338,18 +338,6 @@ Item {
 
     Keys.onEscapePressed: root.visible = false
 
-    // And again, matched by the window rather than by the focus chain.
-    //
-    // `Keys.onEscapePressed` only fires for the item holding active focus: the
-    // moment a hex field is clicked the panel's root no longer has it, the key
-    // goes to the field, which does nothing with it, and the panel stays open.
-    // Every other overlay is dismissed before its fields are ever touched,
-    // which is why this one is the first to need it.
-    Shortcut {
-        sequence: "Esc"
-        enabled: root.visible
-        onActivated: root.visible = false
-    }
     onVisibleChanged: {
         if (visible)
             forceActiveFocus();
