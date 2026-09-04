@@ -9,6 +9,26 @@ Three places, split by what each can actually decide. Nothing blocks a push.
 | **`/ship`** | writes the docs, tests and examples a change owes | before committing | no |
 | `.githooks/pre-commit` | what the repo forgot to commit, coverage, types, the QML chrome (~15 s) — armed with `make arm` | on commit, once armed | yes |
 
+## The board
+
+One page says what is happening, so nobody has to ask:
+**https://claude.ai/code/artifact/a80200f9-2f71-48e8-b59e-7a8d6353e3ca**
+
+Its source is `docs/board.html`. Edit that file and publish it to the same URL.
+Five sections, colour-coded and fixed: **Needs your check** (orange, the only
+one that asks something of a person), **In progress** (blue), **To do** (green,
+split by what BLOCKS each group rather than by theme), **Won't do** (red, with
+the reason in the right-hand column — that column is the point of the section),
+**Shipped** (with the commit's short SHA).
+
+Update it as the state changes, not at the end of a session: a board that is
+right once a day is a board someone has to ask about. Hold ⌘ and hover a row for
+its three-bullet detail, which lives in that row's `data-b`.
+
+`docs/FEATURES_TODO.md` is the long form of the same information — measurements,
+numbers, designs that were rejected and why. The board is the view; that file is
+the record. Keep them agreeing.
+
 ## GitHub does the waiting
 
 The `fast` job of `.github/workflows/ci.yaml` runs the suites and pyright. It

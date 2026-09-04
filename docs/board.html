@@ -1,0 +1,338 @@
+<title>Chantier Video-Code</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    /* Les jetons de l'application elle-même — Theme.qml */
+    --ground: #f4f5f8;
+    --panel: #ffffff;
+    --edge: #d3d9e4;
+    --edge-soft: #e6eaf1;
+    --ink: #171b23;
+    --ink-dim: #5c6577;
+    --ink-faint: #8a93a6;
+    --live: #d4551f;
+    --ok: #2f8f60;
+    --warn: #a9781f;
+    --ai: #3d7ab5;
+    --bad: #c2453f;
+    --pop: #ffffff;
+    --pop-edge: #c8cfdb;
+    --pop-shadow: 0 8px 26px rgba(23, 27, 35, .16);
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --ground: #101319;
+      --panel: #171b23;
+      --edge: #2a3140;
+      --edge-soft: #212734;
+      --ink: #e3e7ef;
+      --ink-dim: #8a93a6;
+      --ink-faint: #5d6577;
+      --live: #f0703c;
+      --ok: #4fbe86;
+      --warn: #d9a94e;
+      --ai: #6aa6e0;
+      --bad: #e0605c;
+      --pop: #1d222c;
+      --pop-edge: #38415a;
+      --pop-shadow: 0 10px 30px rgba(0, 0, 0, .55);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #101319;
+    --panel: #171b23;
+    --edge: #2a3140;
+    --edge-soft: #212734;
+    --ink: #e3e7ef;
+    --ink-dim: #8a93a6;
+    --ink-faint: #5d6577;
+    --live: #f0703c;
+    --ok: #4fbe86;
+    --warn: #d9a94e;
+    --ai: #6aa6e0;
+    --bad: #e0605c;
+    --pop: #1d222c;
+    --pop-edge: #38415a;
+    --pop-shadow: 0 10px 30px rgba(0, 0, 0, .55);
+  }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--ui);
+    font-size: 13px;
+    line-height: 1.35;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1560px; margin: 0 auto; padding: 14px 18px 18px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; padding-bottom: 9px; border-bottom: 1px solid var(--edge); }
+  h1 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; margin: 0; }
+  .branch, .stamp { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+  .stamp { margin-left: auto; }
+  .chips { display: flex; gap: 12px; margin-left: 6px; }
+  .chip { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  .chip b { color: var(--ink); font-weight: 600; }
+  .hint { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); border: 1px solid var(--edge); border-radius: 3px; padding: 1px 6px; }
+  .hint.on { color: var(--ai); border-color: color-mix(in srgb, var(--ai) 50%, transparent); }
+
+  .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 14px; align-items: start; }
+  .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+  .card { background: var(--panel); border: 1px solid var(--edge-soft); border-radius: 6px; overflow: hidden; }
+  .card > h2 {
+    font-size: 10.5px; letter-spacing: .085em; text-transform: uppercase; font-weight: 600;
+    color: var(--ink-dim); margin: 0; padding: 8px 11px 7px; border-bottom: 1px solid var(--edge-soft);
+    display: flex; align-items: baseline; gap: 6px;
+  }
+  .card > h2 em { font-style: normal; color: var(--ink-faint); font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 11px; }
+  .card > h2 .n { margin-left: auto; font-family: var(--mono); color: var(--ink-faint); letter-spacing: 0; }
+
+  /* Un état, une couleur. Le liseré et le titre suffisent — teinter les rangées
+     rendrait les identifiants et les empreintes illisibles. */
+  .card.act   { border-color: color-mix(in srgb, var(--live) 42%, transparent); }
+  .card.act   > h2 { color: var(--live); }
+  .card.doing { border-color: color-mix(in srgb, var(--ai) 46%, transparent); }
+  .card.doing > h2 { color: var(--ai); }
+  .card.todo  { border-color: color-mix(in srgb, var(--ok) 38%, transparent); }
+  .card.todo  > h2 { color: var(--ok); }
+  .card.no    { border-color: color-mix(in srgb, var(--bad) 38%, transparent); }
+  .card.no    > h2 { color: var(--bad); }
+
+  ul.rows { list-style: none; margin: 0; padding: 3px 0; }
+  li { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 8px; align-items: baseline; padding: 3.5px 11px; }
+  li + li { border-top: 1px solid color-mix(in srgb, var(--edge-soft) 55%, transparent); }
+  .id { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--ink-faint); }
+  .lbl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); white-space: nowrap; }
+  .sha { color: var(--ai); }
+  .dim { color: var(--ink-dim); }
+  code { font-family: var(--mono); font-size: .93em; }
+
+  li.hot .lbl { color: var(--live); font-weight: 500; }
+  li.gone .lbl, li.gone .id { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ink-faint) 55%, transparent); }
+  .lock { color: var(--warn); }
+
+  /* Le détail ne s'ouvre qu'avec ⌘ tenu : la souris traverse ce tableau en
+     permanence, et une bulle qui suit chaque passage rend la page inutilisable. */
+  body.armed li[data-b] { cursor: help; }
+  body.armed li[data-b]:hover { background: color-mix(in srgb, var(--ai) 9%, transparent); }
+
+  #pop {
+    position: fixed; z-index: 50; max-width: 330px; pointer-events: none;
+    background: var(--pop); color: var(--ink);
+    border: 1px solid var(--pop-edge); border-radius: 6px;
+    box-shadow: var(--pop-shadow);
+    padding: 9px 12px 10px; font-size: 12.5px; line-height: 1.45;
+    opacity: 0; transform: translateY(3px); transition: opacity .09s ease, transform .09s ease;
+  }
+  #pop.show { opacity: 1; transform: none; }
+  #pop h4 { margin: 0 0 5px; font-size: 12px; font-weight: 600; }
+  #pop h4 span { font-family: var(--mono); color: var(--ink-faint); font-weight: 500; margin-right: 6px; }
+  #pop ul { margin: 0; padding-left: 15px; }
+  #pop li { display: list-item; padding: 0; border: 0; color: var(--ink-dim); }
+  #pop li + li { margin-top: 3px; }
+  #pop code { color: var(--ink); }
+
+  @media (prefers-reduced-motion: reduce) { #pop { transition: none; } }
+  @media (max-width: 1180px) { .board { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px) { .board { grid-template-columns: 1fr; } }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <h1>Chantier Video-Code</h1>
+    <span class="branch">feat/night-2026-09-03</span>
+    <span class="chips">
+      <span class="chip"><b>24</b> livrés</span>
+      <span class="chip"><b>25</b> à faire</span>
+      <span class="chip"><b>52</b> tests</span>
+      <span class="chip"><b>50</b> scènes</span>
+    </span>
+    <span class="hint" id="hint">⌘ + survol = détail</span>
+    <span class="stamp">4 sept. · 18 h 10</span>
+  </header>
+
+  <div class="board">
+
+    <div class="col">
+      <div class="card act">
+        <h2>Needs your check <span class="n">1</span></h2>
+        <ul class="rows">
+          <li class="hot" data-b="Escape ferme le panneau Colors depuis n'importe où, même le curseur dans un champ hex.|L'info-bulle de signature s'en va quand le curseur quitte sa ligne.|Les deux passaient dans mon harnais et échouaient chez toi : relance l'atelier et redis-moi.">
+            <span class="id">—</span><span class="lbl">Escape ferme Colors · l'info-bulle s'en va</span><span class="meta sha">fb94f8b</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="card doing">
+        <h2>In progress <span class="n">1</span></h2>
+        <ul class="rows">
+          <li data-b="La bande rouge d'une attente est trop fine pour se voir sur la timeline.|Elle doit prendre la vraie largeur de l'attente sans masquer les clips au-dessus.|Deux ou trois petites horloges rouges montent au-dessus pour dire que cette zone est en pause.">
+            <span class="id">—</span><span class="lbl">Bande d'attente + horloges</span><span class="meta">à écrire</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="card no">
+        <h2>Won't do <em>et pourquoi</em> <span class="n">5</span></h2>
+        <ul class="rows">
+          <li class="gone" data-b="Le moteur n'a aucune donnée entre deux images : sa table est par image entière.|Un flou déduit des images voisines serait un maquillage sur des formes nettes dessinées au code.|Manim n'en a pas non plus, pour exactement la même raison."><span class="id">A4</span><span class="lbl">Flou de mouvement</span><span class="meta">pas de sous-image</span></li>
+          <li class="gone" data-b="Il faudrait un modèle de transcription, une interface qui édite des mots, et une refonte du lien image/son.|<code>cuts=</code> existe déjà sur une vidéo : le reste est une autre application.|C'est un autre produit sous le même nom."><span class="id">C7</span><span class="lbl">Montage par transcription</span><span class="meta">autre produit</span></li>
+          <li class="gone" data-b="Une semaine de travail pour un geste qui ne marche que sur un nombre écrit en dur.|Or le code refuse justement d'écrire un littéral là où tu as mis une expression.|B4 et le glissement sur la timeline couvrent la même intention."><span class="id">B2</span><span class="lbl">Glisser les nombres du code</span><span class="meta">B4 le couvre</span></li>
+          <li class="gone" data-b="Un thème, ici, c'est un fichier de constantes et un <code>import</code>.|Le construire ajouterait une couche de résolution sans nouvelle capacité.|Les 89 <code>strokeColor=TRANSPARENT</code> du corpus se règlent en changeant les défauts, pas en inventant un système."><span class="id">D4</span><span class="lbl"><code>theme()</code></span><span class="meta">c'est un import</span></li>
+          <li class="gone" data-b="Faire la caméra en aplatissant toute la scène dans un calque coûte une passe de rendu par image.|La même chose se fait avec une seule matrice appliquée aux sommets.|A2 reste à faire — mais de l'autre façon."><span class="id">—</span><span class="lbl">Caméra en composite</span><span class="meta">trop cher</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card todo">
+        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">7</span></h2>
+        <ul class="rows">
+          <li data-b="Glisser sur <code>wait(PAUSE_DELAY)</code> écrit <code>wait(0.5)</code> et efface le nom que tu as choisi.|Le tutoriel du projet fait ça à 30 endroits.|La fiche d'élément refuse déjà ce cas ; c'est le glissement qui ne le refuse pas."><span class="id">X4</span><span class="lbl">Ta constante remplacée par un chiffre</span><span class="meta">1 h</span></li>
+          <li data-b="Un élément créé dans un module importé rapporte une ligne de CET autre fichier.|Mais toutes les écritures partent dans le tampon de la scène, à ce numéro de ligne.|Rogner un tel clip réécrit donc une ligne au hasard."><span class="id">X5</span><span class="lbl">Mauvais fichier réécrit</span><span class="meta">1 h</span></li>
+          <li data-b="Rendre seulement entre deux moments au lieu de tout refaire pour dix secondes.|Le noyau sait déjà démarrer à n'importe quelle image ; les délais audio sont absolus et devront être décalés.|Débloque C1 (l'agent qui regarde une image) et C4 (l'export depuis l'éditeur)."><span class="id">A7</span><span class="lbl">Rendre un extrait <code>--from/--to</code></span><span class="meta">½ j</span></li>
+          <li data-b="Poser le curseur sur une ligne allume la barre de l'élément qu'elle fabrique.|Une touche joue depuis ce moment-là.|Aucune écriture dans le fichier : c'est la moitié lecture du lien code ↔ temps, celle qui ne coûte rien si elle se trompe."><span class="id">B1</span><span class="lbl">Le curseur allume sa barre</span><span class="meta">½ j</span></li>
+          <li data-b="<code>timestamp(\"nom\")</code> est écrit 30 fois dans le tutoriel et n'est jamais dessiné.|Le C++ sait déjà sauter d'un repère à l'autre ; il manque trois lignes dans le modèle de scène.|Ensuite : sauter au repère suivant, s'y aimanter, et exporter les chapitres (C6)."><span class="id">B6</span><span class="lbl">Les <code>timestamp()</code> en repères</span><span class="meta">½ j</span></li>
+          <li data-b="Un dossier <code>templates/</code> dans ton projet, découvert dans le panneau avec ses champs.|La machinerie de découverte existe déjà — elle ne regarde que le paquet de la librairie.|Un modèle est du Python que tu aurais pu taper : le panneau est engendré depuis le code."><span class="id">C5</span><span class="lbl">Ton dossier <code>templates/</code></span><span class="meta">½ j</span></li>
+          <li data-b="La même entrée, décalée d'un temps : cinq cartes qui apparaissent l'une après l'autre.|Marche sur n'importe quel groupe — et un texte EST un groupe de lettres, donc titre lettre par lettre gratuitement.|Trois implémentations câblées en dur existent déjà (machine à écrire, typeIn, graduations) : c'est leur mise en commun. Débloque D6."><span class="id">D5</span><span class="lbl"><code>stagger(popIn(), every=)</code></span><span class="meta">½ j</span></li>
+        </ul>
+      </div>
+
+      <div class="card todo">
+        <h2>To do · the agent <em>aveugle aujourd'hui</em> <span class="n">3</span></h2>
+        <ul class="rows">
+          <li data-b="Le panneau agent lance un vrai Claude Code en processus fils — ça, ça marche.|Mais il ne reçoit que le texte que tu tapes : ni le fichier ouvert, ni ta ligne, ni l'élément sélectionné, ni la tête de lecture, ni les avertissements du dernier run.|Donc « déplace ça à gauche » ne veut rien dire pour lui."><span class="id">C2</span><span class="lbl">Il reçoit ce que tu regardes</span><span class="meta">½ j</span></li>
+          <li data-b="Le moteur rend une image sans fenêtre en 9 ms.|Mais la ligne de commande ne sait pas choisir LAQUELLE : <code>--generate</code> sort toujours la première.|Avec <code>--frame</code>, il modifie, rend, ouvre l'image et te dit que le titre déborde — avant ton ⌘R."><span class="id">C1</span><span class="lbl">Il regarde l'image qu'il a faite</span><span class="meta">½ j</span></li>
+          <li data-b="L'éditeur ne sait pas fabriquer de vidéo du tout : pas de bouton, pas de progression.|La décision est déjà écrite dans le backlog : même binaire, progression lue sur sa sortie.|Et seulement entre tes repères d'entrée et de sortie, qui existent déjà et ne servent à rien."><span class="id">C4</span><span class="lbl">Exporter depuis l'éditeur</span><span class="meta">2 j</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card todo">
+        <h2>To do · blocked by S1 <em>fausses sans lui</em> <span class="n">5</span></h2>
+        <ul class="rows">
+          <li data-b="Une animation lit sa valeur de départ au moment où la LIGNE s'exécute, pas au moment où elle JOUE.|Juste tant que les lignes sont écrites dans l'ordre du film ; silencieusement faux sinon.|Conception faite et prototypée : deux passes, ~40 lignes, 0 scène sur 50 qui bouge."><span class="id">S1</span><span class="lbl"><b>Résolution différée de la base</b></span><span class="meta lock">2 sem</span></li>
+          <li data-b="Dire quand en secondes, comme un storyboard, au lieu de « après ce qui précède ».|Cinq lignes de sucre syntaxique.|Mais livré sans S1, il AGGRAVE le piège : un storyboard écrit dans le désordre donne un film faux."><span class="id">D7</span><span class="lbl"><code>at=2.5</code> — quand, en secondes</span><span class="meta lock">S1</span></li>
+          <li data-b="Voir la valeur d'un élément à l'instant du curseur, en taper une autre, et la ligne qui l'anime s'écrit.|C'est le chronomètre d'After Effects, dit dans ce langage-ci.|Faux sans S1 dès que la tête de lecture est avant le curseur d'écriture."><span class="id">B4</span><span class="lbl">Fiche chronomètre</span><span class="meta lock">S1</span></li>
+          <li data-b="Un nombre qui évolue, et des objets qui le lisent : un point sur la courbe, un compteur qui l'affiche.|La moitié écriture existe (<code>attachTo</code>), la moitié lecture aussi ; il manque le verbe général.|Un objet lié lit une source dont les lignes suivantes n'ont pas encore tourné — d'où S1."><span class="id">A3</span><span class="lbl">Valeur suivie + liaison</span><span class="meta lock">S1</span></li>
+          <li data-b="Tirer le corps d'un clip écrit son <code>.wait()</code> ; tirer le bord d'une bande rouge écrit le <code>wait()</code> global.|Les deux outils de Premiere sont déjà deux mots du langage.|Tirer vers la GAUCHE demande S1 : écrire du temps en arrière."><span class="id">B3</span><span class="lbl">Glisser un clip / tirer une bande</span><span class="meta lock">S1</span></li>
+        </ul>
+      </div>
+
+      <div class="card todo">
+        <h2>To do · the rest <span class="n">10</span></h2>
+        <ul class="rows">
+          <li data-b="Plier plusieurs éléments en UNE image qu'on fond, floute, masque ou fait tourner d'un bloc.|Corrige d'un coup trois défauts mesurés : les groupes imbriqués qui perdent l'animation intérieure, le fondu où les membres se traversent, et le masque qui exige d'aplatir un texte à la main.|Le moteur a déjà les couches isolées et la passe qui aplatit une plage de maillages."><span class="id">A1</span><span class="lbl">Comp — un groupe = un calque</span><span class="meta">projet</span></li>
+          <li data-b="Plonger sur un détail et revenir, sans rien réécrire.|C'est l'idiome le plus utilisé des vidéos explicatives (Manim l'a).|Une seule matrice appliquée aux sommets — plus un <code>pinToFrame()</code> pour ce qui ne doit pas zoomer, les sous-titres par exemple."><span class="id">A2</span><span class="lbl">Caméra — zoomer, se déplacer</span><span class="meta">qq j</span></li>
+          <li data-b="Envoyer un objet le long d'une courbe dessinée, tourné dans le sens de la marche.|Presque tout existe : les points, la table par image, l'index adouci.|Il manque l'échantillonnage par longueur d'arc."><span class="id">A5</span><span class="lbl"><code>moveAlong(path)</code></span><span class="meta">½ j</span></li>
+          <li data-b="Un fondu de volume avec la même syntaxe qu'un fondu de couleur.|La musique qui baisse toute seule sous une voix.|Rien à toucher dans l'image : c'est un graphe ffmpeg."><span class="id">A6</span><span class="lbl">Son animable, ducking</span><span class="meta">qq j</span></li>
+          <li data-b="Une courbe tirable sur chaque effet, qui écrit <code>easing=CubicBezier(...)</code> dans le fichier.|Les presets et les courbes à la main sont déjà le même type.|La courbe est un argument, pas un réglage caché — c'est ce qui rend ça possible ici et pas ailleurs."><span class="id">B5</span><span class="lbl">Éditeur de courbes → <code>easing=</code></span><span class="meta">qq j</span></li>
+          <li data-b="Un clip fabriqué dans une boucle porte un badge « ×3 » : le tirer déplace les trois.|Un clip venu d'un autre fichier est hachuré et ses champs sont en lecture seule.|Et l'inverse constructif : si l'argument est une constante nommée, proposer de changer LA CONSTANTE."><span class="id">B7</span><span class="lbl">Ce qu'un geste doit refuser</span><span class="meta">X4, X5</span></li>
+          <li data-b="<code>--for youtube,tiktok,square</code> sort trois fichiers depuis une seule scène.|La scène se REMET EN PAGE au lieu d'être recadrée : une unité monde vaut 120 px quelle que soit la forme.|Plus la normalisation du volume par plateforme."><span class="id">C3</span><span class="lbl">Une scène, tous les formats</span><span class="meta">2 j</span></li>
+          <li data-b="Chaque <code>timestamp()</code> devient un chapitre dans le fichier vidéo.|Et une ligne à coller dans la description YouTube.|La miniature vient du même mécanisme : choisir une image.|"><span class="id">C6</span><span class="lbl">Chapitres et miniature</span><span class="meta">B6, C1</span></li>
+          <li data-b="Mettre ceci à côté de cela, avec un écart mesuré entre les bords.|Avec <code>follow=True</code>, l'étiquette suit la balle qui bouge.|Le suivi demande S1 : il ne voit que ce qui est écrit AU-DESSUS de lui."><span class="id">D1</span><span class="lbl"><code>nextTo(a, UP, gap=)</code></span><span class="meta">½ j</span></li>
+          <li data-b="Un élément par ligne de données, et <code>fromCSV</code> pour lire un fichier.|Remplace 12 à 15 lignes écrites à la main.|Dont la valeur affichée qui, aujourd'hui, ne suit pas la barre qui grandit."><span class="id">D6</span><span class="lbl"><code>BarChart(data)</code></span><span class="meta">D1, D5</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card">
+        <h2>Shipped <em>aujourd'hui</em> <span class="n">16</span></h2>
+        <ul class="rows">
+          <li data-b="<code>Image(\"x.png\")</code> sans dimension ne produisait aucune géométrie côté Python.|La grouper ou l'encadrer plantait — le C++ connaissait sa taille, Python non.|Deux scènes changent d'empreinte ; écart mesuré sur les images de référence : 1/255 sur cent pixels sur deux millions."><span class="id">X2</span><span class="lbl">Image sans dimension</span><span class="meta sha">83ed188</span></li>
+          <li data-b="Le son propre d'une vidéo n'arrivait jamais dans le fichier final.|Il fallait ajouter un <code>Sound()</code> sur le même fichier — et couper la vidéo ne coupait pas ce son.|Vérifié au rendu sur huit scènes : le silence de tête tombe à la bonne seconde, coupes comprises."><span class="id">X7</span><span class="lbl">Le son des vidéos monté</span><span class="meta sha">e1ad561</span></li>
+          <li data-b="La page liée depuis le README enseignait <code>video(...)</code> et <code>.add()</code> : aucun des deux n'existe.|<code>firstRectangle.py</code>, le fichier dont le nom promet le premier exemple, faisait 0 octet.|Chaque extrait est maintenant exécuté avant d'être écrit. 12 autres pages mortes ont été déliées."><span class="id">X1</span><span class="lbl">La doc du premier programme</span><span class="meta sha">b309d23</span></li>
+          <li data-b="<code>Square(2).scale(2)</code> mesurait 2 alors qu'il en dessine 4.|Tout ce qui mesure — encadré, soulignement, rangée, pivot de groupe — travaillait sur la géométrie, pas sur l'écran.|Deux images de référence réécrites, après les avoir regardées côte à côte."><span class="id">X6</span><span class="lbl">Mesurer à la bonne taille</span><span class="meta sha">7dabb14</span></li>
+          <li data-b="<code>wait(1); Circle(); wait(1)</code> faisait 61 images, pas 60.|Tout instant écrit après une attente coûtait une image : dix étapes donnaient 340 au lieu de 330.|Le plan de test du projet annonçait pourtant « décalage < 1 image — atteint »."><span class="id">X3</span><span class="lbl">Le décalage d'une image</span><span class="meta sha">71013d9</span></li>
+          <li data-b="Aligner selon la VRAIE taille des éléments, écart mesuré de bord à bord.|Centré même en nombre pair — le défaut que <code>XAlign</code> s'avoue à lui-même dans son commentaire.|<code>Grid(cols=3)</code>, imbrication, et <code>align=Align.START</code> en enum."><span class="id">D2</span><span class="lbl"><code>Row</code> · <code>Column</code> · <code>Grid</code></span><span class="meta sha">76ae86a</span></li>
+          <li data-b="<code>bold | 'x'</code> écrit la balise pour toi, dans une f-string.|<code>colored(RED_B) | 'x'</code>, et la composition <code>bold | italic | 'x'</code>.|Le texte enveloppé est échappé : <code>bold | 'a &lt; b'</code> n'ouvre pas de balise."><span class="id">—</span><span class="lbl">Markup dans une f-string</span><span class="meta sha">ea05a13</span></li>
+          <li data-b="Les couleurs de la timeline se changent au hex ou au nuancier.|Le défaut reste affiché en permanence, pas seulement quand tu as changé quelque chose.|Le choix survit au redémarrage ; seules les couleurs modifiées sont écrites dans le fichier."><span class="id">—</span><span class="lbl">Panneau Colors</span><span class="meta sha">8de7aac</span></li>
+          <li data-b="Trois tentatives. La zone vide sous le texte n'appartient pas à l'éditeur mais au composant qui défile.|C'est la marge « continuer à défiler après la fin ».|La zone de texte est maintenant étirée de cette marge exactement."><span class="id">—</span><span class="lbl">Clic sous la dernière ligne</span><span class="meta sha">4094635</span></li>
+          <li data-b="L'étiquette n'avait aucun fond : rouge sur vert aussi souvent que sur le panneau.|Pastille à 92 % du plus sombre du thème, liseré rouge discret.|Pas de flou d'arrière-plan : une passe de rendu par étiquette pour le même résultat."><span class="id">—</span><span class="lbl">Étiquette <code>wait</code> lisible</span><span class="meta sha">c411789</span></li>
+          <li data-b="Le <code>:</code> de <code>00:00</code> est centré sur la ligne de départ — mesuré au pixel : étiquette 52→73, ligne à 62,5.|Une garde l'empêchait de déborder et le repoussait à droite.|Et les quatre groupes du menu Colors ont retrouvé leurs noms : macOS jette le texte d'une section native."><span class="id">—</span><span class="lbl">Règle <code>00:00</code> + menu Colors</span><span class="meta sha">b888266</span></li>
+          <li data-b="Le <code>\"\"\"</code> seul sur sa ligne était lu comme une chaîne vide suivie d'un guillemet.|L'ouverture du docstring tombait « dedans » et était ignorée.|Tout ce qui suivait était colorié comme du Python — mots-clés, nombres et noms."><span class="id">—</span><span class="lbl">Docstring plus colorié en code</span><span class="meta sha">10f64fd</span></li>
+          <li data-b="<code>align=\"start\"</code> était la seule option de la librairie à ne pas avoir son enum.|<code>Align</code> est un <code>StrEnum</code> : les scènes déjà écrites avec la chaîne continuent de marcher.|Posé à côté de <code>Split</code> et <code>Anchor</code>, donc dans le <code>import *</code>."><span class="id">—</span><span class="lbl"><code>Align</code> en enum</span><span class="meta sha">2c7a54b</span></li>
+          <li class="dim" data-b="Un SVG avec dégradé était peint en noir uni, sans un mot.|Les balises d'un sous-titre étaient dessinées comme des lettres : 17 au lieu de 10, 48 au lieu de 7.|Les deux avertissaient déjà — personne n'écoutait."><span class="id">—</span><span class="lbl">Dégradés SVG · sous-titres balisés</span><span class="meta">+ nuit</span></li>
+          <li class="dim" data-b="Un son écrit après une attente jouait depuis la première seconde — et la timeline affichait autre chose que le rendu.|<code>fill(RED, duration=0)</code> ne faisait rien, en silence ; une animation d'une image plantait.|Deux moitiés du programme qui se contredisaient sur la même scène."><span class="id">—</span><span class="lbl">Son après attente · <code>duration=0</code></span><span class="meta">+ nuit</span></li>
+          <li class="dim" data-b="Un accent plus tôt sur la ligne faisait réécrire les mauvais caractères par TOUS les gestes de l'éditeur.|<code>Image(width=8)</code> jetait la largeur et dessinait les pixels bruts.|L'ombre d'une forme agrandie et tournée n'était ni agrandie ni tournée."><span class="id">—</span><span class="lbl">Accents éditeur · ombres · <code>Image(w=)</code></span><span class="meta">+ nuit</span></li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="pop" role="tooltip" aria-hidden="true"></div>
+
+<script>
+  // Le détail ne s'ouvre qu'avec ⌘ tenu. La souris traverse ce tableau en
+  // permanence pour aller d'une colonne à l'autre : une bulle qui suit chaque
+  // passage rendrait la page illisible, et c'est justement une page qu'on lit
+  // d'un coup d'œil.
+  const pop = document.getElementById("pop");
+  const hint = document.getElementById("hint");
+  let armed = false;
+  let row = null;
+
+  function arm(on) {
+    if (on === armed) return;
+    armed = on;
+    document.body.classList.toggle("armed", on);
+    hint.classList.toggle("on", on);
+    if (!on) hide();
+  }
+
+  function hide() {
+    row = null;
+    pop.classList.remove("show");
+    pop.setAttribute("aria-hidden", "true");
+  }
+
+  function show(li, x, y) {
+    if (li === row) { place(x, y); return; }
+    row = li;
+
+    const id = li.querySelector(".id").textContent.trim();
+    const label = li.querySelector(".lbl").innerHTML;
+    const bullets = li.dataset.b.split("|").filter(Boolean);
+
+    pop.innerHTML =
+      "<h4>" + (id !== "—" ? "<span>" + id + "</span>" : "") + label + "</h4>" +
+      "<ul><li>" + bullets.join("</li><li>") + "</li></ul>";
+    pop.classList.add("show");
+    pop.setAttribute("aria-hidden", "false");
+    place(x, y);
+  }
+
+  // Posée sous le curseur, et repliée dans la fenêtre plutôt que débordante.
+  function place(x, y) {
+    const w = pop.offsetWidth, h = pop.offsetHeight;
+    pop.style.left = Math.min(x + 14, window.innerWidth - w - 10) + "px";
+    pop.style.top = (y + h + 22 > window.innerHeight ? y - h - 12 : y + 18) + "px";
+  }
+
+  addEventListener("keydown", (e) => { if (e.metaKey || e.ctrlKey) arm(true); });
+  addEventListener("keyup", (e) => { if (!e.metaKey && !e.ctrlKey) arm(false); });
+  addEventListener("blur", () => arm(false));
+
+  addEventListener("mousemove", (e) => {
+    if (!(e.metaKey || e.ctrlKey)) { arm(false); return; }
+    arm(true);
+    const li = e.target.closest("li[data-b]");
+    if (li) show(li, e.clientX, e.clientY);
+    else hide();
+  });
+</script>

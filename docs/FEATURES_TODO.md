@@ -7,6 +7,11 @@ Issu de cinq passes de recherche sur le dépôt (2026-09-03). Chaque entrée por
 un identifiant stable : dis « fais X3 » ou « fais B1 » et il n'y a pas
 d'ambiguïté. Les tailles sont des ordres de grandeur, pas des engagements.
 
+La vue courte de ce document est un tableau tenu à jour en direct :
+**https://claude.ai/code/artifact/a80200f9-2f71-48e8-b59e-7a8d6353e3ca** — source
+dans `docs/board.html`, règles de mise à jour dans `CLAUDE.md`. Ce fichier-ci est
+la trace : les mesures, les chiffres, les conceptions écartées et pourquoi.
+
 Trois règles qui reviennent partout dans ce document :
 
 - **Une image de référence ne se réécrit que quand un humain l'a regardée.**
