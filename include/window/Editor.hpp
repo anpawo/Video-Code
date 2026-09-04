@@ -156,15 +156,11 @@ namespace VC
         // Each entry is { key, label, current }.
         Q_INVOKABLE void setCodeThemes(const QVariantList& themes);
 
-        // setGuideColors() — fill Guide → Colors with the palette's meanings.
-        //
-        // A native submenu rather than a panel the chrome draws: it opens by
-        // POINTING at it, which is what a legend is for — you are already
-        // wondering what a colour means, and being made to click, read a modal
-        // and dismiss it costs more than the question was worth.
-        //
-        // Each entry is either { section } or { label, meaning, colour }.
-        Q_INVOKABLE void setGuideColors(const QVariantList& rows);
+        // saveColors() / loadColors() — the legend's overrides, the same way
+        // round as the layout. One file for the person rather than one per
+        // project: a colour is what a kind LOOKS like to them, in every scene.
+        Q_INVOKABLE void    saveColors(const QString& json) const;
+        Q_INVOKABLE QString loadColors() const;
 
         // scenePath() / readTextFile() — the scene on disk, for the pane that
         // edits it and the server that analyses it. Both need a real path: a
@@ -398,6 +394,12 @@ namespace VC
         // drawn by the chrome: it is the chrome's own keys it describes.
         void shortcutsRequested();
 
+        // colorsRequested() — Guide → Colors.  It used to be a native submenu,
+        // which a legend is well served by — you point, you read. But a legend
+        // you can EDIT needs a swatch to click, a field to type in and a
+        // palette to pick from, and an NSMenu holds none of those.
+        void colorsRequested();
+
         // dockResetRequested() — Dock display → Reset UI.  The same thing the slot menu
         // offers, because a user who has lost a panel looks in the menu bar
         // first and cannot be asked to find a ⋯ on a panel they cannot see.
@@ -410,6 +412,9 @@ namespace VC
 
         // layoutPath() — the file the three functions above share.
         static QString layoutPath();
+
+        // colorsPath() — the file the legend's overrides live in.
+        static QString colorsPath();
 
         // fillFileMenu() — the File menu's items, added once the event loop is
         // running; see the call site for why it cannot be done any earlier.
@@ -471,7 +476,6 @@ namespace VC
         QMenu*                    _docksMenu = nullptr;
         QMenu*                    _templatesMenu = nullptr;
         QMenu*                    _displaysMenu = nullptr;
-        QMenu*                    _colorsMenu = nullptr;
         QMenu*                    _codeThemesMenu = nullptr;
 
         //: Load the chrome, say whether it loaded, show nothing.

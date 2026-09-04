@@ -211,9 +211,10 @@ on this page was checked.
 | `VC_HOVER="x,y"` | The pointer coming to rest — what tooltips and hovers need |
 | `VC_TYPE="text"` | Characters, typed |
 | `VC_KEYS="F12;Ctrl+Left;Text:name"` | Named keys in order, and literals |
-| `VC_PANEL="settings"` \| `"shortcuts"` | Open an overlay reached only from the native menu bar |
+| `VC_PANEL="settings"` \| `"shortcuts"` \| `"colors"` | Open an overlay reached only from the native menu bar |
 | `VC_SCENE_FILE` | The scene the code pane opens, when `--file` does not say |
 | `VC_DOCK_FILE` | Use another dock file, so a test never touches yours |
+| `VC_COLORS_FILE` | Use another colours file, for the same reason |
 
 ---
 

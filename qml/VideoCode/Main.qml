@@ -1313,9 +1313,12 @@ ApplicationWindow {
         return entries;
     }
 
-    // The legend, in the order it should be read: what a thing IS, what is being
-    // done to it, what is happening now, and how it went. The colours come from
-    // Theme so the guide cannot drift from what the panels paint.
+    // The legend: what the TIMELINE paints, in the order it should be read —
+    // what a thing is, what is happening now, and the marks on it. Nothing else
+    // belongs here: the agent's blue and the status strip's gold and red are
+    // never on a clip, and a legend for the timeline that lists them sends the
+    // reader looking for colours that are not there. Panels read the hues
+    // straight from Theme, so a row only has to say what it means.
     function guideColors() {
         return [
             // Read from the simplest thing the engine can make towards the
@@ -1323,28 +1326,33 @@ ApplicationWindow {
             // time in it, then time with a picture AND sound. Each line adds one
             // thing to the one above.
             { section: "Inputs — what a scene is made of" },
-            { label: "polygon", meaning: "a shape the engine draws", color: panelHue("polygon") },
-            { label: "image", meaning: "a still — png, svg", color: panelHue("image") },
-            { label: "sound", meaning: "audio on its own", color: panelHue("sound") },
-            { label: "video", meaning: "a picture with its sound, as one clip", color: panelHue("video") },
-            { label: "subs", meaning: "text derived from a track, so it borrows the neutral", color: panelHue("subs") },
-
-            { section: "Effects — done to an input" },
-            { label: "effect", meaning: "the host's complement — an effect is not a smaller medium", color: Theme.fxKind["video"] },
+            { label: "polygon", meaning: "a shape the engine draws" },
+            { label: "image", meaning: "a still — png, svg" },
+            { label: "sound", meaning: "audio on its own" },
+            { label: "video", meaning: "a picture with its sound, as one clip" },
+            { label: "subs", meaning: "text derived from a track, so it borrows the neutral" },
 
             { section: "Now" },
-            { label: "live", meaning: "the playhead, and whatever is about to happen", color: Theme.live },
-            { label: "agent", meaning: "what the agent said or did", color: Theme.ai },
+            { label: "live", meaning: "the playhead, and whatever is about to happen" },
 
-            { section: "How it went" },
-            { label: "ok", meaning: "compiled, rendered, saved", color: Theme.ok },
-            { label: "warn", meaning: "stale — the picture is behind the buffer", color: Theme.warn },
-            { label: "bad", meaning: "it failed, and the reason is shown", color: Theme.bad }
+            { section: "Marks" },
+            { label: "ok", meaning: "the in and out marks of a range" }
         ];
     }
 
-    function panelHue(kind) {
-        return Theme.kind[kind];
+    // The overrides from last time, kept only if this build still has the
+    // label and the value is a colour: a hand-edited file is not a reason for a
+    // window full of "Unable to assign" warnings.
+    function restoreColors() {
+        let kept = {};
+        try {
+            const parsed = JSON.parse(Shell.loadColors() || "{}");
+            for (const label in parsed)
+                if (Theme.shipped[label] !== undefined && /^#[0-9a-fA-F]{8}$/.test(parsed[label]))
+                    kept[label] = parsed[label].toLowerCase();
+        } catch (e) {
+        }
+        Theme.overrides = kept;
     }
 
     function menuDisplays() {
@@ -1400,6 +1408,7 @@ ApplicationWindow {
         function onSettingsRequested() { settings.visible = true; }
         function onCodeThemeChosen(key) { app.useCodeTheme(key); }
         function onShortcutsRequested() { shortcuts.visible = true; }
+        function onColorsRequested() { colors.visible = true; }
     }
 
     // The code pane's palette. Kept with the dock's options rather than with the
@@ -1576,6 +1585,7 @@ ApplicationWindow {
         }
 
         restoreLayout();
+        restoreColors();
 
         // Filled in the order the menus are meant to READ in, left to right.
         // Qt's Cocoa bridge inserts a menu into the bar when it first gets
@@ -1585,9 +1595,6 @@ ApplicationWindow {
         Shell.setDockPanels(menuPanels());
         Shell.setDockTemplates(menuTemplates());
         Shell.setDockDisplays(menuDisplays());
-        // The legend never changes, so it is filled once and then owned by the
-        // menu bar.
-        Shell.setGuideColors(guideColors());
     }
 
     // ── The ⋯ menu ────────────────────────────────────────────────────────
@@ -1896,6 +1903,14 @@ ApplicationWindow {
         id: shortcuts
         anchors.fill: parent
         z: 320
+    }
+
+    ColorsPanel {
+        id: colors
+        anchors.fill: parent
+        z: 320
+        rows: app.guideColors()
+        onChanged: Shell.saveColors(JSON.stringify(Theme.overrides))
     }
 
     // The click that ends the measuring. Over every pane so nothing else can

@@ -25,8 +25,8 @@ QtObject {
     readonly property color inkFaint: "#5d6577"
 
     // ── Accent: reserved for what is live or about to happen ──
-    readonly property color live:     "#f0703c"
-    readonly property color liveSoft: Qt.rgba(0.941, 0.439, 0.235, 0.149)
+    readonly property color live:     hue("live")
+    readonly property color liveSoft: Qt.alpha(live, 0.149)
 
     // Where the keyboard is. Gold rather than the accent, because the accent is
     // for what is live or about to happen and "you are typing here" is neither;
@@ -34,7 +34,7 @@ QtObject {
     // has to be findable without becoming the thing you look at.
     readonly property color focusEdge: "#8a6f34"
 
-    readonly property color ok:       "#4fbe86"
+    readonly property color ok:       hue("ok")
     readonly property color warn:     "#d9a94e"
 
     // A scene that RAN but says something wrong. Hotter than `warn`, which is
@@ -127,15 +127,42 @@ QtObject {
 
     readonly property var code: codeSkin.tokens
 
-    // ── One hue per media kind ──
-    readonly property var kind: ({
+    // ── What the timeline paints, as shipped ──
+    // Keyed by the legend's label, because these are the hues a person may
+    // repaint from Guide → Colors. `overrides` holds only what was changed, so
+    // the file it is written to can tell a choice from a default; everything
+    // below reads through hue(), and the readers of `live`, `ok` and `kind`
+    // never learn that a value was overridden.
+    readonly property var shipped: ({
+        // One hue per media kind.
         "polygon": "#5aa06a",
         "image":   "#a06fc0",
         "video":   "#4a86c5",
         "sound":   "#46a3a0",
         // Subtitles are derived text, so they borrow the neutral rather than
         // spending a fifth hue on themselves.
-        "subs":    "#5d6577"
+        "subs":    "#5d6577",
+        "live":    "#f0703c",
+        "ok":      "#4fbe86"
+    })
+
+    // Written #RRGGBBAA, the way the panel shows it and the file keeps it.
+    property var overrides: ({})
+
+    function hue(label) {
+        const chosen = overrides[label];
+        if (chosen === undefined)
+            return shipped[label];
+        // Qt reads a colour name as #AARRGGBB.
+        return "#" + chosen.substr(7, 2) + chosen.substr(1, 6);
+    }
+
+    readonly property var kind: ({
+        "polygon": hue("polygon"),
+        "image":   hue("image"),
+        "video":   hue("video"),
+        "sound":   hue("sound"),
+        "subs":    hue("subs")
     })
 
     // ── The host's complement, for what animates it ──

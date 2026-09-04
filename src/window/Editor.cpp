@@ -28,8 +28,6 @@
 #include <QKeyEvent>
 #include <QMenu>
 #include <QMouseEvent>
-#include <QPainter>
-#include <QPixmap>
 #include <QQmlContext>
 #include <QQuickStyle>
 #include <QQuickWindow>
@@ -227,13 +225,8 @@ void VC::Editor::buildMenuBar()
     // whole chrome, not the dock, and a legend buried in a panel menu is a
     // legend nobody opens.
     QMenu* guide = _menuBar->addMenu(QStringLiteral("Guide"));
-    _colorsMenu = guide->addMenu(QStringLiteral("Colors"));
-
-    // A legend is read, not operated: a size up from the menu default, because
-    // every line of it is a sentence rather than a command.
-    QFont legend = _colorsMenu->font();
-    legend.setPointSizeF(legend.pointSizeF() + 1.5);
-    _colorsMenu->setFont(legend);
+    auto*  colors = guide->addAction(QStringLiteral("Colors…"));
+    connect(colors, &QAction::triggered, this, &Editor::colorsRequested);
 
     // The menu bar Cocoa draws does not exist yet — Qt hands it over later, when
     // the window first becomes active. So the name is offered until it is taken,
@@ -245,53 +238,6 @@ void VC::Editor::buildMenuBar()
             naming->stop();
     });
     naming->start();
-}
-
-void VC::Editor::setGuideColors(const QVariantList& rows)
-{
-    if (!_colorsMenu)
-        return;
-
-    _colorsMenu->clear();
-
-    for (const QVariant& entry : rows) {
-        const QVariantMap row = entry.toMap();
-
-        const QString section = row.value(QStringLiteral("section")).toString();
-        if (!section.isEmpty()) {
-            // A separator plus a disabled row, not `addSection`: on macOS the
-            // native menu has no section title, so Qt draws the separator and
-            // throws the words away — the groups were there and unnamed.
-            if (!_colorsMenu->isEmpty())
-                _colorsMenu->addSeparator();
-            auto* heading = _colorsMenu->addAction(section);
-            heading->setEnabled(false);
-            continue;
-        }
-
-        // The swatch is drawn rather than described, because the whole point of
-        // the row is the colour itself.  Rounded and inset to read as the same
-        // chip the chrome paints everywhere else.
-        QPixmap swatch(16, 16);
-        swatch.fill(Qt::transparent);
-        {
-            QPainter painter(&swatch);
-            painter.setRenderHint(QPainter::Antialiasing);
-            painter.setPen(Qt::NoPen);
-            painter.setBrush(QColor(row.value(QStringLiteral("color")).toString()));
-            painter.drawRoundedRect(QRectF(1, 1, 14, 14), 3, 3);
-        }
-
-        auto* action = _colorsMenu->addAction(
-            QIcon(swatch),
-            QStringLiteral("%1 — %2")
-                .arg(row.value(QStringLiteral("label")).toString())
-                .arg(row.value(QStringLiteral("meaning")).toString())
-        );
-        // Nothing to do when picked; the row IS the answer. It stays enabled so
-        // macOS draws it in full contrast instead of greying out the legend.
-        connect(action, &QAction::triggered, this, [] {});
-    }
 }
 
 void VC::Editor::setDockDisplays(const QVariantList& displays)
@@ -539,35 +485,6 @@ void VC::Editor::captureTo(const QString& path)
             QTimer::singleShot(delay / 2 + 900 + i * 700, this, [this, spec] { pressKey(spec); });
         }
 
-        // VC_PANEL="settings" | "shortcuts" | "save" | "default" | "measure" | "reset" — one of the
-        // shell's own overlays. They are reached from the NATIVE menu bar, which a synthetic
-        // click cannot touch, so without this neither can ever be checked in a
-        // scripted run.
-        const QString panel = qEnvironmentVariable("VC_PANEL");
-        if (!panel.isEmpty()) {
-            // Before the clicks, not with them: an overlay that opens on the
-            // same tick as the first click opens UNDER it, and the click lands
-            // on whatever was behind.
-            QTimer::singleShot(delay / 2 - 500, this, [this, panel] {
-                if (panel == "settings")
-                    Q_EMIT settingsRequested();
-                else if (panel == "shortcuts")
-                    Q_EMIT shortcutsRequested();
-                else if (panel == "measure")
-                    Q_EMIT dockMeasureRequested();
-                else if (panel == "default")
-                    Q_EMIT dockDefaultRequested();
-                else if (panel == "save")
-                    Q_EMIT dockSaveRequested();
-                else if (panel == "reset")
-                    Q_EMIT dockResetRequested();
-                else
-                    // Anything else is a panel key — the View menu's own list,
-                    // which is native and cannot be clicked by a probe.
-                    Q_EMIT dockPanelToggled(panel);
-            });
-        }
-
         // VC_OPEN="/path/to/scene.py" — what File → Open Scene… ends with. The
         // panel itself is the system's and cannot be driven, so the probe skips
         // it and delivers the answer a person would have given.
@@ -709,6 +626,39 @@ QString VC::Editor::loadLayout() const
 void VC::Editor::clearLayout() const
 {
     QFile::remove(layoutPath());
+}
+
+QString VC::Editor::colorsPath()
+{
+    // VC_COLORS_FILE, for the reason VC_DOCK_FILE exists: a scripted run that
+    // picks a colour must not repaint the person's own timeline.
+    const QString override = qEnvironmentVariable("VC_COLORS_FILE");
+    if (!override.isEmpty()) {
+        QDir().mkpath(QFileInfo(override).absolutePath());
+        return override;
+    }
+
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+    QDir().mkpath(dir);
+    return QDir(dir).filePath(QStringLiteral("colors.json"));
+}
+
+void VC::Editor::saveColors(const QString& json) const
+{
+    QFile file(colorsPath());
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        VC_SLOG(std::format("[editor] could not write {}\n", colorsPath().toStdString()));
+        return;
+    }
+    file.write(json.toUtf8());
+}
+
+QString VC::Editor::loadColors() const
+{
+    QFile file(colorsPath());
+    if (!file.open(QIODevice::ReadOnly))
+        return {};
+    return QString::fromUtf8(file.readAll());
 }
 
 // The scene the pane should open on. VC_SCENE_FILE names it outright; otherwise
@@ -1260,6 +1210,20 @@ void VC::Editor::probeClicks(int delay)
         const QPointF at(probe[i].toDouble(), probe[i + 1].toDouble());
         QTimer::singleShot(delay / 2 + 600 + (i / 2) * 200, this, [this, at] { clickAt(at); });
     }
+
+    // VC_PANEL="settings" | "shortcuts" | "colors" | "save" | "default" | "measure" | "reset" — one of the
+    // shell's own overlays. They are reached from the NATIVE menu bar, which a synthetic
+    // click cannot touch, so without this none of them can ever be checked in a
+    // scripted run. Here rather than in captureTo() for the same reason the
+    // clicks are: the hidden path is the one an agent may use, and it had no
+    // way to open an overlay at all.
+    const QString panel = qEnvironmentVariable("VC_PANEL");
+    if (!panel.isEmpty()) {
+        // Before the clicks, not with them: an overlay that opens on the
+        // same tick as the first click opens UNDER it, and the click lands
+        // on whatever was behind.
+        QTimer::singleShot(delay / 2 - 500, this, [this, panel] { pressKey("Panel:" + panel); });
+    }
 }
 
 void VC::Editor::clickAt(const QPointF& pos)
@@ -1314,6 +1278,8 @@ void VC::Editor::pressKey(const QString& spec)
             Q_EMIT settingsRequested();
         else if (which == QStringLiteral("shortcuts"))
             Q_EMIT shortcutsRequested();
+        else if (which == QStringLiteral("colors"))
+            Q_EMIT colorsRequested();
         else if (which == QStringLiteral("measure"))
             Q_EMIT dockMeasureRequested();
         else if (which == QStringLiteral("default"))
