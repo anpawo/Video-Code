@@ -50,8 +50,13 @@ else
     # `[ -n ]` guard short-circuited, and this check printed success having
     # looked at zero files — the exact failure it was added to prevent, inside
     # the fix for it. Counted now, and an empty list is an error.
+    # `.claude/worktrees/` too: an agent working in its own worktree lives
+    # INSIDE this directory, build tree and all, and CMake writes a probe file
+    # there that no formatter will ever like. The hook was reading another
+    # checkout's generated C++ and refusing a commit that touched one doc.
     files=$(find . \( -name '*.cpp' -o -name '*.hpp' \) \
-        -not -path './build/*' -not -path './build-qml/*' -not -path './vcpkg_installed/*')
+        -not -path './build/*' -not -path './build-qml/*' -not -path './vcpkg_installed/*' \
+        -not -path './.claude/worktrees/*')
     count=$(printf '%s\n' "$files" | grep -c . || true)
     if [ "$count" -lt 50 ]; then
         printf "\n\033[31m✗ commit cancelled — the formatting check found %s files, which cannot be right\033[0m\n" "$count"
