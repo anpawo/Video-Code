@@ -37,8 +37,9 @@ section("SurroundingRectangle(Circle): custom buff/color, scale copied")
 c = Circle(radius=1).position(-1, -1).scale(2)
 sr2 = SurroundingRectangle(c, buff=0.1, color=RED)
 
-check("width == shape width + 2*buff", approx(sr2.width, c.width + 2 * 0.1))
-check("height == shape height + 2*buff", approx(sr2.height, c.height + 2 * 0.1))
+# `buff` is laid out in the shape's own space and copies its scale (x2 here).
+check("width == shape width + 2*buff*scale", approx(sr2.width, c.width + 2 * 0.1 * 2))
+check("height == shape height + 2*buff*scale", approx(sr2.height, c.height + 2 * 0.1 * 2))
 check("strokeColor is RED", sr2.strokeColor == RED)
 check("scale copied from shape", approx(sr2.meta.scale.x, 2) and approx(sr2.meta.scale.y, 2))
 

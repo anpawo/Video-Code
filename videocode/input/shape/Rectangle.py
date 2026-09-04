@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from videocode.input.shape.Polygon import *
-from videocode.utils.decorators import prop
 from videocode.utils.funcutils import size
 from videocode.utils.logger import *
 
@@ -20,8 +19,8 @@ class Rectangle(Polygon):
     ):
         # Square and HorizontalLine route through here, so this is the one
         # place a negative side has to be caught.
-        self.width = size(type(self).__name__, "width", width)
-        self.height = size(type(self).__name__, "height", height)
+        self._width = size(type(self).__name__, "width", width)
+        self._height = size(type(self).__name__, "height", height)
 
         super().__init__(
             vertices=self.generateVertices(),
@@ -34,16 +33,41 @@ class Rectangle(Polygon):
     def generateVertices(self) -> list[point]:
         return [
             (0, 0),
-            (self.width, 0),
-            (self.width, self.height),
-            (0, self.height),
+            (self._width, 0),
+            (self._width, self._height),
+            (0, self._height),
         ]
 
-    @prop(onSet=Polygon.updatePoints)
-    def width() -> wunumber: ...
+    @property
+    def width(self) -> wunumber:
+        """
+        How wide the rectangle is DRAWN — its geometry times `meta.scale`, the
+        same answer `Polygon.width` gives.
 
-    @prop(onSet=Polygon.updatePoints)
-    def height() -> wunumber: ...
+        Writing it sizes the geometry and leaves the transform alone, so
+        `ease(r.ref.width, …)` on a scaled shape runs between two drawn sizes
+        rather than reading one space and writing the other::
+
+            r = Rectangle(width=3, height=1).scale(2)
+            r.width          # 6 — what is on screen
+            r.width = 8      # still scaled 2, geometry 4, drawn 8
+        """
+        return self._width * abs(self.meta.scale.x)
+
+    @width.setter
+    def width(self, value: wunumber) -> None:
+        self._width = value / (abs(self.meta.scale.x) or 1)
+        self.updatePoints()
+
+    @property
+    def height(self) -> wunumber:
+        """How tall the rectangle is DRAWN. `width`'s reasoning, other axis."""
+        return self._height * abs(self.meta.scale.y)
+
+    @height.setter
+    def height(self, value: wunumber) -> None:
+        self._height = value / (abs(self.meta.scale.y) or 1)
+        self.updatePoints()
 
 
 class Square(Rectangle):

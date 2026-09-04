@@ -85,8 +85,8 @@ class RightTriangle(Triangle):
         strokeWidth: wufloat = 0.05,
         cornerRadius: percent = 0,
     ):
-        self.width = width
-        self.height = height
+        self._width = width
+        self._height = height
 
         super().__init__(
             p0=(0, 0),
@@ -99,10 +99,23 @@ class RightTriangle(Triangle):
         )
 
     def generateVertices(self) -> list[point]:
-        return [(0, 0), (self.width, 0), (0, self.height)]
+        return [(0, 0), (self._width, 0), (0, self._height)]
 
-    @prop(onSet=Polygon.updatePoints)
-    def width() -> wufloat: ...
+    # Drawn size both ways, for the reason given on `Rectangle.width`.
+    @property
+    def width(self) -> wufloat:
+        return self._width * abs(self.meta.scale.x)
 
-    @prop(onSet=Polygon.updatePoints)
-    def height() -> wufloat: ...
+    @width.setter
+    def width(self, value: wufloat) -> None:
+        self._width = value / (abs(self.meta.scale.x) or 1)
+        self.updatePoints()
+
+    @property
+    def height(self) -> wufloat:
+        return self._height * abs(self.meta.scale.y)
+
+    @height.setter
+    def height(self, value: wufloat) -> None:
+        self._height = value / (abs(self.meta.scale.y) or 1)
+        self.updatePoints()

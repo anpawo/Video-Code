@@ -118,15 +118,22 @@ class Polygon(Input):
         """
         return self.apply(morphTo(target, start=start, easing=easing, duration=duration), offset=offset)
 
+    def _extent(self) -> tuple[wunumber, wunumber]:
+        """The geometry's own box, before `meta.scale` — the space `vertices` live in."""
+        xs = [v[0] for v in self.vertices]
+        ys = [v[1] for v in self.vertices]
+        return max(xs) - min(xs), max(ys) - min(ys)
+
+    # What is DRAWN, not the geometry alone: `Square(2).scale(2)` measured 2
+    # while it covered 4, and everything built on the measurement — a group's
+    # box, a stack's pitch — was off by the scale (X6).
     @property
     def width(self) -> wunumber:
-        xs = [v[0] for v in self.vertices]
-        return max(xs) - min(xs)
+        return self._extent()[0] * abs(self.meta.scale.x)
 
     @property
     def height(self) -> wunumber:
-        ys = [v[1] for v in self.vertices]
-        return max(ys) - min(ys)
+        return self._extent()[1] * abs(self.meta.scale.y)
 
     def buildPoints(self) -> list[point]:
         """

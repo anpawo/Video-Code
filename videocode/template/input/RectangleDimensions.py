@@ -59,8 +59,8 @@ class RectangleDimensions(Group):
 
         rx: wnumber = rect.meta.position.x
         ry: wnumber = rect.meta.position.y
-        rw: wnumber = rect.width * (rect.meta.scale.x or 1)
-        rh: wnumber = rect.height * (rect.meta.scale.y or 1)
+        rw: wnumber = rect.width
+        rh: wnumber = rect.height
 
         # Cached visual state — each callback updates only its own field,
         # so sibling callbacks never read a stale cross-dimension value.
@@ -81,8 +81,8 @@ class RectangleDimensions(Group):
         def _on_args(s: _Args, start: sec, duration: sec, offset: frame) -> None:
             if s.name != "points":
                 return
-            new_rw = self.rect.width * (self.rect.meta.scale.x or 1)
-            new_rh = self.rect.height * (self.rect.meta.scale.y or 1)
+            new_rw = self.rect.width
+            new_rh = self.rect.height
             resolved = s.resolve(start, duration, offset)
             if new_rw != self._rw:
                 self._rw = new_rw
@@ -97,8 +97,8 @@ class RectangleDimensions(Group):
             self._syncPositions(*s.resolve(start, duration, offset))
 
         def _on_scale(s: _Scale, start: sec, duration: sec, offset: frame) -> None:
-            new_rw = self.rect.width * (self.rect.meta.scale.x or 1)
-            new_rh = self.rect.height * (self.rect.meta.scale.y or 1)
+            new_rw = self.rect.width
+            new_rh = self.rect.height
             resolved = s.resolve(start, duration, offset)
             if new_rw != self._rw:
                 self._rw = new_rw

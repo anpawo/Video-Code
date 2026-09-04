@@ -138,5 +138,20 @@ Row(Group(g1, g2), sq, gap=0.5)
 check("the group's squares land at -1.75 and 0.25", at(g1, -1.75, 0) and at(g2, 0.25, 0))
 check("the square follows at 1.75", at(sq, 1.75, 0))
 
+# ── X6: measuring reads what is drawn ───────────────────────────────────────
+# `Square(2).scale(2)` covers 4 world units and used to measure 2 — and a Row
+# built on that measurement put its neighbour 2 units inside the square.
+section("X6 — width and height include meta.scale")
+big = Square(2).scale(2)
+check("Square(2).scale(2).width == 4", approx(big.width, 4) and approx(big.height, 4))
+check("Circle(radius=1).scale(3) is 6 across", approx(Circle(radius=1).scale(3).width, 6))
+# A scaled member at x=-3 spans [-5, -1], a unit one at x=3 spans [2, 4]: 9 in all.
+scaled = Group(Square(2).scale(2).position(x=-3), Square(2).position(x=3))
+check("a Group containing a scaled member spans 9", approx(scaled.width, 9))
+# And the row that motivated it: the gap is measured from the DRAWN edge.
+wide, small = Square(1).scale(2), Square(1)
+Row(wide, small, gap=0.5)
+check("Row leaves 0.5 between a scaled square's drawn edge and its neighbour", approx((small.meta.position.x - 0.5) - (wide.meta.position.x + 1), 0.5))
+
 # ── summary ─────────────────────────────────────────────────────────────────
 summary()

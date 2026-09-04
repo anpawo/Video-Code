@@ -80,12 +80,12 @@ class CompoundPolygon(Polygon):
     @property
     def width(self) -> wunumber:
         xs = [p[0] for c in self._all_contours for p in c]
-        return (max(xs) - min(xs)) if xs else 0
+        return (max(xs) - min(xs)) * abs(self.meta.scale.x) if xs else 0
 
     @property
     def height(self) -> wunumber:
         ys = [p[1] for c in self._all_contours for p in c]
-        return (max(ys) - min(ys)) if ys else 0
+        return (max(ys) - min(ys)) * abs(self.meta.scale.y) if ys else 0
 
     # ------------------------------------------------------------------
     # Drift
