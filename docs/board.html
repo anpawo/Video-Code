@@ -138,7 +138,24 @@
   #pop li + li { margin-top: 3px; }
   #pop code { color: var(--ink); }
 
-  @media (prefers-reduced-motion: reduce) { #pop { transition: none; } }
+  #flash {
+    position: fixed; z-index: 60; pointer-events: none;
+    font-family: var(--mono); font-size: 11px; color: var(--ground);
+    background: var(--ai); border-radius: 3px; padding: 2px 7px;
+    opacity: 0; transition: opacity .12s ease;
+  }
+  #flash.show { opacity: 1; }
+
+  #grab {
+    position: fixed; z-index: 60; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: min(560px, 88vw); height: 132px; display: none;
+    background: var(--pop); color: var(--ink); border: 1px solid var(--pop-edge);
+    border-radius: 6px; box-shadow: var(--pop-shadow); padding: 11px 13px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.5; resize: none;
+  }
+  #grab.show { display: block; }
+
+  @media (prefers-reduced-motion: reduce) { #pop, #flash { transition: none; } }
   @media (max-width: 1180px) { .board { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 640px) { .board { grid-template-columns: 1fr; } }
 </style>
@@ -150,7 +167,7 @@
     <span class="branch">feat/night-2026-09-03</span>
     <span class="chips">
       <span class="chip"><b>24</b> livrés</span>
-      <span class="chip"><b>25</b> à faire</span>
+      <span class="chip"><b>26</b> à faire</span>
       <span class="chip"><b>52</b> tests</span>
       <span class="chip"><b>50</b> scènes</span>
     </span>
@@ -227,7 +244,7 @@
       </div>
 
       <div class="card todo">
-        <h2>To do · the rest <span class="n">10</span></h2>
+        <h2>To do · the rest <span class="n">11</span></h2>
         <ul class="rows">
           <li data-b="Plier plusieurs éléments en UNE image qu'on fond, floute, masque ou fait tourner d'un bloc.|Corrige d'un coup trois défauts mesurés : les groupes imbriqués qui perdent l'animation intérieure, le fondu où les membres se traversent, et le masque qui exige d'aplatir un texte à la main.|Le moteur a déjà les couches isolées et la passe qui aplatit une plage de maillages."><span class="id">A1</span><span class="lbl">Comp — un groupe = un calque</span><span class="meta">projet</span></li>
           <li data-b="Plonger sur un détail et revenir, sans rien réécrire.|C'est l'idiome le plus utilisé des vidéos explicatives (Manim l'a).|Une seule matrice appliquée aux sommets — plus un <code>pinToFrame()</code> pour ce qui ne doit pas zoomer, les sous-titres par exemple."><span class="id">A2</span><span class="lbl">Caméra — zoomer, se déplacer</span><span class="meta">qq j</span></li>
@@ -238,6 +255,7 @@
           <li data-b="<code>--for youtube,tiktok,square</code> sort trois fichiers depuis une seule scène.|La scène se REMET EN PAGE au lieu d'être recadrée : une unité monde vaut 120 px quelle que soit la forme.|Plus la normalisation du volume par plateforme."><span class="id">C3</span><span class="lbl">Une scène, tous les formats</span><span class="meta">2 j</span></li>
           <li data-b="Chaque <code>timestamp()</code> devient un chapitre dans le fichier vidéo.|Et une ligne à coller dans la description YouTube.|La miniature vient du même mécanisme : choisir une image.|"><span class="id">C6</span><span class="lbl">Chapitres et miniature</span><span class="meta">B6, C1</span></li>
           <li data-b="Mettre ceci à côté de cela, avec un écart mesuré entre les bords.|Avec <code>follow=True</code>, l'étiquette suit la balle qui bouge.|Le suivi demande S1 : il ne voit que ce qui est écrit AU-DESSUS de lui."><span class="id">D1</span><span class="lbl"><code>nextTo(a, UP, gap=)</code></span><span class="meta">½ j</span></li>
+          <li data-b="Rayons, ombres, marges et matières des onglets, des fenêtres et des blocs, revus pour ressembler à ce que fait Apple.|Rien n'a été creusé : posé ici tel quel, à ta demande.|À reprendre quand tu voudras en parler."><span class="id">B8</span><span class="lbl">Des formes plus Apple</span><span class="meta">non creusé</span></li>
           <li data-b="Un élément par ligne de données, et <code>fromCSV</code> pour lire un fichier.|Remplace 12 à 15 lignes écrites à la main.|Dont la valeur affichée qui, aujourd'hui, ne suit pas la barre qui grandit."><span class="id">D6</span><span class="lbl"><code>BarChart(data)</code></span><span class="meta">D1, D5</span></li>
         </ul>
       </div>
@@ -271,6 +289,8 @@
 </div>
 
 <div id="pop" role="tooltip" aria-hidden="true"></div>
+<div id="flash" aria-live="polite"></div>
+<textarea id="grab" readonly aria-label="Contexte à copier"></textarea>
 
 <script>
   // Le détail s'ouvre au survol, après une courte pause.
@@ -323,4 +343,54 @@
 
   addEventListener("blur", hide);
   addEventListener("scroll", hide, true);
+
+  // Cliquer une ligne copie de quoi en parler ailleurs.
+  //
+  // Le presse-papier peut être refusé à une page dans un cadre : dans ce cas le
+  // texte est posé, sélectionné, sous le curseur — un ⌘C le prend. Une ligne
+  // qu'on croit avoir copiée et qui ne l'est pas est pire que pas de bouton.
+  const flash = document.getElementById("flash");
+  const grab = document.getElementById("grab");
+
+  function contextOf(li) {
+    const id = li.querySelector(".id").textContent.trim();
+    const label = li.querySelector(".lbl").textContent.trim();
+    const meta = li.querySelector(".meta").textContent.trim();
+    const bullets = li.dataset.b.split("|").filter(Boolean)
+      .map((b) => "· " + b.replace(/<[^>]+>/g, ""));
+    return (id !== "—" ? id + " — " : "") + label + (meta ? "  (" + meta + ")" : "") +
+           "\n" + bullets.join("\n");
+  }
+
+  function said(x, y, text) {
+    flash.textContent = text;
+    flash.style.left = Math.min(x + 14, window.innerWidth - 150) + "px";
+    flash.style.top = (y - 26) + "px";
+    flash.classList.add("show");
+    setTimeout(() => flash.classList.remove("show"), 1100);
+  }
+
+  addEventListener("click", (e) => {
+    const li = e.target.closest("li[data-b]");
+    if (!li) return;
+    const text = contextOf(li);
+    hide();
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => said(e.clientX, e.clientY, "copié"))
+        .catch(() => offer(text));
+    } else {
+      offer(text);
+    }
+  });
+
+  // Le repli : le texte à l'écran, déjà sélectionné.
+  function offer(text) {
+    grab.value = text;
+    grab.classList.add("show");
+    grab.focus();
+    grab.select();
+  }
+  addEventListener("keydown", (e) => { if (e.key === "Escape") grab.classList.remove("show"); });
 </script>
