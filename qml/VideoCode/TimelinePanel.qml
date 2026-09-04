@@ -908,10 +908,19 @@ Item {
                     width: stampText.implicitWidth + 12
                     height: stampText.implicitHeight + 6
                     radius: 3
+                    // Always on a ground of its own. The stamp sits at the foot
+                    // of the pane, where a lane, the grid or a clip can pass
+                    // behind it, and dark red on green is not a reading — a
+                    // chip at 92% settles what it is written on. Not a backdrop
+                    // blur: that is a ShaderEffectSource and a pass per stamp
+                    // for the same answer.
                     color: editing || stampMouse.containsMouse
-                           ? Qt.rgba(0.878, 0.376, 0.361, 0.16) : "transparent"
+                           ? Qt.rgba(0.153, 0.086, 0.086, 0.94)
+                           : Qt.alpha(Theme.sunk, 0.92)
                     border.width: 1
-                    border.color: editing ? Qt.rgba(0.878, 0.376, 0.361, 0.8) : "transparent"
+                    border.color: editing
+                                  ? Qt.rgba(0.878, 0.376, 0.361, 0.8)
+                                  : Qt.rgba(0.878, 0.376, 0.361, 0.22)
                     visible: join.width > width + 6
 
                     readonly property bool editing: root.editingWait === join.modelData.line
@@ -921,7 +930,7 @@ Item {
                         anchors.centerIn: parent
                         visible: !gapStamp.editing
                         text: "wait " + join.modelData.says.toFixed(1) + "s"
-                        color: Qt.rgba(0.878, 0.376, 0.361, 0.85)
+                        color: Qt.rgba(0.945, 0.541, 0.525, 1)
                         font.family: Theme.mono
                         font.pixelSize: 10
                     }
