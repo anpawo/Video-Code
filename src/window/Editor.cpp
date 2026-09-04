@@ -259,7 +259,13 @@ void VC::Editor::setGuideColors(const QVariantList& rows)
 
         const QString section = row.value(QStringLiteral("section")).toString();
         if (!section.isEmpty()) {
-            _colorsMenu->addSection(section);
+            // A separator plus a disabled row, not `addSection`: on macOS the
+            // native menu has no section title, so Qt draws the separator and
+            // throws the words away — the groups were there and unnamed.
+            if (!_colorsMenu->isEmpty())
+                _colorsMenu->addSeparator();
+            auto* heading = _colorsMenu->addAction(section);
+            heading->setEnabled(false);
             continue;
         }
 

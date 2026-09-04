@@ -1322,14 +1322,14 @@ ApplicationWindow {
             // richest: a shape it draws itself, then a still, then a still with
             // time in it, then time with a picture AND sound. Each line adds one
             // thing to the one above.
-            { section: "The medium" },
+            { section: "Inputs — what a scene is made of" },
             { label: "polygon", meaning: "a shape the engine draws", color: panelHue("polygon") },
             { label: "image", meaning: "a still — png, svg", color: panelHue("image") },
             { label: "sound", meaning: "audio on its own", color: panelHue("sound") },
             { label: "video", meaning: "a picture with its sound, as one clip", color: panelHue("video") },
             { label: "subs", meaning: "text derived from a track, so it borrows the neutral", color: panelHue("subs") },
 
-            { section: "Done to the medium" },
+            { section: "Effects — done to an input" },
             { label: "effect", meaning: "the host's complement — an effect is not a smaller medium", color: Theme.fxKind["video"] },
 
             { section: "Now" },

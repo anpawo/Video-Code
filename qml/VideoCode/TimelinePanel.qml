@@ -169,9 +169,12 @@ Item {
 
     readonly property real contentWidth: span * pxPerSecond
     readonly property int laneHeight: 48
-    // Blank strip kept to the left of time zero, wide enough for the playhead's
-    // handle to sit at 0 without touching the panel's edge.
-    readonly property int gutter: 8
+    // Blank strip kept to the left of time zero. Wide enough for the playhead's
+    // handle to sit at 0 without touching the panel's edge — and, since every
+    // ruler stamp is centred on the line it names, wide enough for the FIRST one
+    // to centre like the others instead of being nudged right by the clamp
+    // below: half of "00:00" at 11px mono is about 17.
+    readonly property int gutter: 22
 
     // A short scene at a low zoom does not fill the pane, and pinned to the left
     // it reads as a timeline that has been cut off — the empty half looks like
@@ -714,9 +717,10 @@ Item {
                         visible: parent.index % 2 === 0
                         // Centred on the line it names, not parked beside it: a
                         // number to the right of its tick reads as belonging to
-                        // the space AFTER that second. The first one is nudged
-                        // back only as far as the gutter allows, so 00:00 is not
-                        // sliced in half by the edge of the pane.
+                        // the space AFTER that second, and the colon of "00:00"
+                        // sits over time zero. The clamp is the guard for a
+                        // gutter too narrow to hold half a stamp — it should not
+                        // bite at the shipped one.
                         x: parent.index === 0
                            ? Math.max(-stamp.implicitWidth / 2, -root.pad + 2)
                            : -stamp.implicitWidth / 2
