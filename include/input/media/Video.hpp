@@ -30,6 +30,14 @@ public:
 
     void setReuploadFn(std::function<void(const cv::Mat&)> fn) { _reupload = std::move(fn); }
 
+    // What the mux needs to carry this video's own sound: the file, the source
+    // frames the picture skips, and the rate those frames are counted in.
+    std::string filepath() const { return _baseArgs.at("filepath").get<std::string>(); }
+
+    const std::vector<std::pair<size_t, size_t>>& cuts() const { return _cuts; }
+
+    double sourceFps() const { return _video.get(cv::CAP_PROP_FPS); }
+
     size_t _nbFrame{0};
     size_t _playbackLength{0}; // _nbFrame minus all cut ranges — what Core sees as this Video's contribution to the timeline
 

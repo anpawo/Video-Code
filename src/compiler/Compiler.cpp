@@ -18,57 +18,124 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <vector>
 
 #include "core/ScreenSize.hpp"
 #include "input/media/Sound.hpp"
+#include "input/media/Video.hpp"
 #include "utils/ImageIO.hpp"
 #include "vulkan/VulkanHeadlessRenderer.hpp"
 
 namespace
 {
-    // Extra ffmpeg input arguments (one "-ss .. -to .. -i file" per Sound) and
+    // Extra ffmpeg input arguments (one "-ss .. -to .. -i file" per track) and
     // the output arguments that mix/map them onto the encoded video. Empty
-    // when there are no Sound inputs — output keeps its current "-an" behavior.
+    // when nothing carries sound — output keeps its current "-an" behavior.
     struct AudioArgs
     {
         std::string inputs; // appended after the rawvideo "-i -"
         std::string output; // appended before the output filename
     };
 
+    // A video with no audio stream must not be mapped: ffmpeg refuses the
+    // whole mux over a "[3:a]" that matches nothing, picture included.
+    bool hasAudioStream(const std::string& filepath)
+    {
+        FILE* p = popen(std::format("ffprobe -v error -select_streams a -show_entries stream=codec_type -of csv=p=0 \"{}\"", filepath).c_str(), "r");
+        if (!p)
+            return false;
+        char buf[16];
+        bool any = fgets(buf, sizeof buf, p) != nullptr;
+        pclose(p);
+        return any;
+    }
+
+    // A Video's own track. Its picture runs on the scene clock from output
+    // frame 0 — playback index = output index — so the sound needs no delay:
+    // keeping the audio between the cut ranges and butting the pieces together
+    // is what leaves it under the frames that are actually shown. atrim over
+    // asplit rather than one aselect expression, because aselect on audio
+    // drops nothing at all in ffmpeg 8.0.1 (measured: `gte(t,1)` kept 2.005 s
+    // of 2.005). The picture is nearest-frame at one source frame per scene
+    // frame, so a source not at the scene's rate plays at SCENE_FRAMERATE/fps
+    // speed and the sound follows with atempo.
+    // ponytail: atempo floors at 0.5, so a source above 60 fps fails the mux;
+    // neither speed ramps nor a paused VIDEOS clock (freeze) reach the sound.
+    std::string videoAudioChain(const Video& v, size_t ffmpegInput, size_t track)
+    {
+        double fps = v.sourceFps() > 0.0 ? v.sourceFps() : Config::SCENE_FRAMERATE;
+        auto   tempo = fps != Config::SCENE_FRAMERATE ? std::format(",atempo={}", Config::SCENE_FRAMERATE / fps) : "";
+
+        if (v.cuts().empty())
+            return std::format("[{}:a]anull{}[a{}];", ffmpegInput, tempo, track);
+
+        // Kept ranges in source seconds; an end of -1 runs to the end of the file.
+        std::vector<std::pair<double, double>> keep;
+        size_t                                 at = 0;
+        for (const auto& [start, end] : v.cuts()) {
+            if (start > at)
+                keep.push_back({at / fps, start / fps});
+            at = end;
+        }
+        if (at < v._nbFrame)
+            keep.push_back({at / fps, -1.0});
+
+        auto trim = [&](const std::pair<double, double>& range) {
+            return std::format("atrim=start={}{},asetpts=PTS-STARTPTS", range.first, range.second < 0 ? "" : std::format(":end={}", range.second));
+        };
+
+        if (keep.empty())
+            return std::format("[{}:a]atrim=end=0{}[a{}];", ffmpegInput, tempo, track);
+        if (keep.size() == 1)
+            return std::format("[{}:a]{}{}[a{}];", ffmpegInput, trim(keep[0]), tempo, track);
+
+        std::string chain = std::format("[{}:a]asplit={}", ffmpegInput, keep.size());
+        for (size_t k = 0; k < keep.size(); ++k)
+            chain += std::format("[s{}_{}]", track, k);
+        chain += ";";
+        for (size_t k = 0; k < keep.size(); ++k)
+            chain += std::format("[s{}_{}]{}[k{}_{}];", track, k, trim(keep[k]), track, k);
+        for (size_t k = 0; k < keep.size(); ++k)
+            chain += std::format("[k{}_{}]", track, k);
+        chain += std::format("concat=n={}:v=0:a=1{}[a{}];", keep.size(), tempo, track);
+        return chain;
+    }
+
     AudioArgs buildAudioArgs(const std::vector<std::unique_ptr<IInput>>& inputs, const std::string& audioCodec)
     {
-        std::vector<Sound*> sounds;
-        for (const auto& i : inputs)
-            if (auto* s = dynamic_cast<Sound*>(i.get()))
-                sounds.push_back(s);
-
-        if (sounds.empty())
-            return {"", " -an"};
-
         AudioArgs   result;
         std::string filterComplex;
+        size_t      tracks = 0;
 
-        for (size_t i = 0; i < sounds.size(); ++i) {
-            const Sound* s = sounds[i];
+        for (const auto& i : inputs) {
+            if (auto* s = dynamic_cast<Sound*>(i.get())) {
+                if (s->trimStart() > 0.0)
+                    result.inputs += std::format(" -ss {}", s->trimStart());
+                if (s->trimEnd())
+                    result.inputs += std::format(" -to {}", *s->trimEnd());
+                result.inputs += std::format(" -i \"{}\"", s->filepath());
 
-            if (s->trimStart() > 0.0)
-                result.inputs += std::format(" -ss {}", s->trimStart());
-            if (s->trimEnd())
-                result.inputs += std::format(" -to {}", *s->trimEnd());
-            result.inputs += std::format(" -i \"{}\"", s->filepath());
-
-            int delayMs = (int)std::llround(s->delay() * 1000.0);
-            filterComplex += std::format("[{}:a]volume={},adelay={}|{}[a{}];", i + 1, s->volume(), delayMs, delayMs, i);
+                int delayMs = (int)std::llround(s->delay() * 1000.0);
+                filterComplex += std::format("[{}:a]volume={},adelay={}|{}[a{}];", tracks + 1, s->volume(), delayMs, delayMs, tracks);
+                ++tracks;
+            } else if (auto* v = dynamic_cast<Video*>(i.get()); v && hasAudioStream(v->filepath())) {
+                result.inputs += std::format(" -i \"{}\"", v->filepath());
+                filterComplex += videoAudioChain(*v, tracks + 1, tracks);
+                ++tracks;
+            }
         }
 
+        if (tracks == 0)
+            return {"", " -an"};
+
         std::string outLabel;
-        if (sounds.size() == 1) {
+        if (tracks == 1) {
             filterComplex.pop_back(); // drop trailing ';' — single chain, no amix needed
             outLabel = "a0";
         } else {
-            for (size_t i = 0; i < sounds.size(); ++i)
+            for (size_t i = 0; i < tracks; ++i)
                 filterComplex += std::format("[a{}]", i);
-            filterComplex += std::format("amix=inputs={}:duration=longest:dropout_transition=0[aout]", sounds.size());
+            filterComplex += std::format("amix=inputs={}:duration=longest:dropout_transition=0[aout]", tracks);
             outLabel = "aout";
         }
 

@@ -98,6 +98,11 @@ class Video(Polygon):
         see the `UVMapping` enum for the mode semantics; `uvAngle` (degrees)
         rotates the angular origin of the polar modes.
 
+        The file's own sound, if it has one, reaches the rendered video: cut
+        where the picture is cut (`cuts`/`startFrame`/`endFrame`) and retimed
+        with it when the source is not at the scene's frame rate. No `Sound`
+        on the same file is needed — writing one plays the track twice.
+
         `width`/`height` together stretch the frame to that exact box; giving
         only one derives the other from the source's aspect ratio, and giving
         neither draws the video at its natural pixel size. Deriving one (like

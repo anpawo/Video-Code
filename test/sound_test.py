@@ -21,7 +21,7 @@ import tempfile
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
-from helpers import check, needsRenderer, section, summary
+from helpers import check, needsRenderer, needsTool, section, summary
 
 from videocode import Sound, wait
 from videocode.constants import FRAMERATE
@@ -147,6 +147,68 @@ with tempfile.TemporaryDirectory() as tmp:
             f"the sound starts at the cursor, 2.0s (measured {silenceEnd})",
             silenceEnd is not None and abs(silenceEnd - 2.0) < 0.05,
         )
+
+# ── a Video's own sound ──────────────────────────────────────────────────────
+# The picture's clock starts at output frame 0 and skips the cut ranges, so the
+# sound has to start at 0 and skip the same ranges. The fixture makes a cut
+# audible: silent for its first second, a tone for its second — a head cut
+# that reaches the audio removes the silence, one that does not leaves it.
+section("Video — its own sound reaches the mux, cut like the picture")
+
+
+def toneClip(path: str, fps: int) -> None:
+    subprocess.run(
+        ["ffmpeg", "-y", "-v", "error",
+         "-f", "lavfi", "-i", f"color=c=blue:s=320x180:d=2:r={fps}",
+         "-f", "lavfi", "-i", "aevalsrc=if(gte(t\\,1)\\,0.5*sin(440*2*PI*t)):s=48000:d=2",
+         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", path],
+        check=True,
+    )
+
+
+def audioDuration(videoPath: str) -> float | None:
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=duration", "-of", "csv=p=0", videoPath],
+        capture_output=True, text=True,
+    )
+    return float(result.stdout) if result.stdout.strip() else None
+
+
+def renderVideoScene(tmp: str, name: str, line: str) -> str:
+    scenePath = os.path.join(tmp, f"{name}.py")
+    outputPath = os.path.join(tmp, f"{name}.mp4")
+    with open(scenePath, "w", encoding="utf-8") as file:
+        file.write(f"from videocode import *\n{line}\nwait(3)\n")
+    renderScene(scenePath, outputPath)
+    return outputPath
+
+
+if needsRenderer("a video's sound has to be heard in an actual muxed file") and needsTool("ffprobe", "reading the muxed streams back"):
+    with tempfile.TemporaryDirectory() as tmp:
+        clip30 = os.path.join(tmp, "tone30.mp4")
+        toneClip(clip30, fps=30)
+
+        whole = renderVideoScene(tmp, "whole", f"Video({clip30!r})")
+        check("the render carries an audio stream", audioDuration(whole) is not None)
+        silenceEnd = firstSilenceEnd(whole)
+        check(f"the tone sits where the file has it, 1.0s (measured {silenceEnd})", silenceEnd is not None and abs(silenceEnd - 1.0) < 0.05)
+
+        head = renderVideoScene(tmp, "head", f"Video({clip30!r}, startFrame=30)")
+        duration = audioDuration(head)
+        check(f"startFrame=30 drops the silent second: 1.0s of audio left (measured {duration})", duration is not None and abs(duration - 1.0) < 0.05)
+        check("and the tone starts at 0, so there is no silence to detect", firstSilenceEnd(head) is None)
+
+        middle = renderVideoScene(tmp, "middle", f"Video({clip30!r}, cuts=[(15, 45)])")
+        silenceEnd = firstSilenceEnd(middle)
+        check(f"cuts=[(15, 45)] joins 0.5s of silence to 0.5s of tone (measured {silenceEnd})", silenceEnd is not None and abs(silenceEnd - 0.5) < 0.05)
+
+        # One source frame per scene frame: a 60 fps clip plays at half speed,
+        # and its sound has to take the same 4 seconds.
+        clip60 = os.path.join(tmp, "tone60.mp4")
+        toneClip(clip60, fps=60)
+        slow = renderVideoScene(tmp, "slow", f"Video({clip60!r})")
+        silenceEnd = firstSilenceEnd(slow)
+        check(f"a 60 fps source is retimed with its picture: tone at 2.0s (measured {silenceEnd})", silenceEnd is not None and abs(silenceEnd - 2.0) < 0.1)
 
 # ── summary ──────────────────────────────────────────────────────────────────
 summary()
