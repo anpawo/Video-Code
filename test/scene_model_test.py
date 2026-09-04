@@ -247,6 +247,72 @@ check("every name in it can actually be imported",
       all(one["module"] == "" or __import__(one["module"], fromlist=[one["name"]])
           for one in catalogue))
 
+# ── The project's own templates/ folder ──────────────────────────────────────
+section("a templates/ folder in the project is listed beside the library's")
+import contextlib
+import io
+import os
+import tempfile
+
+from videocode.serialize import effectCatalogue
+
+project = tempfile.mkdtemp()
+os.mkdir(os.path.join(project, "templates"))
+with open(os.path.join(project, "templates", "LowerThird.py"), "w") as f:
+    f.write(
+        "from videocode import *\n"
+        "from videocode.input.interface.Group import Group\n"
+        "class LowerThird(Group):\n"
+        '    """A name and a title, bottom left."""\n'
+        "    def __init__(self, name: str, title: str = 'Guest', color: rgba = BLUE_C):\n"
+        "        super().__init__(Text(text=name), Text(text=title, fillColor=color))\n"
+        "def _helper():\n"
+        "    return 1\n"
+    )
+with open(os.path.join(project, "templates", "presets.py"), "w") as f:
+    f.write(
+        "from videocode.template.effect.other.popIn import popIn\n"
+        "def myPop():\n"
+        '    """A small, springy pop."""\n'
+        "    return popIn(scale=0.3)\n"
+    )
+with open(os.path.join(project, "templates", "Broken.py"), "w") as f:
+    f.write("raise RuntimeError('half written')\n")
+
+complaints = io.StringIO()
+with contextlib.redirect_stderr(complaints):
+    yours = {one["name"]: one for one in templateCatalogue(project)}
+    presets = {one["name"]: one for one in effectCatalogue(project)}
+
+check("the class is there", "LowerThird" in yours)
+check("in a group of its own, apart from what shipped", yours["LowerThird"]["group"] == "yours")
+check("with the import the scene will resolve", yours["LowerThird"]["module"] == "templates.LowerThird")
+check("its fields are read off the signature",
+      [p["name"] for p in yours["LowerThird"]["params"]] == ["name", "title", "color"])
+check("and a colour default is still named",
+      dict((p["name"], p["default"]) for p in yours["LowerThird"]["params"])["color"] == "BLUE_C")
+check("what it says about itself is its docstring",
+      yours["LowerThird"]["says"] == "A name and a title, bottom left.")
+check("the name it needs is the one with no default", yours["LowerThird"]["required"] == ["name"])
+check("what shipped is still there beside it", yours["Arrow"]["group"] == "template")
+
+check("a preset is an effect", "myPop" in presets and presets["myPop"]["form"] == "effect")
+check("with the module it lives in", presets["myPop"]["module"] == "templates.presets")
+check("a private helper is nobody's business", "_helper" not in presets)
+
+check("a broken file is left out", "Broken" not in yours)
+check("and said, not raised", "templates/Broken.py" in complaints.getvalue()
+      and "half written" in complaints.getvalue())
+
+# The import the editor writes has to resolve from the project root — which is
+# `sys.path[0]` when the editor runs — with no `__init__.py` in the folder.
+sys.path.insert(0, project)
+check("`from templates.LowerThird import LowerThird` resolves from the project root",
+      __import__("templates.LowerThird", fromlist=["LowerThird"]).LowerThird.__name__ == "LowerThird")
+sys.path.remove(project)
+
+check("no folder, no fuss", all(one["group"] != "yours" for one in templateCatalogue(tempfile.mkdtemp())))
+
 # ── Ce qu'une exécution laisse derrière elle ───────────────────────────────
 section("a run leaves nothing behind for the next one")
 # The editor runs a scene on every gesture. Anything a run leaves standing is

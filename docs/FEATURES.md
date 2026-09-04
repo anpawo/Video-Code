@@ -235,6 +235,38 @@ the formation; build a new one.
 
 **Examples**: `test/layout_test.py`.
 
+### Your own templates — `<project>/templates/*.py`
+
+A `templates/` folder at the project root (beside the scene, no `__init__.py`)
+is the project's own pack, and the editor's Library panel lists it beside the
+library's under **YOUR TEMPLATES**:
+
+```python
+# templates/LowerThird.py
+from videocode import *
+from videocode.input.interface.Group import Group
+
+class LowerThird(Group):
+    """A name and a title, bottom left."""          # the panel's description
+    def __init__(self, name: str, title: str = "Guest", color: rgba = BLUE_C):
+        super().__init__(Text(text=name), Text(text=title, fillColor=color))
+
+# templates/presets.py — a public function is an effect preset, applied with .apply(myPop())
+def myPop():
+    return popIn(scale=0.3, easing=Easing.Elastic)
+```
+
+The fields are read off `__init__`, the description off the first docstring
+line, and dropping one writes `from templates.LowerThird import LowerThird` —
+which resolves because the project root is `sys.path[0]`. Helpers you do not
+want offered start with `_`. A file that fails to import is named on stderr and
+left out; the rest of the panel is unaffected. `templateCatalogue(root)` and
+`effectCatalogue(root)` in `videocode/serialize.py` are what the editor asks.
+
+A default that depends on the frame must not spell `W`/`H` as a literal — take
+`None` and resolve in the body, as `SplitView` does (see `setScreen` in
+`constants.py`). The folder is plain files, so it travels with `git`.
+
 ### Two-panel layouts — `SplitView(split=Split.…)`
 
 ```python

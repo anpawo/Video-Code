@@ -422,13 +422,17 @@ def sceneModel() -> dict:
     return {"fps": FRAMERATE, "frames": total, "elements": elements, "waits": waits}
 
 
-def effectCatalogue() -> list[dict]:
+def effectCatalogue(root: str | None = None) -> list[dict]:
     """
     Every effect a scene can apply, by name, discovered rather than listed.
 
     A hand-written list is a list that is wrong the day someone adds a file —
     and the editor offering an effect the library does not have would be the
     worst kind of lie, since it writes it into your scene.
+
+    The project's own presets come after the library's: a public function in
+    `<root>/templates/*.py` — `def myPop(): return popIn(scale=0.3)` — is an
+    effect like any other, applied with `.apply(myPop())`.
     """
     import importlib
     import inspect
@@ -450,6 +454,13 @@ def effectCatalogue() -> list[dict]:
             if inspect.isfunction(value) and value.__module__ == module.name and not name.startswith("_"):
                 if name not in found:
                     found[name] = module.name
+                    forms[name], signatures[name] = _effectForm(name, value, Input)
+
+    for where, loaded in _projectTemplates(root):
+        for name, value in vars(loaded).items():
+            if inspect.isfunction(value) and value.__module__ == where and not name.startswith("_"):
+                if name not in found:
+                    found[name] = where
                     forms[name], signatures[name] = _effectForm(name, value, Input)
 
     # The module comes back with the name because effects are NOT part of
@@ -505,10 +516,12 @@ def _effectForm(name: str, fn, inputClass) -> tuple[str, list[dict]]:
     return "effect", _effectParameters(fn)
 
 
-def templateCatalogue() -> list[dict]:
+def templateCatalogue(root: str | None = None) -> list[dict]:
     """
-    Everything a scene can be given, by name: shapes, media, and the composite
-    templates the library builds out of them.
+    Everything a scene can be given, by name: shapes, media, the composite
+    templates the library builds out of them — and the project's own, from
+    `<root>/templates/*.py`, in a group of their own so the panel can tell what
+    shipped from what you wrote.
 
     Discovered, like the effects, and for the same reason — a hand-written list
     is wrong the day someone adds a file. The rule for what belongs here is the
@@ -586,28 +599,75 @@ def templateCatalogue() -> list[dict]:
     # in videocode.template.input.Arrow, so the module travels with the name the
     # way it does for effects: a button that writes a call without its import
     # writes a scene that does not run.
-    for module in pkgutil.walk_packages(templates.__path__, templates.__name__ + "."):
-        try:
-            loaded = importlib.import_module(module.name)
-        except Exception:
-            continue
+    def classesIn(where: str, loaded, group: str) -> None:
         for name, value in vars(loaded).items():
             if name.startswith("_") or name in seen or not inspect.isclass(value):
                 continue
-            if value.__module__ != module.name:
+            if value.__module__ != where:
                 continue
             if not issubclass(value, Input) or inspect.isabstract(value):
                 continue
 
             seen.add(name)
             found.append({
-                "name": name, "group": "template", "module": module.name,
+                "name": name, "group": group, "module": where,
                 "says": described(value), "params": parameters(value),
                 "required": required(value),
             })
 
+    for module in pkgutil.walk_packages(templates.__path__, templates.__name__ + "."):
+        try:
+            loaded = importlib.import_module(module.name)
+        except Exception:
+            continue
+        classesIn(module.name, loaded, "template")
+
+    for where, loaded in _projectTemplates(root):
+        classesIn(where, loaded, "yours")
+
     found.sort(key=lambda t: (t["group"], t["name"]))
     return found
+
+
+def _projectTemplates(root: str | None) -> list[tuple[str, object]]:
+    """
+    The project's own pack: every `<root>/templates/*.py`, loaded, with the name
+    the editor will write for it.
+
+    Named `templates.<file>` rather than by path because that is the import the
+    scene resolves — the project root is `sys.path[0]` (Main.cpp puts it there),
+    and a folder on the path is a package without an `__init__.py`. `root`
+    defaults to the working directory for the same reason: it IS the project
+    root the editor reports, so the panel and the scene agree on what
+    `templates.LowerThird` means. Loaded by path here, not through the import
+    system, so a test can point at any folder without touching `sys.path`.
+
+    A file that does not import is said on stderr and left out, never raised:
+    one broken template must not take the whole panel down with the others.
+    """
+    import importlib.util
+    import os
+
+    folder = os.path.join(root or os.getcwd(), "templates")
+    if not os.path.isdir(folder):
+        return []
+
+    out: list[tuple[str, object]] = []
+    for entry in sorted(os.listdir(folder)):
+        if not entry.endswith(".py") or entry.startswith("_"):
+            continue
+        where = "templates." + entry[:-3]
+        spec = importlib.util.spec_from_file_location(where, os.path.join(folder, entry))
+        if spec is None or spec.loader is None:
+            continue
+        loaded = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(loaded)
+        except Exception as error:
+            print(f"templates/{entry} is not listed: {type(error).__name__}: {error}", file=sys.stderr)
+            continue
+        out.append((where, loaded))
+    return out
 
 
 def inputSignature(className: str) -> list[dict]:
