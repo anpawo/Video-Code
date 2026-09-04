@@ -167,7 +167,7 @@
     <span class="branch">feat/night-2026-09-03</span>
     <span class="chips">
       <span class="chip"><b>25</b> livrés</span>
-      <span class="chip"><b>26</b> à faire</span>
+      <span class="chip"><b>23</b> à faire</span>
       <span class="chip"><b>52</b> tests</span>
       <span class="chip"><b>50</b> scènes</span>
     </span>
@@ -183,11 +183,12 @@
       </div>
 
       <div class="card doing">
-        <h2>In progress <span class="n">1</span></h2>
+        <h2>In progress <em>4 agents, 4 branches</em> <span class="n">4</span></h2>
         <ul class="rows">
-          <li data-b="La bande rouge d'une attente est trop fine pour se voir sur la timeline.|Elle doit prendre la vraie largeur de l'attente sans masquer les clips au-dessus.|Deux ou trois petites horloges rouges montent au-dessus pour dire que cette zone est en pause.">
-            <span class="id">—</span><span class="lbl">Bande d'attente + horloges</span><span class="meta">à écrire</span>
-          </li>
+          <li data-b="La bande rouge d'une attente est trop fine pour se voir sur la timeline.|Elle doit prendre la vraie largeur de l'attente sans masquer les clips au-dessus.|Deux ou trois petites horloges rouges montent au-dessus pour dire que cette zone est en pause."><span class="id">—</span><span class="lbl">Bande d'attente + horloges</span><span class="meta">wait-band-clocks</span></li>
+          <li data-b="Rendre seulement entre deux moments au lieu de tout refaire pour dix secondes.|Le noyau sait déjà démarrer à n'importe quelle image ; les délais audio sont absolus et devront être décalés.|Débloque C1 et C4."><span class="id">A7</span><span class="lbl">Rendre un extrait <code>--from/--to</code></span><span class="meta">section-render</span></li>
+          <li data-b="La même entrée, décalée d'un temps, sur n'importe quel groupe — donc sur un texte lettre par lettre.|Trois implémentations câblées en dur existent déjà : machine à écrire, typeIn, graduations de graphique.|C'est leur mise en commun, une quinzaine de lignes. Débloque D6."><span class="id">D5</span><span class="lbl"><code>stagger(popIn(), every=)</code></span><span class="meta">stagger</span></li>
+          <li data-b="Un dossier templates/ dans ton projet, découvert dans le panneau avec ses champs.|La machinerie de découverte existe déjà — elle ne regarde que le paquet de la librairie.|Un modèle cassé est signalé, pas fatal : il ne doit pas emporter le panneau."><span class="id">C5</span><span class="lbl">Ton dossier <code>templates/</code></span><span class="meta">user-templates</span></li>
         </ul>
       </div>
 
@@ -205,15 +206,12 @@
 
     <div class="col">
       <div class="card todo">
-        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">7</span></h2>
+        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">4</span></h2>
         <ul class="rows">
           <li data-b="Glisser sur <code>wait(PAUSE_DELAY)</code> écrit <code>wait(0.5)</code> et efface le nom que tu as choisi.|Le tutoriel du projet fait ça à 30 endroits.|La fiche d'élément refuse déjà ce cas ; c'est le glissement qui ne le refuse pas."><span class="id">X4</span><span class="lbl">Ta constante remplacée par un chiffre</span><span class="meta">1 h</span></li>
           <li data-b="Un élément créé dans un module importé rapporte une ligne de CET autre fichier.|Mais toutes les écritures partent dans le tampon de la scène, à ce numéro de ligne.|Rogner un tel clip réécrit donc une ligne au hasard."><span class="id">X5</span><span class="lbl">Mauvais fichier réécrit</span><span class="meta">1 h</span></li>
-          <li data-b="Rendre seulement entre deux moments au lieu de tout refaire pour dix secondes.|Le noyau sait déjà démarrer à n'importe quelle image ; les délais audio sont absolus et devront être décalés.|Débloque C1 (l'agent qui regarde une image) et C4 (l'export depuis l'éditeur)."><span class="id">A7</span><span class="lbl">Rendre un extrait <code>--from/--to</code></span><span class="meta">½ j</span></li>
           <li data-b="Poser le curseur sur une ligne allume la barre de l'élément qu'elle fabrique.|Une touche joue depuis ce moment-là.|Aucune écriture dans le fichier : c'est la moitié lecture du lien code ↔ temps, celle qui ne coûte rien si elle se trompe."><span class="id">B1</span><span class="lbl">Le curseur allume sa barre</span><span class="meta">½ j</span></li>
           <li data-b="<code>timestamp(&quot;nom&quot;)</code> est écrit 30 fois dans le tutoriel et n'est jamais dessiné.|Le C++ sait déjà sauter d'un repère à l'autre ; il manque trois lignes dans le modèle de scène.|Ensuite : sauter au repère suivant, s'y aimanter, et exporter les chapitres (C6)."><span class="id">B6</span><span class="lbl">Les <code>timestamp()</code> en repères</span><span class="meta">½ j</span></li>
-          <li data-b="Un dossier <code>templates/</code> dans ton projet, découvert dans le panneau avec ses champs.|La machinerie de découverte existe déjà — elle ne regarde que le paquet de la librairie.|Un modèle est du Python que tu aurais pu taper : le panneau est engendré depuis le code."><span class="id">C5</span><span class="lbl">Ton dossier <code>templates/</code></span><span class="meta">½ j</span></li>
-          <li data-b="La même entrée, décalée d'un temps : cinq cartes qui apparaissent l'une après l'autre.|Marche sur n'importe quel groupe — et un texte EST un groupe de lettres, donc titre lettre par lettre gratuitement.|Trois implémentations câblées en dur existent déjà (machine à écrire, typeIn, graduations) : c'est leur mise en commun. Débloque D6."><span class="id">D5</span><span class="lbl"><code>stagger(popIn(), every=)</code></span><span class="meta">½ j</span></li>
         </ul>
       </div>
 
