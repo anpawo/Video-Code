@@ -226,18 +226,27 @@ void VC::PythonHighlighter::paintStrings(const QString& text)
         start = close.capturedEnd();
     }
 
-    // Ordinary strings first, so a # inside one is not read as a comment.
-    auto quoted = single.globalMatch(text, start);
-    int  lastQuotedEnd = start;
+    // Where a docstring opens, found BEFORE the ordinary strings are scanned.
+    //
+    // The other way round loses: `"""` on a line of its own is an empty string
+    // followed by a quote as far as the single-quote pattern is concerned, so it
+    // claimed the first two characters, and the opener that started at 0 was
+    // then judged to sit inside it and dropped. The block state was never set,
+    // and every line of the docstring under it was painted as code — keywords,
+    // numbers and capitalised words and all.
+    const QRegularExpressionMatch open = triple.match(text, start);
+
+    // Ordinary strings, but only in what comes before the opener, so a # inside
+    // one is not read as a comment.
+    const int limit = open.hasMatch() ? open.capturedStart() : text.length();
+    auto      quoted = single.globalMatch(text.left(limit), start);
     while (quoted.hasNext()) {
         const QRegularExpressionMatch match = quoted.next();
         setFormat(match.capturedStart(), match.capturedLength(), _stringFormat);
-        lastQuotedEnd = match.capturedEnd();
     }
 
-    // A docstring opening on this line and never closing on it.
-    const QRegularExpressionMatch open = triple.match(text, start);
-    if (open.hasMatch() && open.capturedStart() >= lastQuotedEnd) {
+    // A docstring opening on this line, closing on it or not.
+    if (open.hasMatch()) {
         const QRegularExpressionMatch close = triple.match(text, open.capturedEnd());
         if (close.hasMatch()) {
             setFormat(open.capturedStart(), close.capturedEnd() - open.capturedStart(), _stringFormat);
