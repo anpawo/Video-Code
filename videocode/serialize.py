@@ -419,7 +419,16 @@ def sceneModel() -> dict:
         if isinstance(event, Wait)
     ]
 
-    return {"fps": FRAMERATE, "frames": total, "elements": elements, "waits": waits}
+    # A `timestamp()` is a moment the author named on purpose. Kept as the frame
+    # it was written at: the preview already jumps between them, and the ruler
+    # is where the name is read.
+    markers = [
+        {"name": event.name, "frame": event.time}
+        for event in Context.events
+        if isinstance(event, Timestamp)
+    ]
+
+    return {"fps": FRAMERATE, "frames": total, "elements": elements, "waits": waits, "markers": markers}
 
 
 def effectCatalogue(root: str | None = None) -> list[dict]:
