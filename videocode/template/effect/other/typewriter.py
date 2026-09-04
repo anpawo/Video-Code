@@ -28,7 +28,8 @@ def typewriter(
     Each `typewriter()` instance keeps its own letter counter: `Group.apply`
     dispatches the effect once per member in order, and every call advances
     the stagger by `interval`. (Spaces aren't letters, so cadence is uniform
-    across words.)
+    across words.) Any other entrance cascades the same way through
+    `stagger(effect, every=)`.
 
         txt = Text("Hello world").opacity(0)
         txt.apply(typewriter())

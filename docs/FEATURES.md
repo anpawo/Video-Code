@@ -758,6 +758,7 @@ Standalone generator functions that build shader sequences. Call via `input.appl
 |---|---|---|
 | `highlight(input, scaleFactor, color, ...)` | `highlight.py` | Scale pulse + `fillColor` flash via `Easing.ThereAndBack`; `input` must be a `Polygon` |
 | `typewriter(...)` | `typewriter.py` | Per-letter staggered reveal on a `Text` |
+| `stagger(effect, every)` | `stagger.py` | The same effect on every member of a group, each starting `every` seconds after the previous — `Row(*cards).apply(stagger(popIn(), every=0.08))`; a `Text` staggers per letter; `every=0` is the plain effect |
 | `shake(amplitude, frequency, axis=Axis.X, decay)` | `shake.py` | Error/attention shake (deterministic, group-rigid) |
 | `popIn(...)` / `bounceIn(...)` / `spinIn(...)` / `blurIn(...)` | | Entrances: overshoot scale, gravity bounce, spin+scale, unblur |
 | `slideIn(direction=Direction.LEFT, ...)` / `slideOut(...)` | `slide.py` | Slide + fade entrance/exit |
