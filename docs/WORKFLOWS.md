@@ -22,8 +22,8 @@ the reason in the right-hand column — that column is the point of the section)
 **Shipped** (with the commit's short SHA).
 
 Update it as the state changes, not at the end of a session: a board that is
-right once a day is a board someone has to ask about. Hold ⌘ and hover a row for
-its three-bullet detail, which lives in that row's `data-b`.
+right once a day is a board someone has to ask about. Hover a row for a third of a second and its
+three-bullet detail opens; the bullets live in that row's `data-b`.
 
 `docs/FEATURES_TODO.md` is the long form of the same information — measurements,
 numbers, designs that were rejected and why. The board is the view; that file is

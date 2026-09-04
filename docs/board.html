@@ -81,8 +81,6 @@
   .chips { display: flex; gap: 12px; margin-left: 6px; }
   .chip { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
   .chip b { color: var(--ink); font-weight: 600; }
-  .hint { font-family: var(--mono); font-size: 10.5px; color: var(--ink-faint); border: 1px solid var(--edge); border-radius: 3px; padding: 1px 6px; }
-  .hint.on { color: var(--ai); border-color: color-mix(in srgb, var(--ai) 50%, transparent); }
 
   .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 14px; align-items: start; }
   .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
@@ -121,10 +119,8 @@
   li.gone .lbl, li.gone .id { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ink-faint) 55%, transparent); }
   .lock { color: var(--warn); }
 
-  /* Le détail ne s'ouvre qu'avec ⌘ tenu : la souris traverse ce tableau en
-     permanence, et une bulle qui suit chaque passage rend la page inutilisable. */
-  body.armed li[data-b] { cursor: help; }
-  body.armed li[data-b]:hover { background: color-mix(in srgb, var(--ai) 9%, transparent); }
+  li[data-b] { cursor: help; }
+  li[data-b]:hover { background: color-mix(in srgb, var(--ai) 9%, transparent); }
 
   #pop {
     position: fixed; z-index: 50; max-width: 330px; pointer-events: none;
@@ -158,7 +154,6 @@
       <span class="chip"><b>52</b> tests</span>
       <span class="chip"><b>50</b> scènes</span>
     </span>
-    <span class="hint" id="hint">⌘ + survol = détail</span>
     <span class="stamp">4 sept. · 18 h 10</span>
   </header>
 
@@ -278,43 +273,32 @@
 <div id="pop" role="tooltip" aria-hidden="true"></div>
 
 <script>
-  // Le détail ne s'ouvre qu'avec ⌘ tenu. La souris traverse ce tableau en
-  // permanence pour aller d'une colonne à l'autre : une bulle qui suit chaque
-  // passage rendrait la page illisible, et c'est justement une page qu'on lit
-  // d'un coup d'œil.
+  // Le détail s'ouvre au survol, après une courte pause.
+  //
+  // Sans la pause, la bulle s'ouvrirait à chaque traversée du tableau — et la
+  // souris le traverse en permanence pour aller d'une colonne à l'autre. Un
+  // tiers de seconde suffit à séparer « je passe » de « je regarde ça ».
   const pop = document.getElementById("pop");
-  const hint = document.getElementById("hint");
-  let armed = false;
+  const DWELL = 320;
+  let timer = 0;
   let row = null;
 
-  function arm(on) {
-    if (on === armed) return;
-    armed = on;
-    document.body.classList.toggle("armed", on);
-    hint.classList.toggle("on", on);
-    if (!on) hide();
-  }
-
   function hide() {
+    clearTimeout(timer);
     row = null;
     pop.classList.remove("show");
     pop.setAttribute("aria-hidden", "true");
   }
 
-  function show(li, x, y) {
-    if (li === row) { place(x, y); return; }
-    row = li;
-
+  function fill(li) {
     const id = li.querySelector(".id").textContent.trim();
     const label = li.querySelector(".lbl").innerHTML;
     const bullets = li.dataset.b.split("|").filter(Boolean);
-
     pop.innerHTML =
       "<h4>" + (id !== "—" ? "<span>" + id + "</span>" : "") + label + "</h4>" +
       "<ul><li>" + bullets.join("</li><li>") + "</li></ul>";
     pop.classList.add("show");
     pop.setAttribute("aria-hidden", "false");
-    place(x, y);
   }
 
   // Posée sous le curseur, et repliée dans la fenêtre plutôt que débordante.
@@ -324,15 +308,19 @@
     pop.style.top = (y + h + 22 > window.innerHeight ? y - h - 12 : y + 18) + "px";
   }
 
-  addEventListener("keydown", (e) => { if (e.metaKey || e.ctrlKey) arm(true); });
-  addEventListener("keyup", (e) => { if (!e.metaKey && !e.ctrlKey) arm(false); });
-  addEventListener("blur", () => arm(false));
-
   addEventListener("mousemove", (e) => {
-    if (!(e.metaKey || e.ctrlKey)) { arm(false); return; }
-    arm(true);
     const li = e.target.closest("li[data-b]");
-    if (li) show(li, e.clientX, e.clientY);
-    else hide();
+    if (!li) { hide(); return; }
+
+    if (li === row) { place(e.clientX, e.clientY); return; }
+
+    clearTimeout(timer);
+    row = li;
+    pop.classList.remove("show");
+    const x = e.clientX, y = e.clientY;
+    timer = setTimeout(() => { fill(li); place(x, y); }, DWELL);
   });
+
+  addEventListener("blur", hide);
+  addEventListener("scroll", hide, true);
 </script>
