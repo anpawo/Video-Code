@@ -11,6 +11,9 @@ cursor, so a `Sound` written after a `wait()` plays where that line stands —
 checked on the stack entry, on the timeline model the editor draws from, and
 on a real render read back with ffmpeg's `silencedetect`.
 
+And that `--from` / `--to` keep it there: a stretch rendered on its own has
+the frames of that stretch and the sound at the moment it had in the whole.
+
 Run directly: `python3 test/sound_test.py`
 """
 
@@ -86,6 +89,7 @@ check("the bar the editor draws starts where ffmpeg plays it", element["first"] 
 # ── the rendered end ─────────────────────────────────────────────────────────
 SCENE = f"""from videocode import *
 wait(2)
+timestamp("cue")
 Sound({WAV!r})
 wait(2)
 """
@@ -94,7 +98,7 @@ OUTPUT_WIDTH = 160
 OUTPUT_HEIGHT = 90
 
 
-def renderScene(scenePath: str, outputPath: str) -> None:
+def renderScene(scenePath: str, outputPath: str, *flags: str) -> None:
     binary = os.path.abspath("video-code")
     if not os.path.exists(binary):
         raise FileNotFoundError(f"missing renderer binary: {binary}")
@@ -102,9 +106,25 @@ def renderScene(scenePath: str, outputPath: str) -> None:
     subprocess.run(
         [binary, "--file", scenePath, "--generate", outputPath,
          "--width", str(OUTPUT_WIDTH), "--height", str(OUTPUT_HEIGHT),
-         "--framerate", str(FRAMERATE)],
+         "--framerate", str(FRAMERATE), *flags],
         check=True, capture_output=True, text=True,
     )
+
+
+def videoFrames(videoPath: str) -> int:
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "v:0", "-count_frames", "-show_entries", "stream=nb_read_frames", "-of", "csv=p=0", videoPath],
+        capture_output=True, text=True,
+    )
+    return int(result.stdout)
+
+
+def audioDuration(videoPath: str) -> float | None:
+    result = subprocess.run(
+        ["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=duration", "-of", "csv=p=0", videoPath],
+        capture_output=True, text=True,
+    )
+    return float(result.stdout) if result.stdout.strip() else None
 
 
 def firstSilenceEnd(videoPath: str) -> float | None:
@@ -148,6 +168,46 @@ with tempfile.TemporaryDirectory() as tmp:
             silenceEnd is not None and abs(silenceEnd - 2.0) < 0.05,
         )
 
+# ── a stretch of the scene ───────────────────────────────────────────────────
+# The same 4 s scene, sound at 2 s. A range is frames [from, to) of the whole,
+# and the sound has to sit where the whole had it: at 1.0 s of a render that
+# starts at 1 s, at 0 of one that starts after it began — cut, not moved.
+section("--from / --to — the picture is the stretch, the sound stays where it was")
+if needsRenderer("a stretch has to be rendered to be counted") and needsTool("ffprobe", "counting the frames back"):
+    with tempfile.TemporaryDirectory() as tmp:
+        scenePath = os.path.join(tmp, "scene.py")
+        with open(scenePath, "w", encoding="utf-8") as file:
+            file.write(SCENE)
+
+        def stretch(name: str, *flags: str) -> str:
+            outputPath = os.path.join(tmp, f"{name}.mp4")
+            renderScene(scenePath, outputPath, *flags)
+            return outputPath
+
+        try:
+            whole = stretch("whole")
+            check(f"the whole scene is 120 frames (measured {videoFrames(whole)})", videoFrames(whole) == 120)
+
+            before = stretch("before", "--from", "1", "--to", "3")
+            check(f"--from 1 --to 3 renders 60 frames (measured {videoFrames(before)})", videoFrames(before) == 60)
+            silenceEnd = firstSilenceEnd(before)
+            check(f"and the sound, at 2 s of the scene, is at 1.0 s of the stretch (measured {silenceEnd})", silenceEnd is not None and abs(silenceEnd - 1.0) < 0.05)
+
+            after = stretch("after", "--from", "3")
+            check(f"--from 3 renders the last 30 frames (measured {videoFrames(after)})", videoFrames(after) == 30)
+            check("the sound began 1 s before the stretch, so it is playing at 0 — no silence to detect", firstSilenceEnd(after) is None)
+            duration = audioDuration(after)
+            check(f"and only its second half is heard: 1.0 s of audio (measured {duration})", duration is not None and abs(duration - 1.0) < 0.05)
+
+            clamped = stretch("clamped", "--from", "0", "--to", "99")
+            check(f"--to past the end is clamped, not refused: 120 frames (measured {videoFrames(clamped)})", videoFrames(clamped) == 120)
+
+            named = stretch("named", "--from", "cue", "--to", "3")
+            check(f"--from takes a timestamp() name: 'cue' is 2 s, so 30 frames (measured {videoFrames(named)})", videoFrames(named) == 30)
+            check("and the sound, written right after the cue, starts at 0", firstSilenceEnd(named) is None)
+        except subprocess.CalledProcessError as exc:
+            check(f"render succeeded ({exc.stderr.strip()})", False)
+
 # ── a Video's own sound ──────────────────────────────────────────────────────
 # The picture's clock starts at output frame 0 and skips the cut ranges, so the
 # sound has to start at 0 and skip the same ranges. The fixture makes a cut
@@ -164,14 +224,6 @@ def toneClip(path: str, fps: int) -> None:
          "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-shortest", path],
         check=True,
     )
-
-
-def audioDuration(videoPath: str) -> float | None:
-    result = subprocess.run(
-        ["ffprobe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=duration", "-of", "csv=p=0", videoPath],
-        capture_output=True, text=True,
-    )
-    return float(result.stdout) if result.stdout.strip() else None
 
 
 def renderVideoScene(tmp: str, name: str, line: str) -> str:

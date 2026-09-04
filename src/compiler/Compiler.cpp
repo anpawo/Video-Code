@@ -16,6 +16,7 @@
 #include <format>
 #include <iostream>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <vector>
@@ -101,7 +102,14 @@ namespace
         return chain;
     }
 
-    AudioArgs buildAudioArgs(const std::vector<std::unique_ptr<IInput>>& inputs, const std::string& audioCodec)
+    // `window` is the rendered stretch in seconds when --from/--to narrowed
+    // it. The whole timeline is still mixed as one, with every delay and cut
+    // above kept absolute, and the window is cut out of the RESULT: that is
+    // what keeps a sound that began before --from at the right moment, heard
+    // from where the range enters it, instead of re-delaying each track and
+    // trimming each file by hand. Decoding the part before the window costs
+    // audio decode time, which is nothing next to one rendered frame.
+    AudioArgs buildAudioArgs(const std::vector<std::unique_ptr<IInput>>& inputs, const std::string& audioCodec, std::optional<std::pair<double, double>> window)
     {
         AudioArgs   result;
         std::string filterComplex;
@@ -128,16 +136,18 @@ namespace
         if (tracks == 0)
             return {"", " -an"};
 
-        std::string outLabel;
-        if (tracks == 1) {
-            filterComplex.pop_back(); // drop trailing ';' — single chain, no amix needed
-            outLabel = "a0";
-        } else {
+        std::string outLabel = "a0"; // single chain, no amix needed
+        if (tracks > 1) {
             for (size_t i = 0; i < tracks; ++i)
                 filterComplex += std::format("[a{}]", i);
-            filterComplex += std::format("amix=inputs={}:duration=longest:dropout_transition=0[aout]", tracks);
+            filterComplex += std::format("amix=inputs={}:duration=longest:dropout_transition=0[aout];", tracks);
             outLabel = "aout";
         }
+        if (window) {
+            filterComplex += std::format("[{}]atrim=start={}:end={},asetpts=PTS-STARTPTS[arange];", outLabel, window->first, window->second);
+            outLabel = "arange";
+        }
+        filterComplex.pop_back(); // every chain ends in ';'
 
         result.output = std::format(" -filter_complex \"{}\" -map 0:v -map \"[{}]\" -c:a {}", filterComplex, outLabel, audioCodec);
         return result;
@@ -304,8 +314,47 @@ int VC::Compiler::generateVideo()
         [&](VkDescriptorSet desc, const cv::Mat& mat) { renderer.updateTexturePixels(desc, mat); }
     );
 
-    if (VC::ImageIO::hasImageExtension(config.outputFile))
+    // The stretch to render, in scene frames. Seconds are what an author
+    // thinks in; a timestamp() name is what they already wrote in the scene,
+    // and Core recorded it — so both are accepted. Asking past the end clamps
+    // rather than refuses: the fix was at 12 s and the scene is 10 s long, so
+    // the range ends at the last frame.
+    const size_t sceneFrames = _core._nbFrame;
+    auto         sceneFrame = [&](const std::string& spec, size_t fallback) -> std::optional<size_t> {
+        if (spec.empty())
+            return fallback;
+        char*  end = nullptr;
+        double secs = std::strtod(spec.c_str(), &end);
+        if (end != spec.c_str() && *end == '\0')
+            return std::min(sceneFrames, (size_t)std::llround(std::max(secs, 0.0) * Config::SCENE_FRAMERATE));
+        for (const auto& [frame, name] : _core._timestamps)
+            if (name == spec)
+                return std::min(frame, sceneFrames);
+        return std::nullopt;
+    };
+    const auto first = sceneFrame(config.renderFrom, 0);
+    const auto last = sceneFrame(config.renderTo, sceneFrames);
+    if (!first || !last) {
+        std::cerr << std::format("video-code: --{} \"{}\" is neither seconds nor a timestamp() of this scene.", first ? "to" : "from", first ? config.renderTo : config.renderFrom);
+        if (!_core._timestamps.empty()) {
+            std::cerr << " Its timestamps:";
+            for (const auto& [frame, name] : _core._timestamps)
+                std::cerr << std::format("\n  {:>7.2f}s  {}", (double)frame / Config::SCENE_FRAMERATE, name);
+        }
+        std::cerr << "\n";
+        return EXIT_FAILURE;
+    }
+
+    if (VC::ImageIO::hasImageExtension(config.outputFile)) {
+        _core._index = std::min(*first, sceneFrames - 1); // --from picks the still
         return generateImage(renderer);
+    }
+
+    if (*first >= *last) {
+        std::cerr << std::format("video-code: nothing to render between {} and {} — the scene is {:.2f} s long.\n", config.renderFrom, config.renderTo.empty() ? "the end" : config.renderTo, (double)sceneFrames / Config::SCENE_FRAMERATE);
+        return EXIT_FAILURE;
+    }
+    const bool ranged = *first > 0 || *last < sceneFrames;
 
     // Encoder args are chosen purely by output extension (see videoProfileFor):
     // .mov → ProRes 4444+alpha, .webm → VP9+alpha, .gif → palette-quantized,
@@ -316,7 +365,7 @@ int VC::Compiler::generateVideo()
 
     // GIF can't carry audio, so skip the audio graph entirely for it.
     AudioArgs audio = profile.allowAudio
-                          ? buildAudioArgs(_core._inputs, profile.audioCodec)
+                          ? buildAudioArgs(_core._inputs, profile.audioCodec, ranged ? std::optional{std::pair{(double)*first / Config::SCENE_FRAMERATE, (double)*last / Config::SCENE_FRAMERATE}} : std::nullopt)
                           : AudioArgs{"", " -an"};
 
     // -movflags +faststart is an mp4/mov-only flag; omit it for webm/gif.
@@ -393,10 +442,10 @@ int VC::Compiler::generateVideo()
     // output framerate differs, resample by mapping each output frame to the
     // nearest scene frame — duplicating frames if framerate > SCENE_FRAMERATE,
     // dropping them if framerate < SCENE_FRAMERATE.
-    size_t sceneFrames = _core._nbFrame;
-    size_t total = (config.framerate == Config::SCENE_FRAMERATE)
-                       ? sceneFrames
-                       : (size_t)std::llround((double)sceneFrames * config.framerate / Config::SCENE_FRAMERATE);
+    const size_t rangeFrames = *last - *first;
+    size_t       total = (config.framerate == Config::SCENE_FRAMERATE)
+                             ? rangeFrames
+                             : (size_t)std::llround((double)rangeFrames * config.framerate / Config::SCENE_FRAMERATE);
 
     // Header line — printed once; ETA is appended in-place after the first frame.
     auto fmtDur = [](double secs) -> std::string {
@@ -405,18 +454,21 @@ int VC::Compiler::generateVideo()
                    : std::format("{:d}:{:02d} min", (int)secs / 60, (int)secs % 60);
     };
     double      durSecs = config.framerate > 0 ? (double)total / config.framerate : 0.0;
-    std::string headerBase = std::string(kBold) + "Generating" + kReset + "  " + config.outputFile + "   " + kDim + std::format("{}x{} · {} fps · {} · {} frames", (int)config.screenWidth, (int)config.screenHeight, config.framerate, fmtDur(durSecs), total) + kReset;
+    std::string headerBase = std::string(kBold) + "Generating" + kReset + "  " + config.outputFile + "   " + kDim + std::format("{}x{} · {} fps · {} · {} frames", (int)config.screenWidth, (int)config.screenHeight, config.framerate, fmtDur(durSecs), total);
+    if (ranged)
+        headerBase += std::format(" · {} → {} of {}", fmtDur((double)*first / Config::SCENE_FRAMERATE), fmtDur((double)*last / Config::SCENE_FRAMERATE), fmtDur((double)sceneFrames / Config::SCENE_FRAMERATE));
+    headerBase += kReset;
     std::cout << headerBase << "\n";
 
     auto   t0 = std::chrono::steady_clock::now();
     double etaSecs = -1.0; // set once after the first frame, never updated again
 
     for (size_t i = 0; i < total; ++i) {
-        size_t sceneIndex = (config.framerate == Config::SCENE_FRAMERATE)
-                                ? i
-                                : (size_t)std::llround((double)i * Config::SCENE_FRAMERATE / config.framerate);
-        if (sceneIndex >= sceneFrames)
-            sceneIndex = sceneFrames - 1;
+        size_t sceneIndex = *first + ((config.framerate == Config::SCENE_FRAMERATE)
+                                          ? i
+                                          : (size_t)std::llround((double)i * Config::SCENE_FRAMERATE / config.framerate));
+        if (sceneIndex >= *last)
+            sceneIndex = *last - 1;
         _core._index = sceneIndex;
 
         const auto& meshes = _core.generateMeshes();
