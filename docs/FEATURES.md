@@ -803,9 +803,27 @@ Easing curves (`videocode/utils/bezier.py`):
 | `--generate [out.mp4\|out.mov\|out.webm\|out.gif\|out.png]` | Headless render — the extension picks the format: `.mp4` = h264; `.mov` = ProRes 4444 with real per-pixel **alpha** (transparent background); `.webm` = VP9 with alpha; `.gif` = 2-pass palette (no alpha/audio); image ext → single frame. Audio (`Sound` inputs) muxed where the container allows. |
 | `-w`/`--width`, `--height` | Output resolution in pixels (default 1920x1080). The only way to set it. See *Render size* |
 | `--framerate` | Output fps — scenes are authored at 30fps and resampled |
+| `--from <s\|name>` / `--to <s\|name>` | Render only that stretch of the scene — seconds (`--from 12.5`) or the name of a `timestamp()` written in it (`--from "show: rectangle"`). Frames are `[from, to)`; past the end clamps. Sounds keep their place: one that began before `--from` is heard from where the stretch enters it. With an image extension, `--from` picks the still. See *Render a stretch* |
 | `--hwencode` | Hardware H.264 encode (videotoolbox, macOS) |
 | `--showstack` / `--showtimeline` | Debug printing during generation |
 | `--visual-test [--update-golden]` | Run/refresh the golden-frame visual-regression suite (`src/test/VisualTest.cpp`, `test/visual/golden/`) |
+
+### Render a stretch — `--from` / `--to`
+
+```bash
+./video-code --file scene.py --generate fix.mp4 --from 12 --to 22     # ten seconds, not three minutes
+./video-code --file scene.py --generate fix.mp4 --from "show: rectangle" --to "show: caption"
+./video-code --file scene.py --generate still.png --from 12.5          # the frame at 12.5 s
+```
+
+A ten-second fix should not cost a whole render. Either bound is seconds or a
+`timestamp("…")` name from the scene — the names are listed when one is not
+found. `--from` alone runs to the end, `--to` alone starts at 0, and a bound
+past the end is clamped, never refused. Audio is the whole timeline mixed as
+before — every `Sound` delay and `Video` cut stays absolute — with the
+stretch cut out of the result, so nothing is re-delayed and a sound that
+started earlier is at the right moment. The frame indices are unchanged, so
+`--from 12 --to 22` renders the same pixels frames 360–659 of the whole would.
 
 `videocode/serialize.py` — `execScene()` (used by the C++ embed) and
 `serializeScene()` (for CLI/inspection) turn a scene script into the JSON

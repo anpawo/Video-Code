@@ -72,5 +72,8 @@ Config VC::makeConfig(const argparse::ArgumentParser &parser)
 
         .sourceFile = parser.get("--file"),
         .outputFile = parser.get("--generate"),
+
+        .renderFrom = parser.present("--from").value_or(""),
+        .renderTo = parser.present("--to").value_or(""),
     };
 }

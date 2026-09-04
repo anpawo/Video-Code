@@ -29,6 +29,7 @@ already ran is worse than no guide.
 | `--generate <path>` | Render to a file instead of previewing |
 | `--width` / `--height` | Output size in pixels. **The only way to set it** — a scene cannot |
 | `--framerate` | Output fps. Scenes are authored at 30 fps and resampled |
+| `--from` / `--to` | With `--generate`, render only that stretch — seconds or a `timestamp()` name. Clamped to the scene; sounds keep their place |
 | `--windowRatio` | Preview window size, as a fraction of the video size |
 | `--hwencode` | Encode with `h264_videotoolbox` instead of libx264 — faster, different quality curve |
 | `--showstack` | Show the scene's steps while it renders |

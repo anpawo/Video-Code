@@ -34,4 +34,10 @@ struct Config
     ///< Source & Output file
     std::string sourceFile;
     std::string outputFile;
+
+    ///< --from / --to as typed: seconds or a timestamp() name, empty when
+    ///< absent. Resolved to scene frames by the Compiler, once the scene has
+    ///< run and the names exist.
+    std::string renderFrom;
+    std::string renderTo;
 };

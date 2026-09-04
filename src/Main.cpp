@@ -116,6 +116,18 @@ void setParserArgument(argparse::ArgumentParser &p)
         .add_argument("--hwencode")
         .flag()
         .help("Encode with the hardware H.264 encoder (h264_videotoolbox) instead of libx264. Faster and lighter on CPU, but quality/bitrate behavior differs from CRF.");
+
+    p
+        .add_argument("--from")
+        .help(
+            "With --generate, render from this point: seconds (\"12.5\") or the name of a "
+            "timestamp() in the scene. Sounds keep their place — one that began earlier is "
+            "cut, not moved. Clamped to the scene."
+        );
+
+    p
+        .add_argument("--to")
+        .help("With --generate, stop at this point — seconds or a timestamp() name. Clamped to the scene.");
 }
 
 namespace
