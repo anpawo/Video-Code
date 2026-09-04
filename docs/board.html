@@ -166,8 +166,8 @@
     <h1>Chantier Video-Code</h1>
     <span class="branch">feat/night-2026-09-03</span>
     <span class="chips">
-      <span class="chip"><b>26</b> livrés</span>
-      <span class="chip"><b>23</b> à faire</span>
+      <span class="chip"><b>28</b> livrés</span>
+      <span class="chip"><b>21</b> à faire</span>
       <span class="chip"><b>53</b> tests</span>
       <span class="chip"><b>50</b> scènes</span>
     </span>
@@ -183,11 +183,9 @@
       </div>
 
       <div class="card doing">
-        <h2>In progress <em>3 agents, 3 branches</em> <span class="n">3</span></h2>
+        <h2>In progress <em>1 agent</em> <span class="n">1</span></h2>
         <ul class="rows">
           <li data-b="La bande rouge d'une attente est trop fine pour se voir sur la timeline.|Elle doit prendre la vraie largeur de l'attente sans masquer les clips au-dessus.|Deux ou trois petites horloges rouges montent au-dessus pour dire que cette zone est en pause."><span class="id">—</span><span class="lbl">Bande d'attente + horloges</span><span class="meta">wait-band-clocks</span></li>
-          <li data-b="Rendre seulement entre deux moments au lieu de tout refaire pour dix secondes.|Le noyau sait déjà démarrer à n'importe quelle image ; les délais audio sont absolus et devront être décalés.|Débloque C1 et C4."><span class="id">A7</span><span class="lbl">Rendre un extrait <code>--from/--to</code></span><span class="meta">section-render</span></li>
-          <li data-b="Un dossier templates/ dans ton projet, découvert dans le panneau avec ses champs.|La machinerie de découverte existe déjà — elle ne regarde que le paquet de la librairie.|Un modèle cassé est signalé, pas fatal : il ne doit pas emporter le panneau."><span class="id">C5</span><span class="lbl">Ton dossier <code>templates/</code></span><span class="meta">user-templates</span></li>
         </ul>
       </div>
 
@@ -256,8 +254,10 @@
 
     <div class="col">
       <div class="card">
-        <h2>Shipped <em>aujourd'hui</em> <span class="n">18</span></h2>
+        <h2>Shipped <em>aujourd'hui</em> <span class="n">20</span></h2>
         <ul class="rows">
+          <li data-b="--from 12 --to 22, en secondes ou en nom de repère : rendre un extrait au lieu de tout refaire.|Le son n'est PAS re-décalé : le mixage entier est fait comme avant, puis un seul filtre découpe la tranche — un son commencé avant l'extrait est entendu là où on entre dedans.|Sur la branche feat/section-render. Mesuré sur six rendus."><span class="id">A7</span><span class="lbl">Rendre un extrait <code>--from/--to</code></span><span class="meta sha">0b05a91</span></li>
+          <li data-b="Un dossier templates/ à la racine du projet : tes classes apparaissent sous YOUR TEMPLATES, tes presets d'effet dans EFFECTS marqués « yours ».|Un modèle cassé est signalé sur la sortie d'erreur et sauté — il n'emporte pas le panneau.|Sur la branche feat/user-templates. Capture regardée : LowerThird listé avec sa description."><span class="id">C5</span><span class="lbl">Ton dossier <code>templates/</code></span><span class="meta sha">27235a0</span></li>
           <li data-b="La même entrée en cascade sur n'importe quel groupe — donc sur un texte, lettre par lettre.|Sur la branche feat/stagger, pas encore fusionnée.|La machine à écrire n'a PAS été absorbée : elle cache toutes les lettres sur la même image avant de les révéler, et décaler ce masquage changerait des pixels. Refus argumenté, pas oubli."><span class="id">D5</span><span class="lbl"><code>stagger(popIn(), every=)</code></span><span class="meta sha">f33ae26</span></li>
           <li data-b="Escape ferme le panneau Colors depuis n'importe où, même le curseur dans un champ hex.|Deux raccourcis Escape dans une même fenêtre étaient une ambiguïté : Qt n'en déclenchait aucun. Les trois panneaux rejoignent l'échelle existante.|L'info-bulle de signature s'en va quand le curseur quitte sa ligne. Validé par toi."><span class="id">—</span><span class="lbl">Escape ferme Colors · l'info-bulle</span><span class="meta sha">fd7235f</span></li>
           <li data-b="<code>Image(&quot;x.png&quot;)</code> sans dimension ne produisait aucune géométrie côté Python.|La grouper ou l'encadrer plantait — le C++ connaissait sa taille, Python non.|Deux scènes changent d'empreinte ; écart mesuré sur les images de référence : 1/255 sur cent pixels sur deux millions."><span class="id">X2</span><span class="lbl">Image sans dimension</span><span class="meta sha">83ed188</span></li>
