@@ -111,7 +111,7 @@ projet.
 | **A4** | ~~Flou de mouvement~~ — **écarté**, voir §5 | — | — |
 | **A5** | **`moveAlong(path)`** — parcourir une courbe, tourné dans le sens de la marche. Presque tout existe : il manque l'échantillonnage par longueur d'arc | S | A3 |
 | **A6** | **Le son sur le modèle de revendications** — `music.over(duration=1.5).volume = 0`, et `music.duck(under=voice)` | M | X7 |
-| **A7** | **Rendre un extrait** — `--from` / `--to`. Le noyau sait déjà démarrer à n'importe quel index ; les délais audio sont absolus et devront être décalés | S | — |
+| **A7** | **Fait — `0b05a91`.** `--from` / `--to`, en secondes ou par nom de `timestamp()` ; au-delà de la fin, on borne. Les délais audio n'ont pas été décalés : la timeline entière est mixée comme avant et l'extrait est découpé du résultat (un `atrim`), ce qui vaut pour `Sound` et pour la piste d'une `Video` d'un coup. Mesuré : un son à 8 s est à 5,5 s d'un rendu `--from 2.5`, et déjà en cours à 0 d'un `--from 9` | S | — |
 
 ### B — L'atelier
 
