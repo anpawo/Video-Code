@@ -1405,6 +1405,25 @@ Item {
                 }
             }
 
+            // A press the text did not take is still a press in the file.
+            //
+            // The band under the last line belongs to the control — see the
+            // height above — but which path a press travels down there is not
+            // the same for a synthesised event and a real pointer: the Flickable
+            // filters the real one for a drag first, and a press nobody claims
+            // is simply dropped. A handler sees what is left. It answers only
+            // BELOW the text, so clicking, dragging a selection and
+            // double-clicking a word on a line are untouched.
+            TapHandler {
+                acceptedButtons: Qt.LeftButton
+                onTapped: (point) => {
+                    if (point.position.y <= editor.topPadding + editor.contentHeight)
+                        return;
+                    editor.forceActiveFocus();
+                    editor.cursorPosition = editor.length;
+                }
+            }
+
             // ── Hovering a symbol ─────────────────────────────────────────
             // Declared BEFORE the squiggles so they sit above it: over a
             // squiggle the message wins, everywhere else the type wins. Asking
