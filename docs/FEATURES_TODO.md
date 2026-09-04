@@ -25,15 +25,15 @@ cas, pas déduits.
 
 | # | Ce qui casse | Rencontré | Coût | Bloqué par |
 |---|---|---|---|---|
-| **X1** | `docs/user/user.md`, la page liée depuis le README, enseigne `from videocode.VideoCode import *`, `video(...)` et `.add()` — aucun des trois n'existe. `docs/by-example/firstRectangle.py` fait 0 octet. Le README ne mentionne jamais `--editor` | Première minute | 1 h | — |
+| **X1** | **Fait — `b309d23`.** `docs/user/user.md`, la page liée depuis le README, enseignait `from videocode.VideoCode import *`, `video(...)` et `.add()` — aucun des trois n'existe. `docs/by-example/firstRectangle.py` faisait 0 octet. Le README ne mentionnait jamais `--editor`. Chaque extrait a été exécuté avant d'être écrit : `apply(grayscale())` seul ne dure qu'une image (chroma 0,523 mesurée à l'image 20, identique au clip brut), la page dit donc `duration=1`. Les douze pages `docs/user/inputs/*.md` et `transformation/*.md` enseignent la même API morte ; elles sont dé-liées, pas réécrites | Première minute | 1 h | — |
 | **X2** | `Image("x.png")` sans dimension n'a pas de géométrie côté Python : la grouper ou l'encadrer **plante** (`Group._pivot`, `SurroundingRectangle`) | Première photo | ½ j | 6 goldens à regarder |
 | **X3** | **Fait — `71013d9`.** Chaque instant écrit après un `wait()` coûtait une image : `wait(1); Circle(); wait(1)` = 61 images, dix étapes = 340 au lieu de 330. Un curseur (`Context.cursor`) distinct de la fin exclusive ; `wait()` et `timestamp()` le lisent. Deux scènes du digest bougent (`chess` 133→131, `silk` 31→30), aucun golden : l'image 130 de `chess` existe toujours et est identique au pixel | Chaque scène | ½ j | — |
 | **X4** | L'éditeur remplace une constante nommée par un littéral : glisser sur `wait(PAUSE_DELAY)` écrit `wait(0.5)` et efface le nom. Le tutoriel fait ça à 30 endroits. La fiche refuse déjà ce cas, le glissement non | Premier glissement | 1 h | — |
 | **X5** | Un geste sur un élément défini dans un autre fichier écrit dans le tampon de la scène, à ce numéro de ligne — donc **réécrit une ligne au hasard** | Multi-fichiers | 1 h | — |
 | **X6** | **Fait — `7dabb14`.** `Polygon.width` et `Group.width` ignoraient `meta.scale` : `Square(2).scale(2)` était mesuré 2 alors qu'il en dessine 4. Polygon, Rectangle, RightTriangle et CompoundPolygon lisent ET écrivent la taille dessinée ; `Text` garde la géométrie pour sa propre mise en page. Une scène bouge, et c'est le but : le pivot de `stateful_group_scale` passe du centre des boîtes non mises à l'échelle au centre de ce qui est dessiné. Deux goldens régénérés après les avoir regardés côte à côte | Premier `nextTo` | ½ j | — |
-| **X7** | Le son propre d'une vidéo n'est jamais monté (`buildAudioArgs` ne collecte que les `Sound`). Audible seulement en ajoutant un `Sound()` sur le même fichier — et couper la vidéo ne coupe pas ce son | Premier export parlant | 1 h | — |
+| **X7** | **Fait — `e1ad561`.** Le son propre d'une vidéo n'était jamais monté (`buildAudioArgs` ne collectait que les `Sound`). Il suit maintenant l'horloge de l'image : départ à 0, mêmes plages coupées (`asplit`/`atrim`/`concat` — `aselect` ne coupe rien sur ffmpeg 8.0.1, mesuré), `atempo` quand la source n'est pas à 30 fps. Mesuré sur un clip muet une seconde puis tonalité : `startFrame=30` laisse 1,005 s de son sans aucun silence ; `cuts=[(15, 45)]` finit le silence à 0,500 ; une scène avec un `Sound` seul monte la même commande qu'avant (silence_end 2,000045 avant et après). Pas porté au son : speed ramps, `freeze()`, source > 60 fps | Premier export parlant | 1 h | — |
 
-X1, X4, X5, X7 sont des heures et ne bloquent rien. X2, X3 et X6 sont la
+X4 et X5 sont des heures et ne bloquent rien. X2, X3 et X6 sont la
 condition d'autres features (X6 porte D1, D2, D6).
 
 ---
