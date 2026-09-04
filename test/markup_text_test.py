@@ -15,7 +15,7 @@ sys.path.insert(0, ".")
 sys.path.insert(0, "test")
 from helpers import check, section, summary
 
-from videocode import MarkupText, Subtitles, Text, rgba
+from videocode import RED_B, MarkupText, Subtitles, Text, bold, colored, italic, rgba
 from videocode.input.shape.text._MarkdownHelper import parseMarkdown
 from videocode.input.shape.text._TextHelper import parseMarkup
 
@@ -46,6 +46,40 @@ red.fillColor = rgba("#00ff00")
 check("assigning fillColor still overrides every run", all(l.fillColor == rgba("#00ff00") for l in red.inputs))
 
 check("a run's bold ORs with the base italic", all(l.bold and l.italic for l in MarkupText("<b>x</b>", italic=True).inputs))
+
+# ── bold | "x" ───────────────────────────────────────────────────────────────
+section("bold | 'x' — the tag written for you, the engine sees the hand-written one")
+
+
+def sameLetters(a: MarkupText, b: MarkupText) -> bool:
+    return [(l.char, l.bold, l.italic, l.fillColor, l.meta.position.x) for l in a.inputs] == [
+        (l.char, l.bold, l.italic, l.fillColor, l.meta.position.x) for l in b.inputs
+    ]
+
+
+check("bold | 'x' is <b>x</b>", sameLetters(MarkupText(f"a {bold | 'bc'} d"), MarkupText("a <b>bc</b> d")))
+check("italic | 'x' is <i>x</i>", sameLetters(MarkupText(f"a {italic | 'bc'} d"), MarkupText("a <i>bc</i> d")))
+check(
+    "colored(RED_B) | 'x' is <font color>x</font>",
+    sameLetters(MarkupText(f"a {colored(RED_B) | 'bc'} d"), MarkupText('a <font color="#ED7F7B">bc</font> d')),
+)
+check("colored takes a '#RRGGBB' too", (colored("#ED7F7B") | "x") == (colored(RED_B) | "x"))
+check("bold | italic | 'x' nests both", sameLetters(MarkupText(f"a {bold | italic | 'bc'} d"), MarkupText("a <b><i>bc</i></b> d")))
+check("bold('x') is bold | 'x'", bold("x") == (bold | "x"))
+
+esc = MarkupText(f"if {bold | 'a<b'} then")
+check("a < in the wrapped text is a letter, not a tag", esc.text == "if a<b then" and [l.bold for l in esc.inputs] == [False] * 2 + [True] * 3 + [False] * 4)
+check("an & survives too", MarkupText(bold | "a & b").text == "a & b")
+
+three = MarkupText(f"{bold | 'ab'} {italic | 'cd'} {colored(RED_B) | 'ef'}")
+# Six letters: a space has no glyph, so it is no `Letter`.
+check("three styles in one f-string land in their own places", [(l.bold, l.italic, l.fillColor == RED_B) for l in three.inputs] == [(True, False, False)] * 2 + [(False, True, False)] * 2 + [(False, False, True)] * 2)
+
+try:
+    bold | "x" | italic  # type: ignore[operator]
+    check("bold | 'x' | italic fails out loud", False)
+except TypeError:
+    check("bold | 'x' | italic fails out loud", True)
 
 # ── layout ───────────────────────────────────────────────────────────────────
 section("layout — no run shapes exactly as before, a run shapes with its own face")

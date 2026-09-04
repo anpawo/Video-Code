@@ -29,6 +29,9 @@ __all__ = [
     "Letter",
     "MarkupText",
     "Text",
+    "bold",
+    "colored",
+    "italic",
 ]
 
 
@@ -446,8 +449,10 @@ class MarkupText(Text):
     glyphs instead of being drawn as glyphs:
 
         MarkupText('Hello <b>world</b>, <font color="#FF6A00">on fire</font>')
+        MarkupText(f"Hello {bold | 'world'}, {colored(RED_B) | 'on fire'}")
 
-    `<b>`, `<i>`, `<font color="#hex">` and `<span color=…>` are honoured
+    The second line is the first one with the tags WRITTEN FOR YOU — see
+    `bold`. `<b>`, `<i>`, `<font color="#hex">` and `<span color=…>` are honoured
     and nest, a run's bold/italic ORing with the `bold=`/`italic=` given
     here. Every other tag — `<u>`, a subtitle's `{\an8}`, an unknown name —
     is STRIPPED, never drawn.
@@ -480,3 +485,53 @@ class MarkupText(Text):
         # plain `Text` takes, character for character.
         self._runs = runs or None
         super().__init__(plain, fontSize, fontFamily, fillColor, strokeColor, strokeWidth, bold, italic)
+
+
+class _Markup:
+    """
+    One style of a `MarkupText`, waiting for the text it wraps — see `bold`.
+
+    `bold | italic` is another style, so `bold | italic | "x"` wraps twice.
+    `bold | "x" | italic` is a `str | _Markup`, which Python refuses out
+    loud — better than a tag quietly landing outside its text.
+    """
+
+    def __init__(self, opening: str, closing: str):
+        self._opening, self._closing = opening, closing
+
+    @overload
+    def __or__(self, other: _Markup) -> _Markup: ...
+    @overload
+    def __or__(self, other: str) -> str: ...
+    def __or__(self, other: _Markup | str) -> _Markup | str:
+        if isinstance(other, _Markup):
+            return _Markup(self._opening + other._opening, other._closing + self._closing)
+        if not isinstance(other, str):
+            return NotImplemented
+        # `<` and `&` are what `parseMarkup` reads as markup: the author's
+        # `a < b` must reach the letters, not open a tag.
+        return self._opening + other.replace("&", "&amp;").replace("<", "&lt;") + self._closing
+
+    def __call__(self, text: str) -> str:
+        return self | text
+
+
+#: `bold | "x"` is `"<b>x</b>"` — the tag written for you, so a `MarkupText`
+#: composes inside an f-string instead of by hand:
+#:
+#:     MarkupText(f"a {bold | 'subtitle'} can be {italic | 'styled'} {colored(RED_B) | 'on fire'}")
+#:
+#: `bold("x")` says the same. Styles chain with `|`: `bold | italic | "x"`.
+bold = _Markup("<b>", "</b>")
+italic = _Markup("<i>", "</i>")
+
+
+def colored(color: rgba | str) -> _Markup:
+    """
+    `colored(RED_B) | "x"` paints x — an `rgba` or a `"#RRGGBB"`, what every
+    colour here takes. Not `color`: that name is the `videocode.color` module.
+    """
+    if isinstance(color, str):
+        color = rgba(color)
+    hexa = f"#{color.r:02x}{color.g:02x}{color.b:02x}" + (f"{color.a:02x}" if color.a != 255 else "")
+    return _Markup(f'<font color="{hexa}">', "</font>")

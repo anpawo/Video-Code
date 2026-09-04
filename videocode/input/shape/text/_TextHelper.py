@@ -25,6 +25,11 @@ _FT_FLAGS = 1 | 2 | 8  # FT_LOAD_NO_SCALE | FT_LOAD_NO_HINTING | FT_LOAD_NO_BITM
 # file is full of both and means neither to be drawn.
 _TAG_RE = re.compile(r"<(/?)(\w+)([^>]*)>|\{\\[^}]*\}")
 _COLOR_RE = re.compile(r"""color\s*=\s*["']?(#[0-9A-Fa-f]{3,8})""")
+# `bold | "a < b"` writes `&lt;` — the only way a `<` reaches the letters
+# without _TAG_RE reading it. Just these three: `html.unescape` also turns a
+# hand-written `&copy 2020` into `©`.
+_ENTITY_RE = re.compile(r"&(lt|gt|amp);")
+_ENTITIES = {"lt": "<", "gt": ">", "amp": "&"}
 
 #: (bold, italic, color) — what one run of characters is shaped and painted with.
 type runStyle = tuple[bool, bool, maybe[rgba]]
@@ -267,7 +272,7 @@ def parseMarkup(markup: str) -> tuple[str, tuple[run, ...]]:
     pos = 0
 
     for tag in _TAG_RE.finditer(markup):
-        chunk = markup[pos : tag.start()]
+        chunk = _ENTITY_RE.sub(lambda m: _ENTITIES[m.group(1)], markup[pos : tag.start()])
         plain.append(chunk)
         length += len(chunk)
         pos = tag.end()
@@ -292,8 +297,9 @@ def parseMarkup(markup: str) -> tuple[str, tuple[run, ...]]:
                 runs.append((start, length, current[0], current[1], current[2]))
             start, current = length, new
 
-    plain.append(markup[pos:])
-    length += len(markup) - pos
+    tail = _ENTITY_RE.sub(lambda m: _ENTITIES[m.group(1)], markup[pos:])
+    plain.append(tail)
+    length += len(tail)
     if length > start and current != _PLAIN:
         runs.append((start, length, current[0], current[1], current[2]))
 
