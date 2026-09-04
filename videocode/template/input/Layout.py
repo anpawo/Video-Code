@@ -10,10 +10,9 @@ from videocode.constants import *
 
 __all__ = ["Row", "Column", "Grid"]
 
-# Where a member sits across the line: `start` is the top of a Row and the
-# left of a Column.
-_Align = Literal["start", "center", "end"]
-_SIDE = {"start": 1, "center": 0, "end": -1}
+# Which way the cross-axis offset points: `START` is the top of a Row and the
+# left of a Column, so a Row adds and a Column subtracts.
+_SIDE = {Align.START: 1, Align.CENTER: 0, Align.END: -1}
 
 
 def _place(inp: Input, x: wnumber, y: wnumber) -> None:
@@ -37,8 +36,8 @@ class Row(Group[_GROUP_T]):
     1080p world is 16 x 9). The formation is centred whatever the count, even
     ones included.
 
-    `align` places members across the line: `"start"` flushes their tops,
-    `"end"` their bottoms, `"center"` (default) their middles.
+    `align` places members across the line: `Align.START` flushes their tops,
+    `Align.END` their bottoms, `Align.CENTER` (default) their middles.
 
     Laid out at construction, like `XAlign`, so the rigid-body snapshot is
     correct and position/scale/rotation applied to the row carry the
@@ -46,7 +45,7 @@ class Row(Group[_GROUP_T]):
     later does not reflow the row — build a new one.
     """
 
-    def __init__(self, *inputs: Input, gap: wnumber = 0.25, align: _Align = "center"):
+    def __init__(self, *inputs: Input, gap: wnumber = 0.25, align: Align = Align.CENTER):
         widths = [i.width for i in inputs]
         tallest = max((i.height for i in inputs), default=0)
         x = -(sum(widths) + gap * (len(inputs) - 1)) / 2
@@ -60,11 +59,11 @@ class Column(Group[_GROUP_T]):
     """
     `Row` turned top to bottom: `gap` is edge to edge in world units, the
     stack is centred on the group's position, and `align` flushes members'
-    lefts (`"start"`), rights (`"end"`) or centres. Laid out once, at
+    lefts (`Align.START`), rights (`Align.END`) or centres. Laid out once, at
     construction — see `Row` for what that means and what it cannot do.
     """
 
-    def __init__(self, *inputs: Input, gap: wnumber = 0.25, align: _Align = "center"):
+    def __init__(self, *inputs: Input, gap: wnumber = 0.25, align: Align = Align.CENTER):
         heights = [i.height for i in inputs]
         widest = max((i.width for i in inputs), default=0)
         y = (sum(heights) + gap * (len(inputs) - 1)) / 2

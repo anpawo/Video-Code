@@ -14,7 +14,7 @@ sys.path.insert(0, ".")
 sys.path.insert(0, "test")
 from helpers import check, section, summary
 
-from videocode import Rectangle, Square, Circle, Group
+from videocode import Align, Rectangle, Square, Circle, Group
 from videocode.template.input.Layout import Row, Column, Grid
 from videocode.template.input.XAlign import XAlign
 
@@ -61,7 +61,7 @@ check("(for contrast: XAlign's pair is centred on -0.5)", approx((xa.meta.positi
 # ── Row: align on the cross axis ────────────────────────────────────────────
 # heights 4 and 2: the short one moves by (4 - 2) / 2 = 1 to meet an edge.
 section("Row — align start / center / end")
-for alignment, y in (("start", 1), ("center", 0), ("end", -1)):
+for alignment, y in ((Align.START, 1), (Align.CENTER, 0), (Align.END, -1)):
     tall, short = Rectangle(width=1, height=4), Rectangle(width=1, height=2)
     Row(tall, short, gap=0, align=alignment)
     check(f"align={alignment!r}: tall stays at y=0, short at y={y}", at(tall, -0.5, 0) and at(short, 0.5, y))
@@ -78,8 +78,8 @@ check("second centred at y=-0.75", at(bottom, 0, -0.75))
 check("the column spans 4.5", approx(col.height, 4.5))
 
 # widths 2 and 1: the narrow one moves by (2 - 1) / 2 = 0.5 to meet an edge —
-# left for "start", right for "end".
-for alignment, x in (("start", -0.5), ("center", 0), ("end", 0.5)):
+# left for START, right for END.
+for alignment, x in ((Align.START, -0.5), (Align.CENTER, 0), (Align.END, 0.5)):
     wide, narrow = Rectangle(width=2, height=1), Rectangle(width=1, height=1)
     Column(wide, narrow, gap=0, align=alignment)
     check(f"align={alignment!r}: narrow at x={x}", at(wide, 0, 0.5) and at(narrow, x, -0.5))

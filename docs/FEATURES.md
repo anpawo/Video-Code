@@ -219,15 +219,15 @@ is loaded through the same `_SVGHelper`/`SVGPath`/`Offset`/`Group` pipeline as
 
 ```python
 Row(Rectangle(width=4, height=2), Circle(radius=1), gap=0.5)   # circle's left edge 0.5 right of the rectangle's right edge
-Column(Rectangle(width=3, height=0.5), Row(a, b, gap=0.3), gap=0.2, align="start").position(-4, 2)
+Column(Rectangle(width=3, height=0.5), Row(a, b, gap=0.3), gap=0.2, align=Align.START).position(-4, 2)
 Grid(*[Square(0.8) for _ in range(7)], cols=3, gap=0.25)         # three rows, the last one flush left
 ```
 
 `gap` is the distance between two neighbours' EDGES, in world units (120 px;
 the 1080p world is 16 x 9) — `XAlign`'s `gap` is a centre-to-centre pitch that
 ignores widths, and it is off-centre for even counts. `align` picks the
-cross-axis edge to flush: `"start"` (top of a `Row`, left of a `Column`),
-`"center"` (default), `"end"`. Nesting works: a `Row` inside a `Column` is
+cross-axis edge to flush: `Align.START` (top of a `Row`, left of a `Column`),
+`Align.CENTER` (default), `Align.END`. Nesting works: a `Row` inside a `Column` is
 measured by its content. **Ceiling**: the layout is computed once, at
 construction — a member that grows or is replaced afterwards does not reflow
 the formation; build a new one.

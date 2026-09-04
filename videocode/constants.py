@@ -86,6 +86,7 @@ TR: v2[maybe[number], maybe[number]] = TOP_SIDE + RIGHT_SIDE
 # Every name above that depends on the resolution — i.e. everything setScreen
 # has to rewrite, here and in whoever star-imported it.
 _SCREEN_DERIVED = (
+    "Align",
     "SCREEN_WIDTH", "SCREEN_HEIGHT", "SW", "SH",
     "WORLD_WIDTH", "W", "WORLD_HEIGHT", "H",
     "WORLD_OFFSET_X", "WORLD_OFFSET_Y",
@@ -257,6 +258,25 @@ class Split(StrEnum):
     AUTO = "auto"
     COLUMNS = "columns"
     ROWS = "rows"
+
+
+class Align(StrEnum):
+    """
+    Where a member sits ACROSS a `Row` or a `Column` — the axis the layout does
+    not space along. Named after the edge it flushes, so the word reads the same
+    whichever way the line runs::
+
+        Row                         Column
+        START   tops flush          START   left edges flush
+        CENTER  middles (default)   CENTER  middles (default)
+        END     bottoms flush       END     right edges flush
+
+        Row(a, b, gap=0.3, align=Align.START)
+    """
+
+    START = "start"
+    CENTER = "center"
+    END = "end"
 
 
 class Anchor(StrEnum):
