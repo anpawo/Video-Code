@@ -20,17 +20,15 @@ import os
 import subprocess
 import sys
 import tempfile
-from unittest.mock import patch
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
 from helpers import check, needsTool, section, summary
 
 from videocode import *
+from videocode.template.input.SurroundingRectangle import SurroundingRectangle
 from videocode.context import Context
 from videocode.input.media.Image import _fitToRatio
-import videocode.input.media.Image as ImageModule
-import videocode.input.media.Video as VideoModule
 
 from PIL import Image as PILImage
 
@@ -105,24 +103,35 @@ check(
                      (4, 0), (4, 0), (4, 0), (2.0, 0.0), (0, 0), (0, 0), (0, 0), (0.0, 2.0)],
 )
 
+# ── Image — neither given is the natural size, in Python too ───────────────
+# C++ always drew a bare Image at its pixel size; Python answered None, so a
+# group could not measure it and nothing could be drawn around it.
+section("Image — neither given is the natural pixel size")
+
 bare = Image(PNG)
-check("neither given leaves both None", bare.width is None and bare.height is None)
-check("neither given emits no geometry (C++ draws the pixel quad)", points(bare) == [])
+check("neither given is the file's size in world units", (bare.width, bare.height) == (SRC_W / 120, SRC_H / 120))
+check("and the shape reaches C++ like any other", len(points(bare)) == 16)
 
-# The natural-size read is what makes a bare Image cost a file open — it must
-# not start happening for the case that never paid it.
-with patch.object(ImageModule.PILImage, "open", side_effect=AssertionError("opened the file")):
-    stillBare = Image(PNG)
-check("neither given reads no file at all", stillBare.width is None and points(stillBare) == [])
+# ── Group / SurroundingRectangle — the two calls that crashed on a bare Image
+section("Group and SurroundingRectangle — a bare Image is a member like any other")
 
-# ── Group — a member whose size Python can now answer ──────────────────────
-section("Group — a sized Image no longer has a None extent")
+try:
+    pivot = Group(Image(PNG), Circle(radius=1).position(3, 0))._pivot()
+except TypeError:
+    pivot = None  # `NoneType / int` — a member with no extent
+check("Group(Image(png), …)._pivot() returns a v2 instead of raising", isinstance(pivot, v2))
+
+try:
+    box = SurroundingRectangle(Image(PNG))
+except ValueError:
+    box = None  # `max() iterable argument is empty` — no vertices to surround
+check("SurroundingRectangle(Image(png)) surrounds the natural size", box is not None and box.width == SRC_W / 120 + 0.5)
 
 try:
     pivot = Group(Image(PNG, width=2), Circle(radius=1).position(3, 0))._pivot()
 except TypeError:
-    pivot = None  # a member with a None extent — the crash this sizing removes
-check("_pivot() returns a v2 instead of raising on None", isinstance(pivot, v2))
+    pivot = None
+check("a sized Image still measures", isinstance(pivot, v2))
 
 # ── Video — same rule, ffprobe instead of the PIL header ───────────────────
 section("Video — one dimension given, the other from the source's ratio")
@@ -144,11 +153,13 @@ if needsTool("ffmpeg", "Video aspect-ratio sizing") and needsTool("ffprobe", "Vi
     check("height derived from the aspect ratio", clip2.height == 4.5)
     check("the shape reaches C++", len(points(clip2)) == 16)
 
-# A bare Video must still cost nothing at construction — no ffprobe, which is
-# also why it can name a file that does not exist yet.
-with patch.object(VideoModule.subprocess, "run", side_effect=AssertionError("spawned ffprobe")):
-    bareVid = Video("nowhere.mp4")
-check("neither given spawns no ffprobe", bareVid.width is None and points(bareVid) == [])
+    bareVid = Video(MP4)
+    check("neither given is the natural frame size", (bareVid.width, bareVid.height) == (VID_W / 120, VID_H / 120))
+    try:
+        pivot = Group(bareVid, Circle(radius=1).position(3, 0))._pivot()
+    except TypeError:
+        pivot = None
+    check("Group(Video(mp4), …)._pivot() returns a v2 instead of raising", isinstance(pivot, v2))
 
 # ── summary ──────────────────────────────────────────────────────────────────
 summary()

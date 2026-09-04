@@ -69,7 +69,7 @@
   "frameSlots": 121,
   "inputs": 33,
   "lastFrame": 131,
-  "shape": "f0b131f41c82190d"
+  "shape": "8d1366c04b004b94"
  },
  "test/visual/scenes/crop.py": {
   "applyCalls": 34,
@@ -231,7 +231,7 @@
   "frameSlots": 6,
   "inputs": 3,
   "lastFrame": 1,
-  "shape": "6769d673a2dfb48b"
+  "shape": "5cb979d15cfabdf8"
  },
  "test/visual/scenes/layers.py": {
   "applyCalls": 12,

@@ -14,13 +14,26 @@ cover the same way: the JSON shape handed to C++, not C++ execution.
 Run directly: `python3 test/video_test.py`
 """
 
+import subprocess
 import sys
+from unittest.mock import patch
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
 from helpers import check, section, summary
 
+import videocode.input.media.Video as VideoModule
+
 from videocode import Video
+
+# A bare Video reads its natural size off ffprobe at construction. These tests
+# are about cut arithmetic on a path that is only a name, so the probe is
+# answered here rather than by a file.
+_probe = patch.object(
+    VideoModule.subprocess, "run",
+    return_value=subprocess.CompletedProcess([], 0, stdout="320,180\n", stderr=""),
+)
+_probe.start()
 
 # ── no trimming -> no extra cuts ─────────────────────────────────────────────
 section("Video — no startFrame/endFrame leaves cuts untouched")

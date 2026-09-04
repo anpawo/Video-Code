@@ -105,10 +105,10 @@ class Video(Polygon):
 
         `width`/`height` together stretch the frame to that exact box; giving
         only one derives the other from the source's aspect ratio, and giving
-        neither draws the video at its natural pixel size. Deriving one (like
-        `cornerRadius` already did) runs `ffprobe` here, at construction — so
-        a missing or unreadable file raises while the scene is being baked
-        rather than at render time.
+        neither draws the video at its natural pixel size. Either way the size
+        comes from `ffprobe`, here, at construction — so a missing or
+        unreadable file raises while the scene is being baked rather than at
+        render time.
         """
         self.filepath = filepath
         self.uvMapping = uvMapping
@@ -132,12 +132,10 @@ class Video(Polygon):
         self.speedRamps = speedRamps
 
         # A shape needs both numbers, so ffprobe answers (metadata only, no
-        # frame decode) whenever one is missing and something depends on it:
-        # one dimension given fixes the other through the video's own
-        # proportions, and rounding/stroking with neither given falls back to
-        # its natural frame size. Neither given and nothing to round spawns
-        # nothing — C++ draws the raw pixel quad from the texture.
-        if (width is None) != (height is None) or (cornerRadius and width is None and height is None):
+        # frame decode) whenever one is missing: one dimension given fixes the
+        # other through the video's own proportions, neither given is its
+        # natural frame size — the same rule as `Image`, for the same reason.
+        if width is None or height is None:
             out = subprocess.run(
                 ["ffprobe", "-v", "error", "-select_streams", "v:0",
                  "-show_entries", "stream=width,height", "-of", "csv=p=0", filepath],

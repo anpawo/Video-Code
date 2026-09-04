@@ -64,12 +64,13 @@ class Image(Polygon):
         self.uvAngle = uvAngle
 
         # A shape needs both numbers, so the file's header answers (no full
-        # decode) whenever one is missing and something depends on it: one
-        # dimension given fixes the other through the image's own proportions,
-        # and rounding/stroking with neither given falls back to its natural
-        # size. Neither given and nothing to round reads no file at all — C++
-        # draws the raw pixel quad from the texture.
-        if (width is None) != (height is None) or (cornerRadius and width is None and height is None):
+        # decode) whenever one is missing: one dimension given fixes the other
+        # through the image's own proportions, neither given is its natural
+        # size. The bare case used to skip the read and leave C++ to draw the
+        # pixel quad on its own — which left Python with no size at all, so a
+        # group could not find its pivot around it and nothing could be drawn
+        # around it (X2).
+        if width is None or height is None:
             with PILImage.open(filepath) as img:
                 natW, natH = img.size
             width, height = _fitToRatio(width, height, natW, natH)
