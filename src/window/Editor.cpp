@@ -174,6 +174,18 @@ void VC::Editor::buildMenuBar()
 
     _codeThemesMenu = system->addMenu(QStringLiteral("Code theme"));
 
+    // Beside the shortcuts board and the code theme, because all three are the
+    // same question: how this window looks and answers to you. It was under
+    // Guide, which is for what the chrome MEANS, not for what you can change.
+    //
+    // "Show Colors" rather than "Colors…": the ellipsis is the macOS way of
+    // saying a window follows, but the verb says it in a word instead of in a
+    // convention, and it is the name the system gives its own colour panel —
+    // with the same key.
+    auto* colors = system->addAction(QStringLiteral("Show Colors"));
+    colors->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+C")));
+    connect(colors, &QAction::triggered, this, &Editor::colorsRequested);
+
     // Settings is NOT repeated here.  Qt recognises the title and macOS moves
     // any such item into the application menu next to About and Quit, which is
     // where a Mac user looks for it — a second one would either vanish or, if
@@ -221,12 +233,12 @@ void VC::Editor::buildMenuBar()
     auto* reset = view->addAction(QStringLiteral("Reset UI"));
     connect(reset, &QAction::triggered, this, &Editor::dockResetRequested);
 
-    // Guide sits beside the dock's menu rather than inside it: it explains the
-    // whole chrome, not the dock, and a legend buried in a panel menu is a
-    // legend nobody opens.
-    QMenu* guide = _menuBar->addMenu(QStringLiteral("Guide"));
-    auto*  colors = guide->addAction(QStringLiteral("Colors…"));
-    connect(colors, &QAction::triggered, this, &Editor::colorsRequested);
+    // Guide is kept and left empty on purpose. It is where what the chrome
+    // MEANS will go — the legend moved to System because it became something
+    // you change rather than something you read. macOS greys the title of a
+    // menu with nothing in it, which is the honest picture: the place exists,
+    // it holds nothing yet.
+    _menuBar->addMenu(QStringLiteral("Guide"));
 
     // The menu bar Cocoa draws does not exist yet — Qt hands it over later, when
     // the window first becomes active. So the name is offered until it is taken,
