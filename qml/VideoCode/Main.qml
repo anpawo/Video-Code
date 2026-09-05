@@ -2028,6 +2028,51 @@ ApplicationWindow {
 
     readonly property var shownScene: liveScene !== null ? liveScene : emptyScene
 
+    // ── The caret is a playhead ───────────────────────────────────────────
+    // The model already knows which line made each element and which line
+    // wrote each of its statements, so the line the caret is on can be looked
+    // up in it. The bar it makes lights, and one key plays from the moment
+    // that line makes rather than from wherever the playhead was left.
+    //
+    // Nothing is written. This is the reading half of the link between the
+    // code and the time — a wrong guess costs a highlight, which is why it can
+    // be live while the writing half waits for a gesture.
+    //
+    // A statement wins over a declaration: the caret on `square.moveBy(...)`
+    // means that move, not the square. Lines from another file are skipped for
+    // the same reason a gesture refuses them — the number is not this
+    // document's.
+    readonly property var caretMakes: {
+        const nothing = ({ index: -1, at: -1, n: "" });
+        const line = source.caretLine + 1; // the model counts lines from one
+        if (line <= 0)
+            return nothing;
+
+        const rows = shownScene.elements;
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            if (!app.fromOpenFile(row.file))
+                continue;
+            for (const fx of row.effects)
+                if (fx.line === line)
+                    return { index: i, at: fx.l, n: row.n + "." + fx.n };
+            if (row.line === line)
+                return { index: i, at: row.l, n: row.n };
+        }
+        return nothing;
+    }
+
+    function playFromCaret() {
+        const made = app.caretMakes;
+        if (made.index < 0) {
+            source.say("nothing this line makes is on the timeline");
+            return;
+        }
+        app.playhead = made.at;
+        app.playing = true;
+        source.say(made.n + " — playing from " + made.at.toFixed(1) + "s");
+    }
+
     // The bin holds what the SCENE loads, plus what has been dropped this
     // session. Same rule as the timeline: it comes from the code, or it is not
     // there. `Video`, `Image` and `Sound` are the inputs that read a file; a
@@ -3069,6 +3114,7 @@ ApplicationWindow {
         id: timeline
         visible: false
         scene: app.shownScene
+        litIndex: app.caretMakes.index
         // Which bar is out of its lane, so the lane can be drawn hollow for
         // exactly as long as the flight and the card last.
         openedName: elementCard.element !== null && elementCard.element.n !== undefined
@@ -3128,6 +3174,7 @@ ApplicationWindow {
         name: "scene"
         onDocumentReady: (document) => Shell.highlightPython(document, Theme.code)
         onExecuteRequested: app.executeScene(true)
+        onPlayFromCaret: app.playFromCaret()
 
         onSaveRequested: {
             if (source.path.length === 0)

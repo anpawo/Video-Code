@@ -28,6 +28,9 @@ QtObject {
         { id: "save",        label: "Save the buffer",    where: "Code" },
 
         { id: "execute",     label: "Execute the scene",  where: "Scene" },
+        // In the Code group, and deliberately: the caret is what it plays
+        // from, so it has to work with your hands in the pane.
+        { id: "playFromCaret", label: "Play from this line", where: "Code" },
 
         // `only` is the qualifier the board prints beside the key. All five are
         // keys a text editor already owns, so they belong to whichever of the
@@ -72,6 +75,7 @@ QtObject {
         "complete":   "Ctrl+Space",
         "save":       "Cmd+S",
         "execute":    "Cmd+R",
+        "playFromCaret": "Cmd+Enter",
         "play":       "Space",
         "toStart":    "↓",
         "toEnd":      "↑",

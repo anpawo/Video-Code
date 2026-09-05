@@ -18,6 +18,11 @@ Item {
     // The scene being shown, and what the user has picked out of it.
     required property var scene
     property int selectedIndex: -1
+
+    // The lane the code pane's caret is standing in, or -1. Lit, not selected:
+    // it follows the caret and is gone the moment it moves, so it must not look
+    // like the thing you picked and can act on.
+    property int litIndex: -1
     property real playhead: 0
 
     // The range being worked on, in seconds, or -1 for "not set". Drawn rather
@@ -397,13 +402,18 @@ Item {
                         readonly property bool away: root.openedName.length > 0
                                                      && root.openedName === lane.modelData.n
 
-                        color: away ? "transparent" : Qt.alpha(Theme.kind[lane.modelData.kind], 0.30)
+                        readonly property bool lit: root.litIndex === lane.index
+
+                        color: away ? "transparent"
+                                    : Qt.alpha(Theme.kind[lane.modelData.kind], bar.lit ? 0.52 : 0.30)
                         border.width: root.selectedIndex === lane.index ? 2 : 1
                         border.color: away
                                       ? Qt.rgba(1, 1, 1, 0.10)
                                       : (root.selectedIndex === lane.index
                                          ? Theme.live
-                                         : Qt.rgba(1.000, 1.000, 1.000, 0.149))
+                                         : (bar.lit
+                                            ? Qt.alpha(Theme.live, 0.55)
+                                            : Qt.rgba(1.000, 1.000, 1.000, 0.149)))
 
                         // ── A fault the run found on this element ────────
                         // Hazard hatching, the mark every editing tool uses for
