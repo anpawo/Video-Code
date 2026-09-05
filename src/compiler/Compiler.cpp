@@ -299,6 +299,17 @@ int VC::Compiler::generateVideo()
         return EXIT_FAILURE;
     }
 
+    // A sheet is stills laid side by side; asked of a video it would have to
+    // mean something else, and guessing which is how a flag becomes a shrug.
+    if (config.sheetTiles > 1 && !VC::ImageIO::hasImageExtension(config.outputFile)) {
+        std::cerr << std::format("video-code: --sheet lays stills side by side in one image, and {} is a video.\n", config.outputFile);
+        return EXIT_FAILURE;
+    }
+    if (config.sheetTiles < 1) {
+        std::cerr << std::format("video-code: --sheet {} is not a number of moments to show.\n", config.sheetTiles);
+        return EXIT_FAILURE;
+    }
+
     VulkanHeadlessRenderer renderer(
         (uint32_t)config.screenWidth,
         (uint32_t)config.screenHeight
@@ -345,10 +356,8 @@ int VC::Compiler::generateVideo()
         return EXIT_FAILURE;
     }
 
-    if (VC::ImageIO::hasImageExtension(config.outputFile)) {
-        _core._index = std::min(*first, sceneFrames - 1); // --from picks the still
-        return generateImage(renderer);
-    }
+    if (VC::ImageIO::hasImageExtension(config.outputFile))
+        return generateImage(renderer, *first, *last);
 
     if (*first >= *last) {
         std::cerr << std::format("video-code: nothing to render between {} and {} — the scene is {:.2f} s long.\n", config.renderFrom, config.renderTo.empty() ? "the end" : config.renderTo, (double)sceneFrames / Config::SCENE_FRAMERATE);
@@ -544,18 +553,65 @@ int VC::Compiler::generateVideo()
     return 0;
 }
 
-int VC::Compiler::generateImage(VulkanHeadlessRenderer& renderer)
+int VC::Compiler::generateImage(VulkanHeadlessRenderer& renderer, size_t first, size_t last)
 {
-    const auto& meshes = _core.generateMeshes();
-    renderer.setMeshes(meshes);
-    renderer.setBackgroundColor(_core._bgColor);
+    const size_t lastFrame = _core._nbFrame > 0 ? _core._nbFrame - 1 : 0;
 
-    // readFrame() returns the previous (nonexistent) frame's pixels — empty —
-    // so the actual frame is retrieved via flush().
-    renderer.readFrame();
-    cv::Mat frame = renderer.flush();
-    if (!frame.isContinuous())
-        frame = frame.clone();
+    auto still = [&](size_t at) {
+        _core._index = std::min(at, lastFrame);
+
+        const auto& meshes = _core.generateMeshes();
+        renderer.setMeshes(meshes);
+        renderer.setBackgroundColor(_core._bgColor);
+
+        // readFrame() returns the previous (nonexistent) frame's pixels — empty —
+        // so the actual frame is retrieved via flush().
+        renderer.readFrame();
+        cv::Mat out = renderer.flush();
+        return out.isContinuous() ? out : out.clone();
+    };
+
+    cv::Mat frame = still(first);
+
+    if (config.sheetTiles > 1) {
+        if (last <= first) {
+            std::cerr << std::format("video-code: --sheet needs a stretch to sample, and {} → {} is not one.\n", config.renderFrom.empty() ? "the start" : config.renderFrom, config.renderTo.empty() ? "the end" : config.renderTo);
+            return EXIT_FAILURE;
+        }
+
+        // Both ends included: asked for four moments of a six-second stretch,
+        // an author means 0, 2, 4 and 6 — not four samples that stop short of
+        // the end they named. Each tile is the still that --from at that time
+        // would have written, so what the sheet shows can be trusted against
+        // one, and the time goes in a strip beneath rather than over the
+        // picture, which would be a change to the frame it claims to show.
+        const int    tiles = config.sheetTiles;
+        const int    strip = std::max(16, frame.rows / 12);
+        const double fontScale = strip / 44.0;
+        const int    thickness = std::max(1, strip / 22);
+        cv::Mat      sheet(frame.rows + strip, frame.cols * tiles, frame.type(), cv::Scalar(0, 0, 0, 255));
+
+        for (int k = 0; k < tiles; ++k) {
+            const size_t  at = first + (size_t)std::llround((double)(last - first) * k / (tiles - 1));
+            const cv::Mat tile = k == 0 ? frame : still(at);
+            tile.copyTo(sheet(cv::Rect(k * frame.cols, 0, frame.cols, frame.rows)));
+
+            const std::string label = std::format("{:.2f}s", (double)std::min(at, lastFrame) / Config::SCENE_FRAMERATE);
+            int               base = 0;
+            const cv::Size    size = cv::getTextSize(label, cv::FONT_HERSHEY_SIMPLEX, fontScale, thickness, &base);
+            cv::putText(
+                sheet,
+                label,
+                cv::Point(k * frame.cols + (frame.cols - size.width) / 2, frame.rows + (strip + size.height) / 2),
+                cv::FONT_HERSHEY_SIMPLEX,
+                fontScale,
+                cv::Scalar(255, 255, 255, 255),
+                thickness,
+                cv::LINE_AA
+            );
+        }
+        frame = sheet;
+    }
 
     if (!VC::ImageIO::write(config.outputFile, frame)) {
         std::cerr << std::format("Failed to write image to {}\n", config.outputFile);

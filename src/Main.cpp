@@ -128,6 +128,14 @@ void setParserArgument(argparse::ArgumentParser &p)
     p
         .add_argument("--to")
         .help("With --generate, stop at this point — seconds or a timestamp() name. Clamped to the scene.");
+
+    p
+        .add_argument("--sheet")
+        .scan<'i', int>()
+        .help(
+            "With an image --generate, lay this many moments side by side in the one file, "
+            "evenly spaced from --from to --to and each labelled with its time. One look shows the motion."
+        );
 }
 
 namespace

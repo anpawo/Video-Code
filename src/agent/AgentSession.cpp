@@ -7,6 +7,7 @@
 
 #include "agent/AgentSession.hpp"
 
+#include <QCoreApplication>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -181,14 +182,21 @@ void VC::AgentSession::ensureStarted()
         // with code — which the author reads in green and red, and drops with
         // one key if it guessed wrong. That is a faster loop than a question.
         QStringLiteral("--append-system-prompt"),
+        // And it can look at what it did. The renderer is this very binary, a
+        // frame costs milliseconds, and a PNG is something it can read back.
         QStringLiteral(
             "You are editing a videocode scene from inside the videocode editor. "
             "Never ask the author a clarifying question and never ask for permission: "
             "make the change you believe is meant and write it to the file. "
             "The author reads your edit as a diff and undoes it with one key if you "
             "guessed wrong, so a guess costs less than a question. "
-            "Keep the edit as small as the request allows."
-        ),
+            "Keep the edit as small as the request allows. "
+            "You can see what you made: `%1 --file <scene> --generate look.png --from 2.5 --width 480 --height 270` "
+            "renders the frame at 2.5 s (or at a timestamp() name) in milliseconds, "
+            "`--sheet 4 --from 0 --to 6` lays four labelled moments side by side in the one PNG, "
+            "and you can read the PNG back to check your edit before you finish."
+        )
+            .arg(QCoreApplication::applicationFilePath()),
     };
     if (!_root.isEmpty())
         args << QStringLiteral("--add-dir") << _root;
