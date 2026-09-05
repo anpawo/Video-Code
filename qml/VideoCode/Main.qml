@@ -1416,6 +1416,12 @@ ApplicationWindow {
         // Opening a scene is one call: the pane loads it, the analyser is told
         // about it, and the window's idea of "the scene" moves with it.
         function onSceneOpened(path) { app.openScene(path); }
+        function onExportRequested() { app.beginExport(); }
+        function onExportProgress(done, total) { exporting.advance(done, total); }
+        function onExportFinished(ok, message) {
+            exporting.settle(ok, message);
+            source.say(ok ? "exported " + message : message);
+        }
 
         function onMediaDropped(path) {
             const kind = app.kindOfFile(path);
@@ -1804,6 +1810,13 @@ ApplicationWindow {
         execMs: app.execMs
     }
 
+    ExportPanel {
+        id: exporting
+        anchors.fill: parent
+        z: 322
+        onCancelled: Shell.cancelExport()
+    }
+
     SettingsPanel {
         id: settings
         anchors.fill: parent
@@ -1988,6 +2001,38 @@ ApplicationWindow {
     // onto today's text.
     // The buffer as the server last saw it.
     property string sentText: ""
+
+    // ── Making the file ───────────────────────────────────────────────────
+    // The editor could write a scene and never make anything of it: rendering
+    // meant leaving for a terminal. It is the same binary either way — the
+    // child is the command the author would have typed — so what comes out of
+    // the menu is what comes out of the command line, and the pane reads the
+    // renderer's own count rather than inventing one.
+    //
+    // What is rendered is the BUFFER, not the file on disk: the picture in the
+    // preview is the buffer's, and an export that quietly rendered the last
+    // saved version would hand back a video of something you cannot see.
+    function beginExport() {
+        if (source.path.length === 0) {
+            source.say("nothing is open to export");
+            return;
+        }
+
+        const suggested = source.path.replace(/\.py$/, "") + ".mp4";
+        const chosen = Shell.pickExport(suggested);
+        if (chosen.length === 0)
+            return;
+
+        // The marks are a range someone set on purpose, so an export honours
+        // them the way play does. Nothing marked is the whole scene.
+        const first = ranged ? markIn : -1;
+        const last = ranged ? markOut : -1;
+        if (!Shell.startExport(source.path, source.text, chosen, first, last)) {
+            source.say("an export is already running");
+            return;
+        }
+        exporting.begin(chosen, first, last);
+    }
 
     // ── Executing the scene ───────────────────────────────────────────────
     // Only ⌘R runs it, and that is not a performance decision.
@@ -3162,6 +3207,7 @@ ApplicationWindow {
         revision: app.execRevision
         ready: app.execRevision > 0
         onTogglePlay: app.togglePlay()
+        onExportAsked: app.beginExport()
         onSeek: (seconds) => app.playhead = Math.max(0, Math.min(seconds, app.shownScene.duration))
     }
 
@@ -3403,6 +3449,8 @@ ApplicationWindow {
             // It has to live in THIS ladder and not in a shortcut of its own:
             // two Shortcuts on one sequence in one window are an ambiguous
             // overload, and Qt fires neither.
+            else if (exporting.visible)
+                exporting.stop();
             else if (colors.visible)
                 colors.visible = false;
             else if (shortcuts.visible)

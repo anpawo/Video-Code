@@ -714,6 +714,12 @@ void VC::Editor::fillFileMenu(QMenu* file)
             Q_EMIT sceneOpened(chosen);
     });
 
+    // Export lives in File beside the two Opens, because that is where a person
+    // looks for "make me the file" — not in a panel they have to find first.
+    auto* exportVideo = file->addAction(QStringLiteral("Export Video…"));
+    exportVideo->setShortcut(QKeySequence(QStringLiteral("Ctrl+E")));
+    connect(exportVideo, &QAction::triggered, this, [this] { Q_EMIT exportRequested(); });
+
     auto* openFolder = file->addAction(QStringLiteral("Open Folder…"));
     openFolder->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+O")));
     connect(openFolder, &QAction::triggered, this, [this] {
@@ -1117,6 +1123,104 @@ QString VC::Editor::pickScene(const QString& startIn) const
     );
 }
 
+QString VC::Editor::pickExport(const QString& suggested) const
+{
+    const QString scripted = qEnvironmentVariable("VC_EXPORT");
+    if (!scripted.isEmpty())
+        return QFileInfo(scripted).absoluteFilePath();
+
+    return QFileDialog::getSaveFileName(
+        nullptr,
+        QStringLiteral("Export video"),
+        suggested.isEmpty() ? QDir::currentPath() : suggested,
+        QStringLiteral("Video (*.mp4 *.mov *.webm *.gif);;Still (*.png *.jpg);;All files (*)")
+    );
+}
+
+bool VC::Editor::startExport(const QString& scenePath, const QString& source, const QString& output, double from, double to)
+{
+    if (_export != nullptr)
+        return false;
+
+    // What is rendered is what you are LOOKING at, which is not always what is
+    // on disk. The copy goes beside the author's own file rather than into a
+    // temporary folder: a scene says `Video("clips/shot.mp4")`, and a copy
+    // rendered from anywhere else would fail on paths that are correct.
+    QString rendered = scenePath;
+    _exportTemp.clear();
+    const QFileInfo scene(scenePath);
+    if (!scenePath.isEmpty() && source != readTextFile(scenePath)) {
+        _exportTemp = scene.absolutePath() + QStringLiteral("/.") + scene.completeBaseName() + QStringLiteral(".export.py");
+        QFile copy(_exportTemp);
+        if (!copy.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+            _exportTemp.clear();
+            Q_EMIT exportFinished(false, QStringLiteral("could not write the scene to render"));
+            return false;
+        }
+        copy.write(source.toUtf8());
+        copy.close();
+        rendered = _exportTemp;
+    }
+
+    QStringList args{QStringLiteral("--file"), rendered, QStringLiteral("--generate"), output};
+    if (from >= 0)
+        args << QStringLiteral("--from") << QString::number(from, 'f', 3);
+    if (to > from)
+        args << QStringLiteral("--to") << QString::number(to, 'f', 3);
+
+    _exportSaid.clear();
+    _export = new QProcess(this);
+    _export->setProcessChannelMode(QProcess::SeparateChannels);
+
+    connect(_export, &QProcess::readyReadStandardOutput, this, [this] {
+        // The renderer's own count, read off the progress line it already
+        // prints. Inventing a second one here would give the pane a number that
+        // can disagree with the file being written.
+        static const QRegularExpression counted(QStringLiteral("(\\d+)/(\\d+) frames"));
+        const QString                   chunk = QString::fromUtf8(_export->readAllStandardOutput());
+        QRegularExpressionMatchIterator every = counted.globalMatch(chunk);
+        QRegularExpressionMatch         last;
+        while (every.hasNext())
+            last = every.next();
+        if (last.hasMatch())
+            Q_EMIT exportProgress(last.captured(1).toInt(), last.captured(2).toInt());
+    });
+
+    // Kept, not printed: when the render fails, the last thing it said is the
+    // only useful sentence, and it is on stderr.
+    connect(_export, &QProcess::readyReadStandardError, this, [this] {
+        const QString said = QString::fromUtf8(_export->readAllStandardError()).trimmed();
+        if (!said.isEmpty())
+            _exportSaid = said.section('\n', -1).trimmed();
+    });
+
+    connect(_export, &QProcess::finished, this, [this, output](int code, QProcess::ExitStatus status) {
+        const bool killed = status == QProcess::CrashExit;
+        const bool ok = !killed && code == 0;
+        if (!_exportTemp.isEmpty()) {
+            QFile::remove(_exportTemp);
+            _exportTemp.clear();
+        }
+        _export->deleteLater();
+        _export = nullptr;
+        Q_EMIT exportFinished(
+            ok,
+            ok       ? QFileInfo(output).fileName()
+            : killed ? QStringLiteral("stopped — %1 holds only what was rendered").arg(QFileInfo(output).fileName())
+                     : (_exportSaid.isEmpty() ? QStringLiteral("the render failed") : _exportSaid)
+        );
+    });
+
+    _export->start(QCoreApplication::applicationFilePath(), args);
+    return true;
+}
+
+void VC::Editor::cancelExport()
+{
+    if (_export != nullptr)
+        _export->kill();
+}
+
 QString VC::Editor::pickFolder() const
 {
     return QFileDialog::getExistingDirectory(
@@ -1316,6 +1420,8 @@ void VC::Editor::pressKey(const QString& spec)
             Q_EMIT dockSaveRequested();
         else if (which == QStringLiteral("reset"))
             Q_EMIT dockResetRequested();
+        else if (which == QStringLiteral("export"))
+            Q_EMIT exportRequested();
         else
             Q_EMIT dockPanelToggled(which);
         std::cout << std::format("Probed the panel {}\n", which.toStdString());

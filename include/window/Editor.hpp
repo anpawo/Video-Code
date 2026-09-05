@@ -343,6 +343,29 @@ namespace VC
         // the pair a single step, so the gesture undoes the way it happened.
         Q_INVOKABLE bool replaceRange(QQuickTextDocument* document, int start, int end, const QString& text);
 
+        // pickExport() — where the video should be written, asked of the person.
+        // Empty when they said no. VC_EXPORT answers for a scripted run, the way
+        // VC_OPEN does for Open Scene…: the panel belongs to the system and
+        // cannot be driven, so the probe delivers the answer instead.
+        Q_INVOKABLE QString pickExport(const QString& suggested) const;
+
+        // startExport() — render `source` to `output` in a second copy of THIS
+        // binary, from `from` to `to` seconds (both -1 for the whole scene).
+        //
+        // A second process rather than a render on this thread: the editor holds
+        // a Vulkan device for the preview and Python for the scene, and an export
+        // is minutes of both. The child is the same renderer the author would
+        // have run by hand, so what comes out is what the command line makes.
+        //
+        // False when one is already running — two exports of one scene would
+        // race for the same file.
+        Q_INVOKABLE bool startExport(const QString& scenePath, const QString& source, const QString& output, double from, double to);
+
+        // cancelExport() — stop the child. What it had already written stays on
+        // disk, and `exportFinished` says so rather than leaving a half video
+        // looking finished.
+        Q_INVOKABLE void cancelExport();
+
         // applySemanticTokens() — hand the analyser's answer to the document's
         // highlighter.  A document with no highlighter is ignored rather than
         // given one: colouring is the pane's decision, not this call's.
@@ -390,6 +413,19 @@ namespace VC
         // sceneOpened() — File → Open Scene… chose this file.
         void sceneOpened(const QString& path);
 
+        // exportRequested() — File → Export Video…, or a probe asking for it.
+        // The chrome answers, because the range to render and the scene as it
+        // stands in the buffer are both its own.
+        void exportRequested();
+
+        // exportProgress() — frames written, of how many. Read off the child's
+        // own progress line: the renderer already says it, and a second count
+        // invented here could disagree with the file being written.
+        void exportProgress(int done, int total);
+
+        // exportFinished() — the child is gone, and whether the file is a video.
+        void exportFinished(bool ok, const QString& message);
+
         // folderOpened() — File → Open Folder… chose this folder, and this file
         // inside it. The folder is what the language server is rooted at.
         void folderOpened(const QString& folder, const QString& path);
@@ -413,6 +449,13 @@ namespace VC
         void dockResetRequested();
 
     private:
+
+        // The export running now, and the copy of the buffer it is rendering —
+        // written beside the author's scene so relative media paths still
+        // resolve, and removed when the child is done.
+        QProcess* _export = nullptr;
+        QString   _exportTemp;
+        QString   _exportSaid;
 
         // editorScenePath() — the file the pane opens on.
         static QString editorScenePath();

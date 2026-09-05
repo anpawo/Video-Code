@@ -32,6 +32,9 @@ Item {
     property bool ready: false
 
     signal togglePlay()
+
+    // The button in the transport bar: make a file of this.
+    signal exportAsked()
     signal seek(real seconds)
 
     // Clicking the picture is working in the picture: the caret leaves the code
@@ -136,10 +139,41 @@ Item {
             }
         }
 
+        // Beside the size and the frame rate, because that is what the button
+        // makes a file of — and it is the one thing the editor could not do at
+        // all until now.
+        Rectangle {
+            id: exportButton
+            anchors { verticalCenter: parent.verticalCenter; right: parent.right; rightMargin: 10 }
+            width: exportWord.implicitWidth + 18
+            height: 22
+            radius: Theme.radiusSmall
+            color: exportHit.containsMouse ? Theme.rail : "transparent"
+            border.width: 1
+            border.color: exportHit.containsMouse ? Theme.edge : Theme.edgeSoft
+
+            Text {
+                id: exportWord
+                anchors.centerIn: parent
+                text: "Export"
+                color: Theme.inkDim
+                font.family: Theme.ui
+                font.pixelSize: 10
+            }
+
+            MouseArea {
+                id: exportHit
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.exportAsked()
+            }
+        }
+
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            anchors.right: parent.right
-            anchors.rightMargin: 10
+            anchors.right: exportButton.left
+            anchors.rightMargin: 12
             text: root.frameWidth + "×" + root.frameHeight + "  ·  " + root.framerate + " fps"
             color: Theme.inkFaint
             font.family: Theme.mono
