@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable, Self, cast
 from videocode.template.effect.core.alignTo import alignTo
 from videocode.template.effect.core.fadeTo import fadeTo
+from videocode.template.effect.core.moveAlong import moveAlong
 from videocode.template.effect.core.moveTo import moveTo, moveBy
 from videocode.template.effect.core.rotateTo import rotateBy, rotateTo
 from videocode.template.effect.core.scaleTo import scaleBy, scaleTo
@@ -572,6 +573,19 @@ class Input(ABC):
 
     def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         return self.apply(*moveTo(self, x=x, y=y, easing=easing, start=start, duration=duration))
+
+    def moveAlong(self, path: Any, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 1.2, face: bool = False) -> Self:
+        """
+        Travel a path at an even speed — `face=True` also turns along it.
+
+            ball.moveAlong(Curve([(-6, -2), (0, 2), (6, -2)]), duration=2)
+
+        Measured by LENGTH, not by the path's points: they are dense where a
+        curve bends and sparse where it runs straight, and stepping from one to
+        the next crawls through the corners. See
+        `videocode.template.effect.core.moveAlong`.
+        """
+        return self.apply(*moveAlong(self, path, easing=easing, start=start, duration=duration, face=face))
 
     def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
         return self.apply(*moveBy(self, x=x, y=y, easing=easing, start=start, duration=duration))

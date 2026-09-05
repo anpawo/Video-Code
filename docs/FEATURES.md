@@ -352,6 +352,14 @@ Every `Input` (shape, text, group, ...) has:
 **Eased animations** (`start`, `duration`, `easing: RateFunc`):
 - `moveTo`/`moveBy`, `scaleTo`/`scaleBy`, `rotateTo`/`rotateBy`,
   `alignTo`, `fadeIn`/`fadeOut`
+- `moveAlong(path, face=False)` — travel a `Curve` (or any list of points) at
+  ONE SPEED: the walk is measured first and each frame steps the same distance
+  along it, because the points a curve is written with are dense at its bends
+  and sparse on its straights, and stepping point to point crawls through the
+  corners and bolts down the rest. `easing` shapes that speed as it shapes any
+  other animation, and `face=True` also turns the element the way it is going —
+  read from the frame before to the frame after, so a corner turns through its
+  angles rather than snapping.
 - `rotateTo`/`rotateBy`/`scaleTo`/`scaleBy` take `about=v2(x, y)` — the pivot,
   placed by hand. Without it a group derives one from `align`, a fraction of
   its own bounding box, so it can only ever name a point its content already
