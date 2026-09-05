@@ -881,7 +881,10 @@ QVariantList VC::Editor::effects()
     try {
         py::gil_scoped_acquire hold;
         const py::module       serialize = py::module::import("videocode.serialize");
-        for (const auto& item : serialize.attr("effectCatalogue")().cast<py::list>()) {
+        // Told which project, rather than left to read the process's working
+        // directory: the panel and the rest of the shell then mean the same
+        // folder by "the project" even if anything ever moves that directory.
+        for (const auto& item : serialize.attr("effectCatalogue")(projectRoot().toStdString()).cast<py::list>()) {
             const py::dict one = item.cast<py::dict>();
 
             // The parameters come across with the name: the pane asks for them
@@ -910,7 +913,7 @@ QVariantList VC::Editor::templates()
     try {
         py::gil_scoped_acquire hold;
         const py::module       serialize = py::module::import("videocode.serialize");
-        for (const auto& item : serialize.attr("templateCatalogue")().cast<py::list>()) {
+        for (const auto& item : serialize.attr("templateCatalogue")(projectRoot().toStdString()).cast<py::list>()) {
             const py::dict one = item.cast<py::dict>();
 
             QVariantList params;
@@ -935,6 +938,9 @@ QVariantList VC::Editor::templates()
                 {"says", QString::fromStdString(one["says"].cast<std::string>())},
                 {"params", params},
                 {"required", needs},
+                // A file of yours the catalogue could not use: the row is its
+                // name and the reason, and nothing can be placed from it.
+                {"broken", one["broken"].cast<bool>()},
             });
         }
     } catch (const py::error_already_set&) {

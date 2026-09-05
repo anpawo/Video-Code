@@ -187,7 +187,11 @@ Item {
                                 id: rowName
                                 anchors { left: parent.left; leftMargin: 9; verticalCenter: parent.verticalCenter }
                                 text: row.modelData.name
-                                color: Theme.ink
+                                // A file of yours the catalogue could not use is
+                                // listed too, with the reason beside it. Left
+                                // out, it reads as one you never wrote, and you
+                                // go looking for it in the folder.
+                                color: row.modelData.broken ? Theme.bad : Theme.ink
                                 font.family: Theme.mono
                                 font.pixelSize: 11
                             }
@@ -203,7 +207,7 @@ Item {
                                 }
                                 visible: width > 60
                                 text: row.modelData.says
-                                color: Theme.inkFaint
+                                color: row.modelData.broken ? Theme.bad : Theme.inkFaint
                                 font.family: Theme.ui
                                 font.pixelSize: 10
                                 elide: Text.ElideRight
@@ -213,8 +217,8 @@ Item {
                             MouseArea {
                                 id: hover
                                 anchors.fill: parent
-                                hoverEnabled: true
-                                onClicked: root.pick(row.modelData)
+                                hoverEnabled: !row.modelData.broken
+                                onClicked: if (!row.modelData.broken) root.pick(row.modelData)
                             }
                         }
                     }
