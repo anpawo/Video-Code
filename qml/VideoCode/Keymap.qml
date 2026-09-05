@@ -38,6 +38,10 @@ QtObject {
         { id: "toEnd",       label: "Go to the end",      where: "Transport", only: "outside the code pane" },
         { id: "prevFrame",   label: "Previous frame",     where: "Transport", only: "outside the code pane" },
         { id: "nextFrame",   label: "Next frame",         where: "Transport", only: "outside the code pane" },
+        // The moments the scene named with `timestamp()`. The frame keys with
+        // Shift held: the same direction, a bigger step.
+        { id: "prevMarker",  label: "Previous marker",    where: "Transport", only: "outside the code pane" },
+        { id: "nextMarker",  label: "Next marker",        where: "Transport", only: "outside the code pane" },
 
         // The range. Two keys every editor on this machine already spells the
         // same way, and one to give the whole scene back.
@@ -73,6 +77,8 @@ QtObject {
         "toEnd":      "↑",
         "prevFrame":  "←",
         "nextFrame":  "→",
+        "prevMarker": "Shift+←",
+        "nextMarker": "Shift+→",
         "markIn":     "I",
         "markOut":    "O",
         "clearMarks": "Shift+X"
