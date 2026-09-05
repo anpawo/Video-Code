@@ -12,26 +12,40 @@ YouTube — premier chapitre ailleurs qu'à 0:00, moins de trois, un de moins de
 dix secondes — le rendu le DIT, au lieu de te laisser coller une liste que
 YouTube ignore en silence.
 
-Vérifie dans le lecteur : le fichier a trois chapitres.
+Ouvre le fichier dans un lecteur qui affiche les chapitres : il y en a trois.
 """
 
-from videocode import *
+import sys
 
-Text(text="C6  ·  timestamp() → chapitres", fontSize=0.34, fillColor=WHITE).position(0, 3.4)
+sys.path.insert(0, "docs/by-example/features")
+
+from videocode import *
+from card import card
+
 
 timestamp("l'ouverture")
-un = Text(text="l'ouverture", fontSize=0.9, fillColor=WHITE).position(0, 0)
-un.fadeIn(duration=0.5)
-wait(10.5)
+
+intro = card(
+    "C6 · timestamp() → chapitres",
+    "trois moments nommés dans la scène",
+    "le rendu les écrit comme chapitres DANS le fichier",
+    "et imprime la liste à coller sous la vidéo",
+)
+
+with shot() as un:
+    Text(text="l'ouverture", fontSize=0.9, fillColor=WHITE).position(0, 0).fadeIn(duration=0.5)
+    wait(7)
 
 timestamp("le milieu")
-un.fadeOut(duration=0.4)
-deux = Text(text="le milieu", fontSize=0.9, fillColor=BLUE_C).position(0, 0)
-deux.fadeIn(duration=0.5)
-wait(10.5)
+
+with shot() as deux:
+    Text(text="le milieu", fontSize=0.9, fillColor=BLUE_C).position(0, 0).fadeIn(duration=0.5)
+    wait(10.5)
 
 timestamp("la fin")
-deux.fadeOut(duration=0.4)
-trois = Text(text="la fin", fontSize=0.9, fillColor=GREEN_A).position(0, 0)
-trois.fadeIn(duration=0.5)
-wait(10.5)
+
+with shot() as trois:
+    Text(text="la fin", fontSize=0.9, fillColor=GREEN_A).position(0, 0).fadeIn(duration=0.5)
+    wait(10.5)
+
+cut(intro, un, deux, trois)

@@ -8,14 +8,22 @@ D3 — `shot()` et `cut()` : nommer un plan, le ranger d'une ligne.
 Sans ça, une scène en trois parties est un fichier où tout ce qui apparaît
 reste à l'écran jusqu'à la fin, sauf à cacher chaque élément à la main — et une
 quatrième partie oblige à revenir sur les trois premières.
-
-`with shot() as x:` collecte ce que ses lignes fabriquent. `cut(a, b)` range
-TOUT le premier plan à l'image où le second s'ouvre.
 """
 
-from videocode import *
+import sys
 
-Text(text="D3  ·  shot() et cut()", fontSize=0.34, fillColor=WHITE).position(0, 3.4)
+sys.path.insert(0, "docs/by-example/features")
+
+from videocode import *
+from card import card
+
+
+intro = card(
+    "D3 · shot() et cut()",
+    "trois plans, chacun dans son bloc",
+    "cut(un, deux, trois) : une seule ligne",
+    "chaque plan se range à l'image où le suivant s'ouvre",
+)
 
 with shot() as un:
     Text(text="premier plan", fontSize=0.9, fillColor=WHITE).position(0, 0).fadeIn(duration=0.4)
@@ -31,5 +39,4 @@ with shot() as trois:
     Text(text="troisième plan", fontSize=0.9, fillColor=rgba(240, 180, 90)).position(0, 0).fadeIn(duration=0.4)
     wait(1.6)
 
-# Une ligne, et chaque plan s'efface là où le suivant commence.
-cut(un, deux, trois)
+cut(intro, un, deux, trois)
