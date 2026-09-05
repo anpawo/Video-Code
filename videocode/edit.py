@@ -132,6 +132,37 @@ def _pick(source: str, line: int, call: str, occurrence: int) -> ast.Call | None
     return matches[occurrence]
 
 
+def _isNumber(node: ast.expr) -> bool:
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.USub, ast.UAdd)):
+        node = node.operand
+    return isinstance(node, ast.Constant) and type(node.value) in (int, float)
+
+
+def _kept(source: str, node: ast.expr, value: str) -> str:
+    """
+    Why the value already written has to stay, or "" when it may be replaced.
+
+    `wait(PAUSE_DELAY)` says something `wait(0.4)` does not: that the pause is
+    one decision, made once and shared by thirty lines. A drag that writes `0.5`
+    over the name keeps the timing and loses the decision — silently, since the
+    scene still runs. So a number may only replace a number. A name or an
+    expression is the person's, and the gesture says so rather than doing
+    nothing: a refusal nobody hears looks exactly like a gesture that failed.
+    """
+    try:
+        float(value)
+    except ValueError:
+        return ""
+    if _isNumber(node):
+        return ""
+
+    start, end = _span(source, node)
+    text = source[start:end]
+    if isinstance(node, ast.Name):
+        return f"{text} is a name, not a number — change {text} itself"
+    return f"{text} is written as an expression — edit the line itself"
+
+
 def readArgument(source: str, line: int, call: str, name: str, occurrence: int = 0) -> str | None:
     """
     What a keyword argument is currently written as, verbatim.
@@ -176,6 +207,8 @@ def setArgument(
         start, end = _span(source, keyword.value)
         if source[start:end] == value:
             return Edit(source, False, "already that value")
+        if reason := _kept(source, keyword.value, value):
+            return Edit(source, False, reason)
         return Edit(source[:start] + value + source[end:], True)
 
     # Not there yet: written just inside the closing bracket, after whatever is
@@ -199,7 +232,7 @@ def argumentSpan(
     name: str,
     value: str,
     occurrence: int = 0,
-) -> tuple[int, int, str] | None:
+) -> tuple[int, int, str] | str | None:
     """
     The same edit as `setArgument`, expressed as a range and what to put in it.
 
@@ -210,7 +243,9 @@ def argumentSpan(
     a remove-and-insert on the document, the gesture lands in the same history
     as typing, and one ⌘Z takes it back.
 
-    `None` when the call is not there, which is a refusal, not an empty edit.
+    `None` when the call is not there, which is a refusal, not an empty edit. A
+    sentence when the value written is one the gesture may not replace — see
+    `_kept` — because that refusal is one the person has to hear.
     """
     node = _pick(source, line, call, occurrence)
     if node is None:
@@ -222,7 +257,7 @@ def argumentSpan(
         start, end = _span(source, keyword.value)
         if source[start:end] == value:
             return None
-        return start, end, value
+        return _kept(source, keyword.value, value) or (start, end, value)
 
     start, end = _span(source, node)
     closing = source.rfind(")", start, end)
@@ -242,14 +277,16 @@ def positionalSpan(
     index: int,
     value: str,
     occurrence: int = 0,
-) -> tuple[int, int, str] | None:
+) -> tuple[int, int, str] | str | None:
     """
     The same as `argumentSpan`, for an argument that has no name.
 
     `wait(0.3)` is the case that asked for it: the number is written in the
     brackets, not after an `=`, and a timeline that lets you drag a gap has to
     rewrite exactly that. Missing arguments are appended in order — `wait()`
-    takes a first positional the way `wait(0.3)` already has one.
+    takes a first positional the way `wait(0.3)` already has one. The same
+    sentence as `argumentSpan` when what is written is not the gesture's to
+    replace: `wait(PAUSE_DELAY)` keeps its name.
     """
     node = _pick(source, line, call, occurrence)
     if node is None:
@@ -259,7 +296,7 @@ def positionalSpan(
         start, end = _span(source, node.args[index])
         if source[start:end] == value:
             return None
-        return start, end, value
+        return _kept(source, node.args[index], value) or (start, end, value)
 
     # Only the argument straight after the last one written can be added: there
     # is no way to skip a slot without naming it, and guessing a name here would

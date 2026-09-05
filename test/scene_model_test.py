@@ -343,4 +343,41 @@ check("the highest layer is this scene's", Context.maxZIndex() == 50)
 model("from videocode import *\nsquare = Square(side=1)\nsquare.fadeIn()\n")
 check("and a layer from a deleted line is gone with it", Context.maxZIndex() != 50)
 
+# ── Quelle ligne, de quel fichier ──────────────────────────────────────────
+section("a line belongs to a file")
+# An element built by an imported module has a line, and it is a line of that
+# module. The editor writes by line number into the document it has open, so
+# without the file beside the number a gesture on such an element rewrites
+# whatever the scene happens to say at that number.
+with tempfile.TemporaryDirectory() as folder:
+    module = os.path.join(folder, "titles.py")
+    with open(module, "w") as out:
+        out.write(
+            "from videocode import *\n"
+            "\n"
+            "def banner():\n"
+            "    made = Square(side=1)\n"
+            "    made.fadeIn()\n"
+            "    return made\n"
+        )
+    sys.path.insert(0, folder)
+    try:
+        far = model(
+            "from videocode import *\n"
+            "from titles import banner\n"
+            "shape = banner()\n"
+            "shape.moveBy(x=1)\n"
+        )["elements"][0]
+    finally:
+        sys.path.remove(folder)
+        sys.modules.pop("titles", None)
+
+    check("the element says which file made it", far["file"] == module)
+    calls = {effect["call"]: effect["file"] for effect in far["effects"]}
+    check("the effect written in the module carries the module", calls["fadeIn"] == module)
+    check("the effect written in the scene carries the scene", calls["moveBy"] == "scene_model_test.py")
+    written = {point["call"]: point["file"] for point in far["points"]}
+    check("each place a statement could go names its file too", written["fadeIn"] == module
+          and written["moveBy"] == "scene_model_test.py")
+
 summary()

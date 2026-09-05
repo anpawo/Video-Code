@@ -314,6 +314,11 @@ def sceneModel() -> dict:
                     "name": statement["call"],
                     "call": statement["call"],
                     "line": statement["line"],
+                    # Which file that line is in. An element imported from
+                    # another module is animated by lines the open document
+                    # does not have, and a gesture that wrote them by number
+                    # would land on whatever the scene happens to say there.
+                    "file": statement["file"],
                     "start": first,
                     "end": last,
                     "kinds": sorted(statement["keys"]),
@@ -345,6 +350,7 @@ def sceneModel() -> dict:
                 "line": statement["line"],
                 "call": statement["call"],
                 "cursor": statement["cursor"],
+                "file": statement["file"],
             })
 
         # ── When it is actually on screen ─────────────────────────────────

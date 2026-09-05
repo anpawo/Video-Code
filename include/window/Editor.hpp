@@ -253,7 +253,9 @@ namespace VC
         );
 
         // argumentSpan() — the same edit as setArgument(), as a range and what
-        // goes in it: {ok, start, end, text}.
+        // goes in it: {ok, start, end, text, message}. `message` is filled when
+        // the refusal is one to show — a value written as a name or an
+        // expression, which no gesture may overwrite with a number.
         //
         // The pane applies it to its own document rather than being handed a new
         // buffer, because Qt records edits and not assignments: replacing the

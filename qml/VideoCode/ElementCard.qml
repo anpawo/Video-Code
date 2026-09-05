@@ -58,7 +58,7 @@ Item {
     signal effectWritten(var fx, string name, string value)
     signal effectJumped(var fx)
     // Off, or back on: the line is commented out rather than deleted.
-    signal effectToggled(int line, bool off)
+    signal effectToggled(int line, bool off, string file)
 
     readonly property var members: element !== null && element.members !== undefined
                                    ? element.members : []
@@ -750,7 +750,7 @@ Item {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: root.effectToggled(row.modelData.line, true)
+                                onClicked: root.effectToggled(row.modelData.line, true, row.modelData.file)
                             }
                         }
 
@@ -1021,7 +1021,7 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.effectToggled(row.modelData.line, false)
+                            onClicked: root.effectToggled(row.modelData.line, false, row.modelData.file)
                         }
                     }
 

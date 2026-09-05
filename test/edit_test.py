@@ -162,6 +162,21 @@ if span is not None:
 
 check("a slot cannot be skipped", positionalSpan(empty, 1, "wait", 2, "0.5") is None)
 
+section("a number may only replace a number — a name or an expression stays")
+NAMED = "PAUSE_DELAY = 0.4\nrect.wait(PAUSE_DELAY).fadeIn(duration=SPEED * 2)\nwait(-0.5)\n"
+kept = positionalSpan(NAMED, 2, "wait", 0, "0.5")
+check("a positional name is refused, with the reason",
+      kept == "PAUSE_DELAY is a name, not a number — change PAUSE_DELAY itself")
+kept = argumentSpan(NAMED, 2, "fadeIn", "duration", "1.5")
+check("a keyword expression is refused, with the reason",
+      kept == "SPEED * 2 is written as an expression — edit the line itself")
+edit = setArgument(NAMED, 2, "fadeIn", "duration", "1.5")
+check("setArgument says the same and changes nothing", not edit.changed and edit.source == NAMED
+      and edit.message == "SPEED * 2 is written as an expression — edit the line itself")
+check("a negative number is still a number", isinstance(positionalSpan(NAMED, 3, "wait", 0, "0.5"), tuple))
+check("a name may be written over a name", isinstance(positionalSpan(NAMED, 2, "wait", 0, "SLOW"), tuple))
+check("a string is not a number either", isinstance(positionalSpan(SOURCE, 6, "Video", 0, "12"), str))
+
 section("readPositional — an argument with no name, read back")
 check("the file a Video was made from", readPositional(SOURCE, 6, "Video", 0) == '"shot.mp4"')
 check("the seconds a wait was given", readPositional(SOURCE, 8, "wait", 0) == "0.3")
