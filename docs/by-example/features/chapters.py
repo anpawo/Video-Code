@@ -25,6 +25,12 @@ from card import card
 
 timestamp("l'ouverture")
 
+# Les titres sont posés à 0.2 et non à 0 : un texte laissé PILE à l'origine
+# dessine ses lettres l'une sur l'autre (défaut X8 — la mise en page est
+# calculée puis jetée comme une écriture sans effet). Le correctif est écrit
+# sur la branche fix/text-layout et attend un feu vert, parce qu'il déplace
+# l'empreinte des scènes de référence.
+
 intro = card(
     "C6 · timestamp() → chapitres",
     "trois moments nommés dans la scène",
@@ -33,19 +39,19 @@ intro = card(
 )
 
 with shot() as un:
-    Text(text="l'ouverture", fontSize=0.9, fillColor=WHITE).position(0, 0).fadeIn(duration=0.5)
+    Text(text="l'ouverture", fontSize=0.9, fillColor=WHITE).position(0, 0.2).fadeIn(duration=0.5)
     wait(7)
 
 timestamp("le milieu")
 
 with shot() as deux:
-    Text(text="le milieu", fontSize=0.9, fillColor=BLUE_C).position(0, 0).fadeIn(duration=0.5)
+    Text(text="le milieu", fontSize=0.9, fillColor=BLUE_C).position(0, 0.2).fadeIn(duration=0.5)
     wait(10.5)
 
 timestamp("la fin")
 
 with shot() as trois:
-    Text(text="la fin", fontSize=0.9, fillColor=GREEN_A).position(0, 0).fadeIn(duration=0.5)
+    Text(text="la fin", fontSize=0.9, fillColor=GREEN_A).position(0, 0.2).fadeIn(duration=0.5)
     wait(10.5)
 
 cut(intro, un, deux, trois)
