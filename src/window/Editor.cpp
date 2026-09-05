@@ -1029,6 +1029,38 @@ QVariantMap VC::Editor::positionalSpan(
     return QVariantMap{{"ok", false}, {"start", 0}, {"end", 0}, {"text", QString()}, {"message", QString()}};
 }
 
+QVariantMap VC::Editor::constantOffer(
+    const QString& source, int line, const QString& call, const QVariant& key, const QString& value,
+    int occurrence
+)
+{
+    QVariantMap answer{{"ok", false}, {"name", QString()}, {"start", 0}, {"end", 0}, {"text", QString()}, {"uses", 0}};
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       edit = py::module::import("videocode.edit");
+        // A keyword is named and a positional is numbered, and the one function
+        // answers both: which of the two it was is the caller's own knowledge.
+        const py::object which = key.typeId() == QMetaType::Int
+                                     ? py::cast(key.toInt())
+                                     : py::cast(key.toString().toStdString());
+        const py::object result = edit.attr("constantOffer")(
+            source.toStdString(), line, call.toStdString(), which, value.toStdString(), occurrence
+        );
+        if (result.is_none())
+            return answer;
+
+        const py::tuple offer = result.cast<py::tuple>();
+        answer["ok"] = true;
+        answer["name"] = QString::fromStdString(offer[0].cast<std::string>());
+        answer["start"] = offer[1].cast<int>();
+        answer["end"] = offer[2].cast<int>();
+        answer["text"] = QString::fromStdString(offer[3].cast<std::string>());
+        answer["uses"] = offer[4].cast<int>();
+    } catch (const py::error_already_set&) {
+    }
+    return answer;
+}
+
 QVariantMap VC::Editor::removeCallSpan(
     const QString& source, int line, const QString& call, int occurrence
 )

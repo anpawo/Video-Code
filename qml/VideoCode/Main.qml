@@ -2460,6 +2460,33 @@ ApplicationWindow {
     //
     // The edit is a range applied to the pane's own document, so the gesture is
     // in the same undo history as typing — see SourcePanel.replaceRange.
+    // A refusal, and the edit that IS allowed instead.
+    //
+    // `wait(PAUSE_DELAY)` cannot be dragged to 0.5 — that would keep the timing
+    // and throw away the decision the name stands for. But the constant's own
+    // line can be changed, and that is what the person meant every time they
+    // aimed at a value they had given a name. So the sentence becomes a button:
+    // it says what will change and how many places read it, and it goes on its
+    // own if it is not taken. Said, never done quietly — changing one number
+    // that thirty lines share is not a thing to do behind someone's back.
+    function offerConstant(line, call, key, value) {
+        const offer = Shell.constantOffer(source.text, line, call, key, value);
+        if (!offer.ok)
+            return false;
+
+        source.offer(
+            offer.name + " → " + value + ", read on " + offer.uses
+            + (offer.uses === 1 ? " line" : " lines") + " · click to change it",
+            () => {
+                if (!source.replaceRange(offer.start, offer.end, offer.text))
+                    return;
+                app.executeScene();
+                source.say(offer.name + " is now " + value);
+            }
+        );
+        return true;
+    }
+
     function writeOn(line, call, name, value, file) {
         if (line === undefined || line <= 0 || call === undefined || call.length === 0)
             return false;
@@ -2468,7 +2495,8 @@ ApplicationWindow {
 
         const span = Shell.argumentSpan(source.text, line, call, name, value);
         if (!span.ok) {
-            source.say(span.message.length > 0 ? span.message : "could not write " + name);
+            if (!app.offerConstant(line, call, name, value))
+                source.say(span.message.length > 0 ? span.message : "could not write " + name);
             return false;
         }
         if (!source.replaceRange(span.start, span.end, span.text))
@@ -3236,7 +3264,8 @@ ApplicationWindow {
 
             const span = Shell.positionalSpan(source.text, line, "wait", 0, value.toString());
             if (!span.ok) {
-                source.say(span.message.length > 0 ? span.message : "could not write that wait");
+                if (!app.offerConstant(line, "wait", 0, value.toString()))
+                    source.say(span.message.length > 0 ? span.message : "could not write that wait");
                 return;
             }
 

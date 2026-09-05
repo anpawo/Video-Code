@@ -163,6 +163,70 @@ def _kept(source: str, node: ast.expr, value: str) -> str:
     return f"{text} is written as an expression — edit the line itself"
 
 
+def constantOffer(
+    source: str,
+    line: int,
+    call: str,
+    key: str | int,
+    value: str,
+    occurrence: int = 0,
+) -> tuple[str, int, int, str, int] | None:
+    """
+    The name a gesture was refused for, and where that name's own value is written.
+
+    A refusal that only says no leaves the person to go and find
+    `PAUSE_DELAY = 0.4` themselves — and the edit they wanted is one character
+    away from the one they are allowed to make. So the shell can offer the other
+    one: the constant's own line, with the number of places that read it, because
+    changing it changes all of them and that is the whole reason it has a name.
+
+    `key` is the keyword's name, or the index of a positional. `None` unless the
+    argument really is a plain name assigned a plain number at the top level of
+    this file — anything cleverer is a decision no gesture should be making.
+    """
+    node = _pick(source, line, call, occurrence)
+    if node is None:
+        return None
+
+    target: ast.expr | None = None
+    if isinstance(key, int):
+        if key < len(node.args):
+            target = node.args[key]
+    else:
+        for keyword in node.keywords:
+            if keyword.arg == key:
+                target = keyword.value
+    if not isinstance(target, ast.Name):
+        return None
+
+    try:
+        float(value)
+    except ValueError:
+        return None
+
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return None
+
+    for statement in tree.body:
+        if not isinstance(statement, ast.Assign) or len(statement.targets) != 1:
+            continue
+        assigned = statement.targets[0]
+        if not isinstance(assigned, ast.Name) or assigned.id != target.id:
+            continue
+        if not _isNumber(statement.value):
+            continue
+        start, end = _span(source, statement.value)
+        uses = sum(
+            1
+            for found in ast.walk(tree)
+            if isinstance(found, ast.Name) and found.id == target.id and isinstance(found.ctx, ast.Load)
+        )
+        return target.id, start, end, value, uses
+    return None
+
+
 def readArgument(source: str, line: int, call: str, name: str, occurrence: int = 0) -> str | None:
     """
     What a keyword argument is currently written as, verbatim.

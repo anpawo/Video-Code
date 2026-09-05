@@ -573,6 +573,24 @@ Item {
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
                                 }
+
+                                // How many things one line made. A loop, or a
+                                // word made of letters: the row is folded, and
+                                // without this the bar claims to be one clip
+                                // while every gesture on it moves three. Said
+                                // here rather than only inside the card,
+                                // because the bar is what a hand aims at.
+                                Text {
+                                    readonly property int count:
+                                        lane.modelData.members !== undefined
+                                        ? lane.modelData.members.length : 0
+                                    visible: count > 0
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "×" + count
+                                    color: Qt.rgba(0.04, 0.06, 0.09, 0.55)
+                                    font.family: Theme.mono
+                                    font.pixelSize: 10
+                                }
                             }
                         }
 
