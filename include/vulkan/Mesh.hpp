@@ -48,6 +48,23 @@ struct ActiveEffect
     ShaderBox anchorBox{0.f, 0.f, 1.f, 1.f};
 };
 
+// The scene camera, resolved for ONE draw and pushed to the vertex stage as a
+// vec4: gl_Position.xy = (ndc - centre) * zoom. Per-draw rather than per-frame
+// because a pinToFrame() mesh takes the identity in the middle of a moving
+// scene — and so does every composite quad, whose layer already had the camera
+// applied when it was drawn.
+//
+// The default IS the identity, and exactly: (v - 0) * 1 is bit-for-bit v, so a
+// scene with no camera renders byte-identically to one built before cameras
+// existed.
+struct Camera2D
+{
+    float centreX = 0.f; // where the camera looks, in NDC
+    float centreY = 0.f;
+    float zoomX = 1.f;
+    float zoomY = 1.f;
+};
+
 struct Mesh
 {
     std::vector<Vertex>       vertices;
@@ -68,6 +85,12 @@ struct Mesh
     // referenced as a source get isolated into an EffectResultSlot; a 2-sampler
     // combine pass then masks the consumer — see the renderers' matte phase.
     int matteSourceInputIndex = -1;
+    // The camera this mesh is drawn through — the scene's, or the identity when
+    // Metadata::pinnedToFrame excused it. Resolved by Core (the only place that
+    // can see both the camera input and this mesh's own input) so the renderers
+    // just push what they are handed.
+    Camera2D camera;
+
     // Copied from Metadata::isAdjustmentLayer. When true this mesh is never
     // drawn directly; instead the renderer flattens every mesh below it in
     // z-order and runs this mesh's `effects` chain over that composite. See the

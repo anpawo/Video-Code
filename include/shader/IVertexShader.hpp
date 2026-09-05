@@ -41,6 +41,7 @@ enum class VertexShader {
     BlendMode,
     Matte,
     AdjustmentLayer,
+    PinToFrame,
 
     // -
 
@@ -61,6 +62,7 @@ const std::map<std::string, VertexShader> getTransformFromString = {
     {"BlendMode", VertexShader::BlendMode},
     {"Matte", VertexShader::Matte},
     {"AdjustmentLayer", VertexShader::AdjustmentLayer},
+    {"PinToFrame", VertexShader::PinToFrame},
 };
 
 inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size2f& size, const Metadata& meta)
@@ -209,6 +211,12 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
             // `source` is the target input's index (Python meta.index), already
             // 1:1 with the C++ _inputs[] position — a plain int reference.
             meta.matteSource = args.at("source").get<int>();
+            break;
+        }
+        case VertexShader::PinToFrame: {
+            // Presence is the whole signal — no args, same shape as
+            // AdjustmentLayer. Excuses this input from the scene camera.
+            meta.pinnedToFrame = true;
             break;
         }
         case VertexShader::AdjustmentLayer: {

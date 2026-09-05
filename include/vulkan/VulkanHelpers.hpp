@@ -23,7 +23,17 @@
 #include <string>
 #include <vector>
 
+#include "vulkan/Mesh.hpp"
 #include "vulkan/ShaderCompiler.hpp"
+
+// The scene camera reaches the geometry vertex shader as a push constant — per
+// DRAW, because a pinToFrame() mesh and every composite quad take the identity
+// while the rest of the frame moves. Every draw on the geometry pipeline layout
+// must push one: a push constant nobody wrote is undefined, not zero.
+inline void pushCamera(VkCommandBuffer cb, VkPipelineLayout layout, const Camera2D& camera)
+{
+    vkCmdPushConstants(cb, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Camera2D), &camera);
+}
 
 // Explicit image memory barrier between effect passes.
 // More reliable than subpass external dependencies on MoltenVK / Metal.
@@ -136,6 +146,9 @@ namespace VC
     {
         VkDeviceSize zero = 0;
         vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+        // Identity: this quad carries a layer that was ALREADY drawn through
+        // the camera. Applying it a second time would zoom the picture twice.
+        pushCamera(cb, layout, {});
         vkCmdBindVertexBuffers(cb, 0, 1, &vtx, &zero);
         vkCmdBindIndexBuffer(cb, idx, 0, VK_INDEX_TYPE_UINT32);
         vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 1, 1, &resultSet, 0, nullptr);

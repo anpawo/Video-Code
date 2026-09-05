@@ -65,6 +65,12 @@ class Metadata:
         # plain int (Metadata.matteSource, -1 = none).
         self.matteSource: int | None = None
 
+        # --- Pinned to the frame ---
+        # When True the scene camera never moves this input: it is drawn where
+        # the frame says, not where the world does (see
+        # shader/vertexShader/pinToFrame.py). Subtitles, watermarks.
+        self.pinnedToFrame: bool = False
+
         # --- Adjustment layer ---
         # When True this input is never drawn on its own; its fragment effects
         # grade the flattened composite of everything below its zIndex (see

@@ -155,6 +155,12 @@ namespace VC
         ///< metadata → mesh path and memoised.
         const ShaderBox& anchorBoxFor(size_t inputIndex, size_t since);
 
+        ///< The scene's camera at a given frame, or the identity when no
+        ///< scene input is one. Found by a scan rather than remembered: the
+        ///< input set is rebuilt on every reload, and a stale index there
+        ///< would point the camera at whatever took its slot.
+        Camera2D cameraAt(size_t frame) const;
+
     public:
 
         ///< True only when generateMeshes() actually rebuilt the meshes this call
