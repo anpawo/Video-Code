@@ -166,9 +166,9 @@
     <h1>Chantier Video-Code</h1>
     <span class="branch">feat/night-2026-09-03</span>
     <span class="chips">
-      <span class="chip"><b>35</b> livrés</span>
-      <span class="chip"><b>11</b> à faire</span>
-      <span class="chip"><b>59</b> tests</span>
+      <span class="chip"><b>36</b> livrés</span>
+      <span class="chip"><b>10</b> à faire</span>
+      <span class="chip"><b>60</b> tests</span>
       <span class="chip"><b>51</b> scènes</span>
     </span>
     <span class="stamp">5 sept.</span>
@@ -178,8 +178,9 @@
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <span class="n">15</span></h2>
+        <h2>Needs your check <span class="n">16</span></h2>
         <ul class="rows">
+          <li data-b="<code>moveAlong(path)</code> parcourt une courbe à UNE vitesse : la marche est mesurée d'abord, et chaque image est un pas de la même LONGUEUR.|Sur un trajet écrit avec un point au centième du chemin, les pas sortent à 0,344–0,345 au lieu de 0,1 puis tout le reste.|<code>face=True</code> tourne l'objet dans le sens de la marche, lu de l'image d'avant à celle d'après — un virage tourne par ses angles au lieu de claquer.|À vérifier : rends une scène en zigzag et regarde la flèche."><span class="id">A5</span><span class="lbl"><code>moveAlong(path)</code></span><span class="meta">move-along</span></li>
           <li data-b="Déplacer et zoomer l'image entière — une matrice dans l'étage sommet, pas un composite de toute la scène.|Mesuré : à zoom 2, un marqueur à 2 unités passe de 240 à 480 px du centre ET double de taille ; <code>pinToFrame()</code> garde son pixel et sa taille à travers les deux.|Une scène qui ne mentionne jamais la caméra atteint le C++ exactement comme avant, indices compris.|À vérifier : les pixels du panneau d'aperçu ne sont pas mesurés — aucune fenêtre ne peut s'ouvrir, et le changement y est ligne pour ligne celui du rendu sans écran."><span class="id">A2</span><span class="lbl">La caméra</span><span class="meta">camera</span></li>
           <li data-b="<code>with shot() as intro:</code> nomme une tranche du film, et tout ce qui est fabriqué dedans lui appartient (un shot dans un shot appartient aux deux).|<code>cut(intro, body)</code> range TOUT le premier à l'image où le second s'ouvre — au lieu de cacher chaque élément de chaque section à la main.|Coupe franche seulement : un fondu enchaîné demande que les deux shots se fondent comme des calques, sinon ils se traversent. Ça attend A1.|À vérifier : écris une scène en trois shots et regarde la timeline."><span class="id">D3</span><span class="lbl">Nommer un plan, couper vers le suivant</span><span class="meta">shots</span></li>
           <li data-b="<code>BarChart(data)</code> et <code>Leaderboard(rows)</code> : une barre par ligne, l'étiquette dessous, la valeur DESSUS.|<code>grow()</code> écrit la valeur avec la même rampe que sa barre — le nombre monte avec le sommet au lieu de rester où il était, ce que tout graphique écrit à la main rate.|<code>fromCSV</code> lit un fichier et refuse une cellule invalide en la situant à la ligne.|À vérifier : rends une scène avec un Leaderboard et regarde les nombres pendant la croissance."><span class="id">D6</span><span class="lbl">Graphiques à barres</span><span class="meta">bar-chart</span></li>
@@ -242,11 +243,11 @@
       </div>
 
       <div class="card todo">
-        <h2>To do · the rest <span class="n">3</span></h2>
+        <h2>To do · the rest <span class="n">2</span></h2>
         <ul class="rows">
           
           
-          <li data-b="Envoyer un objet le long d'une courbe dessinée, tourné dans le sens de la marche.|Presque tout existe : les points, la table par image, l'index adouci.|Il manque l'échantillonnage par longueur d'arc."><span class="id">A5</span><span class="lbl"><code>moveAlong(path)</code></span><span class="meta">½ j</span></li>
+          
           
           
           
