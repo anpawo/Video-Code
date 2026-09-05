@@ -110,6 +110,13 @@ check:
 		exit 1; \
 	fi
 	@ printf "  no new visual regressions, no stale exemptions\n"
+	@# The preview half of the renderer, which nothing else looks at: it draws
+	@# the same scenes as --visual-test and is compared to them, on a window
+	@# that is never shown. Two seconds, and it is the only thing standing
+	@# between the two renderers and a silent drift.
+	@ printf "\n→ the preview widget against the headless renderer\n"
+	@ ./video-code --check-widget
+
 	@ printf "\n→ C++ unit tests\n"
 	@ cmake --build build --target video-code-tests > /dev/null && ./build/video-code-tests
 	@ printf "\n→ what the scenes ask the renderer to do\n"
