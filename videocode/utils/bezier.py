@@ -222,6 +222,26 @@ class Easing:
     # fmt: on
 
 
+def curves() -> dict[str, tuple[number, number, number, number]]:
+    """
+    Every `Easing` preset that IS a curve, spelled the way a scene writes it.
+
+    `{"Easing.Out": (0.0, 0.0, 0.58, 1.0), ...}` — the four control points
+    behind each named preset. A preset and a curve pulled by hand are the same
+    `CubicBezier`, which is what lets the editor open its curve ON `Easing.Out`
+    and drag away from it; read from the class rather than listed, so a preset
+    added above reaches the editor with no second edit.
+
+    The `Func` easings are absent on purpose: `Easing.Wiggle` is a function, and
+    a function has no handles to show.
+    """
+    return {
+        f"Easing.{name}": (curve.x1, curve.y1, curve.x2, curve.y2)
+        for name, curve in vars(Easing).items()
+        if isinstance(curve, CubicBezier)
+    }
+
+
 type easing = RateFunc
 
 

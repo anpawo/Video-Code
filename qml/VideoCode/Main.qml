@@ -1914,6 +1914,7 @@ ApplicationWindow {
                 app.writeOn(fx.line, fx.call, name, value, fx.file);
         }
         onEffectJumped: (fx) => app.revealLine(fx.line)
+        onSays: (sentence) => source.say(sentence)
         onEffectToggled: (line, off, file) => app.toggleLine(line, off, file)
     }
 

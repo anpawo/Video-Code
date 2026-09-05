@@ -823,6 +823,11 @@ Easing curves (`videocode/utils/bezier.py`):
   `Easing.Elastic` (springy oscillation), `Easing.Bounce` (gravity bounces)
 - Custom rate functions: `Func(lambda t: ...)` wraps any `t in [0,1] -> m`
   callable as a `RateFunc`, usable anywhere `easing=` is accepted.
+- Hand-drawn curves: `easing=CubicBezier(0.2, 0.9, 0.8, 0.1)` — the four
+  control points, the same thing a preset is. The editor's curve on an effect
+  row writes exactly that, and `curves()` is where it reads the presets from:
+  every `Easing` that IS a `CubicBezier`, spelled as a scene writes it
+  (`{"Easing.Out": (0.0, 0.0, 0.58, 1.0), ...}`).
 
 ---
 
