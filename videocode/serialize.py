@@ -471,7 +471,9 @@ def effectCatalogue(root: str | None = None) -> list[dict]:
                     found[name] = module.name
                     forms[name], signatures[name] = _effectForm(name, value, Input)
 
-    for where, loaded in _projectTemplates(root):
+    for where, loaded, _ in _projectTemplates(root):
+        if loaded is None:
+            continue
         for name, value in vars(loaded).items():
             if inspect.isfunction(value) and value.__module__ == where and not name.startswith("_"):
                 if name not in found:
@@ -607,7 +609,7 @@ def templateCatalogue(root: str | None = None) -> list[dict]:
         found.append({
             "name": name, "group": group, "module": "",
             "says": described(value), "params": parameters(value),
-            "required": required(value),
+            "required": required(value), "broken": False,
         })
 
     # And the composite ones, which are NOT in the star import — `Arrow` lives
@@ -627,7 +629,7 @@ def templateCatalogue(root: str | None = None) -> list[dict]:
             found.append({
                 "name": name, "group": group, "module": where,
                 "says": described(value), "params": parameters(value),
-                "required": required(value),
+                "required": required(value), "broken": False,
             })
 
     for module in pkgutil.walk_packages(templates.__path__, templates.__name__ + "."):
@@ -637,17 +639,27 @@ def templateCatalogue(root: str | None = None) -> list[dict]:
             continue
         classesIn(module.name, loaded, "template")
 
-    for where, loaded in _projectTemplates(root):
-        classesIn(where, loaded, "yours")
+    # A file of yours that cannot be used gets a row of its own saying why. Left
+    # out, it is indistinguishable from one you have not written yet — and the
+    # place you look for it is the panel, not the terminal the editor was
+    # launched from.
+    for where, loaded, trouble in _projectTemplates(root):
+        if loaded is not None:
+            classesIn(where, loaded, "yours")
+        if trouble:
+            found.append({
+                "name": where.split(".")[-1] + ".py", "group": "yours", "module": "",
+                "says": trouble, "params": [], "required": [], "broken": True,
+            })
 
     found.sort(key=lambda t: (t["group"], t["name"]))
     return found
 
 
-def _projectTemplates(root: str | None) -> list[tuple[str, object]]:
+def _projectTemplates(root: str | None) -> list[tuple[str, object | None, str]]:
     """
     The project's own pack: every `<root>/templates/*.py`, loaded, with the name
-    the editor will write for it.
+    the editor will write for it — and, when there is one, what is wrong with it.
 
     Named `templates.<file>` rather than by path because that is the import the
     scene resolves — the project root is `sys.path[0]` (Main.cpp puts it there),
@@ -657,17 +669,38 @@ def _projectTemplates(root: str | None) -> list[tuple[str, object]]:
     `templates.LowerThird` means. Loaded by path here, not through the import
     system, so a test can point at any folder without touching `sys.path`.
 
-    A file that does not import is said on stderr and left out, never raised:
-    one broken template must not take the whole panel down with the others.
+    A file that does not import is said rather than raised: one broken template
+    must not take the whole panel down with the others. Said, and not merely
+    dropped — a file that vanishes without a word is one you go looking for in
+    the folder, sure you wrote it. The complaint travels back with the module so
+    the panel can show it where you were expecting the template; it is printed
+    here as well, for the runs that have no panel.
     """
     import importlib.util
+    import inspect
     import os
+
+    from videocode.input.input import Input
+
+    def offersSomething(where: str, loaded) -> bool:
+        # What either catalogue could take from it: an `Input` to place, or a
+        # public function to apply. Anything else is a file the panel will never
+        # show, which is worth saying out loud — but `templates/presets.py`,
+        # which is only effects, is NOT that, and must never be flagged.
+        for name, value in vars(loaded).items():
+            if name.startswith("_") or getattr(value, "__module__", "") != where:
+                continue
+            if inspect.isfunction(value):
+                return True
+            if inspect.isclass(value) and issubclass(value, Input) and not inspect.isabstract(value):
+                return True
+        return False
 
     folder = os.path.join(root or os.getcwd(), "templates")
     if not os.path.isdir(folder):
         return []
 
-    out: list[tuple[str, object]] = []
+    out: list[tuple[str, object | None, str]] = []
     for entry in sorted(os.listdir(folder)):
         if not entry.endswith(".py") or entry.startswith("_"):
             continue
@@ -679,9 +712,14 @@ def _projectTemplates(root: str | None) -> list[tuple[str, object]]:
         try:
             spec.loader.exec_module(loaded)
         except Exception as error:
-            print(f"templates/{entry} is not listed: {type(error).__name__}: {error}", file=sys.stderr)
+            trouble = f"{type(error).__name__}: {error}"
+            print(f"templates/{entry} is not listed: {trouble}", file=sys.stderr)
+            out.append((where, None, trouble))
             continue
-        out.append((where, loaded))
+        trouble = "" if offersSomething(where, loaded) else "no Input subclass and no effect in it"
+        if trouble:
+            print(f"templates/{entry} is not listed: {trouble}", file=sys.stderr)
+        out.append((where, loaded, trouble))
     return out
 
 

@@ -292,6 +292,8 @@ with open(os.path.join(project, "templates", "presets.py"), "w") as f:
     )
 with open(os.path.join(project, "templates", "Broken.py"), "w") as f:
     f.write("raise RuntimeError('half written')\n")
+with open(os.path.join(project, "templates", "notes.py"), "w") as f:
+    f.write("from videocode import *\nWIDTH = 3\n")
 
 complaints = io.StringIO()
 with contextlib.redirect_stderr(complaints):
@@ -308,15 +310,31 @@ check("and a colour default is still named",
 check("what it says about itself is its docstring",
       yours["LowerThird"]["says"] == "A name and a title, bottom left.")
 check("the name it needs is the one with no default", yours["LowerThird"]["required"] == ["name"])
+check("and nothing is wrong with it", yours["LowerThird"].get("broken") is False)
 check("what shipped is still there beside it", yours["Arrow"]["group"] == "template")
 
 check("a preset is an effect", "myPop" in presets and presets["myPop"]["form"] == "effect")
 check("with the module it lives in", presets["myPop"]["module"] == "templates.presets")
 check("a private helper is nobody's business", "_helper" not in presets)
 
-check("a broken file is left out", "Broken" not in yours)
-check("and said, not raised", "templates/Broken.py" in complaints.getvalue()
-      and "half written" in complaints.getvalue())
+# A file that cannot be used is LISTED, with the reason where the docstring
+# would be. Dropped silently it reads as one you never wrote, and the folder is
+# the last place you would think to look — the panel is where you expect it.
+broken = yours.get("Broken.py", {})
+check("a file that does not import is named, not silently missing",
+      broken.get("broken") is True and "half written" in broken.get("says", ""))
+check("and nothing can be placed from it",
+      broken.get("module") == "" and broken.get("params") == [] and broken.get("required") == [])
+check("under your own heading, where you went looking for it", broken.get("group") == "yours")
+check("said on stderr as well, for the runs with no panel",
+      "templates/Broken.py" in complaints.getvalue() and "half written" in complaints.getvalue())
+check("the class it never defined is still not offered", "Broken" not in yours)
+
+empty = yours.get("notes.py", {})
+check("a file with no Input subclass and no effect says so too",
+      empty.get("broken") is True and "no Input subclass" in empty.get("says", ""))
+check("a file of presets is not one of those — its effects are the point",
+      "presets.py" not in yours)
 
 # The import the editor writes has to resolve from the project root — which is
 # `sys.path[0]` when the editor runs — with no `__init__.py` in the folder.
