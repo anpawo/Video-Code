@@ -182,6 +182,17 @@ plain = model("from videocode import *\nr = Rectangle()\nr.fadeOut(duration=1)\n
 check("nothing instant after the wait: unchanged",
       plain["frames"] == 2 * FPS and [w["start"] for w in plain["waits"]] == [FPS])
 
+# ── The moments the author named ───────────────────────────────────────────
+section("a timestamp reaches the editor with its name and its frame")
+# Written for years, drawn nowhere: the model dropped them on the way out.
+named = model("from videocode import *\ntimestamp('start')\nRectangle()\nwait(1)\ntimestamp('after the wait')\nwait(1)\n")
+check("both are reported, in order",
+      [m["name"] for m in named["markers"]] == ["start", "after the wait"])
+check("at the frame the cursor was on",
+      [m["frame"] for m in named["markers"]] == [0, FPS])
+check("a scene with none says so, rather than nothing",
+      model("from videocode import *\nRectangle()\n")["markers"] == [])
+
 # ── Where a new statement can go ───────────────────────────────────────────
 section("every element carries the lines that touched it")
 points = model(

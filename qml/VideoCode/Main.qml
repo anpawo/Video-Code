@@ -54,7 +54,7 @@ ApplicationWindow {
     // all. It is the wrong thing now: the timeline is a picture OF THE CODE, and
     // a picture of something else is worse than no picture, because it is read
     // as an answer. The empty state says what to press instead.
-    readonly property var emptyScene: ({ duration: 0, elements: [], waits: [] })
+    readonly property var emptyScene: ({ duration: 0, elements: [], waits: [], markers: [] })
 
     property int selectedIndex: -1
     property real playhead: 0
@@ -78,6 +78,9 @@ ApplicationWindow {
             out.push(gap.at);
             out.push(gap.at + gap.d);
         }
+        // A marker is a moment the author named on purpose.
+        for (const mark of (shownScene.markers !== undefined ? shownScene.markers : []))
+            out.push(mark.at);
         out.push(playhead);
         if (markIn >= 0) out.push(markIn);
         if (markOut >= 0) out.push(markOut);
@@ -141,6 +144,33 @@ ApplicationWindow {
         markIn = -1;
         markOut = -1;
         source.say("the whole scene again");
+    }
+
+    // ── The moments the scene named ───────────────────────────────────────
+    // A `timestamp()` is a place the author decided was worth coming back to,
+    // so it is somewhere to jump to as well as something to look at. Half a
+    // frame of slack, because a playhead the last jump parked exactly ON a
+    // marker would otherwise count it as the next one and never leave it.
+    //
+    // It says the name it landed on: on a crowded ruler the name beside a flag
+    // is elided, and a jump that moves the playhead silently is a jump you have
+    // to work out for yourself.
+    function jumpToMarker(direction) {
+        const slack = 0.5 / (execFps > 0 ? execFps : 30);
+        let best = null;
+        for (const mark of (shownScene.markers !== undefined ? shownScene.markers : [])) {
+            const ahead = (mark.at - playhead) * direction;
+            if (ahead > slack && (best === null || ahead < (best.at - playhead) * direction))
+                best = mark;
+        }
+        if (best === null) {
+            source.say(direction > 0 ? "no marker after this one" : "no marker before this one");
+            return;
+        }
+        // Placing the playhead stops play, the way scrubbing to it does.
+        playing = false;
+        playhead = best.at;
+        source.say(best.n);
     }
 
     readonly property var selectedElement:
@@ -2082,6 +2112,12 @@ ApplicationWindow {
             says: w.frames / fps,
             line: w.line
         }));
+        // The moments the scene named with `timestamp()`. Flags on the ruler,
+        // and stops for the marker keys.
+        const markers = (model.markers || []).map((m) => ({
+            at: m.frame / fps,
+            n: m.name
+        }));
         let rows = [];
         let byLine = ({});
 
@@ -2145,7 +2181,7 @@ ApplicationWindow {
             rows.push(one);
         }
 
-        return { duration: model.frames / fps, elements: rows, waits: waits };
+        return { duration: model.frames / fps, elements: rows, waits: waits, markers: markers };
     }
 
     // The message a warning left on one source line, or "".
@@ -3178,6 +3214,16 @@ ApplicationWindow {
         sequence: Keymap.sequence("nextFrame")
         enabled: !source.typing
         onActivated: app.playhead = Math.min(app.shownScene.duration, app.playhead + 1 / preview.framerate)
+    }
+    Shortcut {
+        sequence: Keymap.sequence("prevMarker")
+        enabled: !source.typing
+        onActivated: app.jumpToMarker(-1)
+    }
+    Shortcut {
+        sequence: Keymap.sequence("nextMarker")
+        enabled: !source.typing
+        onActivated: app.jumpToMarker(1)
     }
     // The range. `I` and `O` are the two keys every editor on this machine
     // spells the same way, and the third gives the whole scene back.

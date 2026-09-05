@@ -688,7 +688,15 @@ Item {
             x: root.pad
             y: flick.contentY
             width: root.contentWidth
-            height: 28
+            // Two storeys: the markers' names along the top, the seconds along
+            // the bottom over their ticks. One storey and a name landed on a
+            // stamp every even second.
+            //
+            // The upper storey only exists when a scene named a moment. This is
+            // the panel whose height IS its usefulness, and twelve pixels off
+            // every lane forever, to hold a row that is empty, is twelve pixels
+            // taken from the thing the panel is for.
+            height: root.scene.markers !== undefined && root.scene.markers.length > 0 ? 40 : 28
             z: 5
             color: Theme.rail
 
@@ -724,7 +732,7 @@ Item {
                         x: parent.index === 0
                            ? Math.max(-stamp.implicitWidth / 2, -root.pad + 2)
                            : -stamp.implicitWidth / 2
-                        anchors.verticalCenter: parent.verticalCenter
+                        anchors { bottom: parent.bottom; bottomMargin: 7 }
                         text: {
                             const m = Math.floor(parent.index / 60);
                             const s = parent.index % 60;
@@ -733,6 +741,74 @@ Item {
                         color: Theme.inkFaint
                         font.family: Theme.mono
                         font.pixelSize: 11
+                    }
+                }
+            }
+
+            // ── The moments the scene named ───────────────────────────────
+            // Every `timestamp()` in the code, as a flag on the ruler with its
+            // name beside it. Ink, not a hue: on this timeline a colour is a
+            // claim — red for a wait that moves what follows, orange for the
+            // playhead, green for the range — and a marker claims nothing. It
+            // is a note the author left, so it reads a step above the second
+            // stamps and stays under everything that has a colour.
+            //
+            // The name gives way to the next flag rather than running under
+            // it: two names on top of each other are no name at all.
+            Repeater {
+                model: root.scene.markers !== undefined ? root.scene.markers : []
+
+                Item {
+                    id: flag
+                    required property var modelData
+                    required property int index
+                    x: modelData.at * root.pxPerSecond
+                    width: 1
+                    height: ruler.height
+                    // How much of the name fits: the gap to the next flag, less
+                    // the 10 px this one is offset by and 6 px of air before
+                    // the next triangle. Without that air the last letter and
+                    // the next flag touch, and the two read as one word.
+                    readonly property real room: {
+                        const all = root.scene.markers;
+                        return index + 1 < all.length
+                               ? (all[index + 1].at - modelData.at) * root.pxPerSecond - 16
+                               : 1e9;
+                    }
+
+                    Rectangle {
+                        width: 1
+                        height: ruler.height - 2
+                        y: 2
+                        color: Qt.alpha(Theme.inkDim, 0.5)
+                    }
+
+                    Canvas {
+                        x: 1; y: 2
+                        width: 6; height: 7
+                        onPaint: {
+                            const ctx = getContext("2d");
+                            ctx.reset();
+                            ctx.fillStyle = Theme.inkDim;
+                            ctx.beginPath();
+                            ctx.moveTo(0, 0);
+                            ctx.lineTo(width, height / 2);
+                            ctx.lineTo(0, height);
+                            ctx.closePath();
+                            ctx.fill();
+                        }
+                    }
+
+                    Text {
+                        x: 10
+                        y: 1
+                        width: Math.max(0, Math.min(implicitWidth, flag.room))
+                        visible: flag.room > 12
+                        elide: Text.ElideRight
+                        text: flag.modelData.n
+                        color: Theme.inkDim
+                        font.family: Theme.mono
+                        font.pixelSize: 9
                     }
                 }
             }
