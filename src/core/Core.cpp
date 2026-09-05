@@ -447,7 +447,11 @@ const std::vector<Mesh>& VC::Core::generateMeshes()
                 // spans (wait(stop=Clock.VIDEOS)/freeze) subtract out here;
                 // frameIndex's only consumer is Video::getMesh.
                 meta.frameIndex = renderIndex - ClockStops::pausedBefore(_clockStops.videos, renderIndex);
-                if (!meta.hidden && meta.opacity != 0) {
+                // A comp layer is emitted even hidden or at opacity 0: its
+                // members are drawn ONLY through it, so dropping the layer
+                // would orphan them and they would reappear at full strength.
+                // Both states ride on compOpacity below instead.
+                if (meta.isComp || (!meta.hidden && meta.opacity != 0)) {
                     auto mesh = i->getMesh(meta, _config);
                     if (auto* a = dynamic_cast<AInput*>(i.get())) {
                         mesh.effects = a->getActiveEffectsAtFrame(renderIndex, _clockStops);
@@ -473,6 +477,9 @@ const std::vector<Mesh>& VC::Core::generateMeshes()
                     mesh.inputIndex = static_cast<int>(&i - &_inputs[0]);
                     mesh.matteSourceInputIndex = meta.matteSource;
                     mesh.isAdjustmentLayer = meta.isAdjustmentLayer;
+                    mesh.isComp = meta.isComp;
+                    mesh.compIndex = meta.compIndex;
+                    mesh.compOpacity = meta.hidden ? 0.f : meta.opacity / 255.f;
                     // pinToFrame() is spent here: the mesh keeps the identity
                     // and the vertex stage never learns the scene moved.
                     mesh.camera = meta.pinnedToFrame ? Camera2D{} : sceneCamera;

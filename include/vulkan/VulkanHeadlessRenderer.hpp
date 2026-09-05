@@ -184,6 +184,19 @@ namespace VC
         // adjustment layers, and the whole feature is a no-op (main pass unchanged).
         std::vector<size_t> m_adjustmentMeshPositions;
 
+        // Comp plumbing. A comp layer (Mesh::isComp) renders as ONE layer: the
+        // meshes whose compIndex names it are flattened into the comp's own
+        // EffectResultSlot instead of onto the frame, graded by the comp's
+        // effect chain, faded by compOpacity, and composited once at the comp
+        // mesh's own z-position. m_compMembers maps a comp layer's MESH
+        // position to its members', ascending (built over the already z-sorted
+        // mesh list, so draw order inside the comp is preserved);
+        // m_compMemberPositions is the flat set, excluded from every draw that
+        // is not its comp's flatten. Empty = no comps, and the whole feature is
+        // a no-op.
+        std::unordered_map<size_t, std::vector<size_t>> m_compMembers;
+        std::unordered_set<size_t>                      m_compMemberPositions;
+
         // ── Effect (fragment shader) post-process infrastructure ──────────────
 
         // Render pass: transparent clear, SHADER_READ_ONLY_OPTIMAL final (1 sample)
@@ -370,15 +383,22 @@ namespace VC
         // array to bind from (m_pipelines works in both passes here — it is
         // format/sample-compatible with m_effectPass; see recordEffectGeomPass).
         void recordMeshRange(VkCommandBuffer cb, size_t begin, size_t end, const std::unordered_map<size_t, size_t>& effectSlotForMesh, const VkPipeline* pipelines);
+        // One mesh of that loop: raw geometry, or its effect result as a quad.
+        // `boundBlend` is the caller's running "which blend pipeline is bound"
+        // so a Normal-only run still binds once.
+        void recordOneMesh(VkCommandBuffer cb, size_t mi, const std::unordered_map<size_t, size_t>& effectSlotForMesh, const VkPipeline* pipelines, int& boundBlend);
         // Composite one effect-result image as a fullscreen quad (set=0 assumed
         // bound). Used to seed a flatten chunk / the main pass with a prior
         // adjustment layer's graded result, and internally by recordMeshRange.
         void recordCompositeResultQuad(VkCommandBuffer cb, VkPipeline pipeline, VkDescriptorSet resultSet);
-        // Flatten meshes [begin,end) into m_pingFb (transparent clear), optionally
-        // seeded first with a previous adjustment layer's graded result (seedSlot,
-        // -1 = none). The caller then runs the adjustment layer's effect chain over
-        // ping exactly as for a normal effect mesh — see readFrame().
-        void recordAdjustmentFlattenPass(VkCommandBuffer cb, size_t begin, size_t end, int seedSlot, const std::unordered_map<size_t, size_t>& effectSlotForMesh);
+        // Flatten meshes into m_pingFb (transparent clear) so the ordinary effect
+        // chain can run over them. Two callers, one body: an ADJUSTMENT LAYER
+        // bakes the z-range [begin,end), optionally seeded with the previous
+        // layer's graded result (seedSlot, -1 = none); a COMP passes its member
+        // list in `members` (which then wins over the range) and never seeds —
+        // it composites over the background at its own z instead of replacing
+        // it. See readFrame().
+        void recordFlattenPass(VkCommandBuffer cb, size_t begin, size_t end, int seedSlot, const std::vector<size_t>* members, const std::unordered_map<size_t, size_t>& effectSlotForMesh);
         void recordEffectKernelPass(VkCommandBuffer cb, VkFramebuffer fb, VkDescriptorSet srcSet, const std::string& name, float texelX, float texelY, const std::vector<float>& params);
         // Glow additive combine: LOAD the original already in `fb`, add
         // intensity*blurred sampled through `srcSet` on top (m_glowCombine).

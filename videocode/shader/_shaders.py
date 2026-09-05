@@ -53,3 +53,5 @@ from videocode.shader.vertexShader.zIndex import *
 from videocode.shader.vertexShader.blendMode import *
 from videocode.shader.vertexShader.matte import *
 from videocode.shader.vertexShader.adjustmentLayer import *
+from videocode.shader.vertexShader.comp import *
+from videocode.shader.vertexShader.compMember import *

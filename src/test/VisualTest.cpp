@@ -228,6 +228,7 @@ namespace
         {"camera", "test/visual/scenes/camera.py", {0, 15, 29}},
         {"lut", "test/visual/scenes/lut.py", {0}},
         {"adjustment-layer", "test/visual/scenes/adjustment_layer.py", {0}},
+        {"comp", "test/visual/scenes/comp.py", {0}},
         // Frame 15 too: silk is time-driven, so a stuck clock (elapsed frames
         // never reaching the GLSL) would pass a frame-0-only check.
         {"silk", "test/visual/scenes/silk.py", {0, 15}},

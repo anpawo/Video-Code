@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include "vulkan/BlendModes.hpp"
 #include "vulkan/Mesh.hpp"
 #include "vulkan/ShaderCompiler.hpp"
 
@@ -153,6 +154,41 @@ namespace VC
         vkCmdBindIndexBuffer(cb, idx, 0, VK_INDEX_TYPE_UINT32);
         vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 1, 1, &resultSet, 0, nullptr);
         vkCmdDrawIndexed(cb, 6, 1, 0, 0, 0);
+    }
+
+    // The body of both renderers' draw loops, for one mesh: its raw geometry, or
+    // — when it owns an EffectResultSlot — that finished layer as a fullscreen
+    // textured quad (`resultSet`; VK_NULL_HANDLE means "draw the geometry").
+    // The two copies differed in the NAME of the default texture set and nothing
+    // else. `boundBlend` is the caller's running "which blend pipeline is bound",
+    // so a Normal-only run still binds once.
+    inline void recordOneMesh(VkCommandBuffer cb, const Mesh& mesh, uint32_t firstIndex, uint32_t indexCount, VkPipelineLayout layout, const VkPipeline* pipelines, int& boundBlend, VkBuffer vtx, VkBuffer idx, VkBuffer compVtx, VkBuffer compIdx, VkDescriptorSet defaultTexSet, VkDescriptorSet resultSet)
+    {
+        VkDeviceSize zero = 0;
+
+        int bm = mesh.blendMode;
+        if (bm < 0 || bm >= kBlendModeCount) bm = 0;
+        if (bm != boundBlend) {
+            boundBlend = bm;
+            vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelines[bm]);
+        }
+
+        if (resultSet == VK_NULL_HANDLE) {
+            vkCmdBindVertexBuffers(cb, 0, 1, &vtx, &zero);
+            vkCmdBindIndexBuffer(cb, idx, 0, VK_INDEX_TYPE_UINT32);
+            VkDescriptorSet tex = (mesh.hasTexture && mesh.textureDescriptor != VK_NULL_HANDLE) ? mesh.textureDescriptor : defaultTexSet;
+            vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 1, 1, &tex, 0, nullptr);
+            pushCamera(cb, layout, mesh.camera);
+            vkCmdDrawIndexed(cb, indexCount, 1, firstIndex, 0, 0);
+        } else {
+            // Transparent pixels are invisible; only the processed input shows.
+            vkCmdBindVertexBuffers(cb, 0, 1, &compVtx, &zero);
+            vkCmdBindIndexBuffer(cb, compIdx, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, layout, 1, 1, &resultSet, 0, nullptr);
+            // Identity — see recordCompositeResultQuad.
+            pushCamera(cb, layout, {});
+            vkCmdDrawIndexed(cb, 6, 1, 0, 0, 0);
+        }
     }
 
     // One function for what was four: the LUT and the matte allocate their
