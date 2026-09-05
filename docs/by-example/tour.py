@@ -20,6 +20,7 @@ the easing curve on each effect row, and File → Export Video… (⌘E).
 
 from videocode import *
 from videocode.input.interface.Comp import Comp
+from videocode.template.effect.core.fadeTo import fadeTo
 from videocode.template.input.BarChart import Leaderboard
 
 TITLE = 0.9
@@ -54,28 +55,38 @@ with shot() as opening:
 timestamp("a comp fades as one")
 
 with shot() as badge:
-    # The point is the COMPARISON: the same two shapes, the same opacity, one
-    # pair in a comp and one in a plain group. Alone, a comp shows nothing —
-    # it is the group beside it that makes the doubled overlap visible.
+    # The point is the COMPARISON, and it is clearest DURING a fade: the same
+    # two shapes, the same ramp, one pair in a comp and one in a plain group.
+    # A comp alone shows nothing — what it does is an absence.
     pair = Comp(
         Circle(radius=1.0, fillColor=WHITE, strokeColor=TRANSPARENT),
         Square(side=1.5, fillColor=WHITE, strokeColor=TRANSPARENT).position(1.1, 0),
     )
     pair.position(-3.6, 0.4)
-    pair.opacity(128)
+    pair.opacity(0)
 
     twin = Group(
         Circle(radius=1.0, fillColor=WHITE, strokeColor=TRANSPARENT),
         Square(side=1.5, fillColor=WHITE, strokeColor=TRANSPARENT).position(1.1, 0),
     )
     twin.position(3.0, 0.4)
-    twin.opacity(128)
+    twin.opacity(0)
 
     said = Text(text="Comp — un seul fondu", fontSize=LABEL, fillColor=WHITE)
     said.position(-3.0, -1.6)
-    other = Text(text="Group — le recouvrement compte double", fontSize=LABEL, fillColor=rgba(240, 180, 90))
-    other.position(3.6, -1.6)
-    wait(3)
+    other = Text(text="Group — la couture apparaît", fontSize=LABEL, fillColor=rgba(240, 180, 90))
+    other.position(3.3, -1.6)
+
+    # Up to HALF and held there, not up to full: at full opacity there is
+    # nothing to see through and the two are the same picture. The whole
+    # difference lives in the transparency, so the shot ramps into it and
+    # stays. `fadeTo` rather than `fadeIn`, which would go all the way.
+    pair.apply(*fadeTo(pair, src=0, dst=128, duration=1.2))
+    twin.apply(*fadeTo(twin, src=0, dst=128, duration=1.2))
+    wait(2.5)
+    pair.apply(*fadeTo(pair, src=128, dst=0, duration=0.8))
+    twin.apply(*fadeTo(twin, src=128, dst=0, duration=0.8))
+    wait(0.5)
 
 cut(opening, badge)
 
