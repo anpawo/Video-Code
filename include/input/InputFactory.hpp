@@ -12,6 +12,7 @@
 #include <nlohmann/json.hpp>
 #include <string>
 
+#include "input/Camera.hpp"
 #include "input/IInput.hpp"
 #include "input/media/Image.hpp"
 #include "input/media/Sound.hpp"
@@ -34,5 +35,8 @@ namespace Factory
 
         ///< Shape
         input(Polygon),
+
+        ///< The frame everything else is drawn in
+        input(Camera),
     };
 };

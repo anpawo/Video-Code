@@ -52,11 +52,23 @@ namespace VC
             ndcMinY = std::min(ndcMinY, v.pos[1]);
             ndcMaxY = std::max(ndcMaxY, v.pos[1]);
         }
+        // The vertex stage applies the camera AFTER these coordinates, and the
+        // effect pass that reads this box runs as a fullscreen quad over the
+        // layer that came out — so the box has to make the same journey, or a
+        // zoom leaves a crop cutting where the shape used to be. The transform
+        // is axis-aligned, so the two corners are the whole of it; min/max
+        // again because a mirrored zoom (a negative scale) swaps them.
+        const Camera2D& cam = mesh.camera;
+        const float     x0 = (ndcMinX - cam.centreX) * cam.zoomX;
+        const float     x1 = (ndcMaxX - cam.centreX) * cam.zoomX;
+        const float     y0 = (ndcMinY - cam.centreY) * cam.zoomY;
+        const float     y1 = (ndcMaxY - cam.centreY) * cam.zoomY;
+
         return {
-            (ndcMinX + 1.f) / 2.f,
-            (ndcMinY + 1.f) / 2.f,
-            (ndcMaxX + 1.f) / 2.f,
-            (ndcMaxY + 1.f) / 2.f,
+            (std::min(x0, x1) + 1.f) / 2.f,
+            (std::min(y0, y1) + 1.f) / 2.f,
+            (std::max(x0, x1) + 1.f) / 2.f,
+            (std::max(y0, y1) + 1.f) / 2.f,
         };
     }
 

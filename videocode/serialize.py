@@ -66,6 +66,12 @@ def _resetContext():
     # unchanged scene rendered differently. The editor bakes on every gesture.
     _glitch._nextSeed = 0
 
+    # And the scene's camera, which is a singleton for the same reason and
+    # would otherwise start the next run wherever the last one left it.
+    from videocode.input.Camera import camera as _camera
+
+    _camera._reset()
+
 
 def _oneLine(hit: dict) -> str:
     """The gutter has one line, not a paragraph — the paragraph stays on stderr."""

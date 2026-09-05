@@ -451,6 +451,50 @@ nothing else:
 
 ---
 
+## Camera — the whole picture at once (`videocode/input/Camera.py`)
+
+Every scene has one, already made: `camera`. It moves like anything else —
+same claims, same easing, same `over()`:
+
+```python
+camera.moveTo(x=3, duration=1)       # pan: the picture slides left
+camera.over(duration=1).zoom = 2     # magnify about what it looks at
+camera.position(0, 0)                # back to the middle, at once
+camera.scaleTo(1.5, duration=0.6)    # the same zoom, spelled the other way
+```
+
+`camera.position` is the world point that lands in the MIDDLE of the frame,
+so moving the camera right moves the picture left; `camera.zoom` is a
+magnification about that point (2 shows half as much, twice as big).
+`camera.width` / `camera.height` say how much world the frame currently
+shows.
+
+How: the per-frame position and scale become one `Camera2D` push constant
+that the vertex stage applies to every vertex — `gl_Position.xy = (ndc -
+centre) * zoom`. It is **not** a composite of the scene into a layer: nothing
+is flattened, no extra render pass exists, and a scene with no camera renders
+byte-identically to one written before there was one. There is no camera
+rotation, deliberately: vertices reach the GPU in NDC, which is not square, so
+a rotation applied there would shear the picture rather than turn it.
+
+### Staying out of it — `input.pinToFrame()`
+
+```python
+camera.over(duration=1).zoom = 2
+Rectangle(width=7, height=0.7, fillColor=WHITE).position(0, -4).pinToFrame()
+```
+
+A caption that zooms with the picture is unreadable, so subtitles, a
+watermark or a lower third opt out: a pinned input is drawn in FRAME space and
+takes the identity camera. It reaches a `Group`'s members, like
+`background()`. **Pros**: per-input, costs nothing (the same push constant,
+with the identity in it). **Cons**: it is a whole-input decision — there is no
+half-pinned element, and nothing un-pins one later.
+
+**Examples**: `test/visual/scenes/camera.py`, `test/camera_test.py`.
+
+---
+
 ## Compositing & Grading
 
 Editor-style compositing — plain `Input` methods and fragment effects

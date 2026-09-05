@@ -1162,6 +1162,13 @@ bool VC::VulkanWidget::createPipeline()
     layoutCI.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layoutCI.setLayoutCount = 2;
     layoutCI.pSetLayouts = setLayouts;
+    // The camera rides a push constant, not the UBO: it is per DRAW, not per
+    // frame. A pinToFrame() mesh takes the identity in the middle of a moving
+    // scene, and so does every composite quad — its layer already had the
+    // camera applied when the geometry was drawn into it.
+    VkPushConstantRange camRange{VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Camera2D)};
+    layoutCI.pushConstantRangeCount = 1;
+    layoutCI.pPushConstantRanges = &camRange;
     vkCreatePipelineLayout(m_device, &layoutCI, nullptr, &m_pipelineLayout);
 
     VkGraphicsPipelineCreateInfo cis[kBlendModeCount]{};
@@ -2945,6 +2952,7 @@ void VC::VulkanWidget::recordEffectGeomPass(VkCommandBuffer cb, size_t meshIndex
     } else {
         vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTextureSet, 0, nullptr);
     }
+    pushCamera(cb, m_pipelineLayout, mesh.camera);
     vkCmdDrawIndexed(cb, info.indexCount, 1, info.firstIndex, 0, 0);
 
     vkCmdEndRenderPass(cb);
@@ -3285,12 +3293,15 @@ void VC::VulkanWidget::recordMeshRange(
                 vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &mesh.textureDescriptor, 0, nullptr);
             else
                 vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_defaultTextureSet, 0, nullptr);
+            pushCamera(cb, m_pipelineLayout, mesh.camera);
             vkCmdDrawIndexed(cb, info.indexCount, 1, info.firstIndex, 0, 0);
         } else {
             // Composite this mesh's effect result as a full-resolution textured quad.
             vkCmdBindVertexBuffers(cb, 0, 1, &m_compVtxBuf, &zero);
             vkCmdBindIndexBuffer(cb, m_compIdxBuf, 0, VK_INDEX_TYPE_UINT32);
             vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 1, 1, &m_effectResults[effIt->second].descriptorSet, 0, nullptr);
+            // Identity — see recordCompositeResultQuad.
+            pushCamera(cb, m_pipelineLayout, {});
             vkCmdDrawIndexed(cb, 6, 1, 0, 0, 0);
         }
     }

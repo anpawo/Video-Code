@@ -221,6 +221,11 @@ namespace
         // suite for its entire life.
         {"group-composition", "test/visual/scenes/group_composition.py", {0, 15, 29}},
         {"matte", "test/visual/scenes/matte.py", {0}},
+        // Three frames, and the middle one is the point: the camera is an
+        // ANIMATION of the whole picture, so a still could not tell a pan from
+        // a scene written somewhere else. The pinned caption bar is meant to be
+        // identical in all three.
+        {"camera", "test/visual/scenes/camera.py", {0, 15, 29}},
         {"lut", "test/visual/scenes/lut.py", {0}},
         {"adjustment-layer", "test/visual/scenes/adjustment_layer.py", {0}},
         // Frame 15 too: silk is time-driven, so a stuck clock (elapsed frames

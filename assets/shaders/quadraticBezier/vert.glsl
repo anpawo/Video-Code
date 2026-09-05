@@ -9,8 +9,16 @@ layout(location = 0) out vec2 fragUV;
 layout(location = 1) out vec4 fragColor;
 layout(location = 2) out vec4 fragExtra;
 
+// The scene camera: xy = where it looks, in NDC; zw = zoom. One matrix for the
+// whole picture instead of a composite pass over it — see Camera2D (Mesh.hpp).
+// (0, 0, 1, 1) is the identity: what every mesh gets until a scene moves the
+// camera, and what a pinToFrame() mesh gets whatever the camera is doing.
+layout(push_constant) uniform CameraPC {
+    vec4 view;
+} camera;
+
 void main() {
-    gl_Position = vec4(inPos, 0.0, 1.0);
+    gl_Position = vec4((inPos - camera.view.xy) * camera.view.zw, 0.0, 1.0);
     fragUV    = inUV;
     fragColor = inColor;
     fragExtra = inExtra;

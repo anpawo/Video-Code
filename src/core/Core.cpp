@@ -24,6 +24,7 @@ using json = nlohmann::json;
 
 #include "core/Config.hpp"
 #include "input/AInput.hpp"
+#include "input/Camera.hpp"
 #include "input/IInput.hpp"
 #include "input/InputFactory.hpp"
 #include "input/media/Image.hpp"
@@ -59,7 +60,11 @@ static json pyToJson(py::handle h)
     if (py::isinstance<py::float_>(obj)) return obj.cast<double>();
     if (py::isinstance<py::str>(obj)) return obj.cast<std::string>();
     if (py::isinstance<py::dict>(obj)) {
-        json d;
+        // `json::object()`, not a default-constructed json: that is NULL until
+        // a key is written, so an input created with no arguments at all
+        // reached AInput as a null and threw on the first `.at`. The list
+        // branch below has always said `json::array()` for the same reason.
+        json d = json::object();
         // Keys may be ints (Context.stack is keyed by inputIdx / frameIdx, with -1 the
         // Create sentinel) — stringify via py::str() rather than a direct cast.
         for (auto [k, v] : obj.cast<py::dict>())
@@ -385,6 +390,14 @@ void VC::Core::executeStack(const py::dict& stack, const py::list& events)
     }
 }
 
+Camera2D VC::Core::cameraAt(size_t frame) const
+{
+    for (const auto& i : _inputs)
+        if (auto* cam = dynamic_cast<::Camera*>(i.get()))
+            return cameraFromMetadata(cam->getMetadata(frame));
+    return {};
+}
+
 const ShaderBox& VC::Core::anchorBoxFor(size_t inputIndex, size_t since)
 {
     auto key = std::make_pair(inputIndex, since);
@@ -401,7 +414,13 @@ const ShaderBox& VC::Core::anchorBoxFor(size_t inputIndex, size_t since)
     Metadata meta = input->getMetadata(since);
     meta.frameIndex = since - ClockStops::pausedBefore(_clockStops.videos, since);
 
-    return _anchorBoxes.emplace(key, meshBoxUV(input->getMesh(meta, _config))).first->second;
+    Mesh mesh = input->getMesh(meta, _config);
+    // The box is where the host WAS on screen at `since` — so it is measured
+    // through the camera of that frame, not this one. Same rule as the box
+    // itself: a pure function of a declared frame.
+    mesh.camera = meta.pinnedToFrame ? Camera2D{} : cameraAt(since);
+
+    return _anchorBoxes.emplace(key, meshBoxUV(mesh)).first->second;
 }
 
 const std::vector<Mesh>& VC::Core::generateMeshes()
@@ -410,11 +429,19 @@ const std::vector<Mesh>& VC::Core::generateMeshes()
 
     if (renderIndex != _lastRenderedIndex) {
         _cachedMeshes.clear();
+        // Resolved before the loop, not inside it: the camera input sits
+        // wherever the scene first moved it, which may be after the meshes it
+        // has to be applied to.
+        const Camera2D sceneCamera = cameraAt(renderIndex);
         VC_TIME("generateMeshes", {
             for (auto& i : _inputs) {
 #ifdef VC_DEBUG_ON
                 auto _tInput0 = std::chrono::high_resolution_clock::now();
 #endif
+                // Never drawn: it is the frame everything else is drawn in.
+                if (dynamic_cast<::Camera*>(i.get()))
+                    continue;
+
                 auto meta = i->getMetadata(renderIndex);
                 // Video playback runs on the VIDEOS ambient clock — pause
                 // spans (wait(stop=Clock.VIDEOS)/freeze) subtract out here;
@@ -446,6 +473,9 @@ const std::vector<Mesh>& VC::Core::generateMeshes()
                     mesh.inputIndex = static_cast<int>(&i - &_inputs[0]);
                     mesh.matteSourceInputIndex = meta.matteSource;
                     mesh.isAdjustmentLayer = meta.isAdjustmentLayer;
+                    // pinToFrame() is spent here: the mesh keeps the identity
+                    // and the vertex stage never learns the scene moved.
+                    mesh.camera = meta.pinnedToFrame ? Camera2D{} : sceneCamera;
                     _cachedMeshes.push_back(std::move(mesh));
                 }
 #ifdef VC_DEBUG_ON

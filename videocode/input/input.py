@@ -26,6 +26,7 @@ from videocode.shader.vertexShader.opacity import opacity
 from videocode.shader.vertexShader.zIndex import zIndex
 from videocode.shader.vertexShader.blendMode import blendMode as _blendModeShader, BlendMode
 from videocode.shader.vertexShader.matte import matte as _matteShader
+from videocode.shader.vertexShader.pinToFrame import pinToFrame as _pinToFrameShader
 from videocode.input.media.TrackedPath import TrackedPath
 from videocode.utils.bezier import animate, Easing, easing
 from videocode.utils.logger import *
@@ -458,6 +459,23 @@ class Input(ABC):
         video to the text silhouette.
         """
         return self.apply(_matteShader(source), offset=offset)
+
+    def pinToFrame(self, offset: maybe[frame] = None) -> Self:
+        """
+        Draw this `Input` in FRAME space: the scene `camera` never moves it.
+
+        A caption that zooms with the picture is unreadable, so subtitles, a
+        watermark or a lower third opt out of the camera and stay where the
+        frame puts them:
+
+            camera.over(duration=1).zoom = 2
+            subtitle.pinToFrame()
+
+        Reaches a `Group`'s members, like `background()` does — a group has no
+        mesh of its own to excuse.
+        """
+        self.broadcast(lambda i: i.apply(_pinToFrameShader(), offset=offset))
+        return self
 
     def attachTo(self, path: TrackedPath, offset: maybe[frame] = None) -> Self:
         """

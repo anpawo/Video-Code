@@ -124,6 +124,11 @@ struct Metadata
     // the adjustment-layer flatten passes in both renderers.
     bool isAdjustmentLayer{false};
 
+    // Drawn in FRAME space: the scene camera never moves this input. Set by the
+    // PinToFrame VertexShader; Core hands such a mesh the identity camera, so a
+    // subtitle holds still while the picture pans and zooms behind it.
+    bool pinnedToFrame{false};
+
     bool hidden{false};
 
     // True when no "Args" VertexShader has ever fired for this input.

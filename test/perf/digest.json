@@ -62,6 +62,15 @@
   "lastFrame": 1,
   "shape": "0cd7ee2f3340d7f6"
  },
+ "test/visual/scenes/camera.py": {
+  "applyCalls": 65,
+  "entries": 77,
+  "events": 1,
+  "frameSlots": 40,
+  "inputs": 6,
+  "lastFrame": 60,
+  "shape": "a9ca4210600dea32"
+ },
  "test/visual/scenes/chess.py": {
   "applyCalls": 120,
   "entries": 186,
