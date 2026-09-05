@@ -276,6 +276,7 @@ class Input(ABC):
 
         if type(value) == At:
             value, start, duration, offset = value.unpack()
+
             if hasattr(self, name) and name in self.cppAttrs:
                 if not getattr(self, name) == value:
                     self.apply(args(name, value).at(start=start, duration=duration, offset=offset))

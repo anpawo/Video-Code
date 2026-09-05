@@ -118,8 +118,30 @@ class _Over:
         object.__setattr__(self, "_duration", duration)
         object.__setattr__(self, "_offset", offset)
 
+    #: The verb that means what the assignment meant. `over()` animates a
+    #: VALUE, and half of what an author reaches for — opacity, position,
+    #: scale, rotation — is a verb on `Input`, not a field. Assigning to one
+    #: used to die thirty frames deep in the easing with
+    #: `unsupported operand type(s) for -: 'int' and 'method'`, which names
+    #: neither the attribute nor the way to do it.
+    _VERBS = {
+        "opacity": "fadeTo(dst=…), or fadeIn() / fadeOut()",
+        "position": "moveTo(x=…, y=…)",
+        "scale": "scaleTo(…)",
+        "rotation": "rotateTo(…)",
+        "align": "alignTo(x=…, y=…)",
+        "zIndex": "zIndex(…)",
+    }
+
     def __setattr__(self, name: str, value: Any) -> None:
         inp: Input = object.__getattribute__(self, "_input")
+
+        if callable(getattr(inp, name, None)):
+            raise TypeError(
+                f"{type(inp).__name__}.{name} is a verb, not a value — over() cannot "
+                f"assign to it. Write {_Over._VERBS.get(name, name + '(…)')} instead."
+            )
+
         inp.ease(
             name,
             value,
