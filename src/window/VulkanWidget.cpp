@@ -177,9 +177,9 @@ void VC::VulkanWidget::setMeshes(const std::vector<Mesh>& meshes)
     // Comp membership — same resolution as the matte source above, and in the
     // z-sorted mesh order, so each member list comes out in draw order.
     for (size_t mi = 0; mi < meshes.size(); ++mi) {
-        if (meshes[mi].compIndex < 0) continue;
-        auto it = m_inputIndexToMeshPos.find(meshes[mi].compIndex);
-        if (it == m_inputIndexToMeshPos.end() || !meshes[it->second].isComp) continue;
+        if (meshes[mi].compositionIndex < 0) continue;
+        auto it = m_inputIndexToMeshPos.find(meshes[mi].compositionIndex);
+        if (it == m_inputIndexToMeshPos.end() || !meshes[it->second].isComposition) continue;
         m_compMembers[it->second].push_back(mi);
         m_compMemberPositions.insert(mi);
     }
@@ -201,7 +201,7 @@ void VC::VulkanWidget::setMeshes(const std::vector<Mesh>& meshes)
         // sources, AND adjustment layers (a zero-effect isolated mesh still
         // Passthrough-flushes into its slot — an effect-less adjustment layer
         // thus recomposites its below-range unchanged, an identity grade).
-        if (!mesh.effects.empty() || mesh.matteSourceInputIndex >= 0 || m_matteSourceMeshPositions.count(mi) || mesh.isAdjustmentLayer || mesh.isComp)
+        if (!mesh.effects.empty() || mesh.matteSourceInputIndex >= 0 || m_matteSourceMeshPositions.count(mi) || mesh.isAdjustmentLayer || mesh.isComposition)
             m_effectMeshIndices.push_back(mi);
 
         if (mesh.isAdjustmentLayer)
@@ -3056,8 +3056,8 @@ void VC::VulkanWidget::recordEffectPrepasses(VkCommandBuffer cb)
             int    seedSlot = (alIdx == 0) ? -1 : (int)effectSlotForMesh[m_adjustmentMeshPositions[alIdx - 1]];
             recordFlattenPass(cb, chunkBegin, meshIdx, seedSlot, nullptr, effectSlotForMesh);
             ++alIdx;
-        } else if (m_meshes[meshIdx].isComp) {
-            // Flatten this comp's members into ping (see the headless renderer).
+        } else if (m_meshes[meshIdx].isComposition) {
+            // Flatten this composition's members into ping (see the headless renderer).
             static const std::vector<size_t> noMembers;
             auto                             it = m_compMembers.find(meshIdx);
             recordFlattenPass(cb, 0, 0, -1, it == m_compMembers.end() ? &noMembers : &it->second, effectSlotForMesh);
@@ -3184,14 +3184,14 @@ void VC::VulkanWidget::recordEffectPrepasses(VkCommandBuffer cb)
             }
         }
 
-        // Flush the final result into this mesh's dedicated result image. A comp
+        // Flush the final result into this mesh's dedicated result image. A composition
         // flushes through Alpha instead — its fade belongs to the flattened
         // layer, not to each member (see the headless renderer).
-        const bool isComp = m_meshes[meshIdx].isComp;
+        const bool isComposition = m_meshes[meshIdx].isComposition;
         recordEffectKernelPass(
             cb, m_effectResults[slot].framebuffer, inPing ? m_pingSrcSet : m_pongSrcSet,
-            isComp ? "Alpha" : "Passthrough", 0.f, 0.f,
-            isComp ? std::vector<float>{m_meshes[meshIdx].compOpacity} : std::vector<float>{}
+            isComposition ? "Alpha" : "Passthrough", 0.f, 0.f,
+            isComposition ? std::vector<float>{m_meshes[meshIdx].compOpacity} : std::vector<float>{}
         );
         effectBarrier(cb, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, m_effectResults[slot].image, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
     }
@@ -3293,7 +3293,7 @@ void VC::VulkanWidget::recordMeshRange(
 
         // Matte sources are consumed only as a mask; adjustment layers never draw
         // their own geometry (their grade reaches the screen via a result quad);
-        // a comp's members reach the screen only through their comp's layer.
+        // a composition's members reach the screen only through their composition's layer.
         if (m_matteSourceMeshPositions.count(mi) || mesh.isAdjustmentLayer || m_compMemberPositions.count(mi))
             continue;
 
@@ -3345,13 +3345,13 @@ void VC::VulkanWidget::recordFlattenPass(
     vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_GRAPHICS, m_pipelineLayout, 0, 1, &m_descriptorSet, 0, nullptr);
 
     // Seed with the previous adjustment layer's graded result (Normal blend over
-    // the transparent clear makes it the base); a comp never seeds. Both the seed
+    // the transparent clear makes it the base); a composition never seeds. Both the seed
     // and the meshes use the 1-sample blend array — see the array's decl for why.
     if (seedSlot >= 0)
         recordCompositeResultQuad(cb, m_effectBlendPipelines[0], m_effectResults[seedSlot].descriptorSet);
 
     if (members) {
-        // A comp's members ARE the list, so no membership skip — only a matte
+        // A composition's members ARE the list, so no membership skip — only a matte
         // source, still consumed as a mask and never drawn.
         int boundBlend = -1;
         for (size_t mi : *members)

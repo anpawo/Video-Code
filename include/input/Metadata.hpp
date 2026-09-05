@@ -125,17 +125,17 @@ struct Metadata
     bool isAdjustmentLayer{false};
 
     // Comp layer: when true this input is never drawn on its own. Its MEMBERS
-    // (the inputs whose compIndex names it) are drawn into one isolated layer
+    // (the inputs whose compositionIndex names it) are drawn into one isolated layer
     // instead of onto the frame, and that layer is what carries this input's
-    // opacity, effects and matte — see the comp flatten passes in both
+    // opacity, effects and matte — see the composition flatten passes in both
     // renderers. Set by the Comp VertexShader.
-    bool isComp{false};
+    bool isComposition{false};
 
-    // Index of the comp layer (`_inputs[]` position, 1:1 with the Python
+    // Index of the composition layer (`_inputs[]` position, 1:1 with the Python
     // Metadata.index) this input is a member of, or -1. A member reaches the
-    // screen only through its comp's flattened layer. Set by the CompMember
+    // screen only through its composition's flattened layer. Set by the CompositionMember
     // VertexShader; same plain-int reference channel `matteSource` uses.
-    int compIndex{-1};
+    int compositionIndex{-1};
 
     // Drawn in FRAME space: the scene camera never moves this input. Set by the
     // PinToFrame VertexShader; Core hands such a mesh the identity camera, so a

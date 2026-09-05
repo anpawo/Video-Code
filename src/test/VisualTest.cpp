@@ -230,7 +230,7 @@ namespace
         {"camera", "test/visual/scenes/camera.py", {0, 15, 29}},
         {"lut", "test/visual/scenes/lut.py", {0}},
         {"adjustment-layer", "test/visual/scenes/adjustment_layer.py", {0}},
-        {"comp", "test/visual/scenes/comp.py", {0}},
+        {"composition", "test/visual/scenes/composition.py", {0}},
         // Frame 15 too: silk is time-driven, so a stuck clock (elapsed frames
         // never reaching the GLSL) would pass a frame-0-only check.
         {"silk", "test/visual/scenes/silk.py", {0, 15}},
@@ -459,13 +459,13 @@ namespace
         size_t      frame;
     };
 
-    // One still, one camera move, one comp — the three shapes of renderer
+    // One still, one camera move, one composition — the three shapes of renderer
     // change that had to be made in both halves by hand. Frame 15 of `camera`
     // on purpose: a still cannot tell a pan from a scene written elsewhere.
     const std::vector<ParityCase> kParityCases = {
         {"shapes", "test/visual/scenes/shapes.py", 0},
         {"camera", "test/visual/scenes/camera.py", 15},
-        {"comp", "test/visual/scenes/comp.py", 0},
+        {"composition", "test/visual/scenes/composition.py", 0},
     };
 
     struct Parity
@@ -479,7 +479,7 @@ namespace
     // 4x MSAA, the headless one downsamples a 4x4 supersampled image — so their
     // edges cannot match and their flat areas must. That is the split this
     // measures: a pixel counts as flat when its 3x3 neighbourhood in the
-    // reference frame is a single colour — 93% of the `comp` frame, 99% of
+    // reference frame is a single colour — 93% of the `composition` frame, 99% of
     // `shapes` — and every one of those is compared with no tolerance at all.
     Parity parity(const cv::Mat& ref, const cv::Mat& other)
     {
@@ -516,7 +516,7 @@ namespace
     // untouched. MEASURED, on the three cases above:
     //
     //                            flat pixels differing      frame mean
-    //                            shapes / camera / comp
+    //                            shapes / camera / composition
     //     as they stand                0 /  0 / 0          0.027 - 0.045
     //     widget viewport +1px       321 / 24 / 0          0.145 - 0.257
     //     widget clear -1/255       1.9M /  0 / 1.5M       0.027 - 0.275
@@ -525,7 +525,7 @@ namespace
     // correctly: nothing about that frame changed.)
     //
     // The middle row is why the mean is kept: a one-pixel shift of the whole
-    // picture leaves `comp`'s flat pixels alone. 0.09 sits in its gap — twice
+    // picture leaves `composition`'s flat pixels alone. 0.09 sits in its gap — twice
     // today's worst, still well under the smallest damage measured. (The golden
     // suite's worst-tile metric is NOT reused here: measured on the same two
     // injuries it moves 1.292 -> 5.744 and 1.292 -> 1.427, so it would have to

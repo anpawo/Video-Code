@@ -42,8 +42,8 @@ enum class VertexShader {
     Matte,
     AdjustmentLayer,
     PinToFrame,
-    Comp,
-    CompMember,
+    Composition,
+    CompositionMember,
 
     // -
 
@@ -65,8 +65,8 @@ const std::map<std::string, VertexShader> getTransformFromString = {
     {"Matte", VertexShader::Matte},
     {"AdjustmentLayer", VertexShader::AdjustmentLayer},
     {"PinToFrame", VertexShader::PinToFrame},
-    {"Comp", VertexShader::Comp},
-    {"CompMember", VertexShader::CompMember},
+    {"Composition", VertexShader::Composition},
+    {"CompositionMember", VertexShader::CompositionMember},
 };
 
 inline cv::Matx33f getTransformationMatrixFromMetadata(const cv::Size2f& size, const Metadata& meta)
@@ -230,19 +230,19 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
             meta.isAdjustmentLayer = true;
             break;
         }
-        case VertexShader::Comp: {
+        case VertexShader::Composition: {
             // Presence is the whole signal — no args, same shape as
-            // AdjustmentLayer. Flags this input as a comp layer: never drawn
+            // AdjustmentLayer. Flags this input as a composition layer: never drawn
             // itself, it carries the opacity/effects/matte of the flattened
             // composite of its members.
-            meta.isComp = true;
+            meta.isComposition = true;
             break;
         }
-        case VertexShader::CompMember: {
-            // `comp` is the comp layer's input index (Python meta.index),
+        case VertexShader::CompositionMember: {
+            // `composition` is the composition layer's input index (Python meta.index),
             // already 1:1 with the C++ _inputs[] position — same plain-int
             // reference channel Matte uses.
-            meta.compIndex = args.at("comp").get<int>();
+            meta.compositionIndex = args.at("composition").get<int>();
             break;
         }
     }

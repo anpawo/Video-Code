@@ -12,8 +12,8 @@ from videocode.input.interface.Group import Group
 from videocode.input.shape.Rectangle import Rectangle
 from videocode.shader.ishader import Effect, FragmentShader, GroupEffect, IShader, VertexShader
 from videocode.shader.vertexShader.blendMode import blendMode
-from videocode.shader.vertexShader.comp import comp as _compShader
-from videocode.shader.vertexShader.compMember import compMember
+from videocode.shader.vertexShader.composition import composition as _compositionShader
+from videocode.shader.vertexShader.compositionMember import compositionMember
 from videocode.shader.vertexShader.hide import hide
 from videocode.shader.vertexShader.matte import matte
 from videocode.shader.vertexShader.opacity import opacity
@@ -52,21 +52,21 @@ class Composition(Group):
     Transforms (`moveTo`, `rotateBy`, `scaleTo`, `align`) stay `Group`'s rigid
     orbital ones on the members — the composite would only let you scale
     pixels. Everything that is about COMPOSITING — opacity, fragment effects,
-    `matte`, `zIndex`, `blendMode`, `hide`/`show` — lands on the comp's own
+    `matte`, `zIndex`, `blendMode`, `hide`/`show` — lands on the composition's own
     layer, which is where "as one layer" is decided.
 
-    The comp composites at its own `zIndex`, which defaults to just above its
+    The composition composites at its own `zIndex`, which defaults to just above its
     last member, and its members no longer take part in the frame's z-order on
-    their own: pulling things into a comp makes them one layer, at one depth.
+    their own: pulling things into a composition makes them one layer, at one depth.
 
     A member that is itself semi-transparent loses some colour to the flatten
     (a 50% white square reads 90 rather than 153), which is what every isolated
     layer in this engine does today — the same number comes out of any effect
-    layer, comp or not. Comps stack all the same, and an opaque member is exact.
+    layer, composition or not. Compositions stack all the same, and an opaque member is exact.
     """
     # ponytail: that colour loss is the transparent-clear composite; the fix is
     # premultiplied-alpha blending in every isolated layer, which moves goldens
-    # across the whole suite. Do it deliberately, not as a comp side effect.
+    # across the whole suite. Do it deliberately, not as a composition side effect.
 
     #: Claims that belong to the LAYER rather than to the members. Everything
     #: else — colour, args, the rigid transforms — is still `Group`'s business.
@@ -84,27 +84,27 @@ class Composition(Group):
             fillColor=TRANSPARENT,
             strokeColor=TRANSPARENT,
             strokeWidth=0,
-        ).apply(_compShader())
+        ).apply(_compositionShader())
 
-        # A comp answers with its LAYER's slot when something asks which input
-        # it is. `matte(comp)` is the case that needs it — a matte source must
+        # A composition answers with its LAYER's slot when something asks which input
+        # it is. `matte(composition)` is the case that needs it — a matte source must
         # be one index, and the layer is the one the members were flattened
         # into. Inert otherwise: a Group never writes to a slot of its own,
         # `Composition.apply` routes every claim to the layer or to the members.
         self.meta.index = self.layer.meta.index
 
-        member = compMember(self.layer)
+        member = compositionMember(self.layer)
         for i in self.inputs:
-            # A nested comp joins as its LAYER, not as its leaves: its members
+            # A nested composition joins as its LAYER, not as its leaves: its members
             # are already spoken for, and re-marking them would move them into
-            # the outer comp and lose the inner one's own fade.
+            # the outer composition and lose the inner one's own fade.
             if isinstance(i, Composition):
                 i.layer.apply(member)
             else:
                 i.broadcast(lambda m: m.apply(member))
 
     def _cursor(self) -> frame:
-        """Where the comp's own timeline stands: the latest of everything in it."""
+        """Where the composition's own timeline stands: the latest of everything in it."""
         cursors = [self.layer.meta.transformationOffset, Context.waitOffset]
         self.broadcast(lambda i: cursors.append(i.meta.transformationOffset))
         return max(cursors)
@@ -133,11 +133,11 @@ class Composition(Group):
             # fade starts, and `Group.apply` would have done this for us.
             if isinstance(s, VertexShader):
                 _shallow_copy(s).modify(self)
-        # The layer has no cursor of its own until it is written to, and a comp
-        # animation has to open where its members already are — `a.fadeIn();
-        # a.flush()` then `comp.fadeOut()` must not rewind to frame 0. Taking
-        # the max INCLUDES Context.waitOffset, so pinning the offset here can
-        # never override a pending global wait().
+        # The layer has no cursor of its own until it is written to, and a
+        # composition's animation has to open where its members already are:
+        # `a.fadeIn(); a.flush()` then `whole.fadeOut()` must not rewind to
+        # frame 0. Taking the max INCLUDES Context.waitOffset, so pinning the
+        # offset here can never override a pending global wait().
         self.layer.apply(*mine, start=start, duration=duration, offset=self._cursor() if offset is None else offset)
         return self
 

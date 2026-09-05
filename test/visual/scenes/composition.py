@@ -6,10 +6,10 @@
 #   TOP     two overlapping white squares at 50%. LEFT is a plain Group: each
 #           member fades on its own, so the overlap is a bright band. RIGHT is
 #           a Composition: one flat 50% shape, no band. That band is the whole point —
-#           if both sides look the same, the comp is not flattening.
+#           if both sides look the same, the composition is not flattening.
 #   MIDDLE  two TOUCHING opaque squares under a blur. LEFT is a Group: the
 #           blur runs per member, so each square blurs its own inner edge and a
-#           dark seam opens between them. RIGHT is a Compositionosition: the pair is one
+#           dark seam opens between them. RIGHT is a Composition: the pair is one
 #           shape by the time the blur runs, so the join is solid.
 #   BOTTOM  a rainbow rectangle clipped to the word "COMP" — the matte source
 #           is a Composition of the letters, no CompoundPolygon flattening by hand.
@@ -33,7 +33,7 @@ Composition(
 ).opacity(128)
 
 # --- MIDDLE: an effect over the pair, without and with. The squares TOUCH,
-# so a per-member blur has an inner edge to eat and a comp-level one does not.
+# so a per-member blur has an inner edge to eat and a composition-level one does not.
 ORANGE = rgba(255, 140, 40)
 Group(
     Square(side=2, fillColor=ORANGE, strokeColor=TRANSPARENT).position(-6, 0),

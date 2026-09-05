@@ -271,9 +271,9 @@ namespace VC
         std::vector<size_t> m_adjustmentMeshPositions;
 
         // Comp layers and their members — see the headless renderer's twin
-        // declarations. A comp renders as ONE layer: its members are flattened
-        // into the comp's own result slot, graded, faded by compOpacity, and
-        // composited once at the comp mesh's z-position.
+        // declarations. A composition renders as ONE layer: its members are flattened
+        // into the composition's own result slot, graded, faded by compOpacity, and
+        // composited once at the composition mesh's z-position.
         std::unordered_map<size_t, std::vector<size_t>> m_compMembers;
         std::unordered_set<size_t>                      m_compMemberPositions;
 

@@ -97,16 +97,16 @@ struct Mesh
     // adjustment-layer flatten passes in both renderers.
     bool isAdjustmentLayer = false;
 
-    // Copied from Metadata::isComp. A comp layer is never drawn itself: the
-    // renderer flattens the meshes whose compIndex names it into this mesh's
+    // Copied from Metadata::isComposition. A composition layer is never drawn itself: the
+    // renderer flattens the meshes whose compositionIndex names it into this mesh's
     // EffectResultSlot, grades that with this mesh's `effects`, scales its
     // alpha by compOpacity, and composites the result once at this mesh's
     // z-position. That is what makes a group fade as ONE layer.
-    bool isComp = false;
-    // Copied from Metadata::compIndex: the INPUT index of the comp layer that
+    bool isComposition = false;
+    // Copied from Metadata::compositionIndex: the INPUT index of the composition layer that
     // owns this mesh, or -1. Resolved to a mesh position through
     // m_inputIndexToMeshPos, exactly like matteSourceInputIndex.
-    int compIndex = -1;
+    int compositionIndex = -1;
     // Comp layers only: the layer's own opacity, 0..1 (hidden counts as 0).
     // Applied to the flattened layer as one final pass, so two overlapping
     // members at 50% read as one flat 50% shape instead of a darker patch.

@@ -77,14 +77,15 @@ class Metadata:
         # shader/vertexShader/adjustmentLayer.py and input/AdjustmentLayer.py).
         self.isAdjustmentLayer: bool = False
 
-        # --- Comp ---
+        # --- Composition ---
         # When True this input is never drawn on its own: its members are
         # flattened into one layer and that layer carries this input's opacity,
-        # effects and matte (see shader/vertexShader/comp.py, input/interface/
-        # Composition.py). `compIndex` is the other end — the layer this input is a
-        # member OF, travelling to C++ as a plain int (-1 = none).
-        self.isComp: bool = False
-        self.compIndex: int | None = None
+        # effects and matte (see shader/vertexShader/composition.py,
+        # input/interface/Composition.py). `compositionIndex` is the other end —
+        # the layer this input is a member OF, travelling to C++ as a plain int
+        # (-1 = none).
+        self.isComposition: bool = False
+        self.compositionIndex: int | None = None
 
         if not interface and not noRegister:
             Context.metas.append(self)

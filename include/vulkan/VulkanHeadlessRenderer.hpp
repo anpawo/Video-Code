@@ -184,15 +184,15 @@ namespace VC
         // adjustment layers, and the whole feature is a no-op (main pass unchanged).
         std::vector<size_t> m_adjustmentMeshPositions;
 
-        // Comp plumbing. A comp layer (Mesh::isComp) renders as ONE layer: the
-        // meshes whose compIndex names it are flattened into the comp's own
-        // EffectResultSlot instead of onto the frame, graded by the comp's
-        // effect chain, faded by compOpacity, and composited once at the comp
-        // mesh's own z-position. m_compMembers maps a comp layer's MESH
+        // Composition plumbing. A composition layer (Mesh::isComposition) renders as ONE layer: the
+        // meshes whose compositionIndex names it are flattened into the composition's own
+        // EffectResultSlot instead of onto the frame, graded by the composition's
+        // effect chain, faded by compOpacity, and composited once at the composition
+        // mesh's own z-position. m_compMembers maps a composition layer's MESH
         // position to its members', ascending (built over the already z-sorted
-        // mesh list, so draw order inside the comp is preserved);
+        // mesh list, so draw order inside the composition is preserved);
         // m_compMemberPositions is the flat set, excluded from every draw that
-        // is not its comp's flatten. Empty = no comps, and the whole feature is
+        // is not its composition's flatten. Empty = no compositions, and the whole feature is
         // a no-op.
         std::unordered_map<size_t, std::vector<size_t>> m_compMembers;
         std::unordered_set<size_t>                      m_compMemberPositions;
