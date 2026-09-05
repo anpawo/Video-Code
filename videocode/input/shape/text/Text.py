@@ -344,6 +344,24 @@ class Text(Group[Letter], _hasFillStroke):
 
         # Re-snapshot member bases with the new text-local layout positions.
         self._regroup()
+
+        # And then forget them again, because a position shader that matches
+        # `meta.position` is dropped as a write with no effect (see
+        # `position.autodestroy`). The meta above is only there for `_regroup`
+        # to snapshot; leaving it means every letter of a text that was never
+        # MOVED emits its layout and has it thrown away — and C++, which starts
+        # every input at the origin and only learns from claims, draws the whole
+        # word on one spot. Measured: `Text("Kate")` and `Text("Kate").position(0, 0)`
+        # came out 25 px wide, all four letters stacked, while the same text
+        # placed at 0.001 came out as a word.
+        # Not under `noRegister`, where nothing reaches the stack and nothing
+        # writes the meta back: `CompoundPolygon(*Text(...).inputs)` reads the
+        # layout straight off the letters, and zeroing it there collapses the
+        # word onto one spot — which is what the matte and silk scenes do.
+        if not Context._noRegister:
+            for letter in letters:
+                letter.meta.position = v2(0, 0)
+
         # Emit world positions (group transform applied on top of text-local bases).
         self._emitRigid(start, duration, offset, pos=True)
 
