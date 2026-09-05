@@ -992,30 +992,46 @@ QVariantMap VC::Editor::setArgument(
     return answer;
 }
 
-QVariantMap VC::Editor::argumentSpan(
-    const QString& source, int line, const QString& call, const QString& name, const QString& value,
-    int occurrence
-)
+namespace
 {
-    QVariantMap answer{{"ok", false}, {"start", 0}, {"end", 0}, {"text", QString()}};
-    try {
-        py::gil_scoped_acquire hold;
-        const py::module       edit = py::module::import("videocode.edit");
-        const py::object       result = edit.attr("argumentSpan")(
-            source.toStdString(), line, call.toStdString(), name.toStdString(), value.toStdString(),
-            occurrence
-        );
+    // What `argumentSpan`/`positionalSpan` answered, as the map QML reads.
+    // Three shapes come back: nothing, which is a plain refusal; a sentence,
+    // when the value written is not the gesture's to replace and the person has
+    // to be told which one; or the span and what goes in it.
+    QVariantMap spanAnswer(const py::object& result)
+    {
+        QVariantMap answer{{"ok", false}, {"start", 0}, {"end", 0}, {"text", QString()}, {"message", QString()}};
         if (result.is_none())
             return answer;
+        if (py::isinstance<py::str>(result)) {
+            answer["message"] = QString::fromStdString(result.cast<std::string>());
+            return answer;
+        }
 
         const py::tuple span = result.cast<py::tuple>();
         answer["ok"] = true;
         answer["start"] = span[0].cast<int>();
         answer["end"] = span[1].cast<int>();
         answer["text"] = QString::fromStdString(span[2].cast<std::string>());
+        return answer;
+    }
+}
+
+QVariantMap VC::Editor::argumentSpan(
+    const QString& source, int line, const QString& call, const QString& name, const QString& value,
+    int occurrence
+)
+{
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       edit = py::module::import("videocode.edit");
+        return spanAnswer(edit.attr("argumentSpan")(
+            source.toStdString(), line, call.toStdString(), name.toStdString(), value.toStdString(),
+            occurrence
+        ));
     } catch (const py::error_already_set&) {
     }
-    return answer;
+    return QVariantMap{{"ok", false}, {"start", 0}, {"end", 0}, {"text", QString()}, {"message", QString()}};
 }
 
 QVariantMap VC::Editor::positionalSpan(
@@ -1023,24 +1039,15 @@ QVariantMap VC::Editor::positionalSpan(
     int occurrence
 )
 {
-    QVariantMap answer{{"ok", false}, {"start", 0}, {"end", 0}, {"text", QString()}};
     try {
         py::gil_scoped_acquire hold;
         const py::module       edit = py::module::import("videocode.edit");
-        const py::object       result = edit.attr("positionalSpan")(
+        return spanAnswer(edit.attr("positionalSpan")(
             source.toStdString(), line, call.toStdString(), index, value.toStdString(), occurrence
-        );
-        if (result.is_none())
-            return answer;
-
-        const py::tuple span = result.cast<py::tuple>();
-        answer["ok"] = true;
-        answer["start"] = span[0].cast<int>();
-        answer["end"] = span[1].cast<int>();
-        answer["text"] = QString::fromStdString(span[2].cast<std::string>());
+        ));
     } catch (const py::error_already_set&) {
     }
-    return answer;
+    return QVariantMap{{"ok", false}, {"start", 0}, {"end", 0}, {"text", QString()}, {"message", QString()}};
 }
 
 QVariantMap VC::Editor::removeCallSpan(

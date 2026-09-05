@@ -1860,7 +1860,7 @@ ApplicationWindow {
         onJumpRequested: (element) => app.revealLine(element.line)
         // An effect row answers for the call that wrote it: the ✕ deletes that
         // call, a drag rewrites its `start` or `duration`, a click goes to it.
-        onEffectRemoved: (fx) => app.removeCall(fx.line, fx.call)
+        onEffectRemoved: (fx) => app.removeCall(fx.line, fx.call, fx.file)
         onEffectWritten: (fx, name, value) => {
             // No name means the card would not do the arithmetic: the argument
             // is written as an expression, and rewriting `RATIO * 0.5` as `0.6`
@@ -1868,10 +1868,10 @@ ApplicationWindow {
             if (name.length === 0)
                 source.say(fx.call + " is written as an expression — edit the line itself");
             else
-                app.writeOn(fx.line, fx.call, name, value);
+                app.writeOn(fx.line, fx.call, name, value, fx.file);
         }
         onEffectJumped: (fx) => app.revealLine(fx.line)
-        onEffectToggled: (line, off) => app.toggleLine(line, off)
+        onEffectToggled: (line, off, file) => app.toggleLine(line, off, file)
     }
 
     // What is being carried, under the pointer. Small and out of the way: the
@@ -2297,34 +2297,46 @@ ApplicationWindow {
     //
     // The scene is re-run straight after, because a gesture whose result you
     // have to ask for with ⌘R is not a gesture.
+    // A line belongs to a file, and an element does not have to come from the
+    // open one: `from titles import banner` makes one whose line is a line of
+    // titles.py. Every gesture here addresses the pane's own document by line
+    // number, so applied to such an element it rewrites whatever the scene
+    // happens to say at that number — a different call, or nothing at all.
+    // Refusing is not enough on its own: a gesture that declines in silence
+    // looks exactly like one that failed, so the file that owns the line is
+    // named out loud.
+    function fromOpenFile(file) {
+        return file === undefined || file.length === 0
+            || source.path.length === 0 || file === source.path;
+    }
+
+    function ownsLine(file) {
+        if (app.fromOpenFile(file))
+            return true;
+        source.say(String(file).split("/").pop() + " wrote that line — open it to change it there");
+        return false;
+    }
+
     function writeArgument(element, call, name, value) {
-        if (element === null || element.line === undefined || element.line <= 0)
+        if (element === null || element.line === undefined)
             return false;
-
-        // As a range applied to the pane's own document, so the gesture is in
-        // the same undo history as typing — see SourcePanel.replaceRange.
-        const span = Shell.argumentSpan(source.text, element.line, call, name, value);
-        if (!span.ok) {
-            source.say("could not write " + name);
-            return false;
-        }
-
-        if (!source.replaceRange(span.start, span.end, span.text))
-            return false;
-
-        app.executeScene();
-        return true;
+        return app.writeOn(element.line, call, name, value, element.file);
     }
 
     // The same edit, addressed by line rather than by element: an effect knows
     // the call that wrote it and nothing else about the element it animates.
-    function writeOn(line, call, name, value) {
+    //
+    // The edit is a range applied to the pane's own document, so the gesture is
+    // in the same undo history as typing — see SourcePanel.replaceRange.
+    function writeOn(line, call, name, value, file) {
         if (line === undefined || line <= 0 || call === undefined || call.length === 0)
+            return false;
+        if (!app.ownsLine(file))
             return false;
 
         const span = Shell.argumentSpan(source.text, line, call, name, value);
         if (!span.ok) {
-            source.say("could not write " + name);
+            source.say(span.message.length > 0 ? span.message : "could not write " + name);
             return false;
         }
         if (!source.replaceRange(span.start, span.end, span.text))
@@ -2340,8 +2352,10 @@ ApplicationWindow {
     // takes its line with it. Refused rather than guessed when the call sits
     // inside something else, because a delete that lands on the wrong span is
     // the one gesture nobody forgives.
-    function removeCall(line, call) {
+    function removeCall(line, call, file) {
         if (line === undefined || line <= 0 || call === undefined || call.length === 0)
+            return false;
+        if (!app.ownsLine(file))
             return false;
 
         const span = Shell.removeCallSpan(source.text, line, call);
@@ -2483,13 +2497,19 @@ ApplicationWindow {
         if (points.length === 0)
             return null;
 
-        let chosen = points[0];
-        for (const point of points)
+        // Only the lines this document actually holds: a point from an
+        // imported module is a place no edit here can go.
+        const mine = points.filter(point => app.fromOpenFile(point.file));
+        if (mine.length === 0)
+            return null;
+
+        let chosen = mine[0];
+        for (const point of mine)
             if (point.cursor <= target)
                 chosen = point;
 
         const start = (target - chosen.cursor) / fps;
-        return start < 0 ? null : { line: chosen.line, call: chosen.call, start: start };
+        return start < 0 ? null : { line: chosen.line, call: chosen.call, start: start, file: chosen.file };
     }
 
     // Ending an element: `square.hide(start=…)`, written where it means what it says.
@@ -2507,6 +2527,9 @@ ApplicationWindow {
     }
 
     function hideAt(element, seconds) {
+        if (!app.ownsLine(element.file))
+            return;
+
         const fps = execFps > 0 ? execFps : 30;
         const target = Math.round(seconds * fps);
         const points = element.points !== undefined ? element.points : [];
@@ -2525,7 +2548,7 @@ ApplicationWindow {
                 source.say("that is before " + element.n + " reaches this line");
                 return;
             }
-            if (app.writeOn(written.line, "hide", "start", app.plain(moment)))
+            if (app.writeOn(written.line, "hide", "start", app.plain(moment), written.file))
                 source.say(element.n + " now ends at " + (target / fps).toFixed(1) + "s");
             return;
         }
@@ -2559,7 +2582,10 @@ ApplicationWindow {
     //
     // Which is also why the card can still show it. It is not in the timeline —
     // nothing ran — so it is found by reading the buffer, not the scene.
-    function toggleLine(line, off) {
+    function toggleLine(line, off, file) {
+        if (!app.ownsLine(file))
+            return;
+
         const lines = source.text.split("\n");
         if (line < 1 || line > lines.length)
             return;
@@ -2595,6 +2621,11 @@ ApplicationWindow {
     function readArgument(element, call, name) {
         if (element === null || element.line === undefined || element.line <= 0)
             return "";
+        // Silently, unlike a gesture: reading is what the card does on its own
+        // while you look at it, and a line of another file read as if it were
+        // this one shows a value belonging to neither.
+        if (!app.fromOpenFile(element.file))
+            return "";
         return Shell.readArgument(source.text, element.line, call, name);
     }
 
@@ -2613,6 +2644,8 @@ ApplicationWindow {
 
     function applyEffect(element, effect, options) {
         if (element === null || element.n === undefined)
+            return;
+        if (!app.ownsLine(element.file))
             return;
 
         // The import first, if it is missing. Effects are not part of
@@ -3014,7 +3047,7 @@ ApplicationWindow {
 
             const span = Shell.positionalSpan(source.text, line, "wait", 0, value.toString());
             if (!span.ok) {
-                source.say("could not write that wait");
+                source.say(span.message.length > 0 ? span.message : "could not write that wait");
                 return;
             }
 
