@@ -178,17 +178,18 @@
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <span class="n">0</span></h2>
-        <ul class="rows"></ul>
+        <h2>Needs your check <span class="n">1</span></h2>
+        <ul class="rows">
+          <li data-b="Le Claude du panneau agent éditait à l'aveugle : aucune image de ce qu'il venait de faire.|Il sait maintenant que le moteur est le binaire dans lequel il tourne — une image d'un instant en quelques ms, ou <code>--sheet 4</code> qui pose quatre moments côte à côte dans un seul PNG, chacun avec son temps sous la vignette.|À vérifier : demande-lui un changement visible, et regarde s'il va chercher son image avant de te répondre."><span class="id">C1</span><span class="lbl">L'agent regarde son image</span><span class="meta">agent-eyes</span></li>
+        </ul>
       </div>
 
       <div class="card doing">
-        <h2>In progress <em>4 agents, 4 branches</em> <span class="n">4</span></h2>
+        <h2>In progress <em>2 agents, 2 branches</em> <span class="n">1</span></h2>
         <ul class="rows">
-          <li data-b="X4 : glisser sur wait(PAUSE_DELAY) écrit wait(0.5) et efface le nom que tu as choisi — le tutoriel le fait à 30 endroits.|X5 : un geste sur un élément venu d'un autre fichier réécrit une ligne au hasard de la scène.|Les deux doivent refuser À VOIX HAUTE : un geste qui décline en silence est aussi déroutant qu'un geste qui ment. Branche gesture-guards."><span class="id">X4·X5</span><span class="lbl">Ce qu'un geste doit refuser</span><span class="meta">gesture-guards</span></li>
-          <li data-b="L'agent édite à l'aveugle : il ne voit aucune image de ce qu'il vient de faire, alors que le moteur en rend une en 9 ms sans fenêtre.|Choisir QUELLE image — en réutilisant le --from/--to livré il y a une heure plutôt qu'en inventant un troisième dialecte.|Plus une planche-contact : plusieurs moments côte à côte, pour voir le mouvement au lieu d'un instant figé. Branche agent-eyes."><span class="id">C1</span><span class="lbl">L'agent regarde son image</span><span class="meta">agent-eyes</span></li>
-          <li data-b="timestamp(\"nom\") est écrit une trentaine de fois dans le tutoriel et n'est dessiné nulle part.|Le C++ tient déjà la table frame → nom ; c'est le modèle de scène qui les jette.|Drapeaux sur la règle, deux touches pour sauter de l'un à l'autre, et aimantation des glissements. Branche markers."><span class="id">B6</span><span class="lbl">Les <code>timestamp()</code> en repères</span><span class="meta">markers</span></li>
-          <li data-b="Aujourd'hui le panneau agent n'envoie QUE le texte que tu tapes.|Il recevra le fichier ouvert, ta ligne, l'élément sélectionné, la tête de lecture et les avertissements du dernier run — que l'éditeur affiche et que l'agent n'a jamais vus.|Plus --inspect, qui imprime le modèle de scène en JSON pour qu'il puisse aller le chercher lui-même. Branche agent-context."><span class="id">C2</span><span class="lbl">L'agent sait où tu es</span><span class="meta">agent-context</span></li>
+          
+          
+          <li data-b="timestamp(&quot;nom&quot;) est écrit une trentaine de fois dans le tutoriel et n'est dessiné nulle part.|Le C++ tient déjà la table frame → nom ; c'est le modèle de scène qui les jette.|Drapeaux sur la règle, deux touches pour sauter de l'un à l'autre, et aimantation des glissements. Branche markers."><span class="id">B6</span><span class="lbl">Les <code>timestamp()</code> en repères</span><span class="meta">markers</span></li>
         </ul>
       </div>
 
@@ -208,13 +209,15 @@
       <div class="card todo">
         <h2>To do · quick <em>rien ne les bloque</em> <span class="n">2</span></h2>
         <ul class="rows">
+          <li data-b="X4 : glisser sur wait(PAUSE_DELAY) écrit wait(0.5) et efface le nom que tu as choisi — le tutoriel le fait à 30 endroits.|X5 : un geste sur un élément venu d'un autre fichier réécrit une ligne au hasard de la scène.|Les deux doivent refuser À VOIX HAUTE : un geste qui décline en silence est aussi déroutant qu'un geste qui ment. À moitié écrit, puis mis en pause : la branche gesture-guards attend un créneau."><span class="id">X4·X5</span><span class="lbl">Ce qu'un geste doit refuser</span><span class="meta">à moitié écrit</span></li>
           <li data-b="Poser le curseur sur une ligne allume la barre de l'élément qu'elle fabrique.|Une touche joue depuis ce moment-là.|Aucune écriture dans le fichier : c'est la moitié lecture du lien code ↔ temps, celle qui ne coûte rien si elle se trompe."><span class="id">B1</span><span class="lbl">Le curseur allume sa barre</span><span class="meta">½ j</span></li>
         </ul>
       </div>
 
       <div class="card todo">
-        <h2>To do · the agent <em>aveugle aujourd'hui</em> <span class="n">1</span></h2>
+        <h2>To do · the agent <em>aveugle aujourd'hui</em> <span class="n">2</span></h2>
         <ul class="rows">
+          <li data-b="Aujourd'hui le panneau agent n'envoie QUE le texte que tu tapes.|Il recevra le fichier ouvert, ta ligne, l'élément sélectionné, la tête de lecture et les avertissements du dernier run — que l'éditeur affiche et que l'agent n'a jamais vus.|Plus --inspect, qui imprime le modèle de scène en JSON pour qu'il puisse aller le chercher lui-même. À moitié écrit, puis mis en pause : la branche agent-context attend un créneau."><span class="id">C2</span><span class="lbl">L'agent sait où tu es</span><span class="meta">à moitié écrit</span></li>
           <li data-b="L'éditeur ne sait pas fabriquer de vidéo du tout : pas de bouton, pas de progression.|La décision est déjà écrite dans le backlog : même binaire, progression lue sur sa sortie.|Et seulement entre tes repères d'entrée et de sortie, qui existent déjà et ne servent à rien."><span class="id">C4</span><span class="lbl">Exporter depuis l'éditeur</span><span class="meta">2 j</span></li>
         </ul>
       </div>
