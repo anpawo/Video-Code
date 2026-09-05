@@ -120,6 +120,9 @@ Item {
     // footnote rather than as the answer.
     readonly property int codeSize: editor.font.pixelSize
 
+    // Where the caret is, for whoever is told what the author is looking at.
+    readonly property int cursorLine: editor.currentLine
+
     // The buffer's file on disk. The language server reasons about paths, so a
     // pane with no path simply has no intelligence — everything below degrades
     // to a plain editor rather than breaking.

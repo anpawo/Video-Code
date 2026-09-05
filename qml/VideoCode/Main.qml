@@ -2833,6 +2833,61 @@ ApplicationWindow {
         source.say(answer.message.slice(0, 60));
     }
 
+    // What the author is looking at, in front of every question. The child
+    // edits the FILE and sees nothing else: "move this left" names a selection
+    // it was never shown, and the warnings the last run painted in the gutter
+    // never reached it. A few lines, not the buffer — it can Read the file and
+    // it can run --inspect for the whole timeline; what it cannot do is look
+    // at the screen. Lines count from one, the way the file does.
+    function agentBrief() {
+        const lines = ["<editor>"];
+        lines.push("file: " + source.path + " · caret on line " + (source.cursorLine + 1));
+
+        const one = selectedElement;
+        if (one === null)
+            lines.push("selected: nothing");
+        else {
+            const effects = one.effects.map((fx) =>
+                fx.n + " (line " + fx.line + ", " + fx.l.toFixed(2) + "–" + (fx.l + fx.d).toFixed(2) + " s)");
+            lines.push("selected: " + one.cls + " at line " + one.line
+                       + (effects.length > 0 ? " — " + effects.join(", ") : ""));
+            // An element built by an imported module is animated by lines this
+            // document does not have, and every gesture on it is refused for
+            // that reason. Said here so the refusal is not a mystery, and so
+            // "move this left" is edited in the file that actually says it.
+            if (!fromOpenFile(one.file))
+                lines.push("  — those lines are in " + one.file + ", not the open file: "
+                           + "the editor refuses gestures on them, so the edit belongs in that file");
+        }
+
+        lines.push("playhead: " + playhead.toFixed(2) + " s of " + shownScene.duration.toFixed(2) + " s"
+                   + (ranged ? " · range " + markIn.toFixed(2) + "–" + markOut.toFixed(2) + " s" : ""));
+
+        if (execState === "none")
+            lines.push("last run: none yet");
+        else {
+            const flaws = source.runFlaws;
+            lines.push("last run: " + (execState === "failed" ? "failed"
+                                       : flaws.length === 0 ? "ok, no warnings"
+                                       : "ok, " + flaws.length + " warning" + (flaws.length > 1 ? "s" : "")));
+            for (const flaw of flaws.slice(0, 5))
+                lines.push("  line " + (flaw.range.start.line + 1) + ": " + flaw.message);
+            if (flaws.length > 5)
+                lines.push("  … " + (flaws.length - 5) + " more");
+        }
+
+        // Two ways the picture can be behind the text, said only when they hold.
+        if (source.modified)
+            lines.push("unsaved: the buffer is ahead of the file on disk — the author reads the buffer, "
+                       + "you edit the file, and the line numbers above are the buffer's");
+        if (execStale)
+            lines.push("stale: the scene has been edited since it last ran — "
+                       + "the selection and warnings above describe that run");
+
+        lines.push("</editor>");
+        return lines.join("\n") + "\n\n";
+    }
+
     // What an agent turn does to the buffer, and the two keys that settle it.
     //
     // The scene is NOT run when the turn lands. The author sees the colours,
@@ -3112,6 +3167,7 @@ ApplicationWindow {
     AgentPanel {
         id: agent
         visible: false
+        onSent: (text) => Agent.ask(app.agentBrief() + text)
     }
 
     // The scene, edited here and understood by a language server of our own.

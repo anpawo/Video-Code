@@ -16,11 +16,14 @@ Run directly: `python3 test/scene_model_test.py`
 """
 
 import json
+import os
+import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
-from helpers import check, section, summary
+from helpers import check, needsRenderer, section, summary
 
 from videocode.serialize import execSource
 
@@ -379,5 +382,105 @@ with tempfile.TemporaryDirectory() as folder:
     written = {point["call"]: point["file"] for point in far["points"]}
     check("each place a statement could go names its file too", written["fadeIn"] == module
           and written["moveBy"] == "scene_model_test.py")
+
+# ── The same model, from outside the editor ────────────────────────────────
+section("--inspect prints the model the timeline is drawn from")
+# The agent pane's child edits the file and cannot see the timeline. This is
+# how it asks for one — the same model, out of the same binary, as JSON.
+if needsRenderer("--inspect is a flag of the renderer"):
+    done = subprocess.run(["./video-code", "--inspect", "--file", "scene.py"],
+                          capture_output=True, text=True, timeout=120)
+    check("it exits clean", done.returncode == 0)
+    # Read defensively, so a binary that has no --inspect fails these checks
+    # one by one rather than raising over the top of every check below it.
+    shown = json.loads(done.stdout) if done.returncode == 0 else {}
+    check("the keys the timeline reads",
+          set(shown) == {"fps", "frames", "elements", "waits", "markers"})
+    byClass = {one["kind"]: one for one in shown.get("elements", [])}
+    nothing = {"line": 0, "effects": []}
+    square, circle = byClass.get("Square", nothing), byClass.get("Circle", nothing)
+    check("the elements scene.py makes, by the class it named them with",
+          set(byClass) == {"Square", "Circle"})
+    check("each on the line that made it", square["line"] == 11 and circle["line"] == 12)
+    check("with the calls the scene wrote on it", {"fadeIn", "moveBy"} <= set(called(square)))
+    check("each call saying which file it is in",
+          len(square["effects"]) > 0
+          and all(effect["file"].endswith("scene.py") for effect in square["effects"]))
+    check("and the waits", len(shown.get("waits", [])) == 2)
+
+    # A scene being written is broken most of the time, and a stack trace on
+    # stdout would be read as the model. It fails, it says where, and stdout
+    # stays empty so a caller can parse it without looking first.
+    broken = tempfile.NamedTemporaryFile(suffix=".py", delete=False, mode="w")
+    broken.write("from videocode import *\nx = Square(side=\n")
+    broken.close()
+    done = subprocess.run(["./video-code", "--inspect", "--file", broken.name],
+                          capture_output=True, text=True, timeout=120)
+    check("a scene that does not run says where, on stderr, and fails",
+          done.returncode == 1 and done.stdout == "" and f"{broken.name}:2:" in done.stderr)
+    check("and says what is wrong with it in words", "was never closed" in done.stderr)
+
+    done = subprocess.run(["./video-code", "--inspect", "--file", broken.name + ".gone"],
+                          capture_output=True, text=True, timeout=120)
+    check("a file that is not there is not a traceback either",
+          done.returncode == 1 and "cannot read" in done.stderr)
+
+# ── What the agent is told with every question ─────────────────────────────
+section("the brief in front of a question says what the author is looking at")
+# Built in QML out of the shell's own state, so it is read the way the child
+# reads it: from a windowless run of the chrome, through the Eval probe. The
+# keys fire 700 ms apart from 900 ms past half the settle, and the capture that
+# ends the run comes at the settle — which is why the settle is as long as it is.
+#
+# The fourth key moves the selected element to another file rather than
+# building a scene that imports one: the branch under test is the shell's, and
+# a second windowless run to reach it costs more than everything above.
+if needsRenderer("the brief is built by the chrome"):
+    shot = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    shot.close()
+    dock = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
+    dock.close()
+    env = dict(os.environ, VC_SCENE_FILE="scene.py", VC_SETTLE="11000", VC_DOCK_FILE=dock.name,
+               VC_KEYS=";".join([
+                   "Eval:agentBrief()",
+                   "Eval:selectedIndex = 0",
+                   "Eval:agentBrief()",
+                   "Eval:liveScene.elements[0].file = '/elsewhere/titles.py'",
+                   "Eval:source.text = source.text + '\\n'",
+                   "Eval:agentBrief()",
+               ]))
+    done = subprocess.run(["./video-code", "--check-chrome", "--screenshot", shot.name],
+                          capture_output=True, text=True, timeout=300, env=env)
+    briefs = [json.loads(line.split(" \u2192 ", 1)[1])[0]
+              for line in done.stdout.splitlines()
+              if line.startswith("Probed the expression agentBrief()")]
+    check("the chrome ran and answered three times", done.returncode == 0 and len(briefs) == 3)
+    if len(briefs) == 3:
+        clean, picked, elsewhere = briefs
+        check("a block the question follows",
+              clean.startswith("<editor>\n") and clean.endswith("</editor>\n\n"))
+        check("the file, and the caret in it", "/scene.py · caret on line 1\n" in clean)
+        check("nothing selected is said, not left out", "\nselected: nothing\n" in clean)
+        check("the playhead against the length", "\nplayhead: 0.00 s of 4.57 s\n" in clean)
+        check("what the last run said, line and message",
+              "\nlast run: ok, 1 warning\n  line 40: moveBy() and moveBy() (line 39)" in clean)
+        check("a clean buffer says nothing about itself",
+              "unsaved" not in clean and "stale" not in clean)
+        # A few lines, never the buffer: the child can Read the file and run
+        # --inspect, and a brief that repeats them buys nothing and costs a
+        # question's worth of attention.
+        check("short enough to read before the question", len(elsewhere.splitlines()) <= 12)
+
+        check("the selected element, by class and line, with its effects",
+              "\nselected: Square at line 11 — fadeIn (line 19, 0.00–0.40 s)," in picked)
+        check("an element of the open file says nothing about which file",
+              "not the open file" not in picked)
+
+        check("an element from elsewhere names the file that owns its lines",
+              "\n  — those lines are in /elsewhere/titles.py, not the open file:" in elsewhere)
+        check("an edited buffer says the file is behind it",
+              "\nunsaved: the buffer is ahead of the file on disk" in elsewhere)
+        check("and that the run it describes is of the older text",
+              "\nstale: the scene has been edited since it last ran" in elsewhere)
 
 summary()

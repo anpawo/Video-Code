@@ -274,8 +274,9 @@ Item {
                 if (text.length === 0)
                     return;
                 root.append({ who: "me", body: [{ kind: "text", text: text }] });
+                // The shell asks, not the pane: it prefixes what the author is
+                // looking at, and only it knows.
                 root.sent(text);
-                Agent.ask(text);
                 text = "";
             }
         }

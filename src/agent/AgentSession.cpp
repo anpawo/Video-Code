@@ -182,8 +182,10 @@ void VC::AgentSession::ensureStarted()
         // with code — which the author reads in green and red, and drops with
         // one key if it guessed wrong. That is a faster loop than a question.
         QStringLiteral("--append-system-prompt"),
-        // And it can look at what it did. The renderer is this very binary, a
-        // frame costs milliseconds, and a PNG is something it can read back.
+        // And it can look at what it did, and at where the author is. The
+        // renderer is this very binary, a frame costs milliseconds, and a PNG
+        // is something it can read back; the <editor> block the shell puts in
+        // front of every question is the half a PNG cannot show.
         QStringLiteral(
             "You are editing a videocode scene from inside the videocode editor. "
             "Never ask the author a clarifying question and never ask for permission: "
@@ -191,10 +193,15 @@ void VC::AgentSession::ensureStarted()
             "The author reads your edit as a diff and undoes it with one key if you "
             "guessed wrong, so a guess costs less than a question. "
             "Keep the edit as small as the request allows. "
+            "Every question opens with an <editor> block: the file, the caret, the "
+            "selected element, the playhead and what the last run said — "
+            "\"this\" and \"here\" refer to it. "
             "You can see what you made: `%1 --file <scene> --generate look.png --from 2.5 --width 480 --height 270` "
             "renders the frame at 2.5 s (or at a timestamp() name) in milliseconds, "
             "`--sheet 4 --from 0 --to 6` lays four labelled moments side by side in the one PNG, "
-            "and you can read the PNG back to check your edit before you finish."
+            "and you can read the PNG back to check your edit before you finish. "
+            "For the whole scene as the timeline sees it, run `%1 --inspect --file <scene>`: "
+            "JSON, one entry per element with its class, line, on-screen frames and effects."
         )
             .arg(QCoreApplication::applicationFilePath()),
     };

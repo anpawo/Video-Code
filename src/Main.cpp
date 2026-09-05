@@ -17,6 +17,7 @@
 #include <argparse/argparse.hpp>
 #include <csignal>
 #include <cstdlib>
+#include <fstream>
 #include <nlohmann/json.hpp>
 #include <opencv2/core/utils/logger.hpp>
 #include <opencv2/opencv.hpp>
@@ -82,6 +83,15 @@ void setParserArgument(argparse::ArgumentParser &p)
         .add_argument("--visual-test")
         .flag()
         .help("Run the visual regression suite (golden-frame + hot-reload equivalence checks) and exit.");
+
+    p
+        .add_argument("--inspect")
+        .flag()
+        .help(
+            "Run --file and print what it makes as JSON on stdout — the elements with their class, "
+            "line, on-screen span and effects, the waits and the moments it named — then exit. "
+            "The timeline as text, for a script or an agent that cannot see the window."
+        );
 
     p
         .add_argument("--update-golden")
@@ -185,6 +195,30 @@ namespace
 // in front of a message that was actually useful.
 static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
 {
+    // The scene as the editor's timeline reads it. `videocode/serialize.py`'s own
+    // __main__ prints the baked stack instead — one entry per input per frame,
+    // seventeen thousand lines for a scene of two shapes — which nothing can
+    // read. This is the model the timeline is drawn from, and it is small.
+    if (parser.get<bool>("--inspect")) {
+        const std::string path = parser.get<std::string>("--file");
+        std::ifstream     in(path);
+        if (!in) {
+            std::cerr << "--inspect: cannot read " << path << "\n";
+            return EXIT_FAILURE;
+        }
+        const std::string source((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+        const py::dict    result = py::module::import("videocode.serialize")
+                                       .attr("execSource")(source, path)
+                                       .cast<py::dict>();
+        if (!result["ok"].cast<bool>()) {
+            std::cerr << path << ":" << result["line"].cast<int>() + 1 << ": "
+                      << result["message"].cast<std::string>() << "\n";
+            return EXIT_FAILURE;
+        }
+        std::cout << result["scene"].cast<std::string>() << "\n";
+        return EXIT_SUCCESS;
+    }
+
     // Visual regression suite (headless — no window, no Qt event loop)
     if (parser.get<bool>("--visual-test")) {
         VC::VisualTest visualTest(parser);

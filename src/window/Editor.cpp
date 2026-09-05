@@ -29,6 +29,7 @@
 #include <QMenu>
 #include <QMouseEvent>
 #include <QQmlContext>
+#include <QQmlExpression>
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QRegularExpression>
@@ -1353,6 +1354,22 @@ void VC::Editor::pressKey(const QString& spec)
             }
             dragProbe(QPointF(at[0].toDouble(), at[1].toDouble()), QPointF(at[2].toDouble(), at[3].toDouble()), hold, modifiers);
         }
+        return;
+    }
+
+    // "Eval:agentBrief()" — a QML expression, run against the root window and
+    // printed as a one-element JSON array (a string with newlines has to survive
+    // one line of stdout). The one way a windowless run can read something the
+    // chrome BUILT rather than drew — the brief the agent is handed, for one,
+    // which otherwise leaves the process unseen.
+    if (spec.startsWith("Eval:")) {
+        QQmlExpression expression(qmlContext(window), window, spec.mid(5));
+        const QVariant value = expression.evaluate();
+        const QString  shown = expression.hasError()
+                                   ? expression.error().toString()
+                                   : QString::fromUtf8(QJsonDocument(QJsonArray{QJsonValue::fromVariant(value)})
+                                                           .toJson(QJsonDocument::Compact));
+        std::cout << std::format("Probed the expression {} → {}\n", spec.mid(5).toStdString(), shown.toStdString());
         return;
     }
 
