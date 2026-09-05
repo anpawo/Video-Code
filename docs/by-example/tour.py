@@ -54,17 +54,27 @@ with shot() as opening:
 timestamp("a comp fades as one")
 
 with shot() as badge:
+    # The point is the COMPARISON: the same two shapes, the same opacity, one
+    # pair in a comp and one in a plain group. Alone, a comp shows nothing —
+    # it is the group beside it that makes the doubled overlap visible.
     pair = Comp(
-        Circle(radius=1.1, fillColor=WHITE, strokeColor=TRANSPARENT),
-        Square(side=1.6, fillColor=WHITE, strokeColor=TRANSPARENT).position(1.2, 0),
+        Circle(radius=1.0, fillColor=WHITE, strokeColor=TRANSPARENT),
+        Square(side=1.5, fillColor=WHITE, strokeColor=TRANSPARENT).position(1.1, 0),
     )
-    pair.position(-3.2, 0)
-    # Half opacity on the COMP, so the join reads flat instead of doubling up.
+    pair.position(-3.6, 0.4)
     pair.opacity(128)
 
-    told = Text(text="one layer, one fade", fontSize=LABEL, fillColor=WHITE)
-    told.position(2.8, 0)
-    told.fadeIn(duration=0.5)
+    twin = Group(
+        Circle(radius=1.0, fillColor=WHITE, strokeColor=TRANSPARENT),
+        Square(side=1.5, fillColor=WHITE, strokeColor=TRANSPARENT).position(1.1, 0),
+    )
+    twin.position(3.0, 0.4)
+    twin.opacity(128)
+
+    said = Text(text="Comp — un seul fondu", fontSize=LABEL, fillColor=WHITE)
+    said.position(-3.0, -1.6)
+    other = Text(text="Group — le recouvrement compte double", fontSize=LABEL, fillColor=rgba(240, 180, 90))
+    other.position(3.6, -1.6)
     wait(3)
 
 cut(opening, badge)
