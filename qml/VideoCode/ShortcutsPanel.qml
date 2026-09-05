@@ -259,9 +259,13 @@ Item {
             // is too narrow to carry it per row — an ellipsis over a caveat is
             // not a caveat.
             text: {
+                // Only the ones a caret really takes: an action whose
+                // combination holds ⌘, ⌃ or ⌥ is not something anyone types,
+                // so it works wherever you are and saying otherwise would be
+                // the board lying about the keyboard.
                 let qualified = [];
                 for (const action of Keymap.actions)
-                    if (action.only !== undefined)
+                    if (action.only !== undefined && !Keymap.survivesTyping(action.id))
                         qualified.push(action.label.toLowerCase());
                 let line = "Hover an action to light the keys you press for it. "
                          + "Click its combination and press the new one.";

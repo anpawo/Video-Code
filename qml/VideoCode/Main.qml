@@ -3410,54 +3410,54 @@ ApplicationWindow {
     // played, and the scene quietly went stale.
     Shortcut {
         sequence: Keymap.sequence("play")
-        enabled: !source.typing
+        enabled: !source.typing || Keymap.survivesTyping("play")
         onActivated: app.togglePlay()
     }
     Shortcut {
         sequence: Keymap.sequence("toStart")
-        enabled: !source.typing
+        enabled: !source.typing || Keymap.survivesTyping("toStart")
         onActivated: app.playhead = 0
     }
     Shortcut {
         sequence: Keymap.sequence("toEnd")
-        enabled: !source.typing
+        enabled: !source.typing || Keymap.survivesTyping("toEnd")
         onActivated: app.playhead = app.shownScene.duration
     }
     Shortcut {
         sequence: Keymap.sequence("prevFrame")
-        enabled: !source.typing
+        enabled: !source.typing || Keymap.survivesTyping("prevFrame")
         onActivated: app.playhead = Math.max(0, app.playhead - 1 / preview.framerate)
     }
     Shortcut {
         sequence: Keymap.sequence("nextFrame")
-        enabled: !source.typing
+        enabled: !source.typing || Keymap.survivesTyping("nextFrame")
         onActivated: app.playhead = Math.min(app.shownScene.duration, app.playhead + 1 / preview.framerate)
     }
     Shortcut {
         sequence: Keymap.sequence("prevMarker")
-        enabled: !source.typing
+        enabled: !source.typing || Keymap.survivesTyping("prevMarker")
         onActivated: app.jumpToMarker(-1)
     }
     Shortcut {
         sequence: Keymap.sequence("nextMarker")
-        enabled: !source.typing
+        enabled: !source.typing || Keymap.survivesTyping("nextMarker")
         onActivated: app.jumpToMarker(1)
     }
     // The range. `I` and `O` are the two keys every editor on this machine
     // spells the same way, and the third gives the whole scene back.
     Shortcut {
         sequence: Keymap.sequence("markIn")
-        enabled: !source.typing
+        enabled: !source.typing || Keymap.survivesTyping("markIn")
         onActivated: app.setMarkIn()
     }
     Shortcut {
         sequence: Keymap.sequence("markOut")
-        enabled: !source.typing
+        enabled: !source.typing || Keymap.survivesTyping("markOut")
         onActivated: app.setMarkOut()
     }
     Shortcut {
         sequence: Keymap.sequence("clearMarks")
-        enabled: !source.typing
+        enabled: !source.typing || Keymap.survivesTyping("clearMarks")
         onActivated: app.clearMarks()
     }
     Shortcut {

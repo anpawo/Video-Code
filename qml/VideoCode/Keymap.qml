@@ -117,6 +117,23 @@ QtObject {
         return root.bindings[id] !== undefined ? root.bindings[id] : "";
     }
 
+    // Whether this binding survives a caret in the code pane.
+    //
+    // The transport and a text editor want the same five keys — Space, the
+    // arrows — so those belong to whoever has the caret. But ⌘P is not
+    // something anyone types: no editor swallows a combination held with ⌘, ⌃
+    // or ⌥, so gating it on the caret only makes it dead exactly when the
+    // window opens with the buffer focused, which is every time.
+    //
+    // Shift alone does NOT count: ⇧← selects a word, and the transport must
+    // not take that from the caret.
+    function survivesTyping(id) {
+        for (const mod of root.modsOf(root.combo(id)))
+            if (mod === "Cmd" || mod === "Ctrl" || mod === "Alt")
+                return true;
+        return false;
+    }
+
     function modsOf(spec) {
         return spec.indexOf("+") >= 0 ? spec.slice(0, spec.lastIndexOf("+")).split("+") : [];
     }
