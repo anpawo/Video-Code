@@ -172,8 +172,19 @@ regardées à la main. Deux trous d'outillage trouvés en chemin et bouchés : l
 fenêtre sans écran ne recevait aucune touche (`fa0fe1e`), et le harnais
 photographiait avant la fin des touches — donc tout raccourci « vérifié » avant
 ce jour ne l'était pas. Reste ouvert : un `Shortcut` de fenêtre (espace, I, O)
-ne part toujours pas dans un run scripté, même par la couche plateforme ; la
-moitié transport du clavier se relit, elle ne se déclenche pas.
+ne part toujours pas dans un run scripté ; la moitié transport du clavier se
+relit, elle ne se déclenche pas.
+
+**Pourquoi, mesuré.** Dans la fenêtre sans écran : `activeFocusItem` existe (donc
+une touche atteint bien l'élément qui a le focus — c'est pour ça que ⌘⏎ du
+panneau de code marche), mais `window.active` est `false`, parce qu'une fenêtre
+jamais montrée n'a pas de fenêtre plateforme. Or un `Shortcut` de contexte
+`WindowShortcut` n'est comparé qu'à la fenêtre ACTIVE. Passer les touches par
+`QWindowSystemInterface::handleKeyEvent` au lieu de `sendEvent` ne change rien —
+essayé, mesuré, annulé. La piste restante est `QWindow::create()` sur le chemin
+sans écran : elle donnerait une fenêtre plateforme sans la montrer, et rendrait
+tous les raccourcis vérifiables. Non tentée : si elle affiche quelque chose, elle
+coupe Marius en plein travail, et cette règle-là ne se teste pas à l'aveugle.
 
 **Temps — 6 semaines.** *Pour* : écrire des scènes qui disent *quand* et *par
 rapport à quoi*.

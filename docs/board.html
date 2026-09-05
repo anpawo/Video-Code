@@ -218,7 +218,7 @@
       <div class="card todo">
         <h2>To do · quick <em>rien ne les bloque</em> <span class="n">1</span></h2>
         <ul class="rows">
-          <li data-b="Corrigé à moitié : la fenêtre sans écran reçoit enfin le focus, et la photo attend la fin des touches — un raccourci du panneau de code se vérifie maintenant pour de bon.|Ce qui reste : un <code>Shortcut</code> de fenêtre (espace, I, O, les sauts de repère) ne part toujours pas, même par la couche plateforme.|Conséquence : la moitié transport du clavier se relit, ne se déclenche pas."><span class="id">H1</span><span class="lbl">Le clavier des raccourcis de fenêtre</span><span class="meta">½ fait</span></li>
+          <li data-b="Corrigé à moitié ce matin : la fenêtre sans écran reçoit le focus, et la photo attend la fin des touches — un raccourci du panneau de code se vérifie enfin.|Ce qui reste, mesuré : <code>activeFocusItem</code> existe mais <code>window.active</code> est faux — une fenêtre jamais montrée n'a pas de fenêtre plateforme, et un <code>Shortcut</code> de fenêtre n'est comparé qu'à la fenêtre ACTIVE.|Passer par la couche plateforme ne change rien : essayé, mesuré, annulé. La piste restante est <code>QWindow::create()</code> — non tentée, parce que si elle affiche quelque chose elle te coupe en plein travail."><span class="id">H1</span><span class="lbl">Les raccourcis de fenêtre en automatique</span><span class="meta">ton avis</span></li>
         </ul>
       </div>
 
