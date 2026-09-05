@@ -42,7 +42,7 @@ wait(1)
 """
 
 
-def render_scene(scene_path: str, output_path: str) -> None:
+def render_scene(scene_path: str, output_path: str, *flags: str) -> None:
     binary = os.path.abspath("video-code")
     if not os.path.exists(binary):
         raise FileNotFoundError(f"missing renderer binary: {binary}")
@@ -59,6 +59,7 @@ def render_scene(scene_path: str, output_path: str) -> None:
         str(OUTPUT_HEIGHT),
         "--framerate",
         str(FPS),
+        *flags,
     ]
     subprocess.run(cmd, check=True, capture_output=True, text=True)
 
@@ -123,5 +124,34 @@ with tempfile.TemporaryDirectory() as tmp:
     check("freeze() holds every consecutive frame in its whole segment", frozen_mean < 0.02)
     check("motion resumes again after freeze()", float(np.mean(active3)) > 0.25)
     check("active segments are materially more animated than the held segments", active_mean > max(paused_mean, frozen_mean) * 20)
+
+    # ── the same clock, seen through a still and a sheet ─────────────────────
+    # The agent pane's child cannot watch the video; it renders a PNG and reads
+    # it back. So a still has to be the moment asked for, and a sheet's tiles
+    # have to be exactly the stills of the times it claims — the label is in a
+    # strip under each tile, which is what makes that byte-for-byte checkable.
+    section("a still at a time, and a sheet of them")
+    stills: dict[str, np.ndarray] = {}
+    for at in ("0", "2", "2.5", "4"):
+        path = os.path.join(tmp, f"still-{at}.png")
+        render_scene(scene_path, path, "--from", at)
+        stills[at] = cv2.imread(path)
+    moved = int(np.count_nonzero(np.any(stills["0"] != stills["2.5"], axis=2)))
+    check(f"--from 2.5 is not frame 0: {moved} of {OUTPUT_WIDTH * OUTPUT_HEIGHT} pixels differ", moved > OUTPUT_WIDTH * OUTPUT_HEIGHT // 2)
+    held = int(np.count_nonzero(np.any(stills["2"] != stills["2.5"], axis=2)))
+    check(f"half a second apart in a live stretch, --from 2 and --from 2.5 differ too: {held} pixels", held > OUTPUT_WIDTH * OUTPUT_HEIGHT // 2)
+
+    sheet_path = os.path.join(tmp, "sheet.png")
+    render_scene(scene_path, sheet_path, "--sheet", "3", "--from", "0", "--to", "4")
+    sheet = cv2.imread(sheet_path)
+    check(f"--sheet 3 is three tiles wide with a label strip under them (measured {sheet.shape[1]}x{sheet.shape[0]})", sheet.shape[1] == 3 * OUTPUT_WIDTH and sheet.shape[0] > OUTPUT_HEIGHT)
+    for k, at in enumerate(("0", "2", "4")):
+        tile = sheet[:OUTPUT_HEIGHT, k * OUTPUT_WIDTH:(k + 1) * OUTPUT_WIDTH]
+        strip = sheet[OUTPUT_HEIGHT:, k * OUTPUT_WIDTH:(k + 1) * OUTPUT_WIDTH]
+        check(f"tile {k} is the still at {at} s, pixel for pixel", bool(np.array_equal(tile, stills[at])))
+        check(f"tile {k} carries a label (bright strip pixels: {int(np.count_nonzero(strip.max(axis=2) > 128))})", int(np.count_nonzero(strip.max(axis=2) > 128)) > 20)
+
+    refused = subprocess.run([os.path.abspath("video-code"), "--file", scene_path, "--generate", os.path.join(tmp, "no.mp4"), "--sheet", "3"], capture_output=True, text=True)
+    check("--sheet with a video output is refused, not silently a video", refused.returncode != 0 and "--sheet" in refused.stderr)
 
 summary()

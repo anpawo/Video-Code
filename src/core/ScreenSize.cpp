@@ -75,5 +75,7 @@ Config VC::makeConfig(const argparse::ArgumentParser &parser)
 
         .renderFrom = parser.present("--from").value_or(""),
         .renderTo = parser.present("--to").value_or(""),
+
+        .sheetTiles = parser.present<int>("--sheet").value_or(1),
     };
 }

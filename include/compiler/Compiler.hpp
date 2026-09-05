@@ -39,8 +39,9 @@ namespace VC
 
     private:
 
-        ///< Renders a single frame and writes it to `config.outputFile`.
-        int generateImage(VulkanHeadlessRenderer& renderer);
+        ///< Renders the still at `first` — or, with --sheet, that many
+        ///< moments of [first, last] side by side — into `config.outputFile`.
+        int generateImage(VulkanHeadlessRenderer& renderer, size_t first, size_t last);
 
         Config config;
 

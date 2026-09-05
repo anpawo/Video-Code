@@ -40,4 +40,8 @@ struct Config
     ///< run and the names exist.
     std::string renderFrom;
     std::string renderTo;
+
+    ///< --sheet: how many moments an image output holds side by side. 1 is a
+    ///< plain still.
+    int sheetTiles = 1;
 };
