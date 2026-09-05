@@ -166,9 +166,9 @@
     <h1>Chantier Video-Code</h1>
     <span class="branch">feat/night-2026-09-03</span>
     <span class="chips">
-      <span class="chip"><b>32</b> livrés</span>
-      <span class="chip"><b>12</b> à faire</span>
-      <span class="chip"><b>56</b> tests</span>
+      <span class="chip"><b>33</b> livrés</span>
+      <span class="chip"><b>11</b> à faire</span>
+      <span class="chip"><b>57</b> tests</span>
       <span class="chip"><b>50</b> scènes</span>
     </span>
     <span class="stamp">5 sept.</span>
@@ -178,8 +178,9 @@
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <span class="n">12</span></h2>
+        <h2>Needs your check <span class="n">13</span></h2>
         <ul class="rows">
+          <li data-b="<code>BarChart(data)</code> et <code>Leaderboard(rows)</code> : une barre par ligne, l'étiquette dessous, la valeur DESSUS.|<code>grow()</code> écrit la valeur avec la même rampe que sa barre — le nombre monte avec le sommet au lieu de rester où il était, ce que tout graphique écrit à la main rate.|<code>fromCSV</code> lit un fichier et refuse une cellule invalide en la situant à la ligne.|À vérifier : rends une scène avec un Leaderboard et regarde les nombres pendant la croissance."><span class="id">D6</span><span class="lbl">Graphiques à barres</span><span class="meta">bar-chart</span></li>
           <li data-b="Une courbe tirable au bout de chaque ligne d'effet : deux points de contrôle, les presets d'un clic, et la ligne écrite dessous.|Elle montre ce que la LIGNE dit déjà — un <code>easing=</code> écrit comme un nom montre le mot, pas une courbe, et n'est pas tirable.|Au relâchement seulement, elle écrit <code>easing=CubicBezier(...)</code> ; un preset écrit son nom.|À vérifier avec une vraie souris : la pastille de 24 px chevauche le bord de redimensionnement d'un effet qui remplit tout son clip."><span class="id">B5</span><span class="lbl">Éditeur de courbes</span><span class="meta">curve-editor</span></li>
           <li data-b="<code>--for youtube,tiktok,square</code> écrit trois fichiers d'une seule commande, chacun à sa taille.|Ce n'est pas un recadrage : la scène est REJOUÉE et se remet en page — mesuré, le carré est à 0,26 en travers en 16:9 et à 0,26 en hauteur en 9:16.|Un nom inconnu, un <code>--for</code> sans <code>--generate</code>, une forme qui échoue : chacun le dit et s'arrête.|Laissé de côté : la normalisation de loudness, qui changerait le son de tous les rendus existants en silence."><span class="id">C3</span><span class="lbl">Une scène, tous les formats</span><span class="meta">every-format</span></li>
           <li data-b="<code>music.over(duration=1.5).volume = 0</code> était revendiqué sur la timeline et jeté au montage : le fondu sortait à plein volume, sans un mot.|Le mux lit maintenant le niveau image par image, dans l'horloge de la scène.|<code>music.duck(under=voice)</code> écrit les deux rampes du geste de tout voice-over — descente à l'entrée de la voix, remontée à sa fin.|À vérifier : rends une scène musique + voix et écoute."><span class="id">A6</span><span class="lbl">Le son sur le modèle de revendications</span><span class="meta">sound-claims</span></li>
@@ -238,7 +239,7 @@
       </div>
 
       <div class="card todo">
-        <h2>To do · the rest <span class="n">5</span></h2>
+        <h2>To do · the rest <span class="n">4</span></h2>
         <ul class="rows">
           <li data-b="Plier plusieurs éléments en UNE image qu'on fond, floute, masque ou fait tourner d'un bloc.|Corrige d'un coup trois défauts mesurés : les groupes imbriqués qui perdent l'animation intérieure, le fondu où les membres se traversent, et le masque qui exige d'aplatir un texte à la main.|Le moteur a déjà les couches isolées et la passe qui aplatit une plage de maillages."><span class="id">A1</span><span class="lbl">Comp — un groupe = un calque</span><span class="meta">projet</span></li>
           
@@ -250,7 +251,6 @@
           
           <li data-b="Mettre ceci à côté de cela, avec un écart mesuré entre les bords.|Avec <code>follow=True</code>, l'étiquette suit la balle qui bouge.|Le suivi demande S1 : il ne voit que ce qui est écrit AU-DESSUS de lui."><span class="id">D1</span><span class="lbl"><code>nextTo(a, UP, gap=)</code></span><span class="meta">½ j</span></li>
           <li data-b="Rayons, ombres, marges et matières des onglets, des fenêtres et des blocs, revus pour ressembler à ce que fait Apple.|Rien n'a été creusé : posé ici tel quel, à ta demande.|À reprendre quand tu voudras en parler."><span class="id">B8</span><span class="lbl">Des formes plus Apple</span><span class="meta">non creusé</span></li>
-          <li data-b="Un élément par ligne de données, et <code>fromCSV</code> pour lire un fichier.|Remplace 12 à 15 lignes écrites à la main.|Dont la valeur affichée qui, aujourd'hui, ne suit pas la barre qui grandit."><span class="id">D6</span><span class="lbl"><code>BarChart(data)</code></span><span class="meta">D1, D5</span></li>
         </ul>
       </div>
     </div>
