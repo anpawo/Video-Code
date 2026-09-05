@@ -315,7 +315,7 @@ class Input(ABC):
         attr: attrName,
         to: Any,
         *,
-        easing=Easing.InOut,
+        easing: easing = Easing.InOut,
         start: sec = 0,
         duration: sec = 0.4,
         offset: maybe[frame] = None,
