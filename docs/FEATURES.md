@@ -394,7 +394,14 @@ Every `Input` (shape, text, group, ...) has:
 - `apply(*shaders, start, duration, offset)` — low-level: push raw
   `IShader`s onto the action stack (everything above is sugar over this)
 - `with shot() as intro:` / `cut(intro, body, credits)` — name a stretch of the
-  film and leave it. Everything made inside the block belongs to the shot (a
+  film and leave it. `cut(intro, body, crossfade=0.6)` dissolves instead of
+  cutting: each shot becomes ONE layer for the dissolve (`shot.asOneLayer()`
+  wraps it in a `Composition`, once), because two shots fading member by member
+  show through each other's holes. Measured on a square leaving and a circle
+  arriving: the outgoing reads 255 → 195 → 146 → 87, the incoming 51 → 107 →
+  152 → 207, crossing in the middle of the window. The cost is the
+  composition's: members of a dissolving shot no longer take part in the
+  frame's z-order on their own. Everything made inside the block belongs to the shot (a
   shot inside another belongs to both), and `cut` puts a whole shot away at the
   frame the next one opens, instead of hiding every element of every section by
   hand. A hard cut only: a crossfade needs the two shots to fade as single

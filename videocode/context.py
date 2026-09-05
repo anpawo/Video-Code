@@ -678,6 +678,8 @@ class shot:
         self.first: frame = 0
         self.last: frame = 0
         self.inputs: list[Any] = []
+        # Filled only by `asOneLayer()`, i.e. only by a crossfade.
+        self._layer: Any = None
 
     def __enter__(self) -> "shot":
         self.first = max(Context.cursor, Context.waitOffset)
@@ -689,32 +691,79 @@ class shot:
         Context.openShots.remove(self)
         self.last = max(Context.cursor, Context.waitOffset)
 
+    def asOneLayer(self) -> Any:
+        """
+        The shot as a single layer — built once, and only if something asks.
 
-def cut(*shots: shot) -> None:
+        A crossfade cannot be n fades: two shots fading through each other
+        member by member is not a dissolve, it is both scenes showing through
+        each other's holes. `Composition` is what makes a group one picture, so
+        a shot that has to dissolve becomes one — and stays one for the rest of
+        the film, which is what a plan IS.
+
+        Built under `noHiding` because a `Composition` made here is made LATE:
+        the layer would otherwise hide itself back to frame 0 and take the shot
+        with it.
+        """
+        from videocode.input.interface.Composition import Composition
+
+        if self._layer is None:
+            with Context.noHiding():
+                self._layer = Composition(*self.inputs)
+        return self._layer
+
+
+def cut(*shots: shot, crossfade: sec = 0, easing: Any = None) -> None:
     """
-    Leave one shot for the next: everything the first made goes off screen
-    exactly where the second opens::
+    Leave one shot for the next::
 
-        cut(intro, body, credits)
+        cut(intro, body, credits)                  # coupe franche
+        cut(intro, body, crossfade=0.6)            # fondu enchaîné
 
-    A hard cut, and only a hard cut. A crossfade would need the two shots to
-    fade as single layers — as they are, every element fades on its own and the
-    two shots show through each other, which is not a crossfade but a mess.
-    That waits on group compositing.
+    Without `crossfade`, everything the first shot made goes off screen at the
+    exact frame the second opens — one hard cut, nothing else touched.
+
+    With one, the two shots dissolve through each other over that many seconds,
+    starting at the cut. A dissolve cannot be n fades: two shots fading member
+    by member show through each other's holes, which is a mess and not a
+    dissolve. So each shot in a dissolve becomes ONE LAYER — a `Composition` —
+    and stays one for the rest of the film, which is what a plan is anyway. The
+    cost is that members of a dissolving shot no longer take part in the
+    frame's z-order on their own.
 
     An element already hidden stays hidden; hiding it again costs one claim and
     says the same thing.
     """
     from videocode.shader.vertexShader.hide import hide
+    from videocode.template.effect.core.fadeTo import fadeTo
+    from videocode.utils.bezier import Easing
 
     if len(shots) < 2:
         raise ValueError("cut() needs at least two shots — it is what happens BETWEEN them")
+    if crossfade < 0:
+        raise ValueError(f"cut(crossfade={crossfade}) — a dissolve cannot last less than no time")
+
+    ramp = easing if easing is not None else Easing.Linear
 
     for earlier, later in zip(shots, shots[1:]):
-        for made in earlier.inputs:
-            # The claim is written at an ABSOLUTE frame, not from the element's
-            # own cursor: `cut` is written after both blocks, and by then every
-            # element's clock is at the end of the scene. `apply(offset=…)` is
-            # the same door the creation of a mid-timeline element uses to hide
-            # itself back at frame 0.
-            made.apply(hide(), start=0, offset=later.first)
+        if crossfade == 0:
+            for made in earlier.inputs:
+                # The claim is written at an ABSOLUTE frame, not from the
+                # element's own cursor: `cut` is written after both blocks, and
+                # by then every element's clock is at the end of the scene.
+                # `apply(offset=…)` is the same door the creation of a
+                # mid-timeline element uses to hide itself back at frame 0.
+                made.apply(hide(), start=0, offset=later.first)
+            continue
+
+        # A dissolve, then: both shots become one layer each, one ramps down
+        # while the other ramps up, over the same window, from the cut.
+        going, coming = earlier.asOneLayer(), later.asOneLayer()
+        span = int(crossfade * FRAMERATE)
+
+        going.apply(*fadeTo(going, src=255, dst=0, duration=crossfade, easing=ramp), offset=later.first)
+        # And off, so a layer at zero opacity is not still being flattened for
+        # the rest of the film.
+        going.apply(hide(), start=0, offset=later.first + span)
+
+        coming.apply(*fadeTo(coming, src=0, dst=255, duration=crossfade, easing=ramp), offset=later.first)

@@ -22,7 +22,7 @@ sys.path.insert(0, ".")
 sys.path.insert(0, "test")
 from helpers import check, section, summary
 
-from videocode import Circle, Square, wait
+from videocode import BLUE_C, Circle, Square, WHITE, wait
 from videocode.context import Context, cut, shot
 from videocode.serialize import _resetContext, execSource
 
@@ -143,5 +143,56 @@ section("what cut() refuses")
 answer = execSource("from videocode import *\nwith shot() as only:\n    pass\ncut(only)\n", "shot_test.py")
 check(f"a single shot is refused, with a reason ({answer['message']})",
       not answer["ok"] and "two shots" in answer["message"])
+
+# ── Le fondu enchaîné ──────────────────────────────────────────────────────
+section("cut(crossfade=…) — les deux plans se traversent, chacun d'un seul bloc")
+_resetContext()
+with shot() as before:
+    Square(side=2.4, fillColor=WHITE).position(-3, 0)
+    wait(1)
+
+with shot() as after:
+    Circle(radius=1.3, fillColor=BLUE_C).position(3, 0)
+    wait(1.5)
+
+cut(before, after, crossfade=0.6)
+
+# Un plan qui se dissout devient UN calque : sans ça, deux plans qui fondent
+# membre par membre se voient à travers les trous l'un de l'autre.
+check("le plan sortant est devenu un calque", before._layer is not None)
+check("le plan entrant aussi", after._layer is not None)
+check("et asOneLayer() rend le même, pas un deuxième", before.asOneLayer() is before._layer)
+
+
+def levels(layer) -> list[tuple[int, float]]:
+    entry = Context.stack[layer.layer.meta.index]
+    return sorted((frame, shader["args"]["opacity"])
+                  for frame, keys in entry.items() if frame != -1
+                  for name, shader in keys.items() if name.startswith("Opacity"))
+
+
+going, coming = levels(before._layer), levels(after._layer)
+# La première image de la rampe vaut déjà un cran en dessous : une
+# revendication qui redit 255 à un calque déjà à 255 est jetée comme une
+# écriture sans effet, et c'est la bonne règle.
+check(f"le sortant descend jusqu'à 0 ({going[0][1]:.0f} → {going[-1][1]:.0f})",
+      going[0][1] > 200 and going[-1][1] < 15
+      and all(a[1] >= b[1] for a, b in zip(going, going[1:])))
+check(f"l'entrant monte de 0 à 255 ({coming[0][1]:.0f} → {coming[-1][1]:.0f})",
+      coming[0][1] < 15 and coming[-1][1] > 240)
+check(f"sur la même fenêtre, qui s'ouvre à la coupe (image {coming[0][0]} pour une coupe à {after.first})",
+      abs(coming[0][0] - after.first) <= 1 and abs(going[-1][0] - coming[-1][0]) <= 1)
+check(f"et elle dure ce qui a été demandé ({going[-1][0] - going[0][0] + 1} images pour 0.6 s)",
+      abs((going[-1][0] - going[0][0] + 1) - 18) <= 2)
+
+hidden = [frame for frame, keys in Context.stack[before._layer.layer.meta.index].items()
+          if frame != -1 and any(key.startswith("Hide") for key in keys)]
+check(f"le calque sortant est éteint à la fin du fondu ({hidden})",
+      len(hidden) == 1 and hidden[0] >= going[-1][0])
+
+_resetContext()
+answer = execSource("from videocode import *\nwith shot() as a:\n    pass\nwith shot() as b:\n    pass\ncut(a, b, crossfade=-1)\n", "shot_test.py")
+check(f"un fondu de durée négative est refusé ({answer['message']})",
+      not answer["ok"] and "crossfade" in answer["message"])
 
 summary()

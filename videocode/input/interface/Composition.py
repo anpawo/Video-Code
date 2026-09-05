@@ -78,13 +78,19 @@ class Composition(Group):
         # its box is what bbox-driven effects (crop, vignette) resolve against.
         # Built AFTER the members, so its default zIndex — creation order — puts
         # the composite just above them, which is where they were.
+        #
+        # Marked at frame 0, for the reason the members are: being a layer is a
+        # fact, not an event. A composition built late — `cut(crossfade=…)`
+        # builds one around a shot that has already played — was only a layer
+        # from the end of the film, so the members were flattened into nothing
+        # and the dissolve had nothing to dissolve.
         self.layer = Rectangle(
             width=WORLD_WIDTH,
             height=WORLD_HEIGHT,
             fillColor=TRANSPARENT,
             strokeColor=TRANSPARENT,
             strokeWidth=0,
-        ).apply(_compositionShader())
+        ).apply(_compositionShader(), offset=0)
 
         # A composition answers with its LAYER's slot when something asks which input
         # it is. `matte(composition)` is the case that needs it — a matte source must
@@ -98,10 +104,18 @@ class Composition(Group):
             # A nested composition joins as its LAYER, not as its leaves: its members
             # are already spoken for, and re-marking them would move them into
             # the outer composition and lose the inner one's own fade.
+            #
+            # At frame 0, not at the member's own cursor: belonging to a layer
+            # is a fact about the input, not an event in its timeline. Written
+            # at the cursor, a composition built LATE — the one `cut(crossfade=…)`
+            # builds around a shot that has already played — only owned its
+            # members from the end of the film, so the dissolve had nothing to
+            # dissolve. Harmless when the composition is built with its members:
+            # a member born mid-timeline is hidden until then anyway.
             if isinstance(i, Composition):
-                i.layer.apply(member)
+                i.layer.apply(member, offset=0)
             else:
-                i.broadcast(lambda m: m.apply(member))
+                i.broadcast(lambda m: m.apply(member, offset=0))
 
     def _cursor(self) -> frame:
         """Where the composition's own timeline stands: the latest of everything in it."""
