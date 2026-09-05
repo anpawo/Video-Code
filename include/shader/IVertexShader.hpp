@@ -127,8 +127,16 @@ inline void getMetadataFromArgs(VertexShader t, const json::object_t& args, Meta
             throw Error("Impossible __End Transform.");
         }
         case VertexShader::Align: {
-            meta.align.x = args.at("x");
-            meta.align.y = args.at("y");
+            // A null axis is one this claim does not name — the same rule
+            // `Position` below follows, and the one Python has always written
+            // with: `align(x=0)` sends y as null so an x ramp and a y ramp can
+            // compose. Read unconditionally, that null reached nlohmann as a
+            // number and threw "type must be number, but is null" — a legal
+            // line of scene that rendered an error instead of a picture.
+            if (!args.at("x").is_null())
+                meta.align.x = args.at("x");
+            if (!args.at("y").is_null())
+                meta.align.y = args.at("y");
             break;
         }
         case VertexShader::Position: {
