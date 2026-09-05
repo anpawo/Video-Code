@@ -59,6 +59,10 @@ Item {
     signal effectJumped(var fx)
     // Off, or back on: the line is commented out rather than deleted.
     signal effectToggled(int line, bool off, string file)
+    // A gesture that cannot be made, in words. The card has no status line of
+    // its own; the pane does, and a refusal nobody hears looks exactly like a
+    // gesture that failed.
+    signal says(string sentence)
 
     readonly property var members: element !== null && element.members !== undefined
                                    ? element.members : []
@@ -145,6 +149,7 @@ Item {
         element = what;
         from = where;
         library = false;
+        curving = null;
         travel = 0;
         // One frame at zero before it is told to go: setting both in the same
         // tick means no journey to animate.
@@ -182,6 +187,7 @@ Item {
         launch.stop();
 
         root.closed();
+        curving = null;
         travel = 0;
         // The element is kept until the bar is home — it is what the lane's
         // hollow and the flying bar are both drawn from.
@@ -293,6 +299,80 @@ Item {
             return "";
         return Shell.readArgument(buffer, element.line, cls, name);
     }
+
+    // ── What a call's `easing=` says, as a curve ──────────────────────────
+    // The presets come from the library rather than from a list written here:
+    // `Easing.Out` IS a `CubicBezier`, and a preset added there has to reach
+    // the card without a second edit. Read once — the shell asks Python for
+    // them, and the answer cannot change while a card is open.
+    readonly property var presets: Shell.easingCurves()
+
+    // The four control points behind what is WRITTEN, or an empty list when
+    // that is not a curve at all. `Easing.Wiggle` is a function, `SNAPPY` is a
+    // decision with a name on it, `pick(fast)` is neither — each is shown as
+    // what it says and none of them is pulled about by a drag.
+    function curveOf(text) {
+        if (root.presets[text] !== undefined)
+            return root.presets[text];
+        const numbers = /^CubicBezier\s*\(([^()]*)\)$/.exec(text.trim());
+        if (numbers === null)
+            return [];
+        const parts = numbers[1].split(",").map(Number);
+        return parts.length === 4 && !parts.some(isNaN) ? parts : [];
+    }
+
+    // The name a curve is already known by, so picking `Out` writes
+    // `Easing.Out` and not the four numbers behind it: the word is what the
+    // person meant, and it stays readable when the preset itself is tuned.
+    function nameOf(points) {
+        for (const name in root.presets) {
+            const preset = root.presets[name];
+            if (preset.every((v, i) => Math.abs(v - points[i]) < 0.005))
+                return name;
+        }
+        return "";
+    }
+
+    // Why a written easing cannot be pulled about, in the words `edit.py` uses
+    // for the same refusal on a number: what is there is a decision, and a
+    // gesture that overwrote it would keep the timing and lose the decision.
+    // `Easing.Wiggle` is a function with no handles to show; `SNAPPY` is a name
+    // the person gave a curve, and changing it is an edit to that line, not to
+    // this one.
+    function whyNotCurve(text) {
+        if (/^Easing\.\w+$/.test(text))
+            return text + " is a function, not a curve — edit the line itself";
+        if (/^[A-Za-z_]\w*$/.test(text))
+            return text + " is a name, not a curve — change " + text + " itself";
+        return text + " is written as an expression — edit the line itself";
+    }
+
+    // What the signature would use when the line says nothing: `moveTo` eases
+    // in and out, `slideIn` eases out, `flash` goes there and back. Taken from
+    // the same catalogue the library panel shows, so the curve opens on the
+    // easing that is really running.
+    //
+    // "" for a call the catalogue does not name, and that is the whole guard:
+    // `square.opacity(0)` takes no easing, and a curve offered on it would have
+    // written an argument that call cannot accept — a gesture that breaks the
+    // scene it was supposed to tune. A call outside the catalogue that DOES
+    // take one, `fadeIn` among them, gets its curve as soon as the line says
+    // `easing=` itself; until then the editor does not guess.
+    function defaultEasing(call) {
+        for (const effect of root.effectNames) {
+            if (effect.name !== call)
+                continue;
+            for (const parameter of effect.params)
+                if (parameter.name === "easing" && parameter.value.length > 0)
+                    return parameter.value;
+        }
+        return "";
+    }
+
+    // Which row's curve is open, and where on the card it was summoned from.
+    // Card-level because the rows are inside a clipped ListView: a panel drawn
+    // in the row would be cut off by the row above it.
+    property var curving: null
 
     // Turn a pointer position into a moment on the element.
     function timeAt(globalX) {
@@ -690,6 +770,42 @@ Item {
                         return isNaN(value) ? NaN : value;
                     }
 
+                    // ── The curve this effect runs on ────────────────
+                    // What the line says, or what the signature would use when
+                    // it says nothing: an effect opens on the easing that is
+                    // really running, never on a default the card invented.
+                    readonly property string easingText: {
+                        if (!row.editable || row.off)
+                            return "";
+                        const said = Shell.readArgument(root.buffer, row.modelData.line,
+                                                        row.modelData.call, "easing");
+                        return said.length > 0 ? said : root.defaultEasing(row.modelData.call);
+                    }
+
+                    readonly property var easingPoints: root.curveOf(row.easingText)
+
+                    readonly property bool curveOpen: root.curving !== null
+                                                      && root.curving.line === row.modelData.line
+                                                      && root.curving.call === row.modelData.call
+
+                    function openCurve(from) {
+                        if (row.easingPoints.length !== 4) {
+                            root.says(root.whyNotCurve(row.easingText));
+                            return;
+                        }
+                        if (row.curveOpen) {
+                            root.curving = null;
+                            return;
+                        }
+                        const at = from.mapToItem(card, 0, 0);
+                        root.curving = {
+                            line: row.modelData.line, call: row.modelData.call,
+                            file: row.modelData.file, n: row.modelData.n,
+                            points: row.easingPoints,
+                            x: at.x, y: at.y, w: from.width, h: from.height
+                        };
+                    }
+
                     function commit(name, value) {
                         if (isNaN(value)) {
                             root.effectWritten(modelData, "", "");
@@ -713,9 +829,11 @@ Item {
                     // acts on is a button you cannot press.
                     Row {
                         id: handle
-                        anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                        anchors { right: easeChip.left; rightMargin: 8
+                                  verticalCenter: parent.verticalCenter }
                         spacing: 8
-                        opacity: !row.off && row.editable && (hover.hovered || bar.pressed) ? 1 : 0
+                        opacity: !row.off && row.editable
+                                 && (hover.hovered || bar.pressed || row.curveOpen) ? 1 : 0
                         visible: opacity > 0
                         Behavior on opacity { NumberAnimation { duration: Theme.motion(110) } }
 
@@ -1047,6 +1165,61 @@ Item {
                         opacity: bar.onEdge || bar.edging ? 0.8 : 0
                         Behavior on opacity { NumberAnimation { duration: Theme.motion(90) } }
                     }
+
+                    // The shape of the change this effect runs on, always in
+                    // view rather than under the pointer: it is what the line
+                    // SAYS, the same way the duration on the bar is, and a
+                    // curve you have to go hunting for is one nobody corrects.
+                    //
+                    // Over the bar rather than beside it, on its own ground: an
+                    // effect that covers its whole clip leaves no margin to put
+                    // this in, and a control that disappears on the longest
+                    // effects is missing exactly where easing matters most.
+                    Item {
+                        id: easeChip
+                        anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                        width: row.easingText.length === 0 ? 0
+                             : (row.easingPoints.length === 4
+                                ? 24 : Math.min(saidEase.implicitWidth + 8, 92))
+                        height: 24
+                        visible: width > 0
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: 3
+                            color: Theme.panel
+                            opacity: 0.94
+                        }
+
+                        EasingCurve {
+                            anchors.fill: parent
+                            visible: row.easingPoints.length === 4
+                            handles: row.easingPoints.length === 4
+                                     ? row.easingPoints : [0, 0, 1, 1]
+                            tint: row.curveOpen ? Theme.ink : root.fxHue
+                        }
+
+                        // Not a curve: the word the line uses, because that word
+                        // is the whole reason this one cannot be pulled about.
+                        Text {
+                            id: saidEase
+                            anchors.fill: parent
+                            visible: row.easingPoints.length !== 4
+                            verticalAlignment: Text.AlignVCenter
+                            horizontalAlignment: Text.AlignHCenter
+                            text: row.easingText.replace("Easing.", "")
+                            color: Theme.inkFaint
+                            font.family: Theme.mono
+                            font.pixelSize: 10
+                            elide: Text.ElideRight
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: row.openCurve(easeChip)
+                        }
+                    }
                 }
             }
         }
@@ -1172,6 +1345,166 @@ Item {
                 color: Theme.inkFaint
                 font.family: Theme.ui
                 font.pixelSize: 11
+            }
+        }
+
+        // ── The curve, big enough to pull ─────────────────────────────────
+        // Beside the row rather than over it: the rows are the one thing on
+        // this card you aim at, and a panel that covers the neighbours of what
+        // you clicked is a panel you have to move before you can carry on.
+        //
+        // Nothing is written until the point is let go. The shape follows the
+        // pointer the whole way, so what the release will write has already
+        // been on screen for a second before it lands in the file.
+        Rectangle {
+            id: curvePanel
+
+            readonly property int pad: 10
+
+            visible: root.curving !== null
+            z: 6
+            width: 220
+            height: curveHead.height + curve.height + presetRow.height + reads.height + pad * 2 + 18
+            x: root.curving === null ? 0
+               : Math.max(card.pad, Math.min(root.curving.x - width - 10,
+                                             card.width - width - card.pad))
+            y: root.curving === null ? 0
+               : Math.max(card.pad, Math.min(root.curving.y + root.curving.h / 2 - height / 2,
+                                             card.height - height - card.pad))
+            radius: 6
+            color: Theme.panel
+            border.width: 1
+            border.color: Theme.edge
+
+            Item {
+                id: curveHead
+                anchors { left: parent.left; right: parent.right; top: parent.top
+                          margins: curvePanel.pad }
+                height: 14
+
+                Text {
+                    anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                    text: root.curving !== null ? root.curving.n : ""
+                    color: Theme.inkDim
+                    font.family: Theme.mono
+                    font.pixelSize: 11
+                }
+
+                Text {
+                    anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                    text: "✕"
+                    color: shut.containsMouse ? Theme.ink : Theme.inkFaint
+                    font.family: Theme.ui
+                    font.pixelSize: 10
+
+                    MouseArea {
+                        id: shut
+                        anchors.fill: parent
+                        anchors.margins: -6
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.curving = null
+                    }
+                }
+            }
+
+            EasingCurve {
+                id: curve
+                anchors { left: parent.left; right: parent.right; top: curveHead.bottom
+                          leftMargin: curvePanel.pad; rightMargin: curvePanel.pad; topMargin: 8 }
+                height: width
+                interactive: true
+                tint: root.fxHue
+                onLetGo: curvePanel.write()
+            }
+
+            // A preset IS a curve, so choosing one moves the handles rather
+            // than replacing the drawing with a word — and what gets written is
+            // the word again, because `Easing.Out` is what the person meant and
+            // it stays right if the preset itself is ever tuned.
+            Flow {
+                id: presetRow
+                anchors { left: parent.left; right: parent.right; top: curve.bottom
+                          leftMargin: curvePanel.pad; rightMargin: curvePanel.pad; topMargin: 8 }
+                spacing: 4
+
+                Repeater {
+                    model: Object.keys(root.presets)
+
+                    Rectangle {
+                        required property string modelData
+
+                        readonly property var points: root.presets[modelData]
+                        readonly property bool current: root.nameOf(curve.handles) === modelData
+
+                        width: presetName.implicitWidth + 12
+                        height: 18
+                        radius: 3
+                        color: current ? Qt.alpha(root.fxHue, 0.18) : Theme.sunk
+                        border.width: 1
+                        border.color: current ? root.fxHue
+                                     : (presetTap.containsMouse ? Theme.edge : Theme.edgeSoft)
+
+                        Text {
+                            id: presetName
+                            anchors.centerIn: parent
+                            text: parent.modelData.replace("Easing.", "")
+                            color: parent.current ? Theme.ink : Theme.inkDim
+                            font.family: Theme.mono
+                            font.pixelSize: 10
+                        }
+
+                        MouseArea {
+                            id: presetTap
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                curve.handles = parent.points.slice();
+                                curvePanel.write();
+                            }
+                        }
+                    }
+                }
+            }
+
+            // The line the release will write, before it writes it.
+            Text {
+                id: reads
+                anchors { left: parent.left; right: parent.right; top: presetRow.bottom
+                          leftMargin: curvePanel.pad; rightMargin: curvePanel.pad; topMargin: 8 }
+                text: "easing=" + curvePanel.value()
+                color: Theme.inkFaint
+                font.family: Theme.mono
+                font.pixelSize: 10
+                // Wrapped rather than elided: a line you are about to write
+                // with three of its four numbers hidden is not a line you were
+                // shown.
+                wrapMode: Text.Wrap
+            }
+
+            function value() {
+                const p = curve.handles;
+                const named = root.nameOf(p);
+                return named.length > 0
+                     ? named
+                     : "CubicBezier(" + p[0] + ", " + p[1] + ", " + p[2] + ", " + p[3] + ")";
+            }
+
+            function write() {
+                if (root.curving !== null)
+                    root.effectWritten(root.curving, "easing", curvePanel.value());
+            }
+
+            // The handles are the panel's own from the moment it opens: the
+            // curve is dragged, which assigns them, and a binding back to the
+            // row would have been broken by the first drag anyway.
+            Connections {
+                target: root
+                function onCurvingChanged() {
+                    if (root.curving !== null)
+                        curve.handles = root.curving.points.slice();
+                }
             }
         }
     }

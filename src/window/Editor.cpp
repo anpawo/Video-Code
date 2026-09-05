@@ -387,6 +387,13 @@ void VC::Editor::captureHidden(const QString& path)
     // (`QQuickRenderControl` is the documented way to render QML with no window
     // at all. It is not needed here: measured, `grabWindow()` on a window that
     // was created and never shown returns a full 2880x1800 frame.)
+    // Twice, and the first one thrown away. A Canvas paints on a POLISH and
+    // shows on the frame after it, so anything drawn that way and created since
+    // the last frame — an effect row's easing curve, on a card opened by the
+    // probe itself — is simply missing from a single grab. The hidden window
+    // renders on nothing but these calls, so the throwaway is the only polish
+    // those items will ever get.
+    window->grabWindow();
     const QImage frame = window->grabWindow();
     if (frame.isNull()) {
         std::cerr << "grabWindow() returned nothing on the unshown window.\n";
@@ -1147,6 +1154,25 @@ QVariantList VC::Editor::inputParams(const QString& className)
             found.append(QVariantMap{{"name", QString::fromStdString(parameter["name"].cast<std::string>())}, {"value", QString::fromStdString(parameter["default"].cast<std::string>())}, {"kind", QString::fromStdString(parameter["kind"].cast<std::string>())}});
         }
     } catch (const py::error_already_set&) {
+    }
+    return found;
+}
+
+QVariantMap VC::Editor::easingCurves()
+{
+    QVariantMap found;
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       bezier = py::module::import("videocode.utils.bezier");
+        for (const auto& item : bezier.attr("curves")().cast<py::dict>()) {
+            QVariantList points;
+            for (const auto& value : item.second.cast<py::tuple>())
+                points.append(value.cast<double>());
+            found.insert(QString::fromStdString(item.first.cast<std::string>()), points);
+        }
+    } catch (const py::error_already_set&) {
+        // A shell that cannot read the presets offers none of them, and the
+        // curve still works on what the line already spells out.
     }
     return found;
 }

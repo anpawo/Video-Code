@@ -16,7 +16,8 @@ sys.path.insert(0, ".")
 sys.path.insert(0, "test")
 from helpers import check, section, summary
 
-from videocode import Rectangle, Context, Easing
+from videocode import Rectangle, Context, CubicBezier, Easing
+from videocode.utils.bezier import curves
 
 def approx(a: float, b: float, tol: float = 1e-3) -> bool:
     return abs(a - b) < tol
@@ -72,6 +73,34 @@ posFrames = sorted(f for f, entry in Context.stack[r2.meta.index].items() if f !
 check("Position frames pushed", len(posFrames) > 1)
 lastX = Context.stack[r2.meta.index][posFrames[-1]]["Position"]["args"]["x"]
 check("final x back near start (0)", approx(lastX, 0, tol=1e-2))
+
+# ── the presets, as the four numbers behind them ─────────────────────────────
+# What the editor's curve reads to open on `Easing.Out` and to drag away from
+# it. The spelling matters as much as the numbers: it is written back into the
+# call, so it has to be what a person would have typed.
+section("curves(): the Easing presets that ARE curves")
+table = curves()
+check("keyed the way a scene writes them", "Easing.Out" in table)
+check("Easing.Out is its own control points", table["Easing.Out"] == (0.0, 0.0, 0.58, 1.0))
+check("Easing.Linear is the straight line", table["Easing.Linear"] == (0.0, 0.0, 1.0, 1.0))
+check("every CubicBezier preset is there", set(table) == {"Easing.Linear", "Easing.In", "Easing.Out", "Easing.InOut"})
+check("a Func easing has no handles to show", "Easing.Wiggle" not in table)
+for name, points in table.items():
+    curve = getattr(Easing, name.split(".")[1])
+    check(f"{name} matches the object", points == (curve.x1, curve.y1, curve.x2, curve.y2))
+
+# A curve the editor wrote has to RUN. `easing=CubicBezier(...)` goes into a
+# scene whose only import is `from videocode import *`, so the name has to be
+# in that namespace — it was not, and every curve the editor drew would have
+# been a NameError the moment the scene re-ran.
+section("CubicBezier is in a scene's own scope")
+check("videocode exports CubicBezier", CubicBezier(0.42, 0.0, 0.58, 1.0)(0.5) > 0)
+
+r3 = Rectangle()
+r3.moveBy(x=2, easing=CubicBezier(0.2, 0.9, 0.8, 0.1), duration=0.2)
+movedX = sorted(f for f, entry in Context.stack[r3.meta.index].items() if f != -1 and "Position" in entry)
+check("a hand-drawn curve animates", len(movedX) > 1)
+check("and arrives where it was sent", approx(Context.stack[r3.meta.index][movedX[-1]]["Position"]["args"]["x"], 2, tol=1e-2))
 
 # ── summary ──────────────────────────────────────────────────────────────────
 summary()

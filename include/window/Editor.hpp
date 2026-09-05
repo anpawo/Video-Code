@@ -313,6 +313,12 @@ namespace VC
         // video is.
         Q_INVOKABLE QVariantList inputParams(const QString& className);
 
+        // easingCurves() — the `Easing` presets that ARE curves, as the four
+        // control points behind each, keyed by the spelling a scene uses. The
+        // card's curve opens on what the line says, and `Easing.Out` has to
+        // mean handles before it can be dragged away from.
+        Q_INVOKABLE QVariantMap easingCurves();
+
         // pickScene() / pickFolder() — the system's panels for opening work.
         // `startIn` roots the file panel; empty means the current directory.
         Q_INVOKABLE QString pickScene(const QString& startIn) const;
