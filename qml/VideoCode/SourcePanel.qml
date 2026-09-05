@@ -34,6 +34,17 @@ Item {
 
     signal saveRequested()
 
+    // The line the caret is on, always — unlike `writingLine`, which is the
+    // line being typed into and only while the analyser is held back. The
+    // timeline reads it to light the bar the line makes.
+    readonly property int caretLine: root.locationAt(editor.cursorPosition).line
+
+    // Play the scene from the moment this line makes. Raised here rather than
+    // bound to a window Shortcut for the reason `executeRequested` is: this is
+    // where the key is actually pressed, and a Shortcut is matched by the
+    // platform's handler, which a synthetic event never reaches.
+    signal playFromCaret()
+
     // Run the scene. Handled here as well as by the window's Shortcut, because
     // this is where the key is actually pressed — and because a Qt Shortcut is
     // matched by the platform's key handler, so a synthetic event never reaches
@@ -1649,6 +1660,11 @@ Item {
                     }
                     if (Keymap.matches(event, "execute")) {
                         root.executeRequested();
+                        event.accepted = true;
+                        return;
+                    }
+                    if (Keymap.matches(event, "playFromCaret")) {
+                        root.playFromCaret();
                         event.accepted = true;
                         return;
                     }

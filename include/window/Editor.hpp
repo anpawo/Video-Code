@@ -184,7 +184,12 @@ namespace VC
         // desktop alone, and therefore the only one an agent may use — was
         // photographing a window nothing had ever been sent to, and every click
         // it appeared to test proved nothing.
-        void probeClicks(int delay);
+        //
+        // Returns the millisecond at which the LAST thing it scheduled fires, so
+        // the caller can take its picture after the run instead of racing it: a
+        // key list spaced 700 ms apart outlives the default settle, and every
+        // key past the first landed after the shutter with nothing to say so.
+        int probeClicks(int delay);
 
         bool headless() const { return _headless; }
 
