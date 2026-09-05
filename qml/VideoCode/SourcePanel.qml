@@ -791,6 +791,13 @@ Item {
     // other home: a save refused, a rename that touched files you cannot see.
     function say(what) { notice.say(what); }
 
+    // The same strip, with something to do about it. A refusal that only says
+    // no leaves the person to go and make the edit by hand; when there IS an
+    // edit the gesture may make, the sentence is the button. It stays a little
+    // longer than a plain notice and goes on its own like one: an offer that
+    // waits for an answer is a dialog, and this is a drag that missed.
+    function offer(what, act) { notice.offer(what, act); }
+
     // Something happened that you cannot see, said briefly and then gone.
     // A rename rewrites files nobody is looking at; a permanent strip for that
     // one sentence would cost a line of the pane forever.
@@ -806,11 +813,26 @@ Item {
         border.width: 1
         border.color: Theme.edge
 
+        // What clicking it does, or null — the strip is only a button while
+        // there is something on the other end of it.
+        property var act: null
+
         function say(what) {
+            notice.act = null;
             word.text = what;
             // A refusal is not good news, and green would say it was.
             word.color = /read-only|could not|nothing/.test(what) ? Theme.warn : Theme.ok;
             notice.visible = true;
+            fade.interval = 3000;
+            fade.restart();
+        }
+
+        function offer(what, action) {
+            notice.act = action;
+            word.text = what;
+            word.color = Theme.live;
+            notice.visible = true;
+            fade.interval = 7000;
             fade.restart();
         }
 
@@ -821,10 +843,26 @@ Item {
             font.pixelSize: root.codeSize - 2
         }
 
+        MouseArea {
+            anchors.fill: parent
+            enabled: notice.act !== null
+            hoverEnabled: enabled
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+                const act = notice.act;
+                notice.visible = false;
+                notice.act = null;
+                act();
+            }
+        }
+
         Timer {
             id: fade
             interval: 3000
-            onTriggered: notice.visible = false
+            onTriggered: {
+                notice.visible = false;
+                notice.act = null;
+            }
         }
     }
 

@@ -15,6 +15,7 @@ from helpers import check, section, summary
 
 from videocode.edit import (
     argumentSpan,
+    constantOffer,
     callLine,
     findCalls,
     positionalSpan,
@@ -261,4 +262,40 @@ astral = 'Text("🙂 hi", fontSize=1)\n'
 check("an astral character counts as one", argumentSpan(astral, 1, "Text", "fontSize", "2") == (22, 23, "2"))
 
 # ── summary ────────────────────────────────────────────────────────────────
+
+section("the edit a refusal leaves open — the constant's own line")
+# A gesture may not write a number over a name. The one edit it MAY offer is
+# the name's own: the person aimed at a value they had given a name, and the
+# line that gives it is the only place changing it means anything.
+SHARED = (
+    "PAUSE_DELAY = 0.4\n"
+    "SPEED = 2\n"
+    "\n"
+    "def build():\n"
+    "    INSIDE = 3\n"
+    "    rect.wait(INSIDE)\n"
+    "\n"
+    "rect.wait(PAUSE_DELAY)\n"
+    "rect.fadeIn(duration=PAUSE_DELAY)\n"
+    "rect.moveBy(x=1, duration=SPEED * 2)\n"
+)
+
+offer = constantOffer(SHARED, 8, "wait", 0, "0.5")
+check("a positional name offers its own line", offer is not None and offer[0] == "PAUSE_DELAY")
+assert offer is not None
+name, start, end, text, uses = offer
+check("with the span of the NUMBER, not of the name", SHARED[start:end] == "0.4")
+check(f"and how many lines read it ({uses})", uses == 2)
+check("splicing it changes the constant and nothing else",
+      SHARED[:start] + text + SHARED[end:] == SHARED.replace("PAUSE_DELAY = 0.4", "PAUSE_DELAY = 0.5"))
+
+check("a keyword name offers the same line",
+      constantOffer(SHARED, 9, "fadeIn", "duration", "1.5") == ("PAUSE_DELAY", start, end, "1.5", 2))
+check("an expression is nobody's constant", constantOffer(SHARED, 10, "moveBy", "duration", "3") is None)
+check("a name assigned inside a function is not the file's to change",
+      constantOffer(SHARED, 6, "wait", 0, "0.5") is None)
+check("nothing is offered for a value that is not a number",
+      constantOffer(SHARED, 8, "wait", 0, "SLOW") is None)
+check("nor for a call that is not there", constantOffer(SHARED, 2, "wait", 0, "0.5") is None)
+
 summary()

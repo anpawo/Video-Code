@@ -343,6 +343,15 @@ namespace VC
         // the pair a single step, so the gesture undoes the way it happened.
         Q_INVOKABLE bool replaceRange(QQuickTextDocument* document, int start, int end, const QString& text);
 
+        // constantOffer() — the OTHER edit, when a gesture was refused because
+        // the value it aimed at is a named constant: where that name's own
+        // number is written, and how many places read it.
+        //
+        // {ok, name, start, end, text, uses}. `ok` false whenever the argument
+        // is not a plain name assigned a plain number at the top of this file —
+        // anything cleverer is a decision no gesture should make for anyone.
+        Q_INVOKABLE QVariantMap constantOffer(const QString& source, int line, const QString& call, const QVariant& key, const QString& value, int occurrence = 0);
+
         // pickExport() — where the video should be written, asked of the person.
         // Empty when they said no. VC_EXPORT answers for a scripted run, the way
         // VC_OPEN does for Open Scene…: the panel belongs to the system and

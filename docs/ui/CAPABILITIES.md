@@ -251,7 +251,10 @@ one without typing it.
 - ● Clicking a clip finds the line that made it
 - ● Adding an effect writes a real line, with the import it needs
 - ○ Every gesture writes code — trims, moves, deletes, not only additions
-- ○ The line the caret is on highlights its element in the timeline, and back
+- ● The line the caret is on lights its bar, and ⌘⏎ plays from what that line makes
+- ● A gesture refused because the value is a named constant offers the constant's own
+  line instead: `constantOffer` finds where the number is written and how many lines
+  read it, and the refusal itself becomes the button that changes it
 - ○ One undo stack for both: ⌘Z after a drag undoes the code edit
 - ○ Formatting kept stable: a gesture edits one line and leaves the rest alone
 - ○ A scene spread over several files, with helpers reloaded properly
