@@ -2085,6 +2085,7 @@ ApplicationWindow {
             l: element.l,
             d: element.d,
             line: element.line,
+            file: element.file,
             index: element.index,
             cls: element.cls,
             points: element.points,
@@ -2131,6 +2132,10 @@ ApplicationWindow {
                 l: element.first / fps,
                 d: (element.last - element.first + 1) / fps,
                 line: element.line,
+                // Which file that line is in. A gesture writes by line number
+                // into the open document, so without this an element built by
+                // an imported module is edited as if its line were this file's.
+                file: element.file,
                 // The class the scene actually named — `Square`, `Video` — kept
                 // beside the media kind it is drawn as. A gesture writes to the
                 // CALL, and the call is spelled with this.
@@ -2154,6 +2159,7 @@ ApplicationWindow {
                     d: (fx.end - fx.start + 1) / fps,
                     call: fx.call !== undefined ? fx.call : "",
                     line: fx.line !== undefined ? fx.line : 0,
+                    file: fx.file !== undefined ? fx.file : "",
                     // The message that landed on THIS call, or "". The timeline
                     // says which element; this says which line of it.
                     flaw: app.flawOn(mine, fx.line !== undefined ? fx.line : 0),
