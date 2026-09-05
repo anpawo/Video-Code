@@ -1,0 +1,35 @@
+#!/usr/bin/env python3
+
+"""
+D3 — `shot()` et `cut()` : nommer un plan, le ranger d'une ligne.
+
+    ./video-code --file docs/by-example/features/shots.py --generate shots.mp4
+
+Sans ça, une scène en trois parties est un fichier où tout ce qui apparaît
+reste à l'écran jusqu'à la fin, sauf à cacher chaque élément à la main — et une
+quatrième partie oblige à revenir sur les trois premières.
+
+`with shot() as x:` collecte ce que ses lignes fabriquent. `cut(a, b)` range
+TOUT le premier plan à l'image où le second s'ouvre.
+"""
+
+from videocode import *
+
+Text(text="D3  ·  shot() et cut()", fontSize=0.34, fillColor=WHITE).position(0, 3.4)
+
+with shot() as un:
+    Text(text="premier plan", fontSize=0.9, fillColor=WHITE).position(0, 0).fadeIn(duration=0.4)
+    Circle(radius=0.8, fillColor=BLUE_C).position(-4, -1.6).fadeIn(duration=0.4)
+    wait(1.6)
+
+with shot() as deux:
+    Text(text="deuxième plan", fontSize=0.9, fillColor=GREEN_A).position(0, 0).fadeIn(duration=0.4)
+    Square(side=1.4, fillColor=GREEN_A).position(4, -1.6).fadeIn(duration=0.4)
+    wait(1.6)
+
+with shot() as trois:
+    Text(text="troisième plan", fontSize=0.9, fillColor=rgba(240, 180, 90)).position(0, 0).fadeIn(duration=0.4)
+    wait(1.6)
+
+# Une ligne, et chaque plan s'efface là où le suivant commence.
+cut(un, deux, trois)
