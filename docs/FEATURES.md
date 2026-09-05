@@ -385,6 +385,14 @@ Every `Input` (shape, text, group, ...) has:
   for usage patterns
 - `apply(*shaders, start, duration, offset)` — low-level: push raw
   `IShader`s onto the action stack (everything above is sugar over this)
+- `with shot() as intro:` / `cut(intro, body, credits)` — name a stretch of the
+  film and leave it. Everything made inside the block belongs to the shot (a
+  shot inside another belongs to both), and `cut` puts a whole shot away at the
+  frame the next one opens, instead of hiding every element of every section by
+  hand. A hard cut only: a crossfade needs the two shots to fade as single
+  layers, and as they are each element would fade on its own and the two shots
+  would show through each other. A shot nobody cuts from is just a name for a
+  stretch, which is worth having on its own.
 
 **How two of them combine** — an effect CLAIMS the channels it was given, and
 nothing else:

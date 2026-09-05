@@ -60,6 +60,12 @@ def inputCreation(f: Callable[Concatenate[_T, _P], None]) -> Callable[Concatenat
             inputArgs=creationArgs,
         )
 
+        # A `shot()` open around this line collects what the line made, so a
+        # `cut` can put the whole of it away later — and every shot around it
+        # too, because a shot inside another is part of it.
+        for open in Context.openShots:
+            open.inputs.append(self)
+
         if Context._noHiding:
             return
 

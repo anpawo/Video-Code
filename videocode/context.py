@@ -356,6 +356,11 @@ class Context:
     # Filled by the last `_callSite()`: the library function the person called.
     lastCallFunction: str = ""
 
+    # The `shot()` blocks open right now, outermost first. Everything made
+    # while one is open belongs to it — and to the ones around it, because a
+    # shot inside another shot is part of it.
+    openShots: list[Any] = []
+
     @staticmethod
     def noteStatement(
         inputIndex: int, touched: dict[str, list[int]], offset: int = 0, cursor: int = 0
@@ -626,3 +631,74 @@ def freeze(n: sec = 0) -> None:
 
 def timestamp(name: str) -> None:
     Context.events.append(Timestamp(name, Context.cursor))
+
+
+class shot:
+    """
+    Name a stretch of the film, and everything made in it::
+
+        with shot() as intro:
+            title = Text("videocode")
+            title.fadeIn()
+            wait(2)
+
+        with shot() as body:
+            chart = BarChart(votes).grow()
+            wait(3)
+
+        cut(intro, body)
+
+    A scene of several sections is written today as one long file where every
+    element of every section stays on screen for the rest of the film unless
+    each one is hidden by hand — the 27-variable pattern, and the reason a
+    third section means going back to the first two. A shot is the block, so
+    `cut` can put the whole of it away in one line.
+
+    Nothing happens on `with` alone: a shot that is never cut from is just a
+    name for a stretch, which is worth having on its own.
+    """
+
+    def __init__(self) -> None:
+        self.first: frame = 0
+        self.last: frame = 0
+        self.inputs: list[Any] = []
+
+    def __enter__(self) -> "shot":
+        self.first = max(Context.cursor, Context.waitOffset)
+        self.inputs = []
+        Context.openShots.append(self)
+        return self
+
+    def __exit__(self, *_: Any) -> None:
+        Context.openShots.remove(self)
+        self.last = max(Context.cursor, Context.waitOffset)
+
+
+def cut(*shots: shot) -> None:
+    """
+    Leave one shot for the next: everything the first made goes off screen
+    exactly where the second opens::
+
+        cut(intro, body, credits)
+
+    A hard cut, and only a hard cut. A crossfade would need the two shots to
+    fade as single layers — as they are, every element fades on its own and the
+    two shots show through each other, which is not a crossfade but a mess.
+    That waits on group compositing.
+
+    An element already hidden stays hidden; hiding it again costs one claim and
+    says the same thing.
+    """
+    from videocode.shader.vertexShader.hide import hide
+
+    if len(shots) < 2:
+        raise ValueError("cut() needs at least two shots — it is what happens BETWEEN them")
+
+    for earlier, later in zip(shots, shots[1:]):
+        for made in earlier.inputs:
+            # The claim is written at an ABSOLUTE frame, not from the element's
+            # own cursor: `cut` is written after both blocks, and by then every
+            # element's clock is at the end of the scene. `apply(offset=…)` is
+            # the same door the creation of a mid-timeline element uses to hide
+            # itself back at frame 0.
+            made.apply(hide(), start=0, offset=later.first)
