@@ -45,6 +45,13 @@ namespace VC
         // Returns the number of failed checks (0 = everything passed).
         int run(bool updateGolden);
 
+        // Renders the same scenes through the PREVIEW widget and through the
+        // headless renderer and compares the two, so the near-duplicate pair
+        // cannot drift apart unseen. No window: the widget is never shown and
+        // never presents. 0 = the two agree, 1 = they do not (or the widget
+        // could not get a surface, which is also a failure worth exit 1).
+        int checkWidget();
+
     private:
 
         // The Config a case renders under — _baseConfig unless the case pins its

@@ -100,6 +100,12 @@ namespace VC
         // Must be called after init() and setMeshes(). Blocks until GPU is done.
         cv::Mat readFrame();
 
+        // The size readFrame() answers in — the surface's, not the widget's:
+        // the CAMetalLayer is sized in points and scaled by the display's
+        // backing factor, so it is 2x the widget on a Retina screen. The
+        // parity check drives the headless renderer at whatever this says.
+        VkExtent2D swapExtent() const { return m_swapExtent; }
+
     protected:
 
         bool event(QEvent* e) override;

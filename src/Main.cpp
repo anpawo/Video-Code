@@ -118,6 +118,16 @@ void setParserArgument(argparse::ArgumentParser &p)
         );
 
     p
+        .add_argument("--check-widget")
+        .flag()
+        .help(
+            "Render a few scenes through the preview widget AND through the headless "
+            "renderer and report how far apart they are, then exit — WITHOUT showing a "
+            "window. The two are near-duplicates maintained by hand; this is what says "
+            "so when one of them changes and the other does not."
+        );
+
+    p
         .add_argument("--screenshot")
         .help(
             "With --editor, write the shell's first painted frame to this PNG and exit. The window "
@@ -282,6 +292,13 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
 
     QApplication app(argc, argv);
     quitOnSignal(app);
+
+    // Needs a QApplication (a QWidget cannot exist without one) and nothing
+    // else — no event loop, no editor chrome, and no window on the desktop.
+    if (parser.get<bool>("--check-widget")) {
+        VC::VisualTest visualTest(parser);
+        return visualTest.checkWidget();
+    }
 
     if (wantsEditor) {
         // `--file` names the scene here too. It used to be read by the renderer

@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <argparse/argparse.hpp>
+#include <cmath>
 #include <filesystem>
 #include <format>
 #include <iostream>
@@ -18,6 +19,7 @@
 #include "core/ScreenSize.hpp"
 #include "utils/Logger.hpp"
 #include "vulkan/VulkanHeadlessRenderer.hpp"
+#include "window/VulkanWidget.hpp"
 
 namespace fs = std::filesystem;
 
@@ -427,5 +429,182 @@ int VC::VisualTest::run(bool updateGolden)
     // suite that grew to 256 simultaneous failures would have exited 0 —
     // "everything broke" and "nothing broke" being the same byte. The count is
     // printed on the line above, which is where a human reads it.
+    return failures == 0 ? 0 : 1;
+}
+
+// ===========================================================================
+// checkWidget — the preview widget's own pixels, measured
+//
+//   VulkanHeadlessRenderer and VulkanWidget are near-duplicates kept in step by
+//   hand, and only the headless one was ever seen: the widget needs a surface,
+//   and no window may open on this machine. It does not need to be SHOWN.
+//   winId() realizes the NSView and the CAMetalLayer, and the swapchain, the
+//   render pass and readFrame() all work over a window the compositor was never
+//   asked to map — readFrame() resolves into m_resolveImage and blits to host
+//   memory, so no image is ever acquired for presentation and nothing reaches a
+//   desktop. Measured from outside the process, polling CGWindowList for
+//   anything on screen owned by this pid: nothing, for the whole run.
+//
+//   What this therefore does NOT cover: the two steps that hand a swapchain
+//   image to the compositor — recordCommandBuffer()'s present barrier and
+//   vkQueuePresentKHR. Every step that decides a COLOUR is covered.
+// ===========================================================================
+
+namespace
+{
+    struct ParityCase
+    {
+        std::string name;
+        std::string scene;
+        size_t      frame;
+    };
+
+    // One still, one camera move, one comp — the three shapes of renderer
+    // change that had to be made in both halves by hand. Frame 15 of `camera`
+    // on purpose: a still cannot tell a pan from a scene written elsewhere.
+    const std::vector<ParityCase> kParityCases = {
+        {"shapes", "test/visual/scenes/shapes.py", 0},
+        {"camera", "test/visual/scenes/camera.py", 15},
+        {"comp", "test/visual/scenes/comp.py", 0},
+    };
+
+    struct Parity
+    {
+        int differing; // pixels that differ at all
+        int onFlat;    // ...of those, the ones NOT on an antialiased edge
+        int flatTotal; // how many pixels that leaves under judgement
+    };
+
+    // The two renderers antialias differently ON PURPOSE — the widget resolves
+    // 4x MSAA, the headless one downsamples a 4x4 supersampled image — so their
+    // edges cannot match and their flat areas must. That is the split this
+    // measures: a pixel counts as flat when its 3x3 neighbourhood in the
+    // reference frame is a single colour — 93% of the `comp` frame, 99% of
+    // `shapes` — and every one of those is compared with no tolerance at all.
+    Parity parity(const cv::Mat& ref, const cv::Mat& other)
+    {
+        cv::Mat lo, hi, flatPerChannel;
+        cv::erode(ref, lo, cv::Mat()); // default kernel: 3x3
+        cv::dilate(ref, hi, cv::Mat());
+        cv::compare(lo, hi, flatPerChannel, cv::CMP_EQ);
+
+        cv::Mat diff;
+        cv::absdiff(ref, other, diff);
+
+        std::vector<cv::Mat> f, d;
+        cv::split(flatPerChannel, f);
+        cv::split(diff, d);
+
+        // min over the channel masks (flat in ALL of them), max over the channel
+        // differences (differing in ANY of them). Not `&` and `|`: a bitwise OR
+        // of 1 and 2 is 3, which would invent a difference no channel has.
+        cv::Mat flat, any, onFlat;
+        cv::min(f[0], f[1], flat);
+        cv::min(flat, f[2], flat);
+        cv::min(flat, f[3], flat);
+        cv::max(d[0], d[1], any);
+        cv::max(any, d[2], any);
+        cv::max(any, d[3], any);
+        cv::bitwise_and(any, flat, onFlat);
+
+        return {cv::countNonZero(any), cv::countNonZero(onFlat), cv::countNonZero(flat)};
+    }
+
+    // onFlat has no threshold — it is 0 or the two renderers disagree about a
+    // colour. The frame mean is here for the other failure shape: geometry that
+    // moved, which lands entirely on edges and so can leave every flat pixel
+    // untouched. MEASURED, on the three cases above:
+    //
+    //                            flat pixels differing      frame mean
+    //                            shapes / camera / comp
+    //     as they stand                0 /  0 / 0          0.027 - 0.045
+    //     widget viewport +1px       321 / 24 / 0          0.145 - 0.257
+    //     widget clear -1/255       1.9M /  0 / 1.5M       0.027 - 0.275
+    //
+    // (camera's background has no red to dim, so the second injury misses it —
+    // correctly: nothing about that frame changed.)
+    //
+    // The middle row is why the mean is kept: a one-pixel shift of the whole
+    // picture leaves `comp`'s flat pixels alone. 0.09 sits in its gap — twice
+    // today's worst, still well under the smallest damage measured. (The golden
+    // suite's worst-tile metric is NOT reused here: measured on the same two
+    // injuries it moves 1.292 -> 5.744 and 1.292 -> 1.427, so it would have to
+    // be tuned tighter than the noise it exists to absorb.)
+    constexpr double kParityMaxMean = 0.09;
+}
+
+int VC::VisualTest::checkWidget()
+{
+    // Never shown, never presented — see the block above.
+    VulkanWidget widget;
+
+    // The widget is sized in POINTS and the surface comes back in pixels, so on
+    // a 2x display asking for the suite's 1920x1080 means asking the widget for
+    // half of it. Whatever the surface actually hands back is then what BOTH
+    // renderers are driven at, rather than assuming the arithmetic won.
+    const int scale = std::max(1, (int)std::lround(widget.devicePixelRatioF()));
+    widget.setFixedSize((int)_baseConfig.screenWidth / scale, (int)_baseConfig.screenHeight / scale);
+
+    if (!widget.init()) {
+        std::cerr << std::format(
+            "{}[widget-parity]{} VulkanWidget::init() failed — the preview half drew nothing, so it stays unchecked.\n",
+            VC::Color::RED, VC::Color::RESET
+        );
+        return 1;
+    }
+
+    const VkExtent2D extent = widget.swapExtent();
+    std::cout << std::format(
+        "{}[widget-parity]{} the preview widget, on a window nothing shows: {}x{}\n",
+        VC::Color::CYAN, VC::Color::RESET, extent.width, extent.height
+    );
+
+    int failures = 0;
+    for (const ParityCase& c : kParityCases) {
+        // A Mesh carries a VkDescriptorSet, which belongs to ONE device, so the
+        // two renderers cannot share a Core: each gets its own and the scene
+        // runs twice. The suite's reload case already rests on that being
+        // reproducible.
+        Config config = configFor(c.scene, (int)extent.width, (int)extent.height);
+        Core   core(_parser, config);
+        core.uploadTextures(&widget);
+
+        // Stepped from 0 like captureFrames(): a Video advances per call, so a
+        // frame reached by jumping is not the frame either renderer would show.
+        for (size_t i = 0; i <= c.frame && i < core._nbFrame; ++i) {
+            const auto& meshes = core.generateMeshes();
+            if (i == c.frame) {
+                widget.setMeshes(meshes);
+                widget.setBackgroundColor(core._bgColor);
+            }
+        }
+
+        const cv::Mat fromWidget = widget.readFrame();
+        cv::Mat       fromHeadless;
+        try {
+            fromHeadless = renderFrames(c.scene, {c.frame}, (int)extent.width, (int)extent.height)[0];
+        } catch (const std::exception& e) {
+            std::cout << std::format("  [{}] {} — {}\n", statusLabel(false), c.name, e.what());
+            failures++;
+            continue;
+        }
+
+        const Parity p = parity(fromHeadless, fromWidget);
+        const double mean = meanAbsDiff(fromHeadless, fromWidget);
+        const bool   pass = p.onFlat == 0 && mean <= kParityMaxMean;
+        std::cout << std::format(
+            "  [{}] {} frame {} — {} of {} flat pixels differ · {} edge pixels do · mean {:.3f} (max {:.2f})\n",
+            statusLabel(pass), c.name, c.frame, p.onFlat, p.flatTotal, p.differing - p.onFlat, mean, kParityMaxMean
+        );
+        if (!pass)
+            failures++;
+    }
+
+    std::cout << std::format(
+        "\n{}[widget-parity]{} {}\n", VC::Color::CYAN, VC::Color::RESET,
+        failures == 0
+            ? std::format("{}The preview draws what the renderer draws.{}", VC::Color::GREEN, VC::Color::RESET)
+            : std::format("{}{} scene(s) differ — the two renderers have drifted apart.{}", VC::Color::RED, failures, VC::Color::RESET)
+    );
     return failures == 0 ? 0 : 1;
 }
