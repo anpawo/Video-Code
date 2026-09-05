@@ -9,7 +9,7 @@ Four at once:        ./video-code --file docs/by-example/tour.py --generate tour
 Every shape:         ./video-code --file docs/by-example/tour.py --generate tour.mp4 --for youtube,tiktok,square
 Open it:             ./video-code --file docs/by-example/tour.py --editor
 
-Rendering it exercises: shots and cuts, the camera and `pinToFrame`, a comp,
+Rendering it exercises: shots and cuts, the camera and `pinToFrame`, a composition,
 `moveAlong`, `BarChart`, and the chapters a render writes from `timestamp()` —
 which it prints at the end, in the form a description box takes.
 
@@ -51,13 +51,13 @@ with shot() as opening:
     wait(3)
 
 
-# ── 2. A comp: two shapes that fade as ONE ───────────────────────────────────
+# ── 2. A composition: two shapes that fade as ONE ───────────────────────────────────
 timestamp("a composition fades as one")
 
 with shot() as badge:
     # The point is the COMPARISON, and it is clearest DURING a fade: the same
-    # two shapes, the same ramp, one pair in a comp and one in a plain group.
-    # A comp alone shows nothing — what it does is an absence.
+    # two shapes, the same ramp, one pair in a composition and one in a plain group.
+    # A composition alone shows nothing — what it does is an absence.
     pair = Composition(
         Circle(radius=1.0, fillColor=WHITE, strokeColor=TRANSPARENT),
         Square(side=1.5, fillColor=WHITE, strokeColor=TRANSPARENT).position(1.1, 0),
