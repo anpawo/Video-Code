@@ -23,7 +23,6 @@
 #include <thread>
 #include <vector>
 
-#include "core/ScreenSize.hpp"
 #include "input/media/Sound.hpp"
 #include "input/media/Video.hpp"
 #include "utils/ImageIO.hpp"
@@ -366,9 +365,9 @@ namespace
     }
 }
 
-VC::Compiler::Compiler(const argparse::ArgumentParser& parser)
-    : config(makeConfig(parser))
-    , _core(parser, config)
+VC::Compiler::Compiler(const argparse::ArgumentParser& parser, Config config)
+    : config(std::move(config))
+    , _core(parser, this->config)
 {
 }
 
@@ -574,6 +573,8 @@ int VC::Compiler::generateVideo()
     std::string headerBase = std::string(kBold) + "Generating" + kReset + "  " + config.outputFile + "   " + kDim + std::format("{}x{} · {} fps · {} · {} frames", (int)config.screenWidth, (int)config.screenHeight, config.framerate, fmtDur(durSecs), total);
     if (ranged)
         headerBase += std::format(" · {} → {} of {}", fmtDur((double)*first / Config::SCENE_FRAMERATE), fmtDur((double)*last / Config::SCENE_FRAMERATE), fmtDur((double)sceneFrames / Config::SCENE_FRAMERATE));
+    if (!config.shapeNote.empty())
+        headerBase += " · " + config.shapeNote;
     headerBase += kReset;
     std::cout << headerBase << "\n";
 

@@ -44,4 +44,8 @@ struct Config
     ///< --sheet: how many moments an image output holds side by side. 1 is a
     ///< plain still.
     int sheetTiles = 1;
+
+    ///< --for: which named shape this render is and its place in the run
+    ///< ("tiktok, 2 of 3"), for the Generating line. Empty for a lone render.
+    std::string shapeNote;
 };

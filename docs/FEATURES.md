@@ -728,7 +728,7 @@ is told. **Pros**: the world box, the preview surface and the encoder cannot
 disagree, which is the failure that used to put every shape off-centre; and
 one scene renders to any format without edits. **Cons**: a scene can't carry
 its own format, so a project with several targets drives them from the command
-line (or a Makefile rule per format). The world unit stays 120 px whatever the
+line — `--for youtube,tiktok,square` does the several in one go. The world unit stays 120 px whatever the
 resolution, so shapes keep their physical size and only the world BOX changes —
 a portrait render doesn't shrink your content, it gives you 9x16 instead of
 16x9 to place it in.
@@ -841,6 +841,7 @@ Easing curves (`videocode/utils/bezier.py`):
 | `-w`/`--width`, `--height` | Output resolution in pixels (default 1920x1080). The only way to set it. See *Render size* |
 | `--framerate` | Output fps — scenes are authored at 30fps and resampled |
 | `--from <s\|name>` / `--to <s\|name>` | Render only that stretch of the scene — seconds (`--from 12.5`) or the name of a `timestamp()` written in it (`--from "show: rectangle"`). Frames are `[from, to)`; past the end clamps. Sounds keep their place: one that began before `--from` is heard from where the stretch enters it. With an image extension, `--from` picks the still. See *Render a stretch* |
+| `--for <shapes>` | Render the scene once per named shape — `youtube`, `tiktok`, `square` — one file each, the shape in the filename. Each render RE-RUNS the scene at that resolution, so the scene lays itself out for it. See *One scene, every format* |
 | `--hwencode` | Hardware H.264 encode (videotoolbox, macOS) |
 | `--showstack` / `--showtimeline` | Debug printing during generation |
 | `--visual-test [--update-golden]` | Run/refresh the golden-frame visual-regression suite (`src/test/VisualTest.cpp`, `test/visual/golden/`) |
@@ -861,6 +862,43 @@ before — every `Sound` delay and `Video` cut stays absolute — with the
 stretch cut out of the result, so nothing is re-delayed and a sound that
 started earlier is at the right moment. The frame indices are unchanged, so
 `--from 12 --to 22` renders the same pixels frames 360–659 of the whole would.
+
+### One scene, every format — `--for`
+
+```bash
+./video-code --file scene.py --generate film.mp4 --for youtube,tiktok,square
+# film-youtube.mp4  1920x1080
+# film-tiktok.mp4   1080x1920
+# film-square.mp4   1080x1080
+```
+
+Named shapes, not numbers: what an author picks is where the film is watched,
+and the pixels follow from it. `youtube` is 1920x1080, `tiktok` 1080x1920,
+`square` 1080x1080; a name it does not know is refused with the list of the
+ones it does.
+
+Each shape is a **second run of the scene**, not a crop and not a scale of the
+first. The world box is pointed at the shape's resolution (`applyScreenSize`
+→ `setScreen`) before the script executes, so the scene reads the frame it is
+actually in — `Split.AUTO` splits into columns at 16:9 and rows at 9:16, `W`/`H`
+and `TOP_SIDE`/`BL` give the new box — and puts things somewhere else. Measured
+in `test/every_format_test.py`: a marker in the first panel of a `Split.AUTO`
+view sits a quarter of the way ACROSS the youtube frame and halfway down it, and
+halfway across the tiktok frame and a quarter of the way DOWN — both axes move,
+which no crop can do, and the wide render squashed into 1080x1920 lands it
+somewhere the tall render has nothing.
+
+Each render prints the `Generating` line it always did, with the shape and its
+place in the run appended (`· tiktok, 2 of 3`). What a shape cannot do is said:
+`--for` without `--generate` is refused rather than dropped, and `--width`/
+`--height` given alongside are reported as unused rather than silently
+outranked. A shape that fails stops the run, naming the ones that were not
+rendered — a set of files that looks complete and is not is the worse outcome.
+
+Not included: **loudness normalisation**. The roadmap line pairs it with this
+feature, but it is a separate concern — it changes the audio of every render,
+needs its own flag and its own measurement, and single-pass `loudnorm` is not
+the two-pass measure the name implies.
 
 `videocode/serialize.py` — `execScene()` (used by the C++ embed) and
 `serializeScene()` (for CLI/inspection) turn a scene script into the JSON

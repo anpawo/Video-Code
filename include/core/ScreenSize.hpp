@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <vector>
+
 #include "core/Config.hpp"
 
 // argparse is a COMMAND-LINE parser, and it was reaching five headers through
@@ -25,6 +27,13 @@ namespace VC
     ///< it, so the world box, the preview surface and the encoder agree by
     ///< construction rather than by negotiation.
     Config makeConfig(const argparse::ArgumentParser &parser);
+
+    ///< One Config per shape named by --for, in the order asked, each with its
+    ///< own resolution and its own output filename; a single Config — the
+    ///< --width/--height one — when --for is absent. Deliberately does NOT
+    ///< applyScreenSize: that transform is process-global, so it belongs to
+    ///< the moment a render starts, not to the moment its Config is built.
+    std::vector<Config> makeConfigs(const argparse::ArgumentParser &parser);
 
     ///< Point the world->pixel transform (config::screen / config::screenOffset)
     ///< and Python's VC_SCREEN at a resolution. Called by makeConfig; only worth

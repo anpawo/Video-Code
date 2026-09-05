@@ -24,6 +24,7 @@
 #include <opencv2/opencv.hpp>
 
 #include "compiler/Compiler.hpp"
+#include "core/ScreenSize.hpp"
 #include "test/VisualTest.hpp"
 #include "window/Editor.hpp"
 #include "window/Window.hpp"
@@ -141,6 +142,15 @@ void setParserArgument(argparse::ArgumentParser &p)
         .help("With --generate, stop at this point — seconds or a timestamp() name. Clamped to the scene.");
 
     p
+        .add_argument("--for")
+        .help(
+            "With --generate, render the scene once per named shape — youtube (1920x1080), "
+            "tiktok (1080x1920), square (1080x1080) — writing one file per shape, its name in "
+            "the filename. Each one RE-RUNS the scene in that frame, so the scene lays itself "
+            "out for it (Split.AUTO, W/H, TOP_SIDE); nothing is cropped or scaled."
+        );
+
+    p
         .add_argument("--sheet")
         .scan<'i', int>()
         .help(
@@ -226,10 +236,35 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
         return visualTest.run(parser.get<bool>("--update-golden"));
     }
 
+    // --for writes files, and without --generate there is none to write. A
+    // flag accepted and then dropped is the failure this repo keeps finding.
+    if (parser.is_used("--for") && !parser.is_used("--generate")) {
+        std::cerr << "video-code: --for writes one file per shape, so it needs --generate.\n";
+        return EXIT_FAILURE;
+    }
+
     // Generate the video (headless — no window, no Qt event loop)
     if (parser.is_used("--generate")) {
-        VC::Compiler compiler(parser);
-        return compiler.generateVideo();
+        // One Config per shape. Each render runs the scene AGAIN inside its own
+        // frame — the world box is process-global, so it is pointed at this
+        // shape before Core executes the script, and the scene lays itself out
+        // against the W/H it finds. That is what makes 9x16 a re-layout rather
+        // than a crop of the 16x9 render.
+        const std::vector<Config> configs = VC::makeConfigs(parser);
+        for (const Config &config : configs) {
+            VC::applyScreenSize(config.screenWidth, config.screenHeight);
+
+            VC::Compiler compiler(parser, config);
+            if (const int status = compiler.generateVideo(); status != EXIT_SUCCESS) {
+                // Stopping, and saying what was not made: carrying on would
+                // repeat the same failure once per shape, and finishing quietly
+                // would leave a set of files that looks complete and is not.
+                if (&config != &configs.back())
+                    std::cerr << std::format("video-code: {} failed, so the shapes after it were not rendered.\n", config.shapeNote);
+                return status;
+            }
+        }
+        return EXIT_SUCCESS;
     }
 
     // The editing shell. The scene graph's backend has to be settled before any

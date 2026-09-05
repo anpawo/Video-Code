@@ -29,7 +29,10 @@ namespace VC
     {
     public:
 
-        Compiler(const argparse::ArgumentParser& parser);
+        ///< The Config comes in already built (VC::makeConfig / makeConfigs)
+        ///< because one command can render several: --for hands one Config per
+        ///< shape, and each has its own resolution and its own output file.
+        Compiler(const argparse::ArgumentParser& parser, Config config);
         ~Compiler();
 
         ///< Generates a video, or — when `config.outputFile` has an image

@@ -407,5 +407,6 @@ decide, and how to re-baseline performance deliberately.
 - `feature`: any output resolution — `-w`/`--width` + `--height` (default 1920x1080); the world box, the preview window and the encoder all follow (01/08/2026)
 - `feature`: math-shader anchoring — `Space.SHAPE|FRAME|ANCHOR|GROUP`, so a pattern stops swimming when its host moves or scales (01/08/2026)
 - `feature`: `SplitView(split=Split.ROWS)` — panels stack instead of sitting side by side, and `AUTO` picks by frame shape so one scene cuts to 16:9 and 9:16 (01/08/2026)
+- `feature`: one scene, every format — `--generate film.mp4 --for youtube,tiktok,square` writes one file per shape, each one re-running the scene so it lays itself out for that frame instead of being cropped (05/09/2026)
 
 </details>
