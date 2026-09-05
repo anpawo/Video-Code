@@ -200,12 +200,22 @@ QtObject {
     function motion(ms) { return reducedMotion ? 0 : ms; }
 
     // ── Metrics ──
-    readonly property int radius:     6
+    // Ten, not six: a macOS window corner is 10-12 px, and the panels here read
+    // as boxes at six. The curve is a circular arc, not the superellipse Apple
+    // draws — Qt has no squircle — but at this size the difference is a pixel
+    // and the radius is what carries the family resemblance.
+    readonly property int radius:     10
     // What anything drawn flush against a panel's inside edge has to use: the
     // panel's own radius minus its 1 px border. Without it the child's square
     // corner paints over the curve and the panel reads as a plain box.
     readonly property int radiusInner: radius - 1
-    readonly property int radiusSmall: 3
+    readonly property int radiusSmall: 5
+
+    // A capsule: half of whatever it is put on. The system's own small controls
+    // — a segmented tab, a search field, a slider's track — are fully round on
+    // their short side, and asking for a number instead would go stale the
+    // moment a control changes height.
+    function pill(height) { return height / 2; }
     readonly property int gap:        8
     readonly property int headerHeight: 26
     readonly property int statusHeight: 24

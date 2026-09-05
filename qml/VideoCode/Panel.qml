@@ -242,21 +242,52 @@ Rectangle {
                     required property string modelData
                     readonly property bool active: root.current === tab.index
 
-                    width: label.implicitWidth + (tab.active ? 40 : 22)
+                    width: label.implicitWidth + (tab.active ? 44 : 22)
                     height: strip.height
-                    color: tab.active ? Theme.panel : "transparent"
-                    // The first tab sits in the strip's rounded corner, so it has
-                    // to follow the curve instead of filling it in square.
-                    topLeftRadius: tab.index === 0 ? Theme.radiusInner : 0
+                    color: "transparent"
                     // A tab being carried elsewhere fades where it came from, so
                     // it is obvious which one is in flight.
                     opacity: tabMouse.dragging ? 0.4 : 1
+
+                    // The tab you are on, as a capsule inside the strip rather
+                    // than a slab flush with it. That is what the system's own
+                    // segmented controls do, and it is what lets the strip read
+                    // as one control with a selection instead of as a row of
+                    // boxes with one of them lit.
+                    Rectangle {
+                        id: seat
+                        visible: tab.active
+                        anchors.fill: parent
+                        anchors.topMargin: 3
+                        anchors.bottomMargin: 3
+                        anchors.leftMargin: 2
+                        anchors.rightMargin: 2
+                        radius: Theme.pill(height)
+                        color: Theme.panel
+                        border.width: 1
+                        border.color: Theme.edgeSoft
+                    }
+
+                    // The accent stays, and stays meaning the same thing — this
+                    // is the pane the keys are talking to. A dot inside the
+                    // capsule rather than a bar across the top of it: a rule
+                    // over a rounded seat cuts its corner off.
+                    Rectangle {
+                        visible: tab.active
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                        anchors.leftMargin: 11
+                        width: 5
+                        height: 5
+                        radius: 2.5
+                        color: Theme.live
+                    }
 
                     Text {
                         id: label
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left
-                        anchors.leftMargin: 11
+                        anchors.leftMargin: tab.active ? 22 : 11
                         text: root.titles[tab.modelData] !== undefined
                               ? root.titles[tab.modelData]
                               : tab.modelData
@@ -297,20 +328,12 @@ Rectangle {
                         }
                     }
 
+                    // Separator between tabs — and never beside the selected
+                    // one, whose capsule already separates it. A hairline
+                    // touching a rounded seat reads as a crack in it.
                     Rectangle {
-                        visible: tab.active
-                        anchors { left: parent.left; right: parent.right; top: parent.top }
-                        // Over the corner the marker would be a square orange
-                        // notch — two pixels of radius cannot round it, so it
-                        // starts where the curve ends instead.
-                        anchors.leftMargin: tab.index === 0 ? Theme.radiusInner : 0
-                        height: 2
-                        color: Theme.live
-                    }
-
-                    // Separator between tabs, never after the last one.
-                    Rectangle {
-                        visible: tab.index < root.keys.length - 1
+                        visible: tab.index < root.keys.length - 1 && !tab.active
+                                 && root.current !== tab.index + 1
                         anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
                         width: 1
                         color: Theme.edgeSoft

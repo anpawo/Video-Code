@@ -265,7 +265,10 @@ Item {
             font.pixelSize: 12
             background: Rectangle {
                 color: Theme.sunk
-                radius: Theme.radiusSmall
+                // A capsule, like the system's own search and ask fields: the
+                // one control on this pane you type a sentence into should not
+                // look like the boxes you type a number into.
+                radius: Theme.pill(height)
                 border.width: 1
                 border.color: input.activeFocus ? Theme.live : Theme.edge
             }

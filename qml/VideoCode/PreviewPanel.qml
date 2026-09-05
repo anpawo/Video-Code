@@ -145,9 +145,9 @@ Item {
         Rectangle {
             id: exportButton
             anchors { verticalCenter: parent.verticalCenter; right: parent.right; rightMargin: 10 }
-            width: exportWord.implicitWidth + 18
+            width: exportWord.implicitWidth + 20
             height: 22
-            radius: Theme.radiusSmall
+            radius: Theme.pill(height)
             color: exportHit.containsMouse ? Theme.rail : "transparent"
             border.width: 1
             border.color: exportHit.containsMouse ? Theme.edge : Theme.edgeSoft
