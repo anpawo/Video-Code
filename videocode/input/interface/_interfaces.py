@@ -4,4 +4,4 @@ from __future__ import annotations
 
 from videocode.input.interface.Interface import *
 from videocode.input.interface.Group import *
-from videocode.input.interface.Comp import *
+from videocode.input.interface.Composition import *

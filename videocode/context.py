@@ -81,7 +81,7 @@ class Metadata:
         # When True this input is never drawn on its own: its members are
         # flattened into one layer and that layer carries this input's opacity,
         # effects and matte (see shader/vertexShader/comp.py, input/interface/
-        # Comp.py). `compIndex` is the other end — the layer this input is a
+        # Composition.py). `compIndex` is the other end — the layer this input is a
         # member OF, travelling to C++ as a plain int (-1 = none).
         self.isComp: bool = False
         self.compIndex: int | None = None

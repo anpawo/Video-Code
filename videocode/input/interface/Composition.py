@@ -22,27 +22,32 @@ from videocode.shader.vertexShader.zIndex import zIndex
 from videocode.ty import frame, maybe, sec
 
 
-class Comp(Group):
+class Composition(Group):
     """
     A `Group` that renders as ONE layer.
+
+    The name is the industry's: a composition, in After Effects and everything
+    that followed it, is exactly this — a container whose contents are rendered
+    as a single image and which can be nested. `Comp` is the abbreviation
+    everyone actually says, and it is an alias at the foot of this file.
 
     An ordinary group is a bookkeeping convenience: its members are still
     drawn one by one, so a `Group(a, b).fadeOut()` fades each of them
     separately and wherever they overlap you see through one into the other.
-    A `Comp` draws its members into a layer of their own first, then puts that
+    A `Composition` draws its members into a layer of their own first, then puts that
     single layer on the frame — so the fade, the effects and the mask land on
     the picture the members make together::
 
-        badge = Comp(Circle(radius=1), Square(side=1.4))
+        badge = Composition(Circle(radius=1), Square(side=1.4))
         badge.fadeOut(duration=1)          # ONE fade, no grey patch at the overlap
         badge.apply(blur(radius=6))        # blurs the pair, not each shape
         badge.moveBy(x=3)                  # members still move rigidly, as in any Group
 
     It is also the answer to "mask this text": a multi-letter `Text` is a group
     of letters with no single index, and a matte source has to be one input.
-    Wrapped in a `Comp` it is one::
+    Wrapped in a `Composition` it is one::
 
-        Rectangle(width=12, height=3, fillColor=RAINBOW).matte(Comp(*Text("MATTE").inputs))
+        Rectangle(width=12, height=3, fillColor=RAINBOW).matte(Composition(*Text("MATTE").inputs))
 
     Transforms (`moveTo`, `rotateBy`, `scaleTo`, `align`) stay `Group`'s rigid
     orbital ones on the members — the composite would only let you scale
@@ -85,7 +90,7 @@ class Comp(Group):
         # it is. `matte(comp)` is the case that needs it — a matte source must
         # be one index, and the layer is the one the members were flattened
         # into. Inert otherwise: a Group never writes to a slot of its own,
-        # `Comp.apply` routes every claim to the layer or to the members.
+        # `Composition.apply` routes every claim to the layer or to the members.
         self.meta.index = self.layer.meta.index
 
         member = compMember(self.layer)
@@ -93,7 +98,7 @@ class Comp(Group):
             # A nested comp joins as its LAYER, not as its leaves: its members
             # are already spoken for, and re-marking them would move them into
             # the outer comp and lose the inner one's own fade.
-            if isinstance(i, Comp):
+            if isinstance(i, Composition):
                 i.layer.apply(member)
             else:
                 i.broadcast(lambda m: m.apply(member))
@@ -108,7 +113,7 @@ class Comp(Group):
         """
         Split the claim: compositing lands on the layer, the rest on the members.
 
-        A `Comp` is a `Group` for everything a group is good at — the rigid
+        A `Composition` is a `Group` for everything a group is good at — the rigid
         transforms, the member-aware effects — and its own input for the four
         things that only mean something once the members are one picture.
         """
@@ -135,3 +140,9 @@ class Comp(Group):
         # never override a pending global wait().
         self.layer.apply(*mine, start=start, duration=duration, offset=self._cursor() if offset is None else offset)
         return self
+
+
+#: What everyone says out loud. The class carries the whole word so that a
+#: scene reads as the trade does; the short form is here because nobody types
+#: eleven letters in the middle of a line.
+Comp = Composition

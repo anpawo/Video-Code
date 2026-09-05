@@ -3,7 +3,7 @@
 """
 Assertion-based tests for comps (a group that renders as ONE layer).
 
-A `Comp` is a `Group` that also owns an invisible full-frame layer: its members
+A `Composition` is a `Group` that also owns an invisible full-frame layer: its members
 are flattened into that layer, and the layer is what carries the comp's
 opacity, effects and matte. No GPU here — this checks the stack shape the
 renderers key off:
@@ -12,7 +12,7 @@ renderers key off:
   2. a compositing claim lands on the LAYER and nowhere else — that is what
      makes a group fade one flat fade instead of one per member;
   3. a rigid transform still reaches the members, as in any `Group`;
-  4. a `Comp` answers with its layer's index, so `matte(comp)` is one input.
+  4. a `Composition` answers with its layer's index, so `matte(comp)` is one input.
 Run directly: `python3 test/comp_test.py`
 """
 
@@ -37,7 +37,7 @@ section("comp — the layer is marked and the members point at it")
 
 a = Square(side=2, fillColor=WHITE)
 b = Square(side=2, fillColor=WHITE).position(1, 0)
-c = Comp(a, b)
+c = Composition(a, b)
 
 check("layer is flagged isComp", c.layer.meta.isComp is True)
 check("layer got a slot of its own", c.layer.meta.index is not None)
@@ -88,4 +88,7 @@ a.apply(compMember(c.layer))
 check("re-binding does not stack twice", keysOf(a.meta.index).count("CompMember") == 1)
 
 # ---------------------------------------------------------------------------
+section("the short name is the same class")
+check("`Comp` is the abbreviation, not a second thing", Comp is Composition)
+
 summary()

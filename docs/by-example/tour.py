@@ -19,7 +19,7 @@ the easing curve on each effect row, and File → Export Video… (⌘E).
 """
 
 from videocode import *
-from videocode.input.interface.Comp import Comp
+from videocode.input.interface.Composition import Composition
 from videocode.template.effect.core.fadeTo import fadeTo
 from videocode.template.input.BarChart import Leaderboard
 
@@ -52,13 +52,13 @@ with shot() as opening:
 
 
 # ── 2. A comp: two shapes that fade as ONE ───────────────────────────────────
-timestamp("a comp fades as one")
+timestamp("a composition fades as one")
 
 with shot() as badge:
     # The point is the COMPARISON, and it is clearest DURING a fade: the same
     # two shapes, the same ramp, one pair in a comp and one in a plain group.
     # A comp alone shows nothing — what it does is an absence.
-    pair = Comp(
+    pair = Composition(
         Circle(radius=1.0, fillColor=WHITE, strokeColor=TRANSPARENT),
         Square(side=1.5, fillColor=WHITE, strokeColor=TRANSPARENT).position(1.1, 0),
     )
@@ -72,7 +72,7 @@ with shot() as badge:
     twin.position(3.0, 0.4)
     twin.opacity(0)
 
-    said = Text(text="Comp — un seul fondu", fontSize=LABEL, fillColor=WHITE)
+    said = Text(text="Composition — un seul fondu", fontSize=LABEL, fillColor=WHITE)
     said.position(-3.0, -1.6)
     other = Text(text="Group — la couture apparaît", fontSize=LABEL, fillColor=rgba(240, 180, 90))
     other.position(3.3, -1.6)

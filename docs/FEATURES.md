@@ -553,7 +553,7 @@ cumulatively. **Pros**: grade many inputs at once without touching them; any
 fragment effect works. **Cons**: costs a full-frame flatten pass per layer;
 membership is zIndex-based only (no per-input opt-out below the layer).
 
-### Comps — `Comp(...)`
+### Compositions — `Composition(...)`, `Comp` for short
 
 ```python
 badge = Comp(Circle(radius=1), Square(side=1.4).position(0.8, 0))
