@@ -166,8 +166,8 @@
     <h1>Chantier Video-Code</h1>
     <span class="branch">feat/night-2026-09-03</span>
     <span class="chips">
-      <span class="chip"><b>28</b> livrés</span>
-      <span class="chip"><b>19</b> à faire</span>
+      <span class="chip"><b>30</b> livrés</span>
+      <span class="chip"><b>18</b> à faire</span>
       <span class="chip"><b>54</b> tests</span>
       <span class="chip"><b>50</b> scènes</span>
     </span>
@@ -178,8 +178,10 @@
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <span class="n">7</span></h2>
+        <h2>Needs your check <span class="n">9</span></h2>
         <ul class="rows">
+          <li data-b="Un dossier <code>templates/</code> dans ton projet marchait déjà — ce qui manquait, c'est ce qui rate : un modèle qui ne s'importe pas DISPARAISSAIT du panneau sans un mot.|Il s'affiche maintenant en rouge avec la raison, non cliquable, sous TES MODÈLES.|À vérifier : mets un fichier cassé dans <code>templates/</code> et regarde le panneau te le dire."><span class="id">C5</span><span class="lbl">Tes propres modèles</span><span class="meta">own-templates</span></li>
+          <li data-b="Un refus ne laisse plus le travail à faire à la main : « PAUSE_DELAY → 0.9, lu sur 3 lignes · clique pour le changer ».|Le refus EST le bouton, et il dit combien de lignes lisent la constante avant que tu cliques.|Une barre fabriquée par une boucle porte « ×3 » : une ligne, trois objets, et le geste les déplace tous.|À vérifier : tire un <code>wait(UNE_CONSTANTE)</code> sur la timeline."><span class="id">B7</span><span class="lbl">Ce qu'un geste propose à la place</span><span class="meta">gesture-offers</span></li>
           <li data-b="Le Claude du panneau agent ne recevait QUE ton texte : il ne voyait ni ta sélection, ni ta ligne, ni les avertissements du dernier run.|Il reçoit maintenant cinq lignes devant chaque question — fichier, ligne du curseur, élément sélectionné, tête de lecture, dernier run — plus <code>--inspect</code> pour aller lire la timeline en JSON lui-même.|À vérifier : demande-lui « décale ça vers la gauche » sans rien préciser, et regarde s'il sait de quoi tu parles."><span class="id">C2</span><span class="lbl">L'agent sait où tu es</span><span class="meta">agent-context</span></li>
           <li data-b="Poser le curseur sur une ligne allume la barre que cette ligne fabrique — la ligne d'une animation gagne sur celle de la déclaration.|⌘⏎ joue depuis ce moment-là au lieu de reprendre là où la tête de lecture traînait, et dit ce qu'il joue.|À vérifier : promène le curseur dans le code et regarde la timeline s'allumer ; ⌘⏎ sur une ligne d'effet."><span class="id">B1</span><span class="lbl">Le curseur allume sa barre</span><span class="meta">cursor-playhead</span></li>
           <li data-b="L'éditeur ne savait pas fabriquer de vidéo : il fallait sortir dans un terminal.|Fichier → Export Video… (⌘E, ou le bouton à côté de la taille) lance le MÊME binaire que tu aurais tapé, respecte tes repères d'entrée et de sortie, et montre le compte d'images du moteur lui-même.|À vérifier : exporte, coupe l'export en cours, et exporte une scène cassée — l'échec doit te dire la phrase du moteur."><span class="id">C4</span><span class="lbl">Exporter depuis l'éditeur</span><span class="meta">export</span></li>
@@ -193,8 +195,8 @@
       <div class="card doing">
         <h2>In progress <em>2 agents, 2 branches</em> <span class="n">2</span></h2>
         <ul class="rows">
-          <li data-b="Un dossier <code>templates/</code> dans TON projet, découvert dans le panneau avec ses champs.|La moitié Python existe depuis longtemps ; le shell appelait le catalogue sans jamais lui donner ta racine.|Un modèle qui ne s'importe pas devra le DIRE, pas disparaître en silence."><span class="id">C5</span><span class="lbl">Tes propres modèles</span><span class="meta">own-templates</span></li>
-          <li data-b="Le pendant constructif des refus : si l'argument est une constante nommée, proposer de changer LA CONSTANTE au lieu de refuser sèchement.|Et un badge « ×3 » sur un clip fabriqué dans une boucle — trois barres pour une ligne, aujourd'hui sans explication.|S'appuie sur X4 et X5, livrés ce matin."><span class="id">B7</span><span class="lbl">Ce qu'un geste propose à la place</span><span class="meta">en cours</span></li>
+          <li data-b="Une animation lit sa valeur de départ au moment où la LIGNE s'exécute, pas au moment où elle JOUE.|Juste tant que les lignes sont écrites dans l'ordre du film ; silencieusement faux sinon.|Conception faite et prototypée : deux passes, ~40 lignes, 0 scène sur 50 qui bouge."><span class="id">S1</span><span class="lbl"><b>Résolution différée de la base</b></span><span class="meta">en cours</span></li>
+          <li data-b="Une courbe tirable sur chaque effet, qui écrit <code>easing=CubicBezier(...)</code> dans la ligne.|Les presets et les courbes à main sont déjà le même type dans la librairie.|Un <code>easing=</code> écrit comme un nom ou une expression sera refusé, pas écrasé."><span class="id">B5</span><span class="lbl">Éditeur de courbes</span><span class="meta">curve-editor</span></li>
         </ul>
       </div>
 
@@ -222,9 +224,9 @@
 
     <div class="col">
       <div class="card todo">
-        <h2>To do · blocked by S1 <em>fausses sans lui</em> <span class="n">5</span></h2>
+        <h2>To do · blocked by S1 <em>fausses sans lui</em> <span class="n">4</span></h2>
         <ul class="rows">
-          <li data-b="Une animation lit sa valeur de départ au moment où la LIGNE s'exécute, pas au moment où elle JOUE.|Juste tant que les lignes sont écrites dans l'ordre du film ; silencieusement faux sinon.|Conception faite et prototypée : deux passes, ~40 lignes, 0 scène sur 50 qui bouge."><span class="id">S1</span><span class="lbl"><b>Résolution différée de la base</b></span><span class="meta lock">2 sem</span></li>
+          
           <li data-b="Dire quand en secondes, comme un storyboard, au lieu de « après ce qui précède ».|Cinq lignes de sucre syntaxique.|Mais livré sans S1, il AGGRAVE le piège : un storyboard écrit dans le désordre donne un film faux."><span class="id">D7</span><span class="lbl"><code>at=2.5</code> — quand, en secondes</span><span class="meta lock">S1</span></li>
           <li data-b="Voir la valeur d'un élément à l'instant du curseur, en taper une autre, et la ligne qui l'anime s'écrit.|C'est le chronomètre d'After Effects, dit dans ce langage-ci.|Faux sans S1 dès que la tête de lecture est avant le curseur d'écriture."><span class="id">B4</span><span class="lbl">Fiche chronomètre</span><span class="meta lock">S1</span></li>
           <li data-b="Un nombre qui évolue, et des objets qui le lisent : un point sur la courbe, un compteur qui l'affiche.|La moitié écriture existe (<code>attachTo</code>), la moitié lecture aussi ; il manque le verbe général.|Un objet lié lit une source dont les lignes suivantes n'ont pas encore tourné — d'où S1."><span class="id">A3</span><span class="lbl">Valeur suivie + liaison</span><span class="meta lock">S1</span></li>
