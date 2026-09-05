@@ -13,7 +13,9 @@
 #include <condition_variable>
 #include <cstdlib>
 #include <deque>
+#include <filesystem>
 #include <format>
+#include <fstream>
 #include <iostream>
 #include <mutex>
 #include <optional>
@@ -36,6 +38,10 @@ namespace
     {
         std::string inputs; // appended after the rawvideo "-i -"
         std::string output; // appended before the output filename
+        // How many `-i` the inputs above are. Anything appended AFTER them is
+        // input 1 + this, and the audio filter already counts on the video
+        // being input 0 — so a chapter file added at the end shifts nothing.
+        size_t count = 0;
     };
 
     // A video with no audio stream must not be mapped: ffmpeg refuses the
@@ -134,7 +140,7 @@ namespace
         }
 
         if (tracks == 0)
-            return {"", " -an"};
+            return {"", " -an", 0};
 
         std::string outLabel = "a0"; // single chain, no amix needed
         if (tracks > 1) {
@@ -149,6 +155,7 @@ namespace
         }
         filterComplex.pop_back(); // every chain ends in ';'
 
+        result.count = tracks;
         result.output = std::format(" -filter_complex \"{}\" -map 0:v -map \"[{}]\" -c:a {}", filterComplex, outLabel, audioCodec);
         return result;
     }
@@ -256,6 +263,85 @@ namespace
             g = 180;
         }
         return std::format("\033[38;2;{};{};0m", r, g);
+    }
+
+    // What a scene named, as the container's own chapter list.
+    //
+    // `timestamp("the build")` is already written in these scenes — it is how
+    // the author jumps around while editing — and it is exactly what a chapter
+    // is. A chapter runs until the next one starts, and the last runs to the
+    // end of what was rendered; times are counted from the start of the FILE,
+    // so a `--from` render moves them all rather than pointing outside it.
+    std::string chapterMetadata(const std::map<size_t, std::string>& stamps, size_t first, size_t last)
+    {
+        std::vector<std::pair<size_t, std::string>> kept;
+        for (const auto& [frame, name] : stamps)
+            if (frame >= first && frame < last)
+                kept.emplace_back(frame - first, name);
+        if (kept.empty())
+            return "";
+
+        std::string out = ";FFMETADATA1\n";
+        for (size_t i = 0; i < kept.size(); ++i) {
+            const size_t end = i + 1 < kept.size() ? kept[i + 1].first : last - first;
+            out += std::format(
+                "[CHAPTER]\nTIMEBASE=1/{}\nSTART={}\nEND={}\ntitle={}\n",
+                (int)Config::SCENE_FRAMERATE, kept[i].first, end, kept[i].second
+            );
+        }
+        return out;
+    }
+
+    std::string clock(double seconds)
+    {
+        const int whole = (int)seconds;
+        return whole >= 3600
+                   ? std::format("{}:{:02d}:{:02d}", whole / 3600, whole / 60 % 60, whole % 60)
+                   : std::format("{}:{:02d}", whole / 60, whole % 60);
+    }
+
+    // The same list again, in the form a description box takes — and what
+    // YouTube will do with it. It refuses a list silently: no first chapter at
+    // 0:00, fewer than three, or one shorter than ten seconds, and the whole
+    // list is simply not shown. A tool that printed it anyway would be handing
+    // over something that quietly does nothing.
+    void printChapters(const std::map<size_t, std::string>& stamps, size_t first, size_t last, const std::string& refused)
+    {
+        std::vector<std::pair<size_t, std::string>> kept;
+        for (const auto& [frame, name] : stamps)
+            if (frame >= first && frame < last)
+                kept.emplace_back(frame - first, name);
+        if (kept.empty())
+            return;
+
+        std::cout << "\n"
+                  << kBold << "Chapters" << kReset << kDim << "  paste into the description" << kReset << "\n";
+        for (const auto& [frame, name] : kept)
+            std::cout << std::format("   {}  {}\n", clock((double)frame / Config::SCENE_FRAMERATE), name);
+
+        // Judged on what is PRINTED, not on the frame: YouTube reads the
+        // pasted line, so a chapter three frames in is a chapter at 0:00 to it
+        // and saying otherwise would contradict the list right above.
+        std::vector<std::string> broken;
+        if (clock((double)kept.front().first / Config::SCENE_FRAMERATE) != "0:00")
+            broken.push_back("the first one is not at 0:00");
+        if (kept.size() < 3)
+            broken.push_back(std::format("there are {}, and it wants three", kept.size()));
+        for (size_t i = 0; i < kept.size(); ++i) {
+            const size_t end = i + 1 < kept.size() ? kept[i + 1].first : last - first;
+            if ((double)(end - kept[i].first) / Config::SCENE_FRAMERATE < 10.0) {
+                broken.push_back(std::format("\"{}\" is under ten seconds", kept[i].second));
+                break;
+            }
+        }
+        if (!broken.empty()) {
+            std::cout << kDim << "   YouTube will show none of them: ";
+            for (size_t i = 0; i < broken.size(); ++i)
+                std::cout << (i > 0 ? ", " : "") << broken[i];
+            std::cout << "." << (refused.empty() ? " They are in the file itself either way." : "") << kReset << "\n";
+        }
+        if (!refused.empty())
+            std::cout << kDim << std::format("   a {} file carries no chapters of its own — this list is all of them.", refused) << kReset << "\n";
     }
 
     // Overwrites the current terminal line with the progress bar.
@@ -380,6 +466,24 @@ int VC::Compiler::generateVideo()
     // -movflags +faststart is an mp4/mov-only flag; omit it for webm/gif.
     const std::string movflags = profile.faststart ? " -movflags +faststart" : "";
 
+    // The chapters go in as one more input, written after the audio so the
+    // filter's own indices still hold. Only where the container carries them:
+    // a GIF cannot, and claiming otherwise would be worse than not writing any.
+    const std::string ext = VC::ImageIO::lowerExtension(config.outputFile);
+    const std::string chapters = (ext == ".mp4" || ext == ".m4v" || ext == ".mov" || ext == ".mkv")
+                                     ? chapterMetadata(_core._timestamps, *first, *last)
+                                     : "";
+    std::string       chapterInput;
+    std::string       chapterMap;
+    const auto        chapterFile = std::filesystem::temp_directory_path() / std::format("video-code-{}.ffmeta", (void*)this);
+    if (!chapters.empty()) {
+        std::ofstream out(chapterFile);
+        out << chapters;
+        out.close();
+        chapterInput = std::format(" -f ffmetadata -i \"{}\"", chapterFile.string());
+        chapterMap = std::format(" -map_metadata {}", audio.count + 1);
+    }
+
     FILE* pipe = popen(
         std::format(
             "ffmpeg"
@@ -393,14 +497,18 @@ int VC::Compiler::generateVideo()
             "{}"
             "{}"
             "{}"
+            "{}"
+            "{}"
             " -loglevel warning"
             " {}",
             (int)config.screenWidth,
             (int)config.screenHeight,
             config.framerate,
             audio.inputs,
+            chapterInput,
             profile.videoArgs,
             audio.output,
+            chapterMap,
             movflags,
             config.outputFile
         )
@@ -538,6 +646,8 @@ int VC::Compiler::generateVideo()
     writer.join();
 
     pclose(pipe);
+    if (!chapters.empty())
+        std::filesystem::remove(chapterFile);
     if (writeFailed)
         return 1;
 
@@ -550,6 +660,8 @@ int VC::Compiler::generateVideo()
     doneBar += std::format("  100%  {:.1f}s", totalElapsed);
     doneBar += "                    "; // clear leftover frame-count text
     std::cout << "\r" << doneBar << "\n";
+
+    printChapters(_core._timestamps, *first, *last, chapters.empty() ? ext : "");
     return 0;
 }
 
