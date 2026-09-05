@@ -14,6 +14,7 @@
 #include <QMessageLogContext>
 #include <QSocketNotifier>
 #include <QTimer>
+#include <algorithm>
 #include <argparse/argparse.hpp>
 #include <csignal>
 #include <cstdlib>
@@ -242,8 +243,13 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
             const int     settle = qEnvironmentVariableIntValue("VC_SETTLE") > 0
                                        ? qEnvironmentVariableIntValue("VC_SETTLE")
                                        : 1500;
-            editor.probeClicks(settle);
-            QTimer::singleShot(settle, &editor, [&editor, shot] {
+            // The picture is taken after the last thing the probe schedules,
+            // never at a fixed moment: a key list is spaced 700 ms apart and
+            // outlives the settle, so the shutter used to close on a window
+            // that had received only the first key — and the run reported
+            // nothing wrong with that.
+            const int lastProbe = editor.probeClicks(settle);
+            QTimer::singleShot(std::max(settle, lastProbe + 300), &editor, [&editor, shot] {
                 editor.captureHidden(shot);
                 QCoreApplication::quit();
             });

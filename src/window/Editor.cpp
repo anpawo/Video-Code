@@ -433,35 +433,7 @@ void VC::Editor::captureTo(const QString& path)
                               ? qEnvironmentVariableIntValue("VC_SHOT_DELAY")
                               : 400;
 
-        // Take the window, before anything is sent to it.
-        //
-        // A `Shortcut` in the default window context is only matched while its
-        // window is the one the platform calls focused, and a window launched
-        // while a browser or the terminal holds the desktop's attention is not.
-        // The keys then vanish with no error anywhere: nothing plays, nothing
-        // has active focus, and the run looks like a bug in the chrome rather
-        // than a window that was never listening. Asked once here, so a scripted
-        // run is not at the mercy of what else is open.
-        // Tell Qt the window is the focus window — and tell nobody else.
-        //
-        // A `Shortcut` in the default window context only matches while its
-        // window is focused, and a window launched from a terminal while another
-        // application owns the desktop never is: the keys vanish with no error
-        // anywhere. The fix is NOT to bring the process to the front. That was
-        // the first version, and it worked: it also meant a scripted run stole
-        // the keyboard from whoever was using the machine, and their typing went
-        // into the scene buffer. Saying it at the QPA layer gives the run its
-        // shortcuts and leaves the desktop alone.
-#ifdef VC_HAS_QPA_FOCUS
-        QWindowSystemInterface::handleFocusWindowChanged(window, Qt::OtherFocusReason);
-#else
-        // Built against a Qt with no private headers. The run still happens; its
-        // shortcuts do not, and saying so beats a scripted run that silently
-        // does nothing when a key is sent.
-        qWarning() << "VC_CLICK: built without Qt6::GuiPrivate — this window cannot be given focus, so shortcuts will not fire.";
-#endif
-
-        probeClicks(delay);
+        const int lastProbe = probeClicks(delay);
 
         // VC_HOVER="x,y" — the pointer coming to REST somewhere, which is a
         // third kind of input entirely: hovers, tooltips and the language
@@ -536,7 +508,7 @@ void VC::Editor::captureTo(const QString& path)
             });
         }
 
-        QTimer::singleShot(delay, this, [window, path] {
+        QTimer::singleShot(std::max(delay, lastProbe + 300), this, [window, path] {
             const QImage frame = window->grabWindow();
             if (frame.isNull()) {
                 std::cerr << "grabWindow() returned nothing — the scene graph refused the readback.\n";
@@ -1211,12 +1183,46 @@ void VC::Editor::highlightPython(QQuickTextDocument* document, const QVariantMap
 // The clicks land after the drags, never before: a script that resizes something
 // and then clicks in it is describing an order, and firing the click first tests
 // the opposite of what it says.
-void VC::Editor::probeClicks(int delay)
+int VC::Editor::probeClicks(int delay)
 {
+    int  last = 0;
+    auto at = [&last](int when) {
+        last = std::max(last, when);
+        return when;
+    };
+
+    // Take the window, before anything is sent to it.
+    //
+    // A window has no ACTIVE FOCUS ITEM until the platform calls it focused, and
+    // a window launched while a browser or the terminal holds the desktop's
+    // attention never is — so a key event sent to it is delivered to nobody. It
+    // vanishes with no error anywhere, and the run looks like a bug in the
+    // chrome rather than a window that was never listening. It was asked for on
+    // the capture path only, which is why every key sent to the WINDOWLESS path
+    // — the one an agent may use — did nothing at all.
+    //
+    // The fix is NOT to bring the process to the front. That was the first
+    // version, and it worked: it also meant a scripted run stole the keyboard
+    // from whoever was using the machine, and their typing went into the scene
+    // buffer. Saying it at the QPA layer gives the run its keys and leaves the
+    // desktop alone.
+    const auto roots = _engine.rootObjects();
+    auto*      focusTarget = roots.isEmpty() ? nullptr : qobject_cast<QQuickWindow*>(roots.first());
+    if (focusTarget != nullptr) {
+#ifdef VC_HAS_QPA_FOCUS
+        QWindowSystemInterface::handleFocusWindowChanged(focusTarget, Qt::OtherFocusReason);
+#else
+        // Built against a Qt with no private headers. The run still happens; its
+        // keys do not, and saying so beats a scripted run that silently does
+        // nothing when a key is sent.
+        qWarning() << "VC_CLICK: built without Qt6::GuiPrivate — this window cannot be given focus, so keys will not fire.";
+#endif
+    }
+
     const QStringList probe = qEnvironmentVariable("VC_CLICK").split(',', Qt::SkipEmptyParts);
     for (int i = 0; i + 1 < probe.size(); i += 2) {
-        const QPointF at(probe[i].toDouble(), probe[i + 1].toDouble());
-        QTimer::singleShot(delay / 2 + 600 + (i / 2) * 200, this, [this, at] { clickAt(at); });
+        const QPointF where(probe[i].toDouble(), probe[i + 1].toDouble());
+        QTimer::singleShot(at(delay / 2 + 600 + (i / 2) * 200), this, [this, where] { clickAt(where); });
     }
 
     // VC_KEYS="F12;Ctrl+R;Click:700,455;Drag:10,10,80,10;Text:name" — named keys,
@@ -1228,7 +1234,7 @@ void VC::Editor::probeClicks(int delay)
     const QStringList keys = qEnvironmentVariable("VC_KEYS").split(';', Qt::SkipEmptyParts);
     for (int i = 0; i < keys.size(); ++i) {
         const QString spec = keys.at(i);
-        QTimer::singleShot(delay / 2 + 900 + i * 700, this, [this, spec] { pressKey(spec); });
+        QTimer::singleShot(at(delay / 2 + 900 + i * 700), this, [this, spec] { pressKey(spec); });
     }
 
     // VC_PANEL="settings" | "shortcuts" | "colors" | "save" | "default" | "measure" | "reset" — one of the
@@ -1242,8 +1248,9 @@ void VC::Editor::probeClicks(int delay)
         // Before the clicks, not with them: an overlay that opens on the
         // same tick as the first click opens UNDER it, and the click lands
         // on whatever was behind.
-        QTimer::singleShot(delay / 2 - 500, this, [this, panel] { pressKey("Panel:" + panel); });
+        QTimer::singleShot(at(delay / 2 - 500), this, [this, panel] { pressKey("Panel:" + panel); });
     }
+    return last;
 }
 
 void VC::Editor::clickAt(const QPointF& pos)
