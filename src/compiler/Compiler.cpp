@@ -114,7 +114,63 @@ namespace
     // from where the range enters it, instead of re-delaying each track and
     // trimming each file by hand. Decoding the part before the window costs
     // audio decode time, which is nothing next to one rendered frame.
-    AudioArgs buildAudioArgs(const std::vector<std::unique_ptr<IInput>>& inputs, const std::string& audioCodec, std::optional<std::pair<double, double>> window)
+    // The gain a scene CLAIMED, frame by frame, as one ffmpeg expression.
+    //
+    // `Sound(volume=0.8)` is a constructor argument and was the only volume the
+    // mux ever read. But `music.over(duration=1.5).volume = 0` is the same
+    // sentence every visual property answers to, and it lands on the timeline
+    // as a per-frame claim exactly like a fade does — the renderer just threw
+    // it away, so a fade-out written that way came out at full level with
+    // nothing said. The claims are per FRAME, so the expression is too: one
+    // term per run of equal frames, each one holding for the frames it covers.
+    //
+    // "" when the scene claimed nothing but the constructor's value — a plain
+    // `volume=0.8` reads better in the command and in a log.
+    std::string volumeExpression(const IInput& input, double fallback, size_t frames)
+    {
+        std::vector<std::pair<size_t, double>> runs; // first frame → value
+        for (size_t frame = 0; frame < frames; ++frame) {
+            const json::object_t& args = const_cast<IInput&>(input).getMetadata(frame).args();
+            const auto            found = args.find("volume");
+            const double          level = found != args.end() && found->second.is_number()
+                                              ? found->second.get<double>()
+                                              : fallback;
+            if (runs.empty() || runs.back().second != level)
+                runs.emplace_back(frame, level);
+        }
+        if (runs.size() <= 1)
+            return "";
+
+        std::string expression;
+        for (size_t i = 0; i < runs.size(); ++i) {
+            const double from = (double)runs[i].first / Config::SCENE_FRAMERATE;
+            if (!expression.empty())
+                expression += "+";
+            // The last run holds to the end of the track, which may be longer
+            // than the scene: a sound that outlives the picture keeps the level
+            // it was left at rather than dropping to nothing.
+            expression += i + 1 < runs.size()
+                              ? std::format("{:.6g}*gte(t,{:.6f})*lt(t,{:.6f})", runs[i].second, from, (double)runs[i + 1].first / Config::SCENE_FRAMERATE)
+                              : std::format("{:.6g}*gte(t,{:.6f})", runs[i].second, from);
+        }
+
+        // A ramp is tens of terms; a scene that claims a different level on
+        // every frame of a long track is thousands, and the command line is
+        // what breaks. Said out loud rather than quietly coarsened.
+        if (expression.size() > 32000) {
+            std::cerr << std::format(
+                "video-code: the volume claimed on this sound changes {} times — too many for one filter, so the average is used instead.\n",
+                runs.size()
+            );
+            double total = 0;
+            for (const auto& [frame, level] : runs)
+                total += level;
+            return std::format("{:.6g}", total / (double)runs.size());
+        }
+        return expression;
+    }
+
+    AudioArgs buildAudioArgs(const std::vector<std::unique_ptr<IInput>>& inputs, const std::string& audioCodec, std::optional<std::pair<double, double>> window, size_t frames)
     {
         AudioArgs   result;
         std::string filterComplex;
@@ -129,7 +185,13 @@ namespace
                 result.inputs += std::format(" -i \"{}\"", s->filepath());
 
                 int delayMs = (int)std::llround(s->delay() * 1000.0);
-                filterComplex += std::format("[{}:a]volume={},adelay={}|{}[a{}];", tracks + 1, s->volume(), delayMs, delayMs, tracks);
+                // The delay comes FIRST so the gain expression is written in
+                // the scene's own clock: after `adelay`, `t` is the moment the
+                // author sees on the timeline, which is what their claim said.
+                const std::string claimed = volumeExpression(*i, s->volume(), frames);
+                filterComplex += claimed.empty()
+                                     ? std::format("[{}:a]volume={},adelay={}|{}[a{}];", tracks + 1, s->volume(), delayMs, delayMs, tracks)
+                                     : std::format("[{}:a]adelay={}|{},volume=volume='{}':eval=frame[a{}];", tracks + 1, delayMs, delayMs, claimed, tracks);
                 ++tracks;
             } else if (auto* v = dynamic_cast<Video*>(i.get()); v && hasAudioStream(v->filepath())) {
                 result.inputs += std::format(" -i \"{}\"", v->filepath());
@@ -459,7 +521,7 @@ int VC::Compiler::generateVideo()
 
     // GIF can't carry audio, so skip the audio graph entirely for it.
     AudioArgs audio = profile.allowAudio
-                          ? buildAudioArgs(_core._inputs, profile.audioCodec, ranged ? std::optional{std::pair{(double)*first / Config::SCENE_FRAMERATE, (double)*last / Config::SCENE_FRAMERATE}} : std::nullopt)
+                          ? buildAudioArgs(_core._inputs, profile.audioCodec, ranged ? std::optional{std::pair{(double)*first / Config::SCENE_FRAMERATE, (double)*last / Config::SCENE_FRAMERATE}} : std::nullopt, sceneFrames)
                           : AudioArgs{"", " -an"};
 
     // -movflags +faststart is an mp4/mov-only flag; omit it for webm/gif.

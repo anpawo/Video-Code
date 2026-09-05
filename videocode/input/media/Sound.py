@@ -179,6 +179,55 @@ class Sound(Input):
         self.trimStart = trimStart
         self.trimEnd = trimEnd
 
+    def length(self) -> sec:
+        """
+        How long this sound plays, in seconds — the trimmed part of the source.
+
+        Read from the file with `ffprobe`, because nothing else knows: a `Sound`
+        carries a path and a trim, and how much audio is behind that path is the
+        file's business. `0.0` when the file cannot be read, so a scene that
+        names a missing sound still runs and fails where it already failed.
+        """
+        try:
+            said = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                 "-of", "default=nw=1:nk=1", self.filepath],
+                check=True, capture_output=True, text=True,
+            ).stdout.strip()
+            whole = float(said)
+        except (OSError, ValueError, subprocess.CalledProcessError):
+            return 0.0
+
+        end = whole if self.trimEnd is None else min(self.trimEnd, whole)
+        return max(0.0, end - self.trimStart)
+
+    def duck(self, under: "Sound", *, to: ufloat = 0.25, fade: sec = 0.3, hold: sec = 0.0) -> Self:
+        """
+        Drop this sound while `under` is playing, and bring it back after.
+
+        The move every video with a voice over music makes, and the reason
+        volume is a claim like any other: `duck` writes two ramps on this
+        sound's own timeline — down to `to` as `under` starts, back up once it
+        has finished — and the renderer reads them frame by frame the way it
+        reads a fade.
+
+            music.duck(under=voice)
+
+        `fade` is how long each ramp takes and `hold` how long the low level
+        stays after `under` ends. The ramps are written from THIS sound's
+        cursor, so a `duck` written after the two sounds says what it looks like
+        it says; written before `under` exists it cannot know when to start.
+        """
+        before = self.volume
+
+        # Both ramps are written from the same place — a sound's `start` counts
+        # from its own offset, and neither ramp moves it. Measured: the second
+        # `over(start=1.0)` lands on the same frame whether or not a first one
+        # was written before it.
+        self.over(start=max(0.0, under.delay - fade), duration=fade).volume = to
+        self.over(start=under.delay + under.length() + hold, duration=fade).volume = before
+        return self
+
     def beats(
         self,
         sensitivity: number = 1.5,
