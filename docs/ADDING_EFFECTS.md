@@ -338,6 +338,38 @@ Export it from `videocode/shader/_shaders.py` (star import).
     flatten, the widget flatten is 1-sample (not MSAA) — intermediate chunks
     render at final resolution, the same supersampling tradeoff every blurred/
     matted/LUT'd layer already accepts, extended to a zIndex range.
+- **Comps are the FIFTH hand-built exception**, and they are the adjustment
+  layer's machinery aimed somewhere else: at a MEMBER LIST instead of a z-range.
+  `Comp(a, b)` (input/interface/Comp.py) is a `Group` that also builds a
+  full-frame invisible layer; the members are flattened into that layer's own
+  `EffectResultSlot` and the layer carries the comp's opacity, effects, matte,
+  zIndex and blendMode. Two markers, both plain `VertexShader`s with no
+  effect-chain involvement: `comp` (`Metadata.isComp → Mesh::isComp`, presence
+  only) on the layer, and `compMember` (`Metadata.compIndex → Mesh::compIndex`,
+  a plain input index, the same reference channel matte uses) on every member.
+  - **Mechanism**: `setMeshes` resolves each member's `compIndex` to its comp's
+    mesh position through `m_inputIndexToMeshPos`, filling `m_compMembers`
+    (comp mesh → member mesh positions, ascending because the walk is over the
+    already z-sorted list) and `m_compMemberPositions` (the flat exclusion set —
+    a member is skipped by `recordMeshRange`, exactly as a matte source is). A
+    comp layer joins `m_effectMeshIndices` so it gets a slot; in the pre-pass
+    loop `recordCompFlattenPass` seeds ping from the member list instead of
+    `recordEffectGeomPass`, and everything after is the unchanged effect chain.
+    Unlike the adjustment flatten there is NO seed quad: a comp composites over
+    the background at its own z, it does not swallow what is behind it.
+  - **Opacity is the flush, not a pass.** The final flush into the comp's slot
+    uses `Alpha` (`assets/shaders/alpha/frag.glsl`, `p[0]` = the multiplier)
+    instead of `Passthrough`. That is the whole "fade as one layer": the members
+    are already one picture by then, so two overlapping members at 50% read as
+    one flat 50% shape instead of a bright patch at the overlap. `Core` emits a
+    comp layer's mesh even when hidden or at opacity 0 — dropping it would
+    orphan the members and they would reappear at full strength — and folds
+    both states into `Mesh::compOpacity`.
+  - **Ordering constraint**: a member's own slot (a member with effects, or a
+    nested comp's layer) must be written before its comp's flatten reads it.
+    Slots run in z-sorted mesh order and a comp's default zIndex is its creation
+    order, i.e. after its members', so this holds by construction — but a member
+    given an explicit zIndex ABOVE its comp would read a stale slot.
   - **Known limitation:** matte is finalized in a phase AFTER the effect pre-pass
     loop, so a matte'd mesh that sits below an adjustment layer is flattened with
     its pre-matte content. The AL+matte combination is rare; documented, not fixed.

@@ -553,6 +553,32 @@ cumulatively. **Pros**: grade many inputs at once without touching them; any
 fragment effect works. **Cons**: costs a full-frame flatten pass per layer;
 membership is zIndex-based only (no per-input opt-out below the layer).
 
+### Comps — `Comp(...)`
+
+```python
+badge = Comp(Circle(radius=1), Square(side=1.4).position(0.8, 0))
+badge.opacity(128)                 # ONE flat 50% shape, no bright band at the overlap
+badge.apply(blur(strength=3))      # blurs the pair, not each shape
+badge.moveBy(x=3)                  # members still move rigidly, as in any Group
+
+# a multi-letter Text is ONE input once it is a comp — no CompoundPolygon
+Rectangle(width=10, height=2.6, fillColor=RAINBOW).matte(Comp(*Text("COMP").position(0, -3).inputs))
+```
+
+How: a `Group` that also owns an invisible full-frame layer. Its members are
+drawn into that layer instead of onto the frame, and the layer carries the
+comp's opacity, fragment effects, `matte`, `zIndex` and `blendMode` — the
+`comp` and `compMember` vertex shaders mark the two ends, and the renderers
+flatten the member list the way an adjustment layer flattens a z-range.
+**Pros**: a group fade is one fade (a plain `Group(a, b).opacity(128)` fades
+each member, so overlaps go bright); an effect runs once over the pair; a
+`Text` becomes a single input a matte can use. **Cons**: members no longer take
+part in the frame's z-order on their own — a comp is one layer at one depth;
+and a member that is itself semi-transparent still loses colour to the
+transparent-clear flatten, which every isolated layer in this engine does
+today (measured: a 50% white square reads 90 instead of 153 through any effect
+layer, comps included).
+
 ### Glow — `.apply(glow(radius, intensity))`
 
 ```python

@@ -80,6 +80,15 @@
   "lastFrame": 131,
   "shape": "8d1366c04b004b94"
  },
+ "test/visual/scenes/comp.py": {
+  "applyCalls": 35,
+  "entries": 67,
+  "events": 0,
+  "frameSlots": 32,
+  "inputs": 16,
+  "lastFrame": 30,
+  "shape": "205b4bfcf1a1c896"
+ },
  "test/visual/scenes/crop.py": {
   "applyCalls": 34,
   "entries": 60,

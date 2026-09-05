@@ -264,6 +264,13 @@ namespace VC
         // layers → the flatten path never runs and the scene draws unchanged.
         std::vector<size_t> m_adjustmentMeshPositions;
 
+        // Comp layers and their members — see the headless renderer's twin
+        // declarations. A comp renders as ONE layer: its members are flattened
+        // into the comp's own result slot, graded, faded by compOpacity, and
+        // composited once at the comp mesh's z-position.
+        std::unordered_map<size_t, std::vector<size_t>> m_compMembers;
+        std::unordered_set<size_t>                      m_compMemberPositions;
+
         // ── Effect post-process infrastructure ────────────────────────────
         VkRenderPass    m_effectPass = VK_NULL_HANDLE;     // 1× kernel pass
         VkRenderPass    m_effectGeomPass = VK_NULL_HANDLE; // 4× MSAA → resolve to ping
@@ -444,12 +451,21 @@ namespace VC
         // blend-pipeline array to bind from — m_pipelines[] for the main pass,
         // m_effectBlendPipelines[] (1-sample) for the flatten pass.
         void recordMeshRange(VkCommandBuffer cb, size_t begin, size_t end, const std::unordered_map<size_t, size_t>& effectSlotForMesh, const VkPipeline* pipelines);
+        // One mesh of that loop — raw geometry or its effect result as a quad.
+        void recordOneMesh(VkCommandBuffer cb, size_t mi, const std::unordered_map<size_t, size_t>& effectSlotForMesh, const VkPipeline* pipelines, int& boundBlend);
         // Composite one effect-result image as a fullscreen quad (set=0 assumed
         // bound), binding `pipeline` (main-pass MSAA or flatten-pass 1-sample).
         void recordCompositeResultQuad(VkCommandBuffer cb, VkPipeline pipeline, VkDescriptorSet resultSet);
+        // Flatten meshes into m_pingFb (transparent clear) so the ordinary effect
+        // chain can run over them. Two callers, one body: an ADJUSTMENT LAYER
+        // bakes the z-range [begin,end), optionally seeded with the previous
+        // layer's graded result (seedSlot, -1 = none); a COMP passes its member
+        // list in `members` (which then wins over the range) and never seeds —
+        // it composites over the background at its own z instead of replacing
+        // it. See readFrame().
+        void recordFlattenPass(VkCommandBuffer cb, size_t begin, size_t end, int seedSlot, const std::vector<size_t>* members, const std::unordered_map<size_t, size_t>& effectSlotForMesh);
         // Flatten meshes [begin,end) into m_pingFb (1-sample, transparent clear),
         // optionally seeded with a previous adjustment layer's graded result.
-        void recordAdjustmentFlattenPass(VkCommandBuffer cb, size_t begin, size_t end, int seedSlot, const std::unordered_map<size_t, size_t>& effectSlotForMesh);
 
         // ── Frame callback ────────────────────────────────────────────────
         std::function<std::vector<Mesh>()> m_frameCallback;
