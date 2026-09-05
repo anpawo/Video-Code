@@ -166,8 +166,8 @@
     <h1>Chantier Video-Code</h1>
     <span class="branch">feat/night-2026-09-03</span>
     <span class="chips">
-      <span class="chip"><b>38</b> livrés</span>
-      <span class="chip"><b>10</b> à faire</span>
+      <span class="chip"><b>39</b> livrés</span>
+      <span class="chip"><b>9</b> à faire</span>
       <span class="chip"><b>61</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
@@ -178,8 +178,9 @@
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <span class="n">18</span></h2>
+        <h2>Needs your check <span class="n">19</span></h2>
         <ul class="rows">
+          <li data-b="Les pixels du panneau d'aperçu se mesurent enfin : <code>./video-code --check-widget</code>, dans <code>make check</code>, 1,8 s.|0 pixel PLAT de différence sur trois scènes, à l'octet près. Les bords diffèrent et ne peuvent pas ne pas différer — le widget résout du 4× MSAA, le moteur sans écran suréchantillonne en 4×4 — et c'est dit au lieu d'être caché sous un seuil.|Aucune fenêtre : mesuré de l'extérieur du processus, 52 relevés, 0 fenêtre, avec le filtre validé sur des pids qui en ont.|Ce qui reste non vérifié : le chemin de présentation (barrière + <code>vkQueuePresentKHR</code>), qui demande un compositeur — donc une fenêtre. Écrit dans l'en-tête plutôt que sous-entendu."><span class="id">H2</span><span class="lbl">Les pixels de l'aperçu, mesurés</span><span class="meta">widget-eyes</span></li>
           <li data-b="Un groupe qui se rend comme UN SEUL calque. Mesuré sur l'arbre fusionné : deux carrés blancs à moitié d'opacité, le comp lit 153 partout, le <code>Group</code> lit 204 dans le recouvrement.|Le masque n'oblige plus à aplatir un texte à la main : <code>matte(Comp(*Text(...).inputs))</code> suffit.|Imbrication : à moitié. Un comp dans un comp s'aplatit dans le bon ordre, mais un membre semi-transparent perd de la couleur — plafond PRÉEXISTANT (l'alpha non prémultiplié de tout calque isolé), mesuré et nommé dans le code.|À vérifier : rends <code>docs/by-example/tour.py</code>, section 2."><span class="id">A1</span><span class="lbl">Comp — un groupe = un calque</span><span class="meta">comp</span></li>
           <li data-b="<code>docs/by-example/tour.py</code> : une seule scène qui fait tourner tout ce qui est tombé aujourd'hui.|<code>./video-code --file docs/by-example/tour.py --generate tour.mp4</code> — et elle t'imprime ses chapitres à coller.|<code>--sheet 5 --from 0 --to 13</code> pour voir cinq moments d'un coup, <code>--for youtube,tiktok,square</code> pour les trois formats.|<code>--editor</code> pour la moitié éditeur : repères sur la règle, curseur qui allume sa barre, courbes sur les effets, ⌘E."><span class="id">TOUR</span><span class="lbl">Une scène pour tout vérifier</span><span class="meta">by-example</span></li>
           <li data-b="<code>moveAlong(path)</code> parcourt une courbe à UNE vitesse : la marche est mesurée d'abord, et chaque image est un pas de la même LONGUEUR.|Sur un trajet écrit avec un point au centième du chemin, les pas sortent à 0,344–0,345 au lieu de 0,1 puis tout le reste.|<code>face=True</code> tourne l'objet dans le sens de la marche, lu de l'image d'avant à celle d'après — un virage tourne par ses angles au lieu de claquer.|À vérifier : rends une scène en zigzag et regarde la flèche."><span class="id">A5</span><span class="lbl"><code>moveAlong(path)</code></span><span class="meta">move-along</span></li>
@@ -202,10 +203,8 @@
       </div>
 
       <div class="card doing">
-        <h2>In progress <em>1 agent, 1 branche</em> <span class="n">1</span></h2>
-        <ul class="rows">
-          <li data-b="Les deux moteurs sont des jumeaux : l'un dessine pour <code>--generate</code>, l'autre le panneau d'aperçu. Chaque changement des deux derniers jours a dû être fait dans les deux — et seule la moitié sans fenêtre a jamais été vérifiée en pixels.|Deux agents de suite ont écrit la même phrase : « les pixels du widget ne sont pas mesurés, la fenêtre ne peut pas s'ouvrir ».|C'est exactement le défaut que ce projet déteste : une affirmation que personne ne peut contrôler.|Le but : un NOMBRE — de combien de pixels les deux moteurs diffèrent sur la même scène — et une vérification qui les empêche de dériver."><span class="id">H2</span><span class="lbl">Voir les pixels de l'aperçu</span><span class="meta">widget-eyes</span></li>
-        </ul>
+        <h2>In progress <em>rien — tout ce qui reste attend un mot de toi</em> <span class="n">0</span></h2>
+        <ul class="rows"></ul>
       </div>
 
       <div class="card no">
