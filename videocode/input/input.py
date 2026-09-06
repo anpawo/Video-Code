@@ -468,6 +468,31 @@ class Input(ABC):
     def align(self, x: maybe[wnumber] = None, y: maybe[wnumber] = None) -> Self:
         return self.apply(align(x, y))
 
+    def nextTo(self, other: Input, direction: v2 = RIGHT, *, gap: wnumber = 0.25, follow: bool = False) -> Self:
+        """
+        Put this beside `other`, `gap` world units apart EDGE TO EDGE and
+        centred on it across the other axis::
+
+            label.nextTo(ball, UP, gap=0.2)
+
+        `direction` is `UP`, `DOWN`, `LEFT` or `RIGHT`; a corner (`UR`, `DL`,
+        …) applies the gap on both axes. Sizes are the DRAWN ones, so a scaled
+        shape is measured as it appears — the same rule as `Row`.
+
+        Placed once, from where `other` is AT THIS LINE: it is a layout, not a
+        link. `follow=True`, the label that tracks a moving ball, needs the
+        deferred-base pass (S1) and refuses until that lands.
+        """
+        if follow:
+            raise NotImplementedError("nextTo(follow=True) needs S1, the deferred-base pass: until then an input only sees what is written above it")
+        from videocode.input.interface.Group import Group
+        from videocode.template.input.Layout import _place
+
+        at = Group._anchorOf(other)
+        dx, dy = direction.x or 0, direction.y or 0
+        _place(self, at.x + dx * ((other.width + self.width) / 2 + gap), at.y + dy * ((other.height + self.height) / 2 + gap))
+        return self
+
     def rotation(self, degree: number) -> Self:
         return self.apply(rotation(degree))
 
