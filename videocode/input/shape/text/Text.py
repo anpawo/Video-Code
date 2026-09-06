@@ -279,7 +279,7 @@ class Text(Group[Letter], _hasFillStroke):
 
         return [v2(boxes[k][0] + ax * (boxes[k][1] - boxes[k][0]), boxes[k][2] + ay * (boxes[k][3] - boxes[k][2])) for k in cluster]
 
-    def apply(self, *shaders, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+    def apply(self, *shaders, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None, at: maybe[sec] = None) -> Self:
         # Everything the group handles goes down in ONE call.
         #
         # An animation arrives here as one shader per frame — `rotateBy` over a

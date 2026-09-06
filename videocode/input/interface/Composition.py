@@ -123,7 +123,7 @@ class Composition(Group):
         self.broadcast(lambda i: cursors.append(i.meta.transformationOffset))
         return max(cursors)
 
-    def apply(self, *shaders: IShader | Effect | GroupEffect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+    def apply(self, *shaders: IShader | Effect | GroupEffect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None, at: maybe[sec] = None) -> Self:
         """
         Split the claim: compositing lands on the layer, the rest on the members.
 
@@ -138,7 +138,7 @@ class Composition(Group):
             # call are two claims, and `x in list` would move both or neither.
             (mine if isinstance(s, self._LAYER_CLAIMS) else theirs).append(s)  # type: ignore[arg-type]
         if theirs:
-            super().apply(*theirs, start=start, duration=duration, offset=offset)
+            super().apply(*theirs, start=start, duration=duration, offset=offset, at=at)
         if not mine:
             return self
         for s in mine:

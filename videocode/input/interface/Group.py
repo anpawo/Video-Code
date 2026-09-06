@@ -401,7 +401,7 @@ class Group(Interface, Generic[_GROUP_T]):
         for child in self.inputs:
             child.broadcast(func)
 
-    def apply(self, *shaders: IShader | Effect | GroupEffect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+    def apply(self, *shaders: IShader | Effect | GroupEffect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None, at: maybe[sec] = None) -> Self:
         # A group built empty and filled afterwards — `Text.find` does exactly
         # that: `Group()` then `.inputs.append(...)` — never got its bases, so
         # `_emitRigid` returned at once and `find("12").moveBy(y=1)` did nothing
@@ -451,7 +451,7 @@ class Group(Interface, Generic[_GROUP_T]):
                 # means something across the members — a fill sweeping a Text
                 # travels over the WORD, and a letter has no idea where it sits
                 # in one. e.g. g.apply(fillIn(GOLD))
-                self.apply(*s(self), start=start, duration=duration, offset=offset)
+                self.apply(*s(self), start=start, duration=duration, offset=offset, at=at)
                 continue
 
             if not isinstance(s, IShader):
@@ -459,7 +459,7 @@ class Group(Interface, Generic[_GROUP_T]):
                 # effect read each member's own state (scale, fillColor, …).
                 # e.g. g.apply(highlight(color=YELLOW))
                 for child in self.inputs:
-                    child.apply(*s(child), start=start, duration=duration, offset=offset)
+                    child.apply(*s(child), start=start, duration=duration, offset=offset, at=at)
                 continue
 
             # Keep group.meta current even though groups never push to C++.
@@ -558,7 +558,7 @@ class Group(Interface, Generic[_GROUP_T]):
                 # as-is to every member. i.apply() makes its own shallow copy for
                 # VertexShaders before calling modify(), so passing s directly is safe.
                 for i in self.inputs:
-                    i.apply(s, start=start, duration=duration, offset=offset)
+                    i.apply(s, start=start, duration=duration, offset=offset, at=at)
 
         if rigid:
             self._emitTimeline()

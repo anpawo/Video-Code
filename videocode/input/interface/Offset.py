@@ -75,7 +75,7 @@ class Offset[T: Input](Interface):
             offset=offset,
         )
 
-    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+    def apply(self, *shaders: IShader, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None, at: maybe[sec] = None) -> Self:
         for s in shaders:
             _s, _d, _o = s.resolve(start, duration, offset)
 

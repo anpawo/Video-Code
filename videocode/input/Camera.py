@@ -84,7 +84,7 @@ class Camera(Input):
         """
         return self.meta.scale.x
 
-    def apply(self, *shaders: IShader | Effect | GroupEffect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+    def apply(self, *shaders: IShader | Effect | GroupEffect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None, at: maybe[sec] = None) -> Self:
         """
         Claim a channel of the camera — its first claim is what puts it in the
         stack.
@@ -99,7 +99,7 @@ class Camera(Input):
             # answers "what is the highest layer in this scene", and the camera
             # is never drawn on any layer.
             Context.create(self.meta.index, self.cppName, {})
-        return super().apply(*shaders, start=start, duration=duration, offset=offset)
+        return super().apply(*shaders, start=start, duration=duration, offset=offset, at=at)
 
     def _reset(self) -> None:
         # Called by serialize._resetContext, next to the other state that lives

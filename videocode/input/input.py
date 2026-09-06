@@ -104,13 +104,51 @@ class Input(ABC):
         i.broadcast(lambda m: frames.append(m.meta.lastAffectedFrame))
         return self.waitTo(max(frames))
 
-    def apply(self, *shaders: IShader | Effect | GroupEffect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None) -> Self:
+    def apply(self, *shaders: IShader | Effect | GroupEffect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None, at: maybe[sec] = None) -> Self:
         """
         Applies some `Transformations` to the `Input`.
 
         The `duration` is in `seconds`, so it will affect `duration * framerate` frames of the video.
         Effects (e.g. `highlight()`) are callables — pass them directly: `input.apply(highlight())`.
+
+        `at=` is the film's clock; `start=` is the element's. `start=2` means two
+        seconds after everything already written for this element, which is what
+        one wants while writing a shot in order. `at=2` means the second second
+        of the film, whatever has been written — the sentence a person says out
+        loud when the voice-over is already recorded.
+
+        It is `offset=` in seconds, and nothing more: one conversion, in the one
+        place that already turns seconds into frames.
         """
+
+        if at is not None:
+            if offset is not None:
+                raise TypeError(
+                    "at= and offset= both say WHEN, in two units — pass one: "
+                    "at= in seconds of the film, offset= in frames"
+                )
+            offset = round(at * FRAMERATE)
+            # Vers l'avant, oui ; vers l'arrière, non — pas tant que S1 n'est
+            # pas là.
+            #
+            # Une animation lit sa valeur de départ au moment où la LIGNE est
+            # exécutée, pas au moment où elle joue (`moveTo.py:24`). Écrire à une
+            # image déjà dépassée par l'horloge de l'élément donne donc une base
+            # qui appartient à un instant pas encore arrivé : `moveTo(x=5, at=2)`
+            # puis `moveTo(x=2)` mesure 4,99 → 2 dans un ordre et 0 → 2 dans
+            # l'autre. `Context.backdatedWrites()` sait le nommer après coup ;
+            # ici on peut refuser avant.
+            #
+            # Backwards `at=` is the backdated write S1 exists to fix: an
+            # animation reads its base when the line runs, not when it plays.
+            if offset < self.meta.transformationOffset:
+                raise ValueError(
+                    f"at={at}s lands on frame {offset}, behind this element's clock "
+                    f"(frame {self.meta.transformationOffset}) — the animation would read a "
+                    f"starting value from a moment that has not happened yet. "
+                    f"Write it in film order, or wait for S1 (deferred base resolution, "
+                    f"docs/FEATURES_TODO.md §S1), which is what makes reaching back safe."
+                )
 
         # If a `wait()` happens, any input should be flushed before applying any new effect.
         if Context.waitOffset >= self.meta.transformationOffset:
@@ -320,6 +358,7 @@ class Input(ABC):
         *,
         easing: easing = Easing.InOut,
         start: sec = 0,
+        at: maybe[sec] = None,
         duration: sec = 0.4,
         offset: maybe[frame] = None,
     ) -> Self:
@@ -336,6 +375,7 @@ class Input(ABC):
         *,
         easing: easing = Easing.InOut,
         start: sec = 0,
+        at: maybe[sec] = None,
         duration: sec = 0.4,
         offset: maybe[frame] = None,
     ) -> Self:
@@ -356,6 +396,7 @@ class Input(ABC):
         *anims: tuple[attrName, Any] | tuple[attrName, Any, easing],
         easing=Easing.InOut,
         start: sec = 0,
+        at: maybe[sec] = None,
         duration: sec = 0.4,
         offset: maybe[frame] = None,
     ) -> Self:
@@ -564,18 +605,18 @@ class Input(ABC):
         self.broadcast(lambda i: i.zIndex(BACKGROUND_Z_INDEX, offset=offset))
         return self
 
-    def hide(self, start: sec = 0):
-        return self.apply(hide().at(start=start))
+    def hide(self, start: sec = 0, at: maybe[sec] = None):
+        return self.apply(hide().at(start=start), at=at)
 
-    def show(self, start: sec = 0):
-        return self.apply(show().at(start=start))
+    def show(self, start: sec = 0, at: maybe[sec] = None):
+        return self.apply(show().at(start=start), at=at)
 
     ### Template ###
 
-    def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        return self.apply(*moveTo(self, x=x, y=y, easing=easing, start=start, duration=duration))
+    def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4) -> Self:
+        return self.apply(*moveTo(self, x=x, y=y, easing=easing, start=start, duration=duration), at=at)
 
-    def moveAlong(self, path: Any, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 1.2, face: bool = False) -> Self:
+    def moveAlong(self, path: Any, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 1.2, face: bool = False) -> Self:
         """
         Travel a path at an even speed — `face=True` also turns along it.
 
@@ -586,15 +627,15 @@ class Input(ABC):
         the next crawls through the corners. See
         `videocode.template.effect.core.moveAlong`.
         """
-        return self.apply(*moveAlong(self, path, easing=easing, start=start, duration=duration, face=face))
+        return self.apply(*moveAlong(self, path, easing=easing, start=start, duration=duration, face=face), at=at)
 
-    def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        return self.apply(*moveBy(self, x=x, y=y, easing=easing, start=start, duration=duration))
+    def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4) -> Self:
+        return self.apply(*moveBy(self, x=x, y=y, easing=easing, start=start, duration=duration), at=at)
 
-    def fadeIn(self, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4, from0: maybe[bool] = True) -> Self:
-        return self.apply(*fadeTo(self, src=0 if from0 else None, dst=255, easing=easing, start=start, duration=duration))
+    def fadeIn(self, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, from0: maybe[bool] = True) -> Self:
+        return self.apply(*fadeTo(self, src=0 if from0 else None, dst=255, easing=easing, start=start, duration=duration), at=at)
 
-    def fadeOut(self, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4, hide=False, from255: maybe[bool] = True) -> Self:
+    def fadeOut(self, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, hide=False, from255: maybe[bool] = True) -> Self:
         self.apply(*fadeTo(self, src=255 if from255 else None, dst=0, easing=easing, start=start, duration=duration))
         if hide:
             return self.hide(start=start + duration)
@@ -608,13 +649,14 @@ class Input(ABC):
         y: maybe[number] = None,
         easing: easing = Easing.InOut,
         start: sec = 0,
+        at: maybe[sec] = None,
         duration: sec = 0.4,
         about: maybe[v2] = None,
     ) -> Self:
         if factor is not None:
             x = factor
             y = factor
-        return self.apply(*scaleTo(self, x=x, y=y, easing=easing, start=start, duration=duration, about=about))
+        return self.apply(*scaleTo(self, x=x, y=y, easing=easing, start=start, duration=duration, about=about), at=at)
 
     def scaleBy(
         self,
@@ -624,26 +666,27 @@ class Input(ABC):
         y: maybe[number] = None,
         easing: easing = Easing.InOut,
         start: sec = 0,
+        at: maybe[sec] = None,
         duration: sec = 0.4,
         about: maybe[v2] = None,
     ) -> Self:
         if factor is not None:
             x = factor
             y = factor
-        return self.apply(*scaleBy(self, x=x, y=y, easing=easing, start=start, duration=duration, about=about))
+        return self.apply(*scaleBy(self, x=x, y=y, easing=easing, start=start, duration=duration, about=about), at=at)
 
-    def rotateTo(self, degree: number, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4, about: maybe[v2] = None) -> Self:
+    def rotateTo(self, degree: number, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, about: maybe[v2] = None) -> Self:
         """
         Turn to an absolute angle. `about` places the pivot in world units;
         without one a group turns around the point its `align` derives.
         """
-        return self.apply(*rotateTo(self, dst=degree, easing=easing, start=start, duration=duration, about=about))
+        return self.apply(*rotateTo(self, dst=degree, easing=easing, start=start, duration=duration, about=about), at=at)
 
-    def rotateBy(self, degree: number, *, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4, about: maybe[v2] = None) -> Self:
+    def rotateBy(self, degree: number, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, about: maybe[v2] = None) -> Self:
         """
         Turn by an angle relative to the current one — see `rotateTo` for `about`.
         """
-        return self.apply(*rotateBy(self, dst=degree, easing=easing, start=start, duration=duration, about=about))
+        return self.apply(*rotateBy(self, dst=degree, easing=easing, start=start, duration=duration, about=about), at=at)
 
-    def alignTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, duration: sec = 0.4) -> Self:
-        return self.apply(*alignTo(self, x=x, y=y, easing=easing, start=start, duration=duration))
+    def alignTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4) -> Self:
+        return self.apply(*alignTo(self, x=x, y=y, easing=easing, start=start, duration=duration), at=at)
