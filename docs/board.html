@@ -128,7 +128,7 @@
     border: 1px solid var(--pop-edge); border-radius: 6px;
     box-shadow: var(--pop-shadow);
     padding: 9px 12px 10px; font-size: 12.5px; line-height: 1.45;
-    opacity: 0; transform: translateY(3px); transition: opacity .09s ease, transform .09s ease;
+    opacity: 0; transform: translateY(3px);
   }
   #pop.show { opacity: 1; transform: none; }
   #pop h4 { margin: 0 0 5px; font-size: 12px; font-weight: 600; }
@@ -155,7 +155,7 @@
   }
   #grab.show { display: block; }
 
-  @media (prefers-reduced-motion: reduce) { #pop, #flash { transition: none; } }
+  @media (prefers-reduced-motion: reduce) { #flash { transition: none; } }
   @media (max-width: 1180px) { .board { grid-template-columns: repeat(2, 1fr); } }
   @media (max-width: 640px) { .board { grid-template-columns: 1fr; } }
 </style>
@@ -171,7 +171,7 @@
       <span class="chip"><b>66</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">7 sept. · 0 h</span>
+    <span class="stamp">7 sept. · 1 h</span>
   </header>
 
   <div class="board">
@@ -288,18 +288,13 @@
 <textarea id="grab" readonly aria-label="Contexte à copier"></textarea>
 
 <script>
-  // Le détail s'ouvre au survol, après une courte pause.
-  //
-  // Sans la pause, la bulle s'ouvrirait à chaque traversée du tableau — et la
-  // souris le traverse en permanence pour aller d'une colonne à l'autre. Un
-  // tiers de seconde suffit à séparer « je passe » de « je regarde ça ».
+  // Le détail s'ouvre au survol, tout de suite. Une pause avait été mise
+  // pour ne pas ouvrir la bulle en traversant le tableau ; Marius préfère
+  // l'avoir sous la souris sans attendre (7 sept.).
   const pop = document.getElementById("pop");
-  const DWELL = 320;
-  let timer = 0;
   let row = null;
 
   function hide() {
-    clearTimeout(timer);
     row = null;
     pop.classList.remove("show");
     pop.setAttribute("aria-hidden", "true");
@@ -327,13 +322,8 @@
     const li = e.target.closest("li[data-b]");
     if (!li) { hide(); return; }
 
-    if (li === row) { place(e.clientX, e.clientY); return; }
-
-    clearTimeout(timer);
-    row = li;
-    pop.classList.remove("show");
-    const x = e.clientX, y = e.clientY;
-    timer = setTimeout(() => { fill(li); place(x, y); }, DWELL);
+    if (li !== row) { row = li; fill(li); }
+    place(e.clientX, e.clientY);
   });
 
   addEventListener("blur", hide);
