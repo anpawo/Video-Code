@@ -167,20 +167,23 @@
     <span class="branch">feat/night-2026-09-03</span>
     <span class="chips">
       <span class="chip"><b>40</b> livrés</span>
-      <span class="chip"><b>8</b> à faire</span>
+      <span class="chip"><b>5</b> à faire</span>
       <span class="chip"><b>64</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">6 sept.</span>
+    <span class="stamp">6 sept. · 23 h</span>
   </header>
 
   <div class="board">
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <span class="n">18</span></h2>
+        <h2>Needs your check <span class="n">22</span></h2>
         <ul class="rows">
-          
+          <li data-b="<code>at=</code> dit QUAND en secondes du film ; <code>start=</code> compte depuis l'horloge de l'élément — les deux ne divergent qu'après une attente.|C'est <code>offset=</code> en secondes : une seule conversion, dans le seul endroit qui traduisait déjà des secondes en images. <code>at=</code> et <code>offset=</code> ensemble lèvent une TypeError.|DÉCISION PRISE SEULE : un <code>at=</code> qui tombe DERRIÈRE l'horloge de l'élément est refusé, et l'erreur nomme S1 — au lieu d'aggraver le piège de la base en silence. Vers l'avant, rien ne change. Le garde-fou a arrêté ma propre scène d'exemple à sa première écriture.|Empreinte des 52 scènes inchangée, 7 vérifications vertes, scène d'exemple rendue sans écran (451 images).|À vérifier : rends <code>docs/by-example/features/at_seconds.py</code> — deux carrés partent à des moments différents pour la même phrase.|Sur la branche <code>feat/at-seconds</code>, non commitée."><span class="id">D7</span><span class="lbl"><code>at=2.5</code> — quand, en secondes</span><span class="meta lock">prêt, ton œil</span></li>
+          <li data-b="Une animation lisait sa base au moment où la LIGNE s'exécute, pas au moment où elle JOUE : <code>moveTo(x=5, start=2)</code> puis <code>moveTo(x=2)</code> partait de 4,99 au lieu de 0.|La scène est rejouée jusqu'à ce que sa base ne bouge plus. Une seule reprise ne répare qu'un maillon — sur une chaîne écrite à l'envers, le deuxième déplacement lit sa base dans une passe où le troisième était lui-même faux.|Mesuré : les deux ordres ouvrent ET finissent sur la même image ; une chaîne de trois <code>moveBy(x=1)</code> écrite à l'envers finit à 3.0 au lieu de 2.0 ; un placement à l'image zéro reste la base de ce qui ouvre dessus.|Empreinte des 52 scènes INCHANGÉE, 63 fichiers de test verts, suite visuelle et parité d'aperçu vertes. Aucune scène du corpus ne déclenche la moindre reprise.|Deux trouvailles ANTÉRIEURES en écrivant la scène : une boucle échappait au détecteur (les instructions étaient groupées par LIGNE, donc trois <code>moveTo</code> d'un même <code>for</code> ne faisaient qu'un intervalle) ; et l'avertissement lui-même TUAIT le rendu — il lisait une clé qu'un décalage n'a pas, et la scène mourait sur un KeyError au lieu de dessiner.|Sur la branche <code>feat/s1-deferred-base</code>, non commitée. À vérifier : rends <code>docs/by-example/features/deferred_base.py</code> — trois carrés, les mêmes trois déplacements, trois ordres d'écriture, ils bougent ensemble. Un mot de toi et D7, B4, A3 et B3 sont débloqués."><span class="id">S1</span><span class="lbl"><b>Résolution différée de la base</b></span><span class="meta lock">prêt, ton mot</span></li>
+          <li data-b="<code>b.nextTo(a, RIGHT, gap=0.3)</code> pose un objet bord à bord contre un autre, l'écart mesuré entre les bords DESSINÉS — donc juste pour un membre mis à l'échelle, depuis X6.|Mesuré : deux carrés d'un côté finissent à 1,3 (1 de côté + 0,3 d'écart) ; avec des Text, les écarts sont symétriques (0,15 / 0,21 / 0,26).|<code>follow=True</code> refuse à voix haute en nommant S1 : suivre demande de relire la position par image, ce que seule la base différée rend juste.|Sur la branche <code>feat/next-to</code>, non commitée. À vérifier : rends <code>docs/by-example/features/next_to.py</code>."><span class="id">D1</span><span class="lbl"><code>nextTo(a, UP, gap=)</code></span><span class="meta lock">prêt, ton œil</span></li>
+          <li data-b="Une lettre est alignée en (0, 0) : sa position est le CRAYON, l'encre est à droite et au-dessus. Un mot qui tournait pivotait donc autour de ses crayons, et partait en biais.|Mesuré : <code>Text(&quot;LEFT&quot;, fontSize=0.4).position(0.001, 0).rotation(180)</code> finissait à (−0,25 ; −0,40) au lieu de rester centré ; après, rotation(180), rotation(90) et scale(2) gardent l'encre à (0,021 ; 0,004).|Dix scènes de l'empreinte bougent en NOMBRE D'APPELS seulement : les 52 images de référence passent, la parité de l'aperçu aussi. L'empreinte a donc été acceptée à voix haute, pas contournée.|Sur la branche <code>feat/next-to</code>. À vérifier : un texte tourné, à l'œil."><span class="id">X9</span><span class="lbl">Un texte tournait autour de ses crayons</span><span class="meta lock">prêt, ton œil</span></li>
           <li data-b="Un groupe qui se rend comme UN SEUL calque. Mesuré sur l'arbre fusionné : deux carrés blancs à moitié d'opacité, le comp lit 153 partout, le <code>Group</code> lit 204 dans le recouvrement.|Le masque n'oblige plus à aplatir un texte à la main : <code>matte(Comp(*Text(...).inputs))</code> suffit.|Imbrication : à moitié. Un comp dans un comp s'aplatit dans le bon ordre, mais un membre semi-transparent perd de la couleur — plafond PRÉEXISTANT (l'alpha non prémultiplié de tout calque isolé), mesuré et nommé dans le code.|À vérifier : rends <code>docs/by-example/tour.py</code>, section 2."><span class="id">A1</span><span class="lbl">Comp — un groupe = un calque</span><span class="meta">comp</span></li>
           <li data-b="<code>docs/by-example/tour.py</code> : une seule scène qui fait tourner tout ce qui est tombé aujourd'hui.|<code>./video-code --file docs/by-example/tour.py --generate tour.mp4</code> — et elle t'imprime ses chapitres à coller.|<code>--sheet 5 --from 0 --to 13</code> pour voir cinq moments d'un coup, <code>--for youtube,tiktok,square</code> pour les trois formats.|<code>--editor</code> pour la moitié éditeur : repères sur la règle, curseur qui allume sa barre, courbes sur les effets, ⌘E."><span class="id">TOUR</span><span class="lbl">Une scène pour tout vérifier</span><span class="meta">by-example</span></li>
           <li data-b="<code>moveAlong(path)</code> parcourt une courbe à UNE vitesse : la marche est mesurée d'abord, et chaque image est un pas de la même LONGUEUR.|Sur un trajet écrit avec un point au centième du chemin, les pas sortent à 0,344–0,345 au lieu de 0,1 puis tout le reste.|<code>face=True</code> tourne l'objet dans le sens de la marche, lu de l'image d'avant à celle d'après — un virage tourne par ses angles au lieu de claquer.|À vérifier : rends une scène en zigzag et regarde la flèche."><span class="id">A5</span><span class="lbl"><code>moveAlong(path)</code></span><span class="meta">move-along</span></li>
@@ -203,7 +206,7 @@
       </div>
 
       <div class="card doing">
-        <h2>In progress <em>rien — tout ce qui reste attend un mot de toi</em> <span class="n">0</span></h2>
+        <h2>In progress <em>rien — les sessions attendent ton go</em> <span class="n">0</span></h2>
         <ul class="rows"></ul>
       </div>
 
@@ -232,30 +235,17 @@
 
     <div class="col">
       <div class="card todo">
-        <h2>To do · blocked by S1 <em>fausses sans lui</em> <span class="n">5</span></h2>
+        <h2>To do · attendent S1 <em>écrit, pas encore fusionné</em> <span class="n">3</span></h2>
         <ul class="rows">
-          <li data-b="Une animation lit sa valeur de départ au moment où la LIGNE s'exécute, pas au moment où elle JOUE.|Juste tant que les lignes sont écrites dans l'ordre du film ; silencieusement faux sinon.|Conception faite et prototypée : deux passes, 0 scène sur 50 qui bouge. Commande D7, B4, A3 et B3 — dis-moi si je le lance."><span class="id">S1</span><span class="lbl"><b>Résolution différée de la base</b></span><span class="meta lock">ton feu vert</span></li>
-          
-          <li data-b="Dire quand en secondes, comme un storyboard, au lieu de « après ce qui précède ».|Cinq lignes de sucre syntaxique.|Mais livré sans S1, il AGGRAVE le piège : un storyboard écrit dans le désordre donne un film faux."><span class="id">D7</span><span class="lbl"><code>at=2.5</code> — quand, en secondes</span><span class="meta lock">S1</span></li>
-          <li data-b="Voir la valeur d'un élément à l'instant du curseur, en taper une autre, et la ligne qui l'anime s'écrit.|C'est le chronomètre d'After Effects, dit dans ce langage-ci.|Faux sans S1 dès que la tête de lecture est avant le curseur d'écriture."><span class="id">B4</span><span class="lbl">Fiche chronomètre</span><span class="meta lock">S1</span></li>
-          <li data-b="Un nombre qui évolue, et des objets qui le lisent : un point sur la courbe, un compteur qui l'affiche.|La moitié écriture existe (<code>attachTo</code>), la moitié lecture aussi ; il manque le verbe général.|Un objet lié lit une source dont les lignes suivantes n'ont pas encore tourné — d'où S1."><span class="id">A3</span><span class="lbl">Valeur suivie + liaison</span><span class="meta lock">S1</span></li>
-          <li data-b="Tirer le corps d'un clip écrit son <code>.wait()</code> ; tirer le bord d'une bande rouge écrit le <code>wait()</code> global.|Les deux outils de Premiere sont déjà deux mots du langage.|Tirer vers la GAUCHE demande S1 : écrire du temps en arrière."><span class="id">B3</span><span class="lbl">Glisser un clip / tirer une bande</span><span class="meta lock">S1</span></li>
+          <li data-b="Voir la valeur d'un élément à l'instant du curseur, en taper une autre, et la ligne qui l'anime s'écrit.|C'est le chronomètre d'After Effects, dit dans ce langage-ci.|Faux sans S1 dès que la tête de lecture est avant le curseur d'écriture.|PAS commencé : la session à qui la mission a été envoyée l'a refusée — elle arrivait avec « Marius n'est pas là » alors que tu écrivais. Elle attend ton go."><span class="id">B4</span><span class="lbl">Fiche chronomètre</span><span class="meta lock">ton go</span></li>
+          <li data-b="Un nombre qui évolue, et des objets qui le lisent : un point sur la courbe, un compteur qui l'affiche.|La moitié écriture existe (<code>attachTo</code>), la moitié lecture aussi ; il manque le verbe général.|Un objet lié lit une source dont les lignes suivantes n'ont pas encore tourné — d'où S1."><span class="id">A3</span><span class="lbl">Valeur suivie + liaison</span><span class="meta lock">S1 à fusionner</span></li>
+          <li data-b="Tirer le corps d'un clip écrit son <code>.wait()</code> ; tirer le bord d'une bande rouge écrit le <code>wait()</code> global.|Les deux outils de Premiere sont déjà deux mots du langage.|Tirer vers la GAUCHE demande S1 : écrire du temps en arrière."><span class="id">B3</span><span class="lbl">Glisser un clip / tirer une bande</span><span class="meta lock">ton mot · fleet-bc</span></li>
         </ul>
       </div>
 
       <div class="card todo">
-        <h2>To do · the rest <span class="n">1</span></h2>
-        <ul class="rows">
-          
-          
-          
-          
-          
-          
-          
-          
-          <li data-b="Mettre ceci à côté de cela, avec un écart mesuré entre les bords.|Avec <code>follow=True</code>, l'étiquette suit la balle qui bouge.|Le suivi demande S1 : il ne voit que ce qui est écrit AU-DESSUS de lui."><span class="id">D1</span><span class="lbl"><code>nextTo(a, UP, gap=)</code></span><span class="meta">½ j</span></li>
-        </ul>
+        <h2>To do · the rest <em>vidée cette nuit</em> <span class="n">0</span></h2>
+        <ul class="rows"></ul>
       </div>
     </div>
 
@@ -263,11 +253,11 @@
       <div class="card">
         <h2>Shipped <em>aujourd'hui</em> <span class="n">22</span></h2>
         <ul class="rows">
-          <li data-b="<code>Text(&quot;videocode&quot;)</code> tout seul dessinait les neuf lettres l'une sur l'autre : la mise en page était calculée, émise, puis jetée comme une écriture sans effet.|Le meta des lettres est effacé entre l'instantané et l'émission, sauf sous noRegister où CompoundPolygon lit la mise en page directement sur les lettres.|L'EMPREINTE a bougé, exprès : 21 scènes demandent enfin les positions qu'elles voulaient (eg.py 581 → 613, composition 35 → 39). Aucun pixel du corpus ne change — les 52 scènes passent."><span class="id">X8</span><span class="lbl">Un texte non déplacé se superpose</span><span class="meta sha">3a5395f</span></li>
+          <li data-b="<code>Text(&quot;videocode&quot;)</code> tout seul dessinait les neuf lettres l'une sur l'autre : la mise en page était calculée, émise, puis jetée comme une écriture sans effet.|Le meta des lettres est effacé entre l'instantané et l'émission, sauf sous noRegister où CompoundPolygon lit la mise en page directement sur les lettres.|L'EMPREINTE a bougé, exprès : 21 scènes demandent enfin les positions qu'elles voulaient (eg.py 581 → 613, composition 35 → 39). Aucun pixel du corpus ne change — les 52 scènes passent.|Fusionné sur feat/night-2026-09-03 depuis fix/text-layout."><span class="id">X8</span><span class="lbl">Un texte non déplacé se superpose</span><span class="meta sha">3a5395f</span></li>
           <li data-b="Les pixels du panneau d'aperçu se mesurent enfin : <code>./video-code --check-widget</code>, dans <code>make check</code>, 1,8 s.|0 pixel PLAT de différence sur trois scènes, à l'octet près. Les bords diffèrent et ne peuvent pas ne pas différer — le widget résout du 4× MSAA, le moteur sans écran suréchantillonne en 4×4 — et c'est dit au lieu d'être caché sous un seuil.|Aucune fenêtre : mesuré de l'extérieur du processus, 52 relevés, 0 fenêtre, avec le filtre validé sur des pids qui en ont.|Ce qui reste non vérifié : le chemin de présentation (barrière + <code>vkQueuePresentKHR</code>), qui demande un compositeur — donc une fenêtre. Écrit dans l'en-tête plutôt que sous-entendu."><span class="id">H2</span><span class="lbl">Les pixels de l'aperçu, mesurés</span><span class="meta sha">dff82cd</span></li>
           <li data-b="La bande d'attente passe SOUS les pistes au lieu d'être posée dessus : colonne lie-de-vin nette, clips toujours lisibles par-dessus.|Une à trois petites horloges aux aiguilles immobiles montent du bas jusqu'à la règle, en 6 à 8 secondes, décalées pour ne jamais s'aligner.|Zéro coût quand la bande est hors de l'écran, trop étroite, ou si tu as demandé moins d'animations. Sur feat/wait-band-clocks."><span class="id">—</span><span class="lbl">Bande d'attente + horloges</span><span class="meta sha">1249801</span></li>
           <li data-b="--from 12 --to 22, en secondes ou en nom de repère : rendre un extrait au lieu de tout refaire.|Le son n'est PAS re-décalé : le mixage entier est fait comme avant, puis un seul filtre découpe la tranche — un son commencé avant l'extrait est entendu là où on entre dedans.|Sur la branche feat/section-render. Mesuré sur six rendus."><span class="id">A7</span><span class="lbl">Rendre un extrait <code>--from/--to</code></span><span class="meta sha">0b05a91</span></li>
-          
+
           <li data-b="La même entrée en cascade sur n'importe quel groupe — donc sur un texte, lettre par lettre.|Sur la branche feat/stagger, pas encore fusionnée.|La machine à écrire n'a PAS été absorbée : elle cache toutes les lettres sur la même image avant de les révéler, et décaler ce masquage changerait des pixels. Refus argumenté, pas oubli."><span class="id">D5</span><span class="lbl"><code>stagger(popIn(), every=)</code></span><span class="meta sha">f33ae26</span></li>
           <li data-b="Escape ferme le panneau Colors depuis n'importe où, même le curseur dans un champ hex.|Deux raccourcis Escape dans une même fenêtre étaient une ambiguïté : Qt n'en déclenchait aucun. Les trois panneaux rejoignent l'échelle existante.|L'info-bulle de signature s'en va quand le curseur quitte sa ligne. Validé par toi."><span class="id">—</span><span class="lbl">Escape ferme Colors · l'info-bulle</span><span class="meta sha">fd7235f</span></li>
           <li data-b="<code>Image(&quot;x.png&quot;)</code> sans dimension ne produisait aucune géométrie côté Python.|La grouper ou l'encadrer plantait — le C++ connaissait sa taille, Python non.|Deux scènes changent d'empreinte ; écart mesuré sur les images de référence : 1/255 sur cent pixels sur deux millions."><span class="id">X2</span><span class="lbl">Image sans dimension</span><span class="meta sha">83ed188</span></li>
