@@ -27,7 +27,7 @@ sys.path.insert(0, ".")
 sys.path.insert(0, "test")
 from helpers import check, needsTool, section, summary
 
-from videocode import Sound
+from videocode import Sound, wait
 from videocode.context import Context
 from videocode.serialize import _resetContext
 
@@ -136,6 +136,19 @@ check(f"as far as `to` ({min(v for _, v in claimed)})", abs(min(v for _, v in cl
 check("and comes back to where it was", abs(claimed[-1][1] - 1.0) < 0.001)
 check(f"once the voice is over, its own length included (frame {claimed[-1][0]} of 33+)",
       claimed[-1][0] >= (voice.delay + voice.length()) * 30)
+span = claimed[-1][0] - claimed[0][0]
+
+# The same pair written after a wait(): `delay` carries the cursor, `start=`
+# does not, and the ramps used to land the whole wait too late.
+_resetContext()
+wait(20)
+music = Sound("test/test.wav")
+voice = Sound("test/test_speech.wav", start=0.3, trimEnd=0.8)
+music.duck(under=voice, to=0.2, fade=0.15)
+entry = Context.stack[music.meta.index]
+frames = sorted(f for f in entry if f != -1 and any(k.startswith("Args") for k in entry[f]))
+check(f"written after a wait(20), the ramps span the same {span} frames, not {span + 600}",
+      frames[-1] - frames[0] == span)
 
 _resetContext()
 

@@ -224,8 +224,14 @@ class Sound(Input):
         # from its own offset, and neither ramp moves it. Measured: the second
         # `over(start=1.0)` lands on the same frame whether or not a first one
         # was written before it.
-        self.over(start=max(0.0, under.delay - fade), duration=fade).volume = to
-        self.over(start=under.delay + under.length() + hold, duration=fade).volume = before
+        # `delay` is film time — it carries the `wait()` cursor the sound was
+        # written after — and `start=` counts from THIS sound's own delay. The
+        # gap between the two is what `over` wants; `under.delay` alone was
+        # right only at cursor 0, and put the ramps 24 s late in a scene that
+        # reached its sounds after a few shots.
+        gap = under.delay - self.delay
+        self.over(start=max(0.0, gap - fade), duration=fade).volume = to
+        self.over(start=gap + under.length() + hold, duration=fade).volume = before
         return self
 
     def beats(

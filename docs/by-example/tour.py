@@ -10,8 +10,10 @@ Every shape:         ./video-code --file docs/by-example/tour.py --generate tour
 Open it:             ./video-code --file docs/by-example/tour.py --editor
 
 Rendering it exercises: shots and cuts, the camera and `pinToFrame`, a composition,
-`moveAlong`, `BarChart`, and the chapters a render writes from `timestamp()` —
-which it prints at the end, in the form a description box takes.
+`moveAlong`, `BarChart`, a text left at the origin cascading in with `stagger`, a
+label placed with `nextTo`, the music ducking under a voice, and the chapters a
+render writes from `timestamp()` — which it prints at the end, in the form a
+description box takes.
 
 Opening it exercises the editor's half: the markers on the ruler (⇧← / ⇧→ jump
 between them), the caret lighting the bar its line makes (⌘⏎ plays from there),
@@ -21,6 +23,8 @@ the easing curve on each effect row, and File → Export Video… (⌘E).
 from videocode import *
 from videocode.input.interface.Composition import Composition
 from videocode.template.effect.core.fadeTo import fadeTo
+from videocode.template.effect.other.popIn import popIn
+from videocode.template.effect.other.stagger import stagger
 from videocode.template.input.BarChart import Leaderboard
 
 TITLE = 0.9
@@ -131,3 +135,25 @@ wait(2)
 camera.over(duration=1.0).zoom = 1
 camera.moveTo(x=0, y=0, duration=1.0)
 wait(1.5)
+
+
+# ── 6. The sound: music that ducks under the voice ───────────────────────────
+timestamp("the sound")
+
+with shot() as spoken:
+    # Left exactly at the origin on purpose: a word nobody moved used to draw
+    # its letters on one spot.
+    word = Text(text="videocode", fontSize=TITLE, fillColor=WHITE)
+    word.apply(stagger(popIn(), every=0.08))
+
+    note = Text(text="the music ducks under the voice", fontSize=LABEL, fillColor=BLUE_C)
+    note.nextTo(word, DOWN, gap=0.5)
+    note.opacity(0)
+    note.fadeIn(start=0.9, duration=0.4)
+
+    music = Sound("test/test.wav")
+    voice = Sound("test/test_speech.wav", start=0.5)
+    music.duck(under=voice, to=0.15, fade=0.25)
+    wait(3.5)
+
+cut(figures, spoken)
