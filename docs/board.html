@@ -166,21 +166,22 @@
     <h1>Chantier Video-Code</h1>
     <span class="branch">feat/night-2026-09-03</span>
     <span class="chips">
-      <span class="chip"><b>52</b> livrés</span>
+      <span class="chip"><b>56</b> livrés</span>
       <span class="chip"><b>5</b> à faire</span>
       <span class="chip"><b>67</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">7 sept. · 5 h</span>
+    <span class="stamp">7 sept. · 6 h</span>
   </header>
 
   <div class="board">
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">9</span></h2>
+        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">10</span></h2>
         <ul class="rows">
-          <li data-b="31 s, six sections : shots + cut, composition, moveAlong, barres, caméra, son qui baisse sous la voix, six chapitres.¦Ça valide d'un coup D3, C3 (tiktok et carré envoyés aussi), A6, C6.¦Dis « tour ok » et ces quatre passent en livré."><span class="id">TOUR</span><span class="lbl">Regarde tour.mp4 (dans le fil)</span><span class="meta lock">un mot</span></li>
+                    <li data-b="Trois fichiers d'une commande : tour_formats-youtube (1920×1080), -tiktok (1080×1920), -square (1080×1080).¦Ce n'est pas un recadrage : la scène est rejouée à chaque taille, la légende reste collée à son bord dans les trois.¦Ouvre le tiktok et le carré envoyés dans le fil : même film, remis en page."><span class="id">C3</span><span class="lbl">Une scène, tous les formats : ouvre le tiktok et le carré</span><span class="meta lock">un mot</span></li>
+          <li data-b="Réécoute tour.mp4 (refait, dans le fil) à 24 s : huit secondes de musique, la voix à 27 s, la musique baisse dessous puis remonte.¦Le mixeur divisait chaque piste par deux tant que la voix durait, puis remontait : un duck à l'envers. Corrigé.¦Le son n'est que dans la dernière section, avant c'est du silence voulu."><span class="id">A6</span><span class="lbl">Le son : réécoute la fin de tour.mp4</span><span class="meta lock">un mot</span></li>
           <li data-b="Promène le curseur dans tour.py : la barre de la ligne s'allume.¦⌘⏎ sur une ligne vide, un wait(), un timestamp() : ça joue depuis là."><span class="id">B1</span><span class="lbl">Le curseur : sa barre s'allume, ⌘⏎ joue depuis n'importe quelle ligne</span><span class="meta lock">ton clavier</span></li>
           <li data-b="Tire la courbe au bout d'une ligne d'effet ; au relâchement la ligne s'écrit.¦À la souris : la pastille ne doit pas gêner le redimensionnement d'un effet plein."><span class="id">B5</span><span class="lbl">Éditeur de courbes</span><span class="meta">ta souris</span></li>
           <li data-b="Tire un wait(CONSTANTE) : refus qui nomme la constante, et propose de la changer.¦Un geste sur un élément importé dit quel fichier il refuse de toucher."><span class="id">B7</span><span class="lbl">Gestes refusés et proposés</span><span class="meta">ta souris</span></li>
@@ -238,8 +239,12 @@
 
     <div class="col">
       <div class="card">
-        <h2>Shipped <em>aujourd'hui</em> <span class="n">34</span></h2>
+        <h2>Shipped <em>aujourd'hui</em> <span class="n">38</span></h2>
         <ul class="rows">
+          <li data-b="amix divisait chaque piste par le nombre de pistes et remontait quand l'une finissait : la musique jouait à 0,3 sous la voix puis revenait à 0,6.¦normalize=0 : le niveau revendiqué est le niveau mixé. Mesuré 0,6 / 0,12 / 0,6 sur la visite.¦La visite a huit secondes de musique générée par la scène elle-même."><span class="id">—</span><span class="lbl">Le mixeur ne divise plus les pistes</span><span class="meta sha">0254abd</span></li>
+          <li data-b="La timeline a la même marge après la dernière image qu'avant la première : 22 px, plus le centrage quand la scène tient.¦Avant : 22 px à gauche, 0 à droite, la scène butait contre le bord du panneau."><span class="id">—</span><span class="lbl">Marge droite de la timeline</span><span class="meta sha">0254abd</span></li>
+          <li data-b="<code>with shot() as intro:</code> nomme une tranche du film ; <code>cut(intro, body)</code> range tout le premier à l'image où le second s'ouvre.¦<code>crossfade=</code> pour un fondu. Validé le 7 sept. sur la visite."><span class="id">D3</span><span class="lbl">Nommer un plan, couper vers le suivant</span><span class="meta sha">89b50c5</span></li>
+          <li data-b="Les <code>timestamp()</code> sur la timeline : validé, c'est ce qui compte.¦Les chapitres dans les métadonnées du mp4 et la liste imprimée : sans plus-value pour toi, laissés tels quels, ils ne coûtent rien."><span class="id">C6</span><span class="lbl">Chapitres : la timeline oui, le mp4 sans plus-value</span><span class="meta sha">dd53e52</span></li>
           <li data-b="Les scènes d'exemple écrivaient leur dossier dans sys.path, relatif à la racine du dépôt : copiées ailleurs, plus de <code>card</code>.¦Le moteur met le dossier de la scène sur sys.path, en dernier — en premier, chess.py masquait le paquet chess.¦L'avertissement d'écriture antidatée lisait un champ absent : KeyError, la scène mourait au lieu de rendre avec (F23 de l'ATP)."><span class="id">—</span><span class="lbl">Une scène trouve son voisin · l'avertissement ne tue plus</span><span class="meta sha">46af465</span></li>
           <li data-b="Les 24 tests de l'ATP rejoués depuis une copie du dossier, env -i : F1 à F17, F23, F24 verts.¦docs/atp/scenes/ garde les quinze scènes telles que le plan les décrit ; le dossier les embarque avec la visite et les trois scènes de --check-widget.¦F18 à F22 demandent une fenêtre : fusionnés, F19/F20 validés par toi."><span class="id">ATP</span><span class="lbl">19 tests du plan verts depuis la copie</span><span class="meta sha">46af465</span></li>
           <li data-b="L'éditeur ouvert répond à une IA : <code>video-code tell state / seek / select / run / open / export…</code>, une socket locale, un JSON par ligne.¦Une socket par éditeur, le nom connu suit le dernier ouvert, le Claude du panneau parle au sien. Le code reste la langue des éditions.¦<code>--check-chrome --serve</code> tient un éditeur sans fenêtre : 24 vérifications dans editor_control_test.py."><span class="id">C8</span><span class="lbl">Mode IA — l'éditeur répond à <code>tell</code></span><span class="meta sha">fa0c1b5</span></li>
