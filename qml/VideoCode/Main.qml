@@ -54,7 +54,7 @@ ApplicationWindow {
     // all. It is the wrong thing now: the timeline is a picture OF THE CODE, and
     // a picture of something else is worse than no picture, because it is read
     // as an answer. The empty state says what to press instead.
-    readonly property var emptyScene: ({ duration: 0, elements: [], waits: [], markers: [] })
+    readonly property var emptyScene: ({ fps: 30, duration: 0, elements: [], waits: [], markers: [] })
 
     property int selectedIndex: -1
     property real playhead: 0
@@ -2110,7 +2110,27 @@ ApplicationWindow {
         for (const m of shownScene.markers)
             if (m.line === line && app.fromOpenFile(m.file))
                 return { index: -1, at: m.at, n: "timestamp " + m.n };
-        return nothing;
+        // Any other line — a comment, a wait(), a blank, an import — still has
+        // a moment: where the scene's clock stands when that line runs. That
+        // is the latest thing written above it: an element's cursor once its
+        // statement is done, a wait's start, a marker's flag.
+        const fps = shownScene.fps !== undefined ? shownScene.fps : 30;
+        let clock = 0;
+        for (const row of rows) {
+            if (!app.fromOpenFile(row.file))
+                continue;
+            for (const point of row.points || [])
+                if (point.line <= line && app.fromOpenFile(point.file) && point.cursor !== undefined)
+                    clock = Math.max(clock, point.cursor / fps);
+        }
+        // A wait above the caret has passed; the caret ON the wait plays it.
+        for (const w of shownScene.waits)
+            if (w.line !== undefined && w.line <= line)
+                clock = Math.max(clock, w.line < line ? w.at + w.d : w.at);
+        for (const m of shownScene.markers)
+            if (m.line <= line && app.fromOpenFile(m.file))
+                clock = Math.max(clock, m.at);
+        return { index: -1, at: Math.min(clock, shownScene.duration), n: "line " + line };
     }
 
     function playFromCaret() {
@@ -2285,7 +2305,7 @@ ApplicationWindow {
             rows.push(one);
         }
 
-        return { duration: model.frames / fps, elements: rows, waits: waits, markers: markers };
+        return { fps: fps, duration: model.frames / fps, elements: rows, waits: waits, markers: markers };
     }
 
     // The message a warning left on one source line, or "".
@@ -3052,6 +3072,9 @@ ApplicationWindow {
             return state();
         case "brief":
             return { ok: true, text: agentBrief() };
+        case "caret":
+            // What the caret's line makes, and the moment ⌘⏎ would play from.
+            return { ok: true, line: source.cursorLine + 1, makes: caretMakes.n, at: caretMakes.at, index: caretMakes.index };
         case "elements":
             return { ok: true, elements: shownScene.elements.map(brief) };
         case "seek": {
@@ -3118,7 +3141,7 @@ ApplicationWindow {
             return { ok: true, out: out };
         }
         default:
-            return { ok: false, error: "unknown verb " + verb + " — state, brief, elements, seek, play, pause, select, run, open, reveal, show, say, export, key, click, panel, screenshot, quit" };
+            return { ok: false, error: "unknown verb " + verb + " — state, brief, caret, elements, seek, play, pause, select, run, open, reveal, show, say, export, key, click, panel, screenshot, quit" };
         }
     }
 
