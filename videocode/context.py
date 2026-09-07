@@ -161,10 +161,14 @@ class Wait(StackAction):
 
 
 class Timestamp(StackAction):
-    def __init__(self, name: str, time: int):
+    def __init__(self, name: str, time: int, file: str = "", line: int = 0):
         self.action = self.__class__.__name__
         self.name = name
         self.time = time
+        # Where it was written, so the caret on a `timestamp()` line has
+        # something on the timeline to light and to play from.
+        self.file = file
+        self.line = line
 
 
 # The library's own directory, with the trailing separator. Recomputed on every
@@ -646,7 +650,8 @@ def freeze(n: sec = 0) -> None:
 
 
 def timestamp(name: str) -> None:
-    Context.events.append(Timestamp(name, Context.cursor))
+    caller = sys._getframe(1)
+    Context.events.append(Timestamp(name, Context.cursor, caller.f_code.co_filename, caller.f_lineno))
 
 
 class shot:

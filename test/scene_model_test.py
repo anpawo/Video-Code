@@ -193,6 +193,10 @@ check("both are reported, in order",
       [m["name"] for m in named["markers"]] == ["start", "after the wait"])
 check("at the frame the cursor was on",
       [m["frame"] for m in named["markers"]] == [0, FPS])
+# The line it was written on, so the caret on a `timestamp()` has a moment to
+# play from — the flag on the ruler, not a bar.
+check("and with the line it was written on",
+      [m["line"] for m in named["markers"]] == [2, 5])
 check("a scene with none says so, rather than nothing",
       model("from videocode import *\nRectangle()\n")["markers"] == [])
 

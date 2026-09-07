@@ -2105,12 +2105,17 @@ ApplicationWindow {
             if (row.line === line)
                 return { index: i, at: row.l, n: row.n };
         }
+        // A `timestamp()` line makes a marker, not a bar: nothing to light,
+        // but a moment to play from — the one the flag on the ruler points at.
+        for (const m of shownScene.markers)
+            if (m.line === line && app.fromOpenFile(m.file))
+                return { index: -1, at: m.at, n: "timestamp " + m.n };
         return nothing;
     }
 
     function playFromCaret() {
         const made = app.caretMakes;
-        if (made.index < 0) {
+        if (made.at < 0) {
             source.say("nothing this line makes is on the timeline");
             return;
         }
@@ -2208,7 +2213,9 @@ ApplicationWindow {
         // and stops for the marker keys.
         const markers = (model.markers || []).map((m) => ({
             at: m.frame / fps,
-            n: m.name
+            n: m.name,
+            line: m.line !== undefined ? m.line : 0,
+            file: m.file !== undefined ? m.file : ""
         }));
         let rows = [];
         let byLine = ({});
@@ -3036,7 +3043,7 @@ ApplicationWindow {
                 stale: execStale,
                 warnings: source.runFlaws.map((f) => ({ line: f.range.start.line + 1, message: f.message }))
             },
-            markers: shownScene.markers.map((m) => ({ name: m.n, at: m.at })),
+            markers: shownScene.markers.map((m) => ({ name: m.n, at: m.at, line: m.line })),
             elements: shownScene.elements.length
         });
 

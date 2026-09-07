@@ -469,7 +469,7 @@ def sceneModel() -> dict:
     # it was written at: the preview already jumps between them, and the ruler
     # is where the name is read.
     markers = [
-        {"name": event.name, "frame": event.time}
+        {"name": event.name, "frame": event.time, "file": event.file, "line": event.line}
         for event in Context.events
         if isinstance(event, Timestamp)
     ]
