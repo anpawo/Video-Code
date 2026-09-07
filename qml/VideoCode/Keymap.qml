@@ -26,6 +26,7 @@ QtObject {
         { id: "forward",     label: "Forward",            where: "Code" },
         { id: "complete",    label: "Ask for completions", where: "Code" },
         { id: "save",        label: "Save the buffer",    where: "Code" },
+        { id: "find",        label: "Find in this file",  where: "Code" },
 
         { id: "execute",     label: "Execute the scene",  where: "Scene" },
         // In the Code group, and deliberately: the caret is what it plays
@@ -74,6 +75,7 @@ QtObject {
         "forward":    "Cmd+→",
         "complete":   "Ctrl+Space",
         "save":       "Cmd+S",
+        "find":       "Cmd+F",
         "execute":    "Cmd+R",
         "playFromCaret": "Cmd+Enter",
         "play":       "Space",

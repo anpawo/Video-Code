@@ -3221,13 +3221,43 @@ ApplicationWindow {
         return true;
     }
 
+    // ── What answers a key, and when ──────────────────────────────────────
+    // Two questions, and both have to be asked of every shortcut in the window.
+    //
+    // The first is old: a text editor owns Space and the arrows, so while the
+    // caret is in the code pane the transport does not get them.
+    //
+    // The second is the keyboard board. It is a surface you go to in order to
+    // PRESS keys and be told what they do, so every key struck there has to
+    // stop there — otherwise Space plays the scene behind it, I marks in, and
+    // the board describes a keyboard while a timeline you cannot see obeys it.
+    // A `Shortcut` is answered by the window, not by whoever holds the focus,
+    // so nothing short of standing them down does it.
+    function keyFree(id) {
+        return !shortcuts.visible && (!source.typing || Keymap.survivesTyping(id));
+    }
+
     Shortcut {
         sequence: Keymap.sequence("execute")
+        enabled: !shortcuts.visible
         onActivated: {
             if (Agent.pending)
                 app.acceptAgentEdit();
             else
                 app.executeScene(true);
+        }
+    }
+
+    // ⌘F reaches the buffer from anywhere in the window: the pane answers it
+    // itself while the caret is in it (a TextEdit claims the key through
+    // ShortcutOverride before a Shortcut ever fires), and this is the same key
+    // working from the timeline or the picture.
+    Shortcut {
+        sequence: Keymap.sequence("find")
+        enabled: !shortcuts.visible && !source.typing
+        onActivated: {
+            app.showPanel("code");
+            source.openFind();
         }
     }
 
@@ -3239,7 +3269,7 @@ ApplicationWindow {
         // `sequences`, not `sequence`: undo is spelled more than one way on this
         // platform, and binding the single form takes only the first of them.
         sequences: [StandardKey.Undo]
-        enabled: Agent.revertable
+        enabled: Agent.revertable && !shortcuts.visible
         onActivated: app.undoAgentEdit()
     }
 
@@ -3583,54 +3613,54 @@ ApplicationWindow {
     // played, and the scene quietly went stale.
     Shortcut {
         sequence: Keymap.sequence("play")
-        enabled: !source.typing || Keymap.survivesTyping("play")
+        enabled: app.keyFree("play")
         onActivated: app.togglePlay()
     }
     Shortcut {
         sequence: Keymap.sequence("toStart")
-        enabled: !source.typing || Keymap.survivesTyping("toStart")
+        enabled: app.keyFree("toStart")
         onActivated: app.seekTo(0)
     }
     Shortcut {
         sequence: Keymap.sequence("toEnd")
-        enabled: !source.typing || Keymap.survivesTyping("toEnd")
+        enabled: app.keyFree("toEnd")
         onActivated: app.seekTo(app.shownScene.duration)
     }
     Shortcut {
         sequence: Keymap.sequence("prevFrame")
-        enabled: !source.typing || Keymap.survivesTyping("prevFrame")
+        enabled: app.keyFree("prevFrame")
         onActivated: app.seekTo(app.playhead - 1 / preview.framerate)
     }
     Shortcut {
         sequence: Keymap.sequence("nextFrame")
-        enabled: !source.typing || Keymap.survivesTyping("nextFrame")
+        enabled: app.keyFree("nextFrame")
         onActivated: app.seekTo(app.playhead + 1 / preview.framerate)
     }
     Shortcut {
         sequence: Keymap.sequence("prevMarker")
-        enabled: !source.typing || Keymap.survivesTyping("prevMarker")
+        enabled: app.keyFree("prevMarker")
         onActivated: app.jumpToMarker(-1)
     }
     Shortcut {
         sequence: Keymap.sequence("nextMarker")
-        enabled: !source.typing || Keymap.survivesTyping("nextMarker")
+        enabled: app.keyFree("nextMarker")
         onActivated: app.jumpToMarker(1)
     }
     // The range. `I` and `O` are the two keys every editor on this machine
     // spells the same way, and the third gives the whole scene back.
     Shortcut {
         sequence: Keymap.sequence("markIn")
-        enabled: !source.typing || Keymap.survivesTyping("markIn")
+        enabled: app.keyFree("markIn")
         onActivated: app.setMarkIn()
     }
     Shortcut {
         sequence: Keymap.sequence("markOut")
-        enabled: !source.typing || Keymap.survivesTyping("markOut")
+        enabled: app.keyFree("markOut")
         onActivated: app.setMarkOut()
     }
     Shortcut {
         sequence: Keymap.sequence("clearMarks")
-        enabled: !source.typing || Keymap.survivesTyping("clearMarks")
+        enabled: app.keyFree("clearMarks")
         onActivated: app.clearMarks()
     }
     Shortcut {

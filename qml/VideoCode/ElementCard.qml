@@ -472,11 +472,17 @@ Item {
 
             Text {
                 id: dur
-                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                anchors { right: closer.left; rightMargin: 10; verticalCenter: parent.verticalCenter }
                 text: root.span.toFixed(1) + "s"
                 color: Theme.inkDim
                 font.family: Theme.mono
                 font.pixelSize: 12
+            }
+
+            CloseButton {
+                id: closer
+                anchors { right: parent.right; verticalCenter: parent.verticalCenter }
+                onTriggered: root.dismiss()
             }
         }
 

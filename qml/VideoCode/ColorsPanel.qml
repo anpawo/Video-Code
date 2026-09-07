@@ -94,11 +94,17 @@ Item {
         }
 
         Text {
-            anchors { right: parent.right; rightMargin: 18; verticalCenter: title.verticalCenter }
+            anchors { right: closer.left; rightMargin: 8; verticalCenter: title.verticalCenter }
             text: "esc"
             color: Theme.inkFaint
             font.family: Theme.mono
             font.pixelSize: 10
+        }
+
+        CloseButton {
+            id: closer
+            anchors { right: parent.right; rightMargin: 12; verticalCenter: title.verticalCenter }
+            onTriggered: root.visible = false
         }
 
         Column {

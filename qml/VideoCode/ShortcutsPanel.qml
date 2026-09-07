@@ -27,6 +27,12 @@ Item {
     // A rebinding that would have stolen a key, and from whom.
     property string clash: ""
 
+    // The last key actually pressed, and the cap the pointer is on. Pressing
+    // wins: while the panel is open the keyboard belongs to it, and the honest
+    // way to learn what a key does is to hit it and read the answer.
+    property string struck: ""
+    property string hovered: ""
+
     // One row per physical key. The third number widens a key in flex units;
     // "mod" marks the ones that are held rather than struck.
     readonly property var board: [
@@ -57,7 +63,40 @@ Item {
         return out.join("   ");
     }
 
+    // What a pressed combination does. The exact combination first; failing
+    // that, whatever else lives on the same cap — "⌘I does nothing" is half an
+    // answer while I on its own marks in.
+    function reading(spec) {
+        if (Keymap.baseOf(spec) === spec && ["Cmd", "Ctrl", "Shift", "Alt"].indexOf(spec) >= 0)
+            return spec + " held — press the key it goes with";
+
+        let exact = [];
+        for (const action of Keymap.actions)
+            if (Keymap.combo(action.id) === spec)
+                exact.push(action.label);
+        for (const one of Keymap.reserved)
+            if (one.key === spec)
+                exact.push(one.label);
+        if (exact.length > 0)
+            return spec + " → " + exact.join(", ");
+
+        const rest = root.boundTo(Keymap.baseOf(spec));
+        return rest.length > 0 ? spec + " → nothing.   on this key: " + rest
+                               : spec + " → nothing";
+    }
+
+    // A modifier struck alone is not a combination: nothing fires, but the cap
+    // has to light or the board looks deaf to half of what you press.
+    function modifierToken(key) {
+        if (key === Qt.Key_Control) return "Cmd";
+        if (key === Qt.Key_Meta)    return "Ctrl";
+        if (key === Qt.Key_Shift)   return "Shift";
+        if (key === Qt.Key_Alt)     return "Alt";
+        return "";
+    }
+
     function light(id) {
+        root.struck = "";
         const spec = Keymap.combo(id);
         if (spec.length === 0) {
             root.hot = [];
@@ -69,6 +108,14 @@ Item {
     function stopCapturing() {
         root.capturing = "";
         root.clash = "";
+    }
+
+    // The line under the board. It answers the key you pressed when you pressed
+    // one, and the cap you are pointing at otherwise.
+    function said() {
+        if (root.struck.length > 0)
+            return root.reading(root.struck);
+        return root.hovered.length > 0 ? root.boundTo(root.hovered) : "";
     }
 
     Rectangle {
@@ -108,11 +155,17 @@ Item {
         }
 
         Text {
-            anchors { right: parent.right; rightMargin: 20; verticalCenter: title.verticalCenter }
+            anchors { right: closer.left; rightMargin: 8; verticalCenter: title.verticalCenter }
             text: root.capturing.length > 0 ? "esc to cancel" : "esc"
             color: root.capturing.length > 0 ? Theme.live : Theme.inkFaint
             font.family: Theme.mono
             font.pixelSize: 10
+        }
+
+        CloseButton {
+            id: closer
+            anchors { right: parent.right; rightMargin: 14; verticalCenter: title.verticalCenter }
+            onTriggered: root.visible = false
         }
 
         // ── The board ─────────────────────────────────────────────────────
@@ -186,8 +239,8 @@ Item {
                                     id: keyHit
                                     anchors.fill: parent
                                     hoverEnabled: true
-                                    onEntered: legend.text = root.boundTo(cap.token)
-                                    onExited: legend.text = ""
+                                    onEntered: { root.struck = ""; root.hovered = cap.token; }
+                                    onExited: root.hovered = ""
                                 }
                             }
                         }
@@ -245,7 +298,8 @@ Item {
                 left: keyboard.left; right: keyboard.right
                 top: sides.bottom; topMargin: 10
             }
-            color: Theme.inkDim
+            text: root.said()
+            color: root.struck.length > 0 ? Theme.ink : Theme.inkDim
             font.family: Theme.mono
             font.pixelSize: 11
             elide: Text.ElideRight
@@ -267,8 +321,9 @@ Item {
                 for (const action of Keymap.actions)
                     if (action.only !== undefined && !Keymap.survivesTyping(action.id))
                         qualified.push(action.label.toLowerCase());
-                let line = "Hover an action to light the keys you press for it. "
-                         + "Click its combination and press the new one.";
+                let line = "Press any key — it stops here, lights up and says what it does. "
+                         + "Hover an action to light the keys you press for it; "
+                         + "click its combination and press the new one.";
                 if (qualified.length > 0)
                     line += "\n" + qualified.join(", ")
                           + " work " + Keymap.actions.find(a => a.only !== undefined).only
@@ -400,9 +455,16 @@ Item {
         }
     }
 
-    // The whole panel listens, because a rebinding is a key pressed anywhere in
-    // it — and because escape has to close the capture before it closes the
-    // panel, or nobody can ever cancel one.
+    // The whole panel listens, and it keeps every key it hears.
+    //
+    // Not only because a rebinding is a key pressed anywhere in it: a board you
+    // are pressing keys at cannot also be letting those keys drive the scene
+    // behind it — Space would play, I would mark in, and you would be told what
+    // the key does by a timeline you cannot see. The shell's own shortcuts stand
+    // down while this is open (Main.qml), and what is left lands here, lights
+    // its caps and says what it does under the board.
+    //
+    // Escape is the one exception, because it is the way out.
     Keys.onPressed: (event) => {
         if (event.key === Qt.Key_Escape) {
             if (root.capturing.length > 0)
@@ -413,11 +475,24 @@ Item {
             return;
         }
 
-        if (root.capturing.length === 0)
+        event.accepted = true;
+
+        if (root.capturing.length === 0) {
+            const mod = root.modifierToken(event.key);
+            if (mod.length > 0) {
+                root.struck = mod;
+                root.hot = [mod];
+                return;
+            }
+            const pressed = Keymap.comboFrom(event);
+            if (pressed.length === 0)
+                return;
+            root.struck = pressed;
+            root.hot = Keymap.modsOf(pressed).concat([Keymap.baseOf(pressed)]);
             return;
+        }
 
         const spec = Keymap.comboFrom(event);
-        event.accepted = true;
         if (spec.length === 0)
             return;
 
@@ -440,6 +515,8 @@ Item {
         } else {
             stopCapturing();
             hot = [];
+            struck = "";
+            hovered = "";
         }
     }
 }

@@ -805,7 +805,10 @@ Item {
         id: notice
         visible: false
         z: 14
-        anchors { right: parent.right; rightMargin: 12; top: parent.top; topMargin: 10 }
+        anchors {
+            right: parent.right; rightMargin: 12
+            top: parent.top; topMargin: finding.visible ? 44 : 10
+        }
         width: word.implicitWidth + 18
         height: 22
         radius: Theme.radiusSmall
@@ -863,6 +866,181 @@ Item {
                 notice.visible = false;
                 notice.act = null;
             }
+        }
+    }
+
+    // ── Finding text ──────────────────────────────────────────────────────
+    // A strip over the top of the pane, not a pane of its own: what you are
+    // looking for is in the buffer, and a search that pushes the buffer down
+    // moves the thing you are reading while you read it.
+    //
+    // Plain text, ignoring case. No regular expressions and no whole-word
+    // switch: ⌘F is how you get to a line you already know is there, and every
+    // switch beside the field is a state to be in by accident next time.
+    function openFind() { finding.open(); }
+
+    // Where the strip stands, as the strip itself prints it. A selection cannot
+    // be read from outside the pane, so without this a scripted run has no way
+    // to tell a search that landed from one that quietly found nothing.
+    readonly property string found: finding.visible
+                                    ? (finding.at + 1) + "/" + finding.hits.length : ""
+
+    Rectangle {
+        id: finding
+        visible: false
+        z: 15
+        anchors { right: parent.right; rightMargin: 12; top: parent.top; topMargin: 10 }
+        width: 320
+        height: 28
+        radius: Theme.radiusSmall
+        color: Theme.panel
+        border.width: 1
+        border.color: Theme.edge
+
+        // Where every match starts, in buffer offsets, and which one is shown.
+        // -1 means "not moved yet": the first step lands on the match after the
+        // caret rather than at the top of the file, because you searched from
+        // where you were standing.
+        property var hits: []
+        property int at: -1
+
+        function open() {
+            if (editor.selectedText.length > 0 && editor.selectedText.indexOf("\n") < 0)
+                query.text = editor.selectedText;
+            finding.visible = true;
+            finding.recount();
+            query.selectAll();
+            query.forceActiveFocus();
+        }
+
+        function shut() {
+            finding.visible = false;
+            editor.forceActiveFocus();
+        }
+
+        function recount() {
+            const needle = query.text.toLowerCase();
+            let out = [];
+            if (needle.length > 0) {
+                const hay = editor.text.toLowerCase();
+                let i = hay.indexOf(needle);
+                while (i >= 0) {
+                    out.push(i);
+                    i = hay.indexOf(needle, i + 1);
+                }
+            }
+            finding.hits = out;
+            // Where we already are, if the match under the selection survived
+            // the count. Blanking it instead would reset "2/2" to "0/2" on
+            // every keystroke and on every re-run that rewrites the buffer,
+            // while the selection is still sitting on a match — and -1 is what
+            // `indexOf` gives back when it genuinely is not one of them.
+            finding.at = out.indexOf(editor.selectionStart);
+        }
+
+        function step(by) {
+            if (finding.hits.length === 0)
+                return;
+            if (finding.at < 0) {
+                let k = 0;
+                while (k < finding.hits.length && finding.hits[k] < editor.cursorPosition)
+                    ++k;
+                finding.at = by > 0 ? k % finding.hits.length
+                                    : (k - 1 + finding.hits.length) % finding.hits.length;
+            } else {
+                finding.at = (finding.at + by + finding.hits.length) % finding.hits.length;
+            }
+
+            const from = finding.hits[finding.at];
+            editor.select(from, from + query.text.length);
+            (view.contentItem as Flickable).contentY =
+                Math.max(0, editor.cursorRectangle.y - view.height / 3);
+        }
+
+        TextField {
+            id: query
+            anchors {
+                left: parent.left; leftMargin: 8
+                right: tally.left; rightMargin: 6
+                verticalCenter: parent.verticalCenter
+            }
+            height: parent.height - 6
+            placeholderText: "find"
+            color: Theme.ink
+            font.family: Theme.mono
+            font.pixelSize: root.codeSize
+            background: null
+            onTextChanged: {
+                finding.recount();
+                finding.step(1);
+            }
+            // Enter walks forward, ⇧⏎ back — the two keys every editor on this
+            // machine already answers to, so there is nothing new to learn.
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    finding.step(event.modifiers & Qt.ShiftModifier ? -1 : 1);
+                    event.accepted = true;
+                } else if (event.key === Qt.Key_Escape) {
+                    finding.shut();
+                    event.accepted = true;
+                }
+            }
+        }
+
+        Text {
+            id: tally
+            anchors { right: prev.left; rightMargin: 6; verticalCenter: parent.verticalCenter }
+            text: query.text.length === 0
+                  ? ""
+                  : (finding.hits.length === 0
+                     ? "none"
+                     : (finding.at + 1) + "/" + finding.hits.length)
+            color: finding.hits.length === 0 && query.text.length > 0 ? Theme.warn : Theme.inkFaint
+            font.family: Theme.mono
+            font.pixelSize: root.codeSize - 2
+        }
+
+        // The direction is decided where the arrow is placed, not inside it:
+        // under `ComponentBehavior: Bound` an inline component cannot see the
+        // ids around it, and a signal is the way out that stays honest.
+        component Step: Text {
+            id: step
+            signal stepped()
+
+            width: 16
+            color: arrow.containsMouse ? Theme.ink : Theme.inkFaint
+            font.family: Theme.mono
+            font.pixelSize: 12
+            horizontalAlignment: Text.AlignHCenter
+
+            MouseArea {
+                id: arrow
+                anchors.fill: parent
+                anchors.margins: -3
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: step.stepped()
+            }
+        }
+
+        Step {
+            id: prev
+            anchors { right: next.left; verticalCenter: parent.verticalCenter }
+            text: "\u2039"
+            onStepped: finding.step(-1)
+        }
+
+        Step {
+            id: next
+            anchors { right: shutIt.left; rightMargin: 2; verticalCenter: parent.verticalCenter }
+            text: "\u203a"
+            onStepped: finding.step(1)
+        }
+
+        CloseButton {
+            id: shutIt
+            anchors { right: parent.right; rightMargin: 4; verticalCenter: parent.verticalCenter }
+            onTriggered: finding.shut()
         }
     }
 
@@ -983,11 +1161,17 @@ Item {
         }
 
         Text {
-            anchors { right: parent.right; rightMargin: 10; top: parent.top; topMargin: 8 }
+            anchors { right: usesShut.left; rightMargin: 6; top: parent.top; topMargin: 8 }
             text: "esc"
             color: Theme.inkFaint
             font.family: Theme.mono
             font.pixelSize: root.codeSize - 2
+        }
+
+        CloseButton {
+            id: usesShut
+            anchors { right: parent.right; rightMargin: 6; top: parent.top; topMargin: 4 }
+            onTriggered: uses.visible = false
         }
 
         ListView {
@@ -1410,6 +1594,9 @@ Item {
                 // keystroke rather than leaving stale prose over live code.
                 probe.dismiss();
 
+                if (finding.visible)
+                    finding.recount();
+
                 if (!ready || text === pristine)
                     return;
                 root.modified = true;
@@ -1665,6 +1852,12 @@ Item {
                     return;
                 }
 
+                if (event.key === Qt.Key_Escape && finding.visible) {
+                    finding.shut();
+                    event.accepted = true;
+                    return;
+                }
+
                 // Each of these is ASKED of Keymap rather than spelled out here,
                 // so the keyboard board and this handler cannot drift apart:
                 // rebinding writes one string and both follow it.
@@ -1712,6 +1905,11 @@ Item {
                 // key a Mac user expects. So ⌘← is ControlModifier here, and
                 // ⌃Space below is MetaModifier — reading them the other way
                 // round silently binds nothing.
+                if (Keymap.matches(event, "find")) {
+                    finding.open();
+                    event.accepted = true;
+                    return;
+                }
                 if (Keymap.matches(event, "back")) {
                     root.goBack();
                     event.accepted = true;
