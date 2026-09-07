@@ -249,11 +249,10 @@ Item {
                 // which left it riding a few pixels above the label beside it.
                 height: 14
                 padding: 0
-                // The whole of what is drawn, in the pane. `fitZoom` already
-                // measures against `span`, which never goes below ten seconds —
-                // so on a short scene this IS the ten-second view, and on a long
-                // one it is the whole scene.
-                from: Math.max(20, root.fitZoom)
+                // 20 px per second at the least, whatever the scene's length:
+                // the floor used to be the fitting zoom, which pushed the default
+                // up on a long scene and made 20 unreachable there.
+                from: 20
                 // Twice that at most: five seconds on screen and no further. A
                 // value already past it — saved, or left over from a wider pane —
                 // is pulled back by the Slider itself when the range moves.
