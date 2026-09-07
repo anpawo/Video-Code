@@ -45,6 +45,7 @@
 #include <iostream>
 
 #include "agent/AgentSession.hpp"
+#include "compiler/AudioMix.hpp"
 #include "lsp/LanguageServer.hpp"
 #include "utils/ImageIO.hpp"
 #include "utils/Logger.hpp"
@@ -783,6 +784,7 @@ QVariantMap VC::Editor::executeScene(const QString& source, const QString& path)
     if (answer.value("ok").toBool()) {
         try {
             answer["frames"] = sceneBuilt();
+            bakeAudio();
         } catch (const std::exception& error) {
             VC_SLOG(std::format("[preview] scene not built: {}\n", error.what()));
         }
@@ -1347,6 +1349,105 @@ void VC::Editor::highlightPython(QQuickTextDocument* document, const QVariantMap
     new PythonHighlighter(document->textDocument(), colours);
 }
 
+void VC::Editor::setAudioMuted(bool muted)
+{
+    _speaker.setMuted(muted);
+    Q_EMIT audioChanged();
+}
+
+// A failure here has to SPEAK: an app launched from the Dock has a PATH
+// without /opt/homebrew/bin, so `ffmpeg` is not found — and a preview that
+// stays quietly silent is the very bug this exists to end.
+static QString findFfmpeg()
+{
+    QString found = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
+    for (const char* where : {"/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"})
+        if (found.isEmpty() && QFile::exists(QString::fromLatin1(where)))
+            found = QString::fromLatin1(where);
+    return found;
+}
+
+void VC::Editor::bakeAudio()
+{
+    if (_bake != nullptr) {
+        _bake->kill();
+        _bake->deleteLater();
+        _bake = nullptr;
+    }
+    if (!_scene)
+        return;
+
+    const VC::Audio::AudioGraph graph = VC::Audio::buildAudioGraph(_scene->_inputs, std::nullopt, _scene->_nbFrame, 0);
+    if (graph.count == 0) {
+        _speaker.unload();
+        _audioWhy.clear();
+        Q_EMIT audioChanged();
+        return;
+    }
+
+    const QString ffmpeg = findFfmpeg();
+    if (ffmpeg.isEmpty()) {
+        _speaker.unload();
+        _audioWhy = QStringLiteral("no sound: ffmpeg is not installed (brew install ffmpeg)");
+        Q_EMIT audioChanged();
+        return;
+    }
+
+    // A new name per run: the speaker holds the last one decoded in memory,
+    // and ffmpeg must never write under a file being read.
+    const QString wav = QStringLiteral("/tmp/videocode-preview-%1-%2.wav").arg(getpid()).arg(++_bakeRevision);
+    QStringList   args{QStringLiteral("-y"), QStringLiteral("-loglevel"), QStringLiteral("error")};
+    for (const std::string& one : graph.inputArgs)
+        args << QString::fromStdString(one);
+    args << QStringLiteral("-filter_complex") << QString::fromStdString(graph.filter)
+         << QStringLiteral("-map") << QStringLiteral("[%1]").arg(QString::fromStdString(graph.label))
+         << QStringLiteral("-ar") << QStringLiteral("48000") << QStringLiteral("-ac") << QStringLiteral("2")
+         << QStringLiteral("-c:a") << QStringLiteral("pcm_s16le") << wav;
+
+    // The last WAV goes with the editor; one per run would pile up in /tmp.
+    static bool sweeps = false;
+    if (!sweeps) {
+        sweeps = true;
+        connect(qApp, &QCoreApplication::aboutToQuit, this, [this] {
+            if (_bake != nullptr)
+                _bake->kill();
+            _speaker.unload();
+            if (!_bakeWav.isEmpty())
+                QFile::remove(_bakeWav);
+        });
+    }
+
+    _bake = new QProcess(this);
+    _bake->setProcessChannelMode(QProcess::SeparateChannels);
+    connect(_bake, &QProcess::finished, this, [this, wav](int code, QProcess::ExitStatus status) {
+        const QString said = QString::fromUtf8(_bake->readAllStandardError()).trimmed().section('\n', -1);
+        _bake->deleteLater();
+        _bake = nullptr;
+        if (status != QProcess::NormalExit || code != 0) {
+            QFile::remove(wav);
+            _audioWhy = QStringLiteral("no sound: the preview mix failed — %1").arg(said.isEmpty() ? QStringLiteral("ffmpeg gave no reason") : said);
+            Q_EMIT audioChanged();
+            return;
+        }
+        // Reloaded in flight: a run during playback keeps its place.
+        const bool    wasPlaying = _speaker.playing();
+        const double  at = _speaker.position();
+        const QString previous = _bakeWav;
+        if (_speaker.load(wav.toStdString())) {
+            _bakeWav = wav;
+            _audioWhy.clear();
+            if (wasPlaying)
+                _speaker.play(at);
+            if (!previous.isEmpty() && previous != wav)
+                QFile::remove(previous);
+        } else {
+            _audioWhy = QStringLiteral("no sound: %1").arg(QString::fromStdString(_speaker.why()));
+        }
+        Q_EMIT audioChanged();
+    });
+    _bake->start(ffmpeg, args);
+}
+
 QString VC::Editor::socketPath()
 {
     return QString::fromStdString(VC::ownSocketPath());
@@ -1415,6 +1516,13 @@ QVariantMap VC::Editor::control(const QVariantMap& request)
     if (verb == QLatin1String("panel")) {
         pressKey(QStringLiteral("Panel:") + request.value("name").toString());
         return {{"ok", true}};
+    }
+    if (verb == QLatin1String("audio")) {
+        return {{"ok", true}, {"hasAudio", hasAudio()}, {"why", _audioWhy}, {"file", _bakeWav}, {"muted", audioMuted()}, {"position", audioPosition()}, {"baking", _bake != nullptr}};
+    }
+    if (verb == QLatin1String("mute")) {
+        setAudioMuted(request.value("on", true).toBool());
+        return {{"ok", true}, {"muted", audioMuted()}};
     }
     if (verb == QLatin1String("screenshot")) {
         // The same grab the windowless probe uses: it reads a shown window too,

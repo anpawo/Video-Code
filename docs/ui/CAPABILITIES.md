@@ -232,6 +232,7 @@ one without typing it.
 
 ## 13 · Preview and playback
 
+- ● The preview plays the scene's sound — the render's own mix — and the sound is the clock while it plays
 - ● A real Vulkan render of the actual scene, at the pane's size
 - ● Transport: play/pause, frame step, home/end, scrub, timecode
 - ● Play from the end rewinds and starts again

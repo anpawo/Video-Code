@@ -112,6 +112,23 @@ macOS keeps it leftmost whatever we do.
 
 ---
 
+### Sound in the preview
+
+After every run the scene's sound — every `Sound`, every `Video` with a track,
+`start`, `trim`, `volume` and the ramps a `duck` claims — is mixed by ffmpeg
+into a WAV with the render's own audio graph (`AudioGraph`, built by
+`compiler/AudioMix` for the export — where `AudioArgs` wraps it into the mux
+command — and the preview alike), and the `Speaker` plays it. One mixer, so what is heard is what the export writes.
+
+While there is sound, the sound is the clock: the picture follows the
+speaker's cursor and skips frames if the pane is slow, because a dropped frame
+is not heard and a dropped sample is. Without sound the frame clock of before
+stays. Not this version: sound under a scrub, playback at another speed.
+
+A silent preview says why in the status line — `ffmpeg` not installed, a mix
+that failed. `Shell.audioLatency` (seconds) shifts the picture for headphones
+that hear late; Bluetooth adds a tenth or two.
+
 ## 3. The panels
 
 ### Code — the scene's source, with a language server behind it
@@ -253,6 +270,9 @@ terminal, and the same one a test uses:
 ./video-code tell key spec=Escape             # the VC_KEYS specs, one at a time
 ./video-code tell '{"do": "seek", "at": 1}'   # raw JSON is accepted too
 ```
+
+`tell audio` says whether the preview has sound and why not, `tell mute on=true`
+silences it.
 
 One JSON object per line in, one out, `ok` always set; the exit status follows
 it, so calls chain with `&&`. `state` carries the file, the caret, the

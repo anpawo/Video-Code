@@ -60,6 +60,25 @@ ApplicationWindow {
     property real playhead: 0
     property bool playing: false
 
+    // The speaker follows `playing`: every way of starting or stopping — the
+    // space bar, ⌘⏎, the end of the range, `tell play` — goes through here.
+    onPlayingChanged: {
+        if (!Shell.hasAudio)
+            return;
+        if (playing)
+            Shell.audioPlay(playhead);
+        else
+            Shell.audioPause();
+    }
+
+    // The one way the playhead is moved by hand. The speaker is told too, so
+    // Home, End, ±1 frame and a click on the ruler stay in step while playing.
+    function seekTo(seconds) {
+        playhead = Math.max(0, Math.min(seconds, shownScene.duration));
+        if (Shell.hasAudio)
+            Shell.audioSeek(playhead);
+    }
+
     // ── What a gesture snaps to ───────────────────────────────────────────
     // The moments a drop or a trim should prefer over the arithmetic mean of
     // wherever your hand stopped: where clips start and end, where the scene
@@ -169,7 +188,7 @@ ApplicationWindow {
         }
         // Placing the playhead stops play, the way scrubbing to it does.
         playing = false;
-        playhead = best.at;
+        seekTo(best.at);
         source.say(best.n);
     }
 
@@ -2139,7 +2158,7 @@ ApplicationWindow {
             source.say("nothing this line makes is on the timeline");
             return;
         }
-        app.playhead = made.at;
+        app.seekTo(made.at);
         app.playing = true;
         source.say(made.n + " — playing from " + made.at.toFixed(1) + "s");
     }
@@ -3064,6 +3083,7 @@ ApplicationWindow {
                 warnings: source.runFlaws.map((f) => ({ line: f.range.start.line + 1, message: f.message }))
             },
             markers: shownScene.markers.map((m) => ({ name: m.n, at: m.at, line: m.line })),
+            sound: Shell.hasAudio ? "ready" : (Shell.audioWhy.length > 0 ? Shell.audioWhy : "none"),
             elements: shownScene.elements.length
         });
 
@@ -3088,7 +3108,7 @@ ApplicationWindow {
             if (typeof at !== "number" || isNaN(at))
                 return { ok: false, error: "seek wants at=<seconds> or at=<marker name>" };
             playing = false;
-            playhead = Math.max(0, Math.min(at, shownScene.duration));
+            seekTo(at);
             return { ok: true, playhead: playhead };
         }
         case "play":
@@ -3141,7 +3161,7 @@ ApplicationWindow {
             return { ok: true, out: out };
         }
         default:
-            return { ok: false, error: "unknown verb " + verb + " — state, brief, caret, elements, seek, play, pause, select, run, open, reveal, show, say, export, key, click, panel, screenshot, quit" };
+            return { ok: false, error: "unknown verb " + verb + " — state, brief, caret, elements, audio, mute, seek, play, pause, select, run, open, reveal, show, say, export, key, click, panel, screenshot, quit" };
         }
     }
 
@@ -3150,6 +3170,14 @@ ApplicationWindow {
     // The scene is NOT run when the turn lands. The author sees the colours,
     // and running it is what accepting MEANS — which is why ⌘R does both and
     // why nothing moves in the preview until they press it.
+    Connections {
+        target: Shell
+        function onAudioChanged() {
+            if (!Shell.hasAudio && Shell.audioWhy.length > 0)
+                source.say(Shell.audioWhy);
+        }
+    }
+
     Connections {
         target: Agent
 
@@ -3244,13 +3272,20 @@ ApplicationWindow {
     // renders whatever frame it lands on. A frame clock rather than a wall
     // clock: rendering happens on demand on this thread, so chasing real time
     // would mean claiming a frame rate the pane is not delivering.
+    //
+    // Unless there is sound. Then the speaker is the clock and the picture
+    // follows it, skipping frames if the pane is slow: a dropped frame is not
+    // heard, a dropped sample is. `Math.max` because the cursor does not move
+    // on the very tick `play` was called — without it the head fell back to
+    // where the sound started.
     Timer {
         id: clock
         interval: Math.max(1, Math.round(1000 / app.execFps))
         repeat: true
         running: app.playing && app.shownScene.duration > 0
         onTriggered: {
-            const next = app.playhead + 1 / app.execFps;
+            const heard = Shell.hasAudio ? Shell.audioPosition() - Shell.audioLatency : -1;
+            const next = heard >= 0 ? Math.max(app.playhead, heard) : app.playhead + 1 / app.execFps;
             const until = app.ranged ? app.markOut : app.shownScene.duration;
             if (next >= until) {
                 app.playhead = until;
@@ -3375,7 +3410,7 @@ ApplicationWindow {
         ready: app.execRevision > 0
         onTogglePlay: app.togglePlay()
         onExportAsked: app.beginExport()
-        onSeek: (seconds) => app.playhead = Math.max(0, Math.min(seconds, app.shownScene.duration))
+        onSeek: (seconds) => app.seekTo(seconds)
     }
 
     TimelinePanel {
@@ -3414,7 +3449,7 @@ ApplicationWindow {
 
         onScrubbed: (seconds) => {
             app.playing = false;
-            app.playhead = Math.max(0, Math.min(seconds, app.shownScene.duration));
+            app.seekTo(seconds);
         }
         selectedIndex: app.selectedIndex
         playhead: app.playhead
@@ -3554,22 +3589,22 @@ ApplicationWindow {
     Shortcut {
         sequence: Keymap.sequence("toStart")
         enabled: !source.typing || Keymap.survivesTyping("toStart")
-        onActivated: app.playhead = 0
+        onActivated: app.seekTo(0)
     }
     Shortcut {
         sequence: Keymap.sequence("toEnd")
         enabled: !source.typing || Keymap.survivesTyping("toEnd")
-        onActivated: app.playhead = app.shownScene.duration
+        onActivated: app.seekTo(app.shownScene.duration)
     }
     Shortcut {
         sequence: Keymap.sequence("prevFrame")
         enabled: !source.typing || Keymap.survivesTyping("prevFrame")
-        onActivated: app.playhead = Math.max(0, app.playhead - 1 / preview.framerate)
+        onActivated: app.seekTo(app.playhead - 1 / preview.framerate)
     }
     Shortcut {
         sequence: Keymap.sequence("nextFrame")
         enabled: !source.typing || Keymap.survivesTyping("nextFrame")
-        onActivated: app.playhead = Math.min(app.shownScene.duration, app.playhead + 1 / preview.framerate)
+        onActivated: app.seekTo(app.playhead + 1 / preview.framerate)
     }
     Shortcut {
         sequence: Keymap.sequence("prevMarker")

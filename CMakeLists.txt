@@ -189,7 +189,9 @@ set(SOURCES
     src/vulkan/VulkanHeadlessRenderer.cpp
 
     # --- Compiler ---
+    src/compiler/AudioMix.cpp
     src/compiler/Compiler.cpp
+    src/window/Speaker.cpp
 
     # --- Test ---
     src/test/VisualTest.cpp
@@ -267,6 +269,11 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
     # the binary instead.
     QML_DIR="${CMAKE_SOURCE_DIR}/qml"
 )
+
+# miniaudio, header-only from vcpkg: the preview's loudspeaker. It opens
+# CoreAudio / PulseAudio / ALSA at runtime by itself — no framework to link.
+find_path(MINIAUDIO_INCLUDE_DIR miniaudio.h REQUIRED)
+target_include_directories(${PROJECT_NAME} PRIVATE ${MINIAUDIO_INCLUDE_DIR})
 
 target_link_libraries(${PROJECT_NAME}
     argparse::argparse

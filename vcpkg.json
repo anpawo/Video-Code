@@ -27,6 +27,7 @@
       "platform": "linux"
     },
     "freetype",
-    "earcut-hpp"
+    "earcut-hpp",
+    "miniaudio"
   ]
 }

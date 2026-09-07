@@ -1,0 +1,13 @@
+# Question au conseil
+
+Video-Code est un éditeur vidéo où la scène est un fichier Python (`videocode`), rendu par un moteur C++/Vulkan (binaire `video-code`), avec un shell Qt/QML (`qml/VideoCode/*.qml`, `src/window/Editor.cpp`). Le rendu fichier (`--generate x.mp4`) mixe le son via ffmpeg (`src/compiler/Compiler.cpp`, `buildAudioArgs`) : une piste par `Sound(filepath, start, volume, trimStart, trimEnd)`, `adelay`, une expression `volume` par image lue dans les revendications (claims) de la scène (`music.duck(under=voice)` écrit des rampes de volume image par image), puis `amix ... normalize=0`. Une vidéo (`Video`) apporte aussi son propre son.
+
+**Le problème : l'aperçu de l'éditeur ne joue AUCUN son.** Il n'y a ni QMediaPlayer, ni QAudioSink, rien. La tête de lecture (`app.playhead`, secondes) avance par un Timer QML à `1000/execFps` ms (`Main.qml` ~3249), le rendu image est fait par un widget Vulkan par image. L'auteur (Marius) entend « le son ne marche pas » : il presse lecture dans l'éditeur et n'entend rien.
+
+Contraintes : Qt 6 statique via vcpkg (`vcpkg.json` : qtbase, qtdeclarative ; PAS qtmultimedia aujourd'hui — l'ajouter coûte un rebuild vcpkg long, à évaluer), ffmpeg lié en bibliothèques (libav*) ET `ffmpeg`/`ffprobe` appelés en `popen` pour le mux. macOS Apple Silicon d'abord (CoreAudio disponible), Linux XCB aussi ciblé. Le modèle de scène que le QML reçoit (`--inspect`) donne chaque élément avec `kind` (Sound/Video), `first`/`last` en images, ligne, et les effets ; les niveaux revendiqués sont dans les métadonnées par image côté C++ (`getMetadata(frame).args()["volume"]`).
+
+Ce qu'on attend : **comment l'aperçu doit jouer le son de la scène**, synchronisé à la tête de lecture (lecture, pause, seek/scrub, changement de vitesse éventuel), en respectant `start`, `trim`, `volume` et les rampes revendiquées (duck), et le son des `Video`. Deux niveaux de réponse :
+1. **Le chemin minimal livrable en une nuit** (le rendu doit être démontré à des testeurs le 09/09) : par exemple pré-mixer un WAV par run avec la même chaîne ffmpeg que le rendu, et le jouer avec un lecteur natif (CoreAudio / AVAudioPlayer / QAudioSink) calé sur `playhead`. Dire précisément l'API, le fichier à toucher, le coût, les pièges (latence, dérive, seek).
+2. **La bonne architecture** à terme (mixage en temps réel image par image ? sink audio piloté par l'horloge de lecture ? qui est l'horloge maître, audio ou image ?), et ce qui du chemin minimal reste.
+
+Réponds en ≤ 60 lignes, en français, concret : API, fichiers, ordre des étapes, ce qui peut casser, et une recommandation ferme. Ne pose pas de question, tranche.

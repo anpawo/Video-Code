@@ -28,6 +28,7 @@
 #include "core/Core.hpp"
 #include "lsp/LanguageServer.hpp"
 #include "vulkan/VulkanHeadlessRenderer.hpp"
+#include "window/Speaker.hpp"
 
 namespace VC
 {
@@ -213,6 +214,36 @@ namespace VC
         void                    serve();
         static QString          socketPath();
         Q_INVOKABLE QVariantMap control(const QVariantMap& request);
+
+        // The preview's sound. After every run the scene's audio graph — the
+        // render's own, see compiler/AudioMix.hpp — is mixed by ffmpeg into a
+        // WAV, and the speaker plays that. The audio is the clock while it
+        // plays: the picture follows `audioPosition()`, never the reverse.
+        Q_PROPERTY(bool hasAudio READ hasAudio NOTIFY audioChanged)
+        //: Why there is nothing to hear, when a person should know: ffmpeg
+        //: missing, a mix that failed. Empty for a scene with no sound.
+        Q_PROPERTY(QString audioWhy READ audioWhy NOTIFY audioChanged)
+        Q_PROPERTY(bool audioMuted READ audioMuted WRITE setAudioMuted NOTIFY audioChanged)
+        //: Seconds the speaker runs ahead of what is heard — Bluetooth adds a
+        //: tenth or two. ponytail: a plain number, a settings row if it is
+        //: ever set twice.
+        Q_PROPERTY(double audioLatency MEMBER _audioLatency NOTIFY audioChanged)
+
+        bool hasAudio() const { return _speaker.loaded(); }
+
+        QString audioWhy() const { return _audioWhy; }
+
+        bool audioMuted() const { return _speaker.muted(); }
+
+        void setAudioMuted(bool muted);
+
+        Q_INVOKABLE void audioPlay(double at) { _speaker.play(at); }
+
+        Q_INVOKABLE void audioPause() { _speaker.pause(); }
+
+        Q_INVOKABLE void audioSeek(double at) { _speaker.seek(at); }
+
+        Q_INVOKABLE double audioPosition() const { return _speaker.position(); }
 
         Q_INVOKABLE QString projectRoot() const;
 
@@ -406,6 +437,7 @@ namespace VC
         Q_INVOKABLE void applySemanticTokens(QQuickTextDocument* document, const QVariantList& spans);
 
     Q_SIGNALS:
+        void audioChanged();
 
         // settingsRequested() — the menu bar's Settings item was chosen.
         //
@@ -595,5 +627,13 @@ namespace VC
         QFileSystemWatcher _watcher;
         QString            _mainFile;
         QLocalServer       _server;
+
+        void      bakeAudio();
+        Speaker   _speaker;
+        QProcess* _bake = nullptr;
+        QString   _bakeWav;
+        QString   _audioWhy;
+        int       _bakeRevision = 0;
+        double    _audioLatency = 0.0;
     };
 } // namespace VC
