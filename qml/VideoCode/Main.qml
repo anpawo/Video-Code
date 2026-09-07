@@ -3007,6 +3007,114 @@ ApplicationWindow {
         return lines.join("\n") + "\n\n";
     }
 
+    // control() — what `video-code tell <verb>` reaches, from the Agent pane
+    // or from any terminal. One object in, one out, `ok` always set. The verbs
+    // are the things the author does with the keyboard; an agent gets the same
+    // and nothing more, and every answer carries the state it changed so the
+    // caller need not ask twice. Edits are NOT here on purpose: the file is the
+    // scene, and an agent edits the file.
+    function control(req) {
+        const verb = req.do;
+        const brief = (e) => e === null || e === undefined ? null : ({
+            index: shownScene.elements.indexOf(e),
+            name: e.n, cls: e.cls, line: e.line, file: e.file,
+            from: e.l, to: e.l + e.d,
+            effects: e.effects.map((fx) => ({ name: fx.n, line: fx.line, from: fx.l, to: fx.l + fx.d }))
+        });
+        const state = () => ({
+            ok: true,
+            file: source.path,
+            caret: source.cursorLine + 1,
+            modified: source.modified,
+            playhead: playhead,
+            duration: shownScene.duration,
+            playing: playing,
+            range: ranged ? { from: markIn, to: markOut } : null,
+            selected: brief(selectedElement),
+            run: {
+                state: execState,
+                stale: execStale,
+                warnings: source.runFlaws.map((f) => ({ line: f.range.start.line + 1, message: f.message }))
+            },
+            markers: shownScene.markers.map((m) => ({ name: m.n, at: m.at })),
+            elements: shownScene.elements.length
+        });
+
+        switch (verb) {
+        case "state":
+            return state();
+        case "brief":
+            return { ok: true, text: agentBrief() };
+        case "elements":
+            return { ok: true, elements: shownScene.elements.map(brief) };
+        case "seek": {
+            let at = req.at;
+            if (typeof at === "string") {
+                const hit = shownScene.markers.find((m) => m.n === at);
+                if (hit === undefined)
+                    return { ok: false, error: "no marker named " + at + " — markers: " + shownScene.markers.map((m) => m.n).join(", ") };
+                at = hit.at;
+            }
+            if (typeof at !== "number" || isNaN(at))
+                return { ok: false, error: "seek wants at=<seconds> or at=<marker name>" };
+            playing = false;
+            playhead = Math.max(0, Math.min(at, shownScene.duration));
+            return { ok: true, playhead: playhead };
+        }
+        case "play":
+            if (!playing)
+                togglePlay();
+            return { ok: true, playing: playing, playhead: playhead };
+        case "pause":
+            if (playing)
+                togglePlay();
+            return { ok: true, playing: playing, playhead: playhead };
+        case "select": {
+            let idx = -1;
+            if (req.index !== undefined)
+                idx = Number(req.index);
+            else if (req.line !== undefined)
+                idx = shownScene.elements.findIndex((e) => e.line === Number(req.line) && fromOpenFile(e.file));
+            else if (req.name !== undefined)
+                idx = shownScene.elements.findIndex((e) => e.n === req.name);
+            if (idx < 0 || idx >= shownScene.elements.length)
+                return { ok: false, error: "nothing to select — give index=, line= or name=" };
+            selectedIndex = idx;
+            return { ok: true, selected: brief(shownScene.elements[idx]) };
+        }
+        case "run":
+            executeScene(true);
+            return state();
+        case "open":
+            if (!req.file)
+                return { ok: false, error: "open wants file=<scene.py>" };
+            openScene(req.file);
+            return state();
+        case "reveal":
+            revealLine(Number(req.line));
+            return { ok: true, caret: source.cursorLine + 1 };
+        case "show":
+            showPanel(String(req.panel));
+            return { ok: true };
+        case "say":
+            source.say(String(req.text));
+            return { ok: true };
+        case "export": {
+            if (source.path.length === 0)
+                return { ok: false, error: "nothing is open to export" };
+            const out = req.out ? String(req.out) : source.path.replace(/\.py$/, "") + ".mp4";
+            const first = req.from !== undefined ? Number(req.from) : (ranged ? markIn : -1);
+            const last = req.to !== undefined ? Number(req.to) : (ranged ? markOut : -1);
+            if (!Shell.startExport(source.path, source.text, out, first, last))
+                return { ok: false, error: "an export is already running" };
+            exporting.begin(out, first, last);
+            return { ok: true, out: out };
+        }
+        default:
+            return { ok: false, error: "unknown verb " + verb + " — state, brief, elements, seek, play, pause, select, run, open, reveal, show, say, export, key, click, panel, screenshot, quit" };
+        }
+    }
+
     // What an agent turn does to the buffer, and the two keys that settle it.
     //
     // The scene is NOT run when the turn lands. The author sees the colours,

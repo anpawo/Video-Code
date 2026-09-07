@@ -105,7 +105,7 @@ execute_process(
 find_package(pybind11 REQUIRED)
 # Quick/Qml carry the editor chrome, which is described in .qml loaded at
 # runtime — a layout change costs a reload, not a rebuild. See docs/ui/BACKLOG.md.
-find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui Quick Qml QuickControls2)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Core Gui Quick Qml QuickControls2 Network)
 # GuiPrivate: the scripted-run probe hands Qt the window activation the platform
 # refuses to a binary launched from a terminal (src/window/Editor.cpp). OPTIONAL,
 # and the one call behind it is compiled out when it is absent — the prebuilt Qt
@@ -280,6 +280,7 @@ target_link_libraries(${PROJECT_NAME}
     Qt6::Quick
     Qt6::Qml
     Qt6::QuickControls2
+    Qt6::Network
 
     pybind11::embed
     CURL::libcurl

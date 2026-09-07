@@ -201,7 +201,14 @@ void VC::AgentSession::ensureStarted()
             "`--sheet 4 --from 0 --to 6` lays four labelled moments side by side in the one PNG, "
             "and you can read the PNG back to check your edit before you finish. "
             "For the whole scene as the timeline sees it, run `%1 --inspect --file <scene>`: "
-            "JSON, one entry per element with its class, line, on-screen frames and effects."
+            "JSON, one entry per element with its class, line, on-screen frames and effects. "
+            "The editor the author is looking at answers you too: `%1 tell state` prints where they are "
+            "(file, caret, selection, playhead, last run, markers) as JSON; `%1 tell seek at=2.5` "
+            "(or at=<marker name>) moves the playhead so they see the moment you changed, "
+            "`%1 tell select line=12` selects an element, `%1 tell run` re-runs the scene after your edit, "
+            "`%1 tell reveal line=12` puts their caret there, `%1 tell say text=...` shows a short note, "
+            "`%1 tell export out=film.mp4` renders the file. After an edit, `tell run` then `tell seek` "
+            "to what you changed is the courteous ending."
         )
             .arg(QCoreApplication::applicationFilePath()),
     };

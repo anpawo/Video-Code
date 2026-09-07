@@ -19,6 +19,7 @@
 #include <sstream>
 
 #include "shader/IFragmentShader.hpp" // MAX_SHADER_PARAMS, copyShaderParams
+#include "utils/Paths.hpp"
 #include "vulkan/EffectResolver.hpp"
 #include "vulkan/LutAtlas.hpp"
 #include "vulkan/ShaderCompiler.hpp"
@@ -31,7 +32,7 @@
 
 static std::string loadShaderSource(const std::string& filename)
 {
-    std::string   path = std::string(SHADER_DIR) + "/quadraticBezier/" + filename;
+    std::string   path = VC::resourceDir(SHADER_DIR, "assets/shaders") + "/quadraticBezier/" + filename;
     std::ifstream f(path);
     if (!f.is_open()) return {};
     std::ostringstream ss;
@@ -1605,7 +1606,7 @@ bool VC::VulkanHeadlessRenderer::createEffectResources()
     // same auto-discovery as VulkanWidget (a hardcoded list here silently
     // dropped any newly added effect from the headless/--generate path).
     {
-        std::filesystem::path shadersDir(std::string(SHADER_DIR));
+        std::filesystem::path shadersDir(VC::resourceDir(SHADER_DIR, "assets/shaders"));
         for (const auto& entry : std::filesystem::directory_iterator(shadersDir)) {
             if (!entry.is_directory()) continue;
             std::string dirName = entry.path().filename().string();

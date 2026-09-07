@@ -81,3 +81,4 @@ pgn
 webimage/
 build-qml/
 temp/
+dist/

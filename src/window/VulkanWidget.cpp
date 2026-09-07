@@ -13,6 +13,8 @@
 
 #if defined(__APPLE__)
     #include <vulkan/vulkan_metal.h>
+
+    #include "utils/Paths.hpp"
 #elif defined(__linux__)
     // Linux presents through an XCB surface. xcb/xcb.h must come before
     // vulkan_xcb.h — it provides the xcb_connection_t / xcb_window_t types the
@@ -91,7 +93,7 @@ static void effectBarrier2(VkCommandBuffer cb, VkImage readImg, VkImage writeImg
 
 static std::string loadShaderSource(const std::string& filename)
 {
-    std::string   path = std::string(SHADER_DIR) + "/quadraticBezier/" + filename;
+    std::string   path = VC::resourceDir(SHADER_DIR, "assets/shaders") + "/quadraticBezier/" + filename;
     std::ifstream f(path);
     if (!f.is_open()) {
         qWarning("Failed to open shader: %s", path.c_str());
@@ -2316,7 +2318,7 @@ bool VC::VulkanWidget::createEffectResources()
 
     // Effect kernel pipelines — scan assets/shaders/*/frag.glsl automatically
     {
-        std::filesystem::path shadersDir(std::string(SHADER_DIR));
+        std::filesystem::path shadersDir(VC::resourceDir(SHADER_DIR, "assets/shaders"));
         for (const auto& entry : std::filesystem::directory_iterator(shadersDir)) {
             if (!entry.is_directory()) continue;
             std::string dirName = entry.path().filename().string();

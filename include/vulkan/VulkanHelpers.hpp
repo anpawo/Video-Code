@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 
+#include "utils/Paths.hpp"
 #include "vulkan/BlendModes.hpp"
 #include "vulkan/Mesh.hpp"
 #include "vulkan/ShaderCompiler.hpp"
@@ -85,7 +86,7 @@ inline void runOneShot(VkDevice device, VkCommandPool pool, VkQueue queue, const
 
 inline std::string loadEffectShader(const std::string& folder, const std::string& file)
 {
-    std::string   path = std::string(SHADER_DIR) + "/" + folder + "/" + file;
+    std::string   path = VC::resourceDir(SHADER_DIR, "assets/shaders") + "/" + folder + "/" + file;
     std::ifstream f(path);
     if (!f.is_open()) return {};
     std::ostringstream ss;

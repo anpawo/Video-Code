@@ -265,8 +265,9 @@ one without typing it.
 
 ## 15 · The agent
 
-- ◐ A panel, with a conversation shape — not wired to anything yet
-- ○ Edits the scene by writing code, shown as a diff you accept or refuse
+- ● A panel, with a conversation shape, wired to Claude Code: each question opens with where you are
+- ● Edits the scene by writing code, shown as a diff you accept or refuse
+- ● Drives the shell it sits in — and so does any terminal: `video-code tell state | seek | select | run | export …` on a local socket
 - ○ Answers about the library: which effect, which parameter, why it looks wrong
 - ○ Reads the render: "the title is unreadable over this shot"
 - ○ Does the tedious passes: caption styling, beat alignment, colour matching

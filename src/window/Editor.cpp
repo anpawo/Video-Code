@@ -26,6 +26,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QKeyEvent>
+#include <QLocalSocket>
 #include <QMenu>
 #include <QMouseEvent>
 #include <QQmlContext>
@@ -47,6 +48,7 @@
 #include "lsp/LanguageServer.hpp"
 #include "utils/ImageIO.hpp"
 #include "utils/Logger.hpp"
+#include "utils/Paths.hpp"
 
 namespace py = pybind11;
 #include "window/MacApplication.hpp"
@@ -1345,6 +1347,84 @@ void VC::Editor::highlightPython(QQuickTextDocument* document, const QVariantMap
     new PythonHighlighter(document->textDocument(), colours);
 }
 
+QString VC::Editor::socketPath()
+{
+    // One editor per machine answers `tell`; VC_SOCKET names another, which is
+    // how two scripted runs share a box without answering each other's calls.
+    const QString named = qEnvironmentVariable("VC_SOCKET");
+    return named.isEmpty() ? QStringLiteral("/tmp/videocode-editor.sock") : named;
+}
+
+void VC::Editor::serve()
+{
+    const QString path = socketPath();
+    // A crash leaves the file behind, and listen() then fails on a socket
+    // nobody is reading. Removing it first is what every local server does.
+    QLocalServer::removeServer(path);
+    if (!_server.listen(path)) {
+        std::cerr << std::format("The editor could not listen on {}: {}\n", path.toStdString(), _server.errorString().toStdString());
+        return;
+    }
+    connect(&_server, &QLocalServer::newConnection, this, [this] {
+        while (QLocalSocket* client = _server.nextPendingConnection()) {
+            connect(client, &QLocalSocket::disconnected, client, &QObject::deleteLater);
+            connect(client, &QLocalSocket::readyRead, this, [this, client] {
+                while (client->canReadLine()) {
+                    const QByteArray line = client->readLine().trimmed();
+                    if (line.isEmpty())
+                        continue;
+                    QJsonParseError     err{};
+                    const QJsonDocument doc = QJsonDocument::fromJson(line, &err);
+                    const QVariantMap   reply = (err.error != QJsonParseError::NoError || !doc.isObject())
+                                                    ? QVariantMap{{"ok", false}, {"error", "not a JSON object: " + err.errorString()}}
+                                                    : control(doc.object().toVariantMap());
+                    client->write(QJsonDocument(QJsonObject::fromVariantMap(reply)).toJson(QJsonDocument::Compact) + "\n");
+                    client->flush();
+                }
+            });
+        }
+    });
+    std::cout << std::format("listening on {}\n", path.toStdString());
+}
+
+QVariantMap VC::Editor::control(const QVariantMap& request)
+{
+    const QString verb = request.value("do").toString();
+    if (verb == QLatin1String("quit")) {
+        QTimer::singleShot(0, qApp, &QCoreApplication::quit);
+        return {{"ok", true}};
+    }
+    if (verb == QLatin1String("key")) {
+        pressKey(request.value("spec").toString());
+        return {{"ok", true}};
+    }
+    if (verb == QLatin1String("click")) {
+        clickAt(QPointF(request.value("x").toDouble(), request.value("y").toDouble()));
+        return {{"ok", true}};
+    }
+    if (verb == QLatin1String("panel")) {
+        pressKey(QStringLiteral("Panel:") + request.value("name").toString());
+        return {{"ok", true}};
+    }
+    if (verb == QLatin1String("screenshot")) {
+        // The same grab the windowless probe uses: it reads a shown window too,
+        // so an agent can look at the chrome the author is looking at.
+        const QString out = request.value("out").toString();
+        if (out.isEmpty())
+            return {{"ok", false}, {"error", "screenshot wants out=<file.png>"}};
+        captureHidden(out);
+        return {{"ok", QFile::exists(out)}, {"out", out}};
+    }
+
+    const auto roots = _engine.rootObjects();
+    if (roots.isEmpty())
+        return {{"ok", false}, {"error", "the chrome is not loaded"}};
+    QVariant out;
+    if (!QMetaObject::invokeMethod(roots.first(), "control", Q_RETURN_ARG(QVariant, out), Q_ARG(QVariant, QVariant(request))))
+        return {{"ok", false}, {"error", "the chrome has no control()"}};
+    return out.toMap();
+}
+
 // VC_CLICK="x,y" — or "x1,y1,x2,y2,…" for a sequence, which is how a scripted
 // run reaches anything behind a menu: opening it and choosing from it are two
 // clicks, and one of them alone proves nothing.
@@ -1676,7 +1756,7 @@ void VC::Editor::reload()
 
 QString VC::Editor::qmlDirectory()
 {
-    return QDir(QString::fromUtf8(QML_DIR)).absolutePath();
+    return QDir(QString::fromStdString(VC::resourceDir(QML_DIR, "qml"))).absolutePath();
 }
 
 void VC::Editor::watchQmlFiles()

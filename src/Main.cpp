@@ -10,6 +10,9 @@
 
 #include <QApplication>
 #include <QGuiApplication>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QLocalSocket>
 #include <QMainWindow>
 #include <QMessageLogContext>
 #include <QSocketNotifier>
@@ -18,6 +21,9 @@
 #include <argparse/argparse.hpp>
 #include <csignal>
 #include <cstdlib>
+#include <cstring>
+#include <filesystem>
+#include <format>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #include <opencv2/core/utils/logger.hpp>
@@ -26,10 +32,66 @@
 #include "compiler/Compiler.hpp"
 #include "core/ScreenSize.hpp"
 #include "test/VisualTest.hpp"
+#include "utils/Paths.hpp"
 #include "window/Editor.hpp"
 #include "window/Window.hpp"
 
 namespace py = pybind11;
+
+// `video-code tell <verb> key=value…` — one line to the editor that is open,
+// its answer on stdout. Numbers are sent as numbers, `true`/`false` as
+// booleans, the rest as text; a first argument that starts with `{` is sent as
+// the JSON it is. Exit status follows the answer's `ok`, so a script can chain
+// calls with `&&`.
+static int tell(int argc, char *argv[])
+{
+    QCoreApplication app(argc, argv);
+    QJsonObject      request;
+    if (argv[2][0] == '{') {
+        QJsonParseError err{};
+        request = QJsonDocument::fromJson(QByteArray(argv[2]), &err).object();
+        if (err.error != QJsonParseError::NoError) {
+            std::cerr << std::format("not JSON: {}\n", err.errorString().toStdString());
+            return EXIT_FAILURE;
+        }
+    } else {
+        request["do"] = QString::fromLocal8Bit(argv[2]);
+        for (int i = 3; i < argc; ++i) {
+            const QString arg = QString::fromLocal8Bit(argv[i]);
+            const auto    eq = arg.indexOf('=');
+            if (eq <= 0) {
+                std::cerr << std::format("expected key=value, got {}\n", argv[i]);
+                return EXIT_FAILURE;
+            }
+            const QString value = arg.mid(eq + 1);
+            bool          isNumber = false;
+            const double  number = value.toDouble(&isNumber);
+            request[arg.left(eq)] = isNumber                          ? QJsonValue(number)
+                                    : value == QLatin1String("true")  ? QJsonValue(true)
+                                    : value == QLatin1String("false") ? QJsonValue(false)
+                                                                      : QJsonValue(value);
+        }
+    }
+
+    const QString path = VC::Editor::socketPath();
+    QLocalSocket  socket;
+    socket.connectToServer(path);
+    if (!socket.waitForConnected(2000)) {
+        std::cerr << std::format("no editor is listening on {} — open one with ./video-code --editor\n", path.toStdString());
+        return EXIT_FAILURE;
+    }
+    socket.write(QJsonDocument(request).toJson(QJsonDocument::Compact) + "\n");
+    socket.flush();
+    while (!socket.canReadLine()) {
+        if (!socket.waitForReadyRead(60000)) {
+            std::cerr << "the editor did not answer\n";
+            return EXIT_FAILURE;
+        }
+    }
+    const QByteArray line = socket.readLine();
+    std::cout << line.constData();
+    return QJsonDocument::fromJson(line).object().value("ok").toBool() ? EXIT_SUCCESS : EXIT_FAILURE;
+}
 
 void setParserArgument(argparse::ArgumentParser &p)
 {
@@ -107,6 +169,11 @@ void setParserArgument(argparse::ArgumentParser &p)
             "Open the editing shell (dock, timeline, properties, scene buffer) instead of the "
             "bare preview window. The chrome is QML read from disk, so it reloads when you save it."
         );
+
+    p
+        .add_argument("--serve")
+        .flag()
+        .help("With --check-chrome, keep the windowless chrome alive and answering `tell` until told to quit. --editor always serves.");
 
     p
         .add_argument("--check-chrome")
@@ -318,6 +385,12 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
             // binding resolved — which is the whole question when there is no
             // picture to take.
             std::cout << "chrome loaded\n";
+            if (parser.get<bool>("--serve")) {
+                // Kept alive, windowless, answering `tell` — the editor a test
+                // or an agent drives without touching the desktop.
+                editor.serve();
+                return app.exec();
+            }
             if (!parser.is_used("--screenshot"))
                 return EXIT_SUCCESS;
 
@@ -343,6 +416,7 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
         }
         if (parser.is_used("--screenshot"))
             editor.captureTo(QString::fromStdString(parser.get<std::string>("--screenshot")));
+        editor.serve();
         return app.exec();
     }
 
@@ -355,8 +429,22 @@ int main(int argc, char *argv[])
 {
     // Initialize the Python interpreter once for the whole process.
     // false = don't override Qt's signal handlers.
+    // A shipped folder carries its own Python — `python/` beside the
+    // executable — and the interpreter is pointed at it before it starts.
+    // Without this the embedded libpython looks for the stdlib where the
+    // build machine kept it, and a copy on another Mac dies on its first line.
+    const auto exeDir = VC::executableDir();
+    if (std::filesystem::is_directory(exeDir / "python" / "lib") && !std::getenv("PYTHONHOME"))
+        setenv("PYTHONHOME", (exeDir / "python").c_str(), 1);
+
     py::scoped_interpreter guard{false};
-    py::exec("import sys; sys.path.insert(0, '')");
+    // The library beside the executable, then the working directory: a scene
+    // imports `videocode` from wherever the binary was unpacked, and a
+    // checkout keeps finding its own.
+    std::string beside = exeDir.string();
+    for (auto at = beside.find('\''); at != std::string::npos; at = beside.find('\'', at + 2))
+        beside.insert(at, "\\");
+    py::exec("import sys; sys.path.insert(0, ''); sys.path.insert(1, '" + beside + "')");
 
     // Suppress the spurious Qt/macOS fullscreen position warning
     // Message: "qt.qpa.window: Window position QRect(-1,0 1470x826) outside any known screen, using primary screen"
@@ -368,6 +456,11 @@ int main(int argc, char *argv[])
 
     // Hide OpenCV logs
     cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_SILENT);
+
+    // `tell` talks to a running editor and is not a render option: answered
+    // before the parser, which would otherwise refuse the word.
+    if (argc >= 3 && std::strcmp(argv[1], "tell") == 0)
+        return tell(argc, argv);
 
     // Parse the arguments
     argparse::ArgumentParser parser(

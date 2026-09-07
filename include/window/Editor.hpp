@@ -9,6 +9,7 @@
 
 #include <QFileSystemWatcher>
 #include <QImage>
+#include <QLocalServer>
 #include <QMenu>
 #include <QMenuBar>
 #include <QObject>
@@ -194,6 +195,24 @@ namespace VC
         bool headless() const { return _headless; }
 
         void setHeadless(bool headless) { _headless = headless; }
+
+        // serve() — the editor answers an agent on a local socket.
+        //
+        // One JSON object per line in, one per line out; `video-code tell
+        // <verb> k=v…` is the client. The verbs are the things an author does
+        // with the keyboard — where am I, seek, select, run, open, export —
+        // and they live in Main.qml's `control()`, next to the state they
+        // read. The scripted-run specs (a key, a click, a panel, a capture)
+        // are answered here, since that machinery is C++ already.
+        //
+        // Why a socket and not the file: an agent already edits the FILE, and
+        // that is the right channel for edits. What it could not do was reach
+        // the editor the author is LOOKING AT — the playhead, the selection,
+        // the last run — from the panel or from a terminal. Now both use the
+        // same line.
+        void                    serve();
+        static QString          socketPath();
+        Q_INVOKABLE QVariantMap control(const QVariantMap& request);
 
         Q_INVOKABLE QString projectRoot() const;
 
@@ -575,5 +594,6 @@ namespace VC
         int                _modifierSides = 0;
         QFileSystemWatcher _watcher;
         QString            _mainFile;
+        QLocalServer       _server;
     };
 } // namespace VC

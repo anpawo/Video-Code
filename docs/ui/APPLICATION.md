@@ -34,8 +34,10 @@ already ran is worse than no guide.
 | `--hwencode` | Encode with `h264_videotoolbox` instead of libx264 — faster, different quality curve |
 | `--showstack` | Show the scene's steps while it renders |
 | `--showtimeline` | Show the timeline while it renders |
-| `--editor` | Open the editing shell — on `--file`, or on `scene.py` where the flag is absent |
+| `--editor` | Open the editing shell — on `--file`, or on `scene.py` where the flag is absent. It answers `tell` while it runs |
 | `--screenshot <png>` | With `--editor`, write the first painted frame and exit |
+| `--serve` | With `--check-chrome`, keep the windowless shell alive and answering `tell` until told to quit |
+| `tell <verb> k=v…` | Talk to the editor that is open — see §5 |
 | `--visual-test` | Run the visual regression suite |
 | `--update-golden` | With `--visual-test`, rewrite the golden images instead of comparing |
 
@@ -233,6 +235,36 @@ on this page was checked.
 | `VC_SCENE_FILE` | The scene the code pane opens, when `--file` does not say |
 | `VC_DOCK_FILE` | Use another dock file, so a test never touches yours |
 | `VC_COLORS_FILE` | Use another colours file, for the same reason |
+
+Those fire once, at launch. A shell that is already open answers on a local
+socket — the channel an agent drives it with, from the Agent pane or from any
+terminal, and the same one a test uses:
+
+```
+./video-code tell state                       # where the author is, as JSON
+./video-code tell seek at=2.5                 # or at=<timestamp name>
+./video-code tell select line=62              # or index= / name=
+./video-code tell run                         # re-run the scene, answer with state
+./video-code tell open file=scene.py
+./video-code tell reveal line=40              # the caret, and the code pane in front
+./video-code tell say text="rendered"         # a short note in the status line
+./video-code tell export out=film.mp4 from=2 to=8
+./video-code tell screenshot out=shell.png    # the chrome, as the author sees it
+./video-code tell key spec=Escape             # the VC_KEYS specs, one at a time
+./video-code tell '{"do": "seek", "at": 1}'   # raw JSON is accepted too
+```
+
+One JSON object per line in, one out, `ok` always set; the exit status follows
+it, so calls chain with `&&`. `state` carries the file, the caret, the
+selection with its effects, the playhead, the last run and its warnings, and
+the markers — what the `<editor>` block in front of every agent question says,
+as data. `brief` returns that block as text, `elements` every row of the
+timeline. Edits are not verbs on purpose: the file is the scene, and an agent
+edits the file; `run` then `seek` to what it changed is how it shows its work.
+
+The socket is `/tmp/videocode-editor.sock`; `VC_SOCKET` names another, which is
+how `--check-chrome --serve` runs a windowless shell for a test without
+answering the calls meant for yours.
 
 ---
 
