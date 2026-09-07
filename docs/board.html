@@ -166,12 +166,12 @@
     <h1>Chantier Video-Code</h1>
     <span class="branch">feat/night-2026-09-03</span>
     <span class="chips">
-      <span class="chip"><b>47</b> livrés</span>
+      <span class="chip"><b>48</b> livrés</span>
       <span class="chip"><b>5</b> à faire</span>
       <span class="chip"><b>66</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">7 sept. · 1 h</span>
+    <span class="stamp">7 sept. · 4 h</span>
   </header>
 
   <div class="board">
@@ -182,11 +182,11 @@
         <ul class="rows">
           <li data-b="Une animation lit son point de départ quand elle JOUE, plus quand la ligne s'exécute.¦Débloque D7 arrière, B4, A3, B3. Empreinte inchangée, 63 tests verts.¦Branche feat/s1-deferred-base, non commitée. Rends deferred_base.py."><span class="id">S1</span><span class="lbl"><b>Résolution différée de la base</b></span><span class="meta lock">prêt, ton mot</span></li>
           <li data-b="Un texte tourne et grandit autour de son encre, plus autour du crayon des lettres.¦10 scènes bougent en nombre d'appels seulement, aucun pixel.¦Dans le worktree next-to, non commité. Regarde un texte tourné."><span class="id">X9</span><span class="lbl">Un texte tournait autour de ses crayons</span><span class="meta lock">prêt, ton œil</span></li>
-          <li data-b="<code>docs/by-example/tour.py</code> : une scène qui fait tourner tout ce qui est tombé.¦<code>--generate tour.mp4</code> imprime ses chapitres à coller.¦<code>--editor</code> pour la moitié éditeur."><span class="id">TOUR</span><span class="lbl">Une scène pour tout vérifier</span><span class="meta">by-example</span></li>
+          <li data-b="tour.mp4 dans le fil : 31 s, six sections, six chapitres, le son.¦Montre D3, A1, A5, D6, A2, X8, D1, D5, A6, C6 ; et C3 avec les rendus tiktok et carré.¦<code>--editor</code> pour la moitié éditeur."><span class="id">TOUR</span><span class="lbl">Une scène pour tout vérifier</span><span class="meta">by-example</span></li>
           <li data-b="<code>with shot() as intro:</code> nomme une tranche du film.¦<code>cut(intro, body)</code> range tout le premier à l'image où le second s'ouvre.¦Coupe franche ; le fondu enchaîné attendait A1."><span class="id">D3</span><span class="lbl">Nommer un plan, couper vers le suivant</span><span class="meta">shots</span></li>
           <li data-b="Une courbe tirable au bout de chaque effet, presets d'un clic.¦Au relâchement elle écrit <code>easing=CubicBezier(...)</code>.¦À vérifier à la souris : la pastille chevauche le bord d'un effet plein."><span class="id">B5</span><span class="lbl">Éditeur de courbes</span><span class="meta">curve-editor</span></li>
           <li data-b="<code>--for youtube,tiktok,square</code> : trois fichiers d'une commande.¦La scène est rejouée à chaque taille, pas recadrée.¦Un nom inconnu ou un <code>--for</code> sans <code>--generate</code> s'arrête en le disant."><span class="id">C3</span><span class="lbl">Une scène, tous les formats</span><span class="meta">every-format</span></li>
-          <li data-b="Le volume revendiqué sur la timeline sort vraiment au montage.¦<code>music.duck(under=voice)</code> écrit la descente et la remontée.¦Rends une scène musique + voix et écoute."><span class="id">A6</span><span class="lbl">Le son sur le modèle de revendications</span><span class="meta">sound-claims</span></li>
+          <li data-b="Le volume revendiqué sur la timeline sort vraiment au montage.¦<code>music.duck(under=voice)</code> écrit la descente et la remontée.¦Écoute la section 6 de tour.mp4 : la musique baisse sous la voix."><span class="id">A6</span><span class="lbl">Le son sur le modèle de revendications</span><span class="meta">sound-claims</span></li>
           <li data-b="Un modèle de <code>templates/</code> qui ne s'importe pas s'affiche en rouge, avec la raison.¦Avant il disparaissait sans un mot.¦Mets un fichier cassé dans <code>templates/</code>."><span class="id">C5</span><span class="lbl">Tes propres modèles</span><span class="meta">own-templates</span></li>
           <li data-b="Un refus propose l'édition qu'il peut faire : « PAUSE_DELAY → 0.9, lu sur 3 lignes ».¦Une barre faite par une boucle porte « ×3 » et le geste les déplace tous.¦Tire un <code>wait(UNE_CONSTANTE)</code> sur la timeline."><span class="id">B7</span><span class="lbl">Ce qu'un geste propose à la place</span><span class="meta">gesture-offers</span></li>
           <li data-b="L'agent reçoit fichier, ligne, sélection, tête de lecture et dernier run.¦<code>--inspect</code> lui donne la timeline en JSON.¦Demande « décale ça vers la gauche » sans préciser."><span class="id">C2</span><span class="lbl">L'agent sait où tu es</span><span class="meta">agent-context</span></li>
@@ -244,8 +244,9 @@
 
     <div class="col">
       <div class="card">
-        <h2>Shipped <em>aujourd'hui</em> <span class="n">29</span></h2>
+        <h2>Shipped <em>aujourd'hui</em> <span class="n">30</span></h2>
         <ul class="rows">
+          <li data-b="Un <code>duck</code> écrit après un <code>wait()</code> remontait la musique une attente entière trop tard.¦<code>delay</code> porte le curseur, <code>over(start=)</code> non : la visite durait 55 s au lieu de 31.¦Trouvé en rendant tour.mp4 ; un test couvre le cas."><span class="id">—</span><span class="lbl"><code>duck</code> après un <code>wait()</code></span><span class="meta sha">f6c5d44</span></li>
           <li data-b="<code>timestamp(&quot;nom&quot;)</code> : un drapeau nommé sur la règle.¦⇧← et ⇧→ sautent d'un repère à l'autre.¦Validé le 7 sept."><span class="id">B6</span><span class="lbl">Les <code>timestamp()</code> en repères</span><span class="meta sha">775459a</span></li>
           <li data-b="<code>BarChart(data)</code>, <code>Leaderboard(rows)</code> : une barre par ligne, la valeur dessus.¦<code>grow()</code> fait monter le nombre avec sa barre.¦Validé le 7 sept."><span class="id">D6</span><span class="lbl">Graphiques à barres</span><span class="meta sha">c72d9c4</span></li>
           <li data-b="Parcourt une courbe à vitesse constante.¦<code>face=True</code> tourne l'objet dans le sens de la marche.¦Validé le 7 sept."><span class="id">A5</span><span class="lbl"><code>moveAlong(path)</code></span><span class="meta sha">c650536</span></li>
