@@ -12,6 +12,9 @@ première À TRAVERS la seconde et le recouvrement est plus clair. À gauche une
 qui devient transparente — une seule épaisseur, donc pas de couture.
 """
 
+import sys
+
+sys.path.insert(0, "scenes")
 
 from videocode import *
 from card import card

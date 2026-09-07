@@ -15,6 +15,9 @@ un cadre large et en rangées dans un cadre haut — mesuré, le marqueur est à
 0,26 en travers en 16:9 et à 0,26 en hauteur en 9:16.
 """
 
+import sys
+
+sys.path.insert(0, "scenes")
 
 from videocode import *
 from card import card

@@ -14,6 +14,9 @@ que les barres poussent il se retrouve au milieu de l'une d'elles.
 données depuis un fichier, et refuse une cellule invalide EN LA SITUANT.
 """
 
+import sys
+
+sys.path.insert(0, "scenes")
 
 from videocode import *
 from card import card

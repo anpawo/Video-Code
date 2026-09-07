@@ -15,6 +15,9 @@ YouTube ignore en silence.
 Ouvre le fichier dans un lecteur qui affiche les chapitres : il y en a trois.
 """
 
+import sys
+
+sys.path.insert(0, "scenes")
 
 from videocode import *
 from card import card

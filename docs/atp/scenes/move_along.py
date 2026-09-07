@@ -12,6 +12,9 @@ sont serrés dans les virages et espacés sur les lignes droites, donc la flèch
 rampe puis détale. `face=True` la tourne dans le sens de la marche.
 """
 
+import sys
+
+sys.path.insert(0, "scenes")
 
 from videocode import *
 from card import card

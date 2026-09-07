@@ -11,6 +11,9 @@ taille et sa place — un sous-titre qui zoomerait avec l'image deviendrait
 illisible.
 """
 
+import sys
+
+sys.path.insert(0, "scenes")
 
 from videocode import *
 from card import card

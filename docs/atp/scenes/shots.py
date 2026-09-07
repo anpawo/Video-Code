@@ -10,6 +10,9 @@ reste à l'écran jusqu'à la fin, sauf à cacher chaque élément à la main �
 quatrième partie oblige à revenir sur les trois premières.
 """
 
+import sys
+
+sys.path.insert(0, "scenes")
 
 from videocode import *
 from card import card

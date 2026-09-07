@@ -25,9 +25,6 @@ sa valeur de départ au moment où la ligne s'exécute, écrire derrière une li
 déjà posée donne un film différent selon l'ordre d'écriture.
 """
 
-import sys
-
-sys.path.insert(0, "docs/by-example/features")
 
 from videocode import *
 from card import card

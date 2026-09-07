@@ -13,6 +13,9 @@ image. `music.duck(under=voice)` écrit les deux rampes du geste que fait toute
 vidéo avec une voix sur de la musique.
 """
 
+import sys
+
+sys.path.insert(0, "scenes")
 
 from videocode import *
 from card import card

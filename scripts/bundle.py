@@ -39,7 +39,9 @@ SITE_INFO = ["shapely", "numpy", "pillow", "freetype_py", "uharfbuzz", "pygments
 # What the stdlib carries that no scene needs: 150 MB of tests, an IDE, Tk.
 STDLIB_SKIP = {"site-packages", "test", "tests", "idlelib", "tkinter", "turtledemo", "ensurepip", "__pycache__", "config-3.14-darwin", "lib2to3", "pydoc_data"}
 
-SCENES = [ROOT / "docs" / "by-example" / "tour.py", *sorted((ROOT / "docs" / "by-example" / "features").glob("*.py")), ROOT / "docs" / "by-example" / "firstRectangle.py"]
+# The Acceptance Test Plan's own scenes — its 24 tests name these files and
+# describe what they show, so they ship as written — plus the tour.
+SCENES = [*sorted((ROOT / "docs" / "atp" / "scenes").glob("*.py")), ROOT / "docs" / "by-example" / "tour.py"]
 
 
 def sh(*args: str) -> str:
@@ -174,10 +176,16 @@ def main() -> None:
         copy_tree(ROOT / folder, DIST / folder, {"__pycache__", ".DS_Store"})
     (DIST / "scenes").mkdir()
     for scene in SCENES:
-        shutil.copy2(scene, DIST / "scenes" / ("first_rectangle.py" if scene.name == "firstRectangle.py" else scene.name))
+        shutil.copy2(scene, DIST / "scenes" / scene.name)
     (DIST / "test").mkdir()
     for wav in ("test.wav", "test_speech.wav"):
         shutil.copy2(ROOT / "test" / wav, DIST / "test" / wav)
+    # `--check-widget` (the plan's F24) drives three scenes of the visual suite
+    # through both renderers — kParityCases in VisualTest.cpp names them by
+    # this path.
+    (DIST / "test" / "visual" / "scenes").mkdir(parents=True)
+    for name in ("shapes", "camera", "composition"):
+        shutil.copy2(ROOT / "test" / "visual" / "scenes" / f"{name}.py", DIST / "test" / "visual" / "scenes" / f"{name}.py")
 
     # Python: the interpreter's library, the stdlib, the packages.
     dylib = py_home / "lib" / "libpython3.14.dylib"

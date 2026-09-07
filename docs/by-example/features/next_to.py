@@ -12,9 +12,6 @@ Puis la forme grandit, et une nouvelle étiquette posée à côté d'elle se pla
 d'après sa taille DESSINÉE (X6), pas d'après sa géométrie.
 """
 
-import sys
-
-sys.path.insert(0, "docs/by-example/features")
 
 from videocode import *
 from card import card

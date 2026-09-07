@@ -115,6 +115,20 @@ def _reportContendedKeys() -> list[dict]:
                     "file": b["file"], "message": _oneLine(hit)})
     return out
 
+def _oneLineBackdated(hit: dict) -> str:
+    """
+    Its own line: a backdated write has no shared frames to count. Reusing the
+    contention line raised a KeyError from inside the warning, and the scene
+    died on the report instead of rendering with it.
+    """
+    a, b = hit["a"], hit["b"]
+    return (
+        f"{b['call']}() opens at frame {b['first']}, before {a['call']}() (line {a['line']}) "
+        f"written above it — it starts from a value that belongs to a later moment. "
+        f"Put them in the order they play, or give the earlier one its own start=."
+    )
+
+
 def _reportBackdatedWrites() -> list[dict]:
     """
     Say it out loud when a line reaches back behind one already written.
@@ -145,7 +159,7 @@ def _reportBackdatedWrites() -> list[dict]:
         # bar and the row carrying the fault are found by identity rather than by
         # comparing numbers that count from different places.
         out.append({"line": b["line"] - 1, "sourceLine": b["line"], "input": hit["input"],
-                    "file": b["file"], "message": _oneLine(hit)})
+                    "file": b["file"], "message": _oneLineBackdated(hit)})
     return out
 
 def _applyBackground(scope: dict) -> None:
@@ -182,6 +196,25 @@ def _applyBackground(scope: dict) -> None:
         raise TypeError(f"BG must be an rgba color or a gradient, got {type(bg).__name__}")
 
 
+
+def _besideScene(filepath: str) -> None:
+    """
+    Put the scene's own folder on `sys.path`, so `from card import card` finds
+    the helper written beside it wherever the engine was started from. The
+    examples used to spell their folder into `sys.path` themselves, relative
+    to the repository root, and broke as soon as they were copied anywhere
+    else.
+
+    Last, not first — unlike `python scene.py`. First, a scene called
+    `chess.py` shadowed the `chess` package it imports, and the whole visual
+    corpus fell over on the one scene named after a library.
+    """
+    import os
+
+    folder = os.path.dirname(os.path.abspath(filepath))
+    if folder and folder not in sys.path:
+        sys.path.append(folder)
+
 def execScene(filepath: str) -> None:
     """
     Execute the scene file and populate Context.stack.
@@ -192,6 +225,7 @@ def execScene(filepath: str) -> None:
     with open(filepath, "r") as file:
         content = file.read()
 
+    _besideScene(filepath)
     code = compile(content, filepath, "exec")
 
     # A FRESH namespace per run, seeded from this module's own.
@@ -869,6 +903,7 @@ def execSource(source: str, filepath: str) -> dict:
     scope["__name__"] = "Scene"
 
     try:
+        _besideScene(filepath)
         code = compile(source, filepath, "exec")
         exec(code, scope)
         _applyBackground(scope)
@@ -932,6 +967,7 @@ def serializeScene(filepath: str) -> str:
 
     # Same fresh namespace as execScene, for the same reason: one run must not
     # inherit the names of the last.
+    _besideScene(filepath)
     code = compile(content, filepath, "exec")
     scope = dict(globals())
     scope["__name__"] = "Scene"
