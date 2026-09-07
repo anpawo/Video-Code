@@ -207,7 +207,14 @@ namespace
         if (tracks > 1) {
             for (size_t i = 0; i < tracks; ++i)
                 filterComplex += std::format("[a{}]", i);
-            filterComplex += std::format("amix=inputs={}:duration=longest:dropout_transition=0[aout];", tracks);
+            // normalize=0: amix otherwise divides every track by the number of
+            // tracks and scales the rest back up as each one ends — so a voice
+            // over music played the music at HALF its claimed level while the
+            // voice lasted, then let it back up when the voice stopped, which is
+            // a duck turned inside out. Measured: 0.6 claimed came out as 0.3
+            // beside a voice and 0.6 after it. A level claimed is the level
+            // mixed; what sums past 1.0 clips, which is what the author asked for.
+            filterComplex += std::format("amix=inputs={}:duration=longest:dropout_transition=0:normalize=0[aout];", tracks);
             outLabel = "aout";
         }
         if (window) {

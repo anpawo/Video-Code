@@ -82,3 +82,4 @@ webimage/
 build-qml/
 temp/
 dist/
+test/tour_music.wav

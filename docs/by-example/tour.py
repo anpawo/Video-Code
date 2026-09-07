@@ -137,6 +137,31 @@ camera.moveTo(x=0, y=0, duration=1.0)
 wait(1.5)
 
 
+def _music(path: str = "test/tour_music.wav", seconds: float = 8.0) -> str:
+    """A slow two-chord loop, generated once. Music enough to hear it duck."""
+    import math
+    import os
+    import wave
+
+    if os.path.exists(path):
+        return path
+    rate = 22050
+    chords = [(220.0, 277.2, 329.6), (196.0, 246.9, 293.7)]
+    frames = bytearray()
+    for i in range(int(rate * seconds)):
+        t = i / rate
+        chord = chords[int(t // 2) % 2]
+        beat = 0.55 + 0.45 * abs(math.sin(math.pi * t * 2))
+        value = sum(math.sin(2 * math.pi * f * t) for f in chord) / len(chord) * beat * 0.5
+        frames += int(value * 32767).to_bytes(2, "little", signed=True)
+    with wave.open(path, "wb") as out:
+        out.setnchannels(1)
+        out.setsampwidth(2)
+        out.setframerate(rate)
+        out.writeframes(bytes(frames))
+    return path
+
+
 # ── 6. The sound: music that ducks under the voice ───────────────────────────
 timestamp("the sound")
 
@@ -151,9 +176,12 @@ with shot() as spoken:
     note.opacity(0)
     note.fadeIn(start=0.9, duration=0.4)
 
-    music = Sound("test/test.wav")
-    voice = Sound("test/test_speech.wav", start=0.5)
-    music.duck(under=voice, to=0.15, fade=0.25)
-    wait(3.5)
+    # Eight seconds of music, so there is something to hear before the voice
+    # and after it. The repository has no such file, and a sound is a number
+    # of samples: written here, once, beside the two short takes.
+    music = Sound(_music(), volume=0.6)
+    voice = Sound("test/test_speech.wav", start=2.5)
+    music.duck(under=voice, to=0.12, fade=0.3)
+    wait(8.5)
 
 cut(figures, spoken)

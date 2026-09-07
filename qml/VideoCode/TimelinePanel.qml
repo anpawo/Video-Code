@@ -137,7 +137,7 @@ Item {
     // handle means what it shows — the range simply begins where the picture
     // stops being a sliver.
     readonly property int minPad: 10
-    readonly property real fitWidth: Math.max(0, Math.min(width * 0.95, width - gutter - 2 * minPad))
+    readonly property real fitWidth: Math.max(0, Math.min(width * 0.95, width - 2 * gutter - 2 * minPad))
     readonly property real fitZoom: span > 0 ? fitWidth / span : 0
 
     // And a CEILING, which the floor above yields to. Two numbers, because they
@@ -187,7 +187,7 @@ Item {
     // the whole of it is the whole of it. Measured against the PANEL's width, not
     // the viewport's, or the margin below would feed back into the width it is
     // computed from.
-    readonly property real centrePad: Math.max(0, (width - gutter - contentWidth) / 2)
+    readonly property real centrePad: Math.max(0, (width - 2 * gutter - contentWidth) / 2)
 
     // Where time zero is drawn, counted from the left of the CONTENT — not from
     // the left of the pane.
@@ -333,7 +333,10 @@ Item {
         // panel's edge the playhead at 0 reads as an orange frame around the
         // pane, and its handle, drawn 5 px to its left, is clipped away — so the
         // room is inside the content, where it scrolls with everything else.
-        contentWidth: root.pad + root.contentWidth
+        // The same room after the last frame as before the first: scrolled to
+        // the end, a scene used to stop dead against the panel's edge, which is
+        // the "cut off" the left gutter exists to prevent.
+        contentWidth: root.pad + root.contentWidth + root.pad
         // The lanes start BELOW the ruler, so the content is that much taller
         // than the lanes are: leaving the ruler out of the count made the last
         // lane unreachable — cut off by exactly the ruler's height, however far
