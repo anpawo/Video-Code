@@ -14,6 +14,7 @@
 #include <QStandardPaths>
 
 #include "agent/LineDiff.hpp"
+#include "utils/Paths.hpp"
 
 namespace
 {
@@ -217,6 +218,10 @@ void VC::AgentSession::ensureStarted()
 
     if (!_root.isEmpty())
         _agent.setWorkingDirectory(_root);
+    // Its `tell` reaches THIS editor, not whichever opened last.
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+    env.insert(QStringLiteral("VC_SOCKET"), QString::fromStdString(VC::ownSocketPath()));
+    _agent.setProcessEnvironment(env);
     _agent.start(binary, args);
     if (!_agent.waitForStarted(8000)) {
         Q_EMIT failed(QStringLiteral("`claude` did not start"));

@@ -262,9 +262,13 @@ as data. `brief` returns that block as text, `elements` every row of the
 timeline. Edits are not verbs on purpose: the file is the scene, and an agent
 edits the file; `run` then `seek` to what it changed is how it shows its work.
 
-The socket is `/tmp/videocode-editor.sock`; `VC_SOCKET` names another, which is
-how `--check-chrome --serve` runs a windowless shell for a test without
-answering the calls meant for yours.
+Each shell listens on its own socket, `/tmp/videocode-editor-<pid>.sock`, and
+`/tmp/videocode-editor.sock` points at whichever opened last — that is what
+`tell` reaches for, and what a terminal means by "the editor". The Agent pane's
+Claude is handed its own shell's socket, so two open editors never answer each
+other's calls. `VC_SOCKET` names another for both sides, which is how
+`--check-chrome --serve` runs a windowless shell for a test without touching
+yours.
 
 ---
 

@@ -1349,10 +1349,7 @@ void VC::Editor::highlightPython(QQuickTextDocument* document, const QVariantMap
 
 QString VC::Editor::socketPath()
 {
-    // One editor per machine answers `tell`; VC_SOCKET names another, which is
-    // how two scripted runs share a box without answering each other's calls.
-    const QString named = qEnvironmentVariable("VC_SOCKET");
-    return named.isEmpty() ? QStringLiteral("/tmp/videocode-editor.sock") : named;
+    return QString::fromStdString(VC::ownSocketPath());
 }
 
 void VC::Editor::serve()
@@ -1364,6 +1361,19 @@ void VC::Editor::serve()
     if (!_server.listen(path)) {
         std::cerr << std::format("The editor could not listen on {}: {}\n", path.toStdString(), _server.errorString().toStdString());
         return;
+    }
+    // The well-known name follows the editor that opened last. Not when
+    // VC_SOCKET named this one: a scripted run stays out of the author's way.
+    if (qEnvironmentVariable("VC_SOCKET").isEmpty()) {
+        const QString latest = QString::fromStdString(VC::latestSocketPath());
+        QFile::remove(latest);
+        QFile::link(path, latest);
+        // Taken down with this editor, and only while it still points here —
+        // an editor opened later owns the name now.
+        connect(qApp, &QCoreApplication::aboutToQuit, this, [path, latest] {
+            if (QFile::symLinkTarget(latest) == path)
+                QFile::remove(latest);
+        });
     }
     connect(&_server, &QLocalServer::newConnection, this, [this] {
         while (QLocalSocket* client = _server.nextPendingConnection()) {

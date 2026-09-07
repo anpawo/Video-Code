@@ -73,7 +73,8 @@ static int tell(int argc, char *argv[])
         }
     }
 
-    const QString path = VC::Editor::socketPath();
+    // VC_SOCKET, else the editor that opened last.
+    const QString path = qEnvironmentVariable("VC_SOCKET").isEmpty() ? QString::fromStdString(VC::latestSocketPath()) : qEnvironmentVariable("VC_SOCKET");
     QLocalSocket  socket;
     socket.connectToServer(path);
     if (!socket.waitForConnected(2000)) {
