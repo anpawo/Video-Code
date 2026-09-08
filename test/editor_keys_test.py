@@ -87,6 +87,15 @@ sides = probe('Eval:"" + shortcuts.sideLit(1, "Cmd", false) + shortcuts.sideLit(
 check("the ⌘ under your thumb lights, and only that one",
       list(sides.values()) == ['["truefalsefalsetrue"]'])
 
+# And it keeps saying so after the key comes back up. Shell.modifierSides is 0
+# in a windowless run — the bits ride on nativeModifiers() — so this is exactly
+# the "you let go of it" state: reading them live would light both caps again.
+frozen = probe('Eval:"" + (shortcuts.sidesAt = 1) + shortcuts.sideDown("Cmd", false)'
+               ' + shortcuts.sideDown("Cmd", true) + Shell.modifierSides',
+               panel="shortcuts")
+check("and it still says so once the key is released",
+      list(frozen.values()) == ['["1truefalse0"]'])
+
 section("escape is the one key it lets through")
 out = probe('Escape;Eval:shortcuts.visible', panel="shortcuts")
 check("escape closes the board", out.get("shortcuts.visible") == "[false]")

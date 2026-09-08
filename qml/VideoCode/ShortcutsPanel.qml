@@ -92,8 +92,16 @@ Item {
         return (bits & pair[right ? 1 : 0]) !== 0;
     }
 
+    // The bits AS THEY WERE when the key was struck, not as they are now.
+    //
+    // Reading them live lit the other ⌘ the instant you let go of the one you
+    // were holding: with nothing down any more the rule falls back to "this is
+    // a binding, and a binding names no side", and both caps came on. The card
+    // is describing a key you pressed, so the answer is frozen at the press.
+    property int sidesAt: 0
+
     function sideDown(token, right) {
-        return root.sideLit(Shell.modifierSides, token, right);
+        return root.sideLit(root.sidesAt, token, right);
     }
 
     // The action a combination fires, or null. Reserved rows answer too: they
@@ -153,6 +161,7 @@ Item {
     function showSpec(spec) {
         if (spec.length === 0)
             return;
+        root.sidesAt = Shell.modifierSides;
         root.struck = spec;
         root.hot = root.held.indexOf(spec) >= 0
                    ? [spec]
@@ -547,6 +556,7 @@ Item {
             stopCapturing();
             hot = [];
             struck = "";
+            sidesAt = 0;
         }
     }
 }
