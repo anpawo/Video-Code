@@ -593,6 +593,10 @@ Item {
         border.width: 1
         border.color: Theme.codeSkin.edge
 
+        // The top of the line this bubble is about, in the text's coordinates.
+        // It is what says the pointer is still "there" — see the move handler.
+        property real forY: -1
+
         function show(what, cx, cy) {
             if (what.code.length === 0 && what.prose.length === 0) {
                 tip.visible = false;
@@ -600,6 +604,7 @@ Item {
             }
             signature.text = what.code;
             body.text = what.prose;
+            tip.forY = cy - gutter.lineHeight;
             const at = editor.mapToItem(root, cx, cy);
             // Kept inside the pane on both axes: a bubble half off the right
             // edge is worse than one that does not line up with the word.
@@ -1768,15 +1773,25 @@ Item {
                 function dismiss() {
                     probe.token++;
                     dwell.stop();
+                    tip.forY = -1;
                     tip.hide();
                 }
 
                 onPositionChanged: (mouse) => {
-                    // Reaching INTO the bubble must not close it: VS Code lets
-                    // you walk onto a hover to read it, and a bubble that fled
-                    // the pointer could never be read at all. The rectangle is
-                    // in the panel's coordinates and the mouse in the text's.
+                    // An open bubble survives the pointer MOVING. It used to die
+                    // on the first pixel of travel — including a pixel along the
+                    // very word it was describing — because any move that was not
+                    // already inside the bubble dismissed it. You could not read
+                    // what you had asked for without holding your hand still.
+                    //
+                    // It closes when you have left BOTH the line it is about and
+                    // the bubble itself; anywhere on that line, in the bubble, or
+                    // in the few pixels between them, it stays. VS Code lets you
+                    // walk onto a hover to read it, and this is the same rule with
+                    // the line included.
                     if (tip.visible) {
+                        if (mouse.y >= tip.forY && mouse.y <= tip.forY + gutter.lineHeight)
+                            return;
                         const at = editor.mapToItem(root, mouse.x, mouse.y);
                         if (at.x >= tip.x - 4 && at.x <= tip.x + tip.width + 4
                             && at.y >= tip.y - 6 && at.y <= tip.y + tip.height + 4)
