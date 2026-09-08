@@ -1043,13 +1043,18 @@ Item {
                 // the smallest edit this timeline can make.
                 Rectangle {
                     id: gapStamp
-                    // Centred on the join line, and allowed to overhang it on
-                    // both sides. A gap half a second long is twelve pixels at
-                    // the opening zoom and can hold no writing at all, so the
+                    // Centred on the MIDDLE of the gap, and allowed to overhang
+                    // it on both sides. A gap half a second long is twelve pixels
+                    // at the opening zoom and can hold no writing at all, so the
                     // label used to disappear — the shortest waits, the ones
                     // hardest to see, were the ones that never said what they
-                    // were. The line it is centred on is the thing it names.
-                    x: -width / 2
+                    // were.
+                    //
+                    // Centred on the join LINE instead, which is the gap's left
+                    // edge, it read as centred on the narrow gaps and as pinned
+                    // to the left of the wide ones: the same rule looking like
+                    // two. The clocks stand on this middle too.
+                    x: join.width / 2 - width / 2
                     y: join.height - height - 4
                     width: stampText.implicitWidth + 12
                     height: stampText.implicitHeight + 6
