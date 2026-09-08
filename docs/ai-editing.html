@@ -227,14 +227,15 @@
   <header>
     <div class="tc">
       8 septembre 2026 <span>·</span> recherche demandée à 05:00 <span>·</span>
-      Premiere Pro, Resolve, Final Cut, CapCut, Descript, Runway, Remotion
+      Palmier Pro, Premiere Pro, Resolve, Final Cut, CapCut, Descript, Runway, Remotion
     </div>
     <h1>Quatre façons de laisser une IA monter</h1>
-    <p class="lede">Adobe vient de mettre un <b>agent conversationnel</b> dans Premiere Pro. Ce n'est
-      pas la même chose que les outils IA qu'il avait déjà, et ce n'est pas non plus ce que font
-      Descript, Runway ou CapCut. Il y a quatre familles, elles se distinguent par une seule
-      question — <b>à quelle distance de l'image la main humaine reste</b> — et une seule d'entre
-      elles n'a encore réglé son problème central.</p>
+    <p class="lede">Adobe vient de mettre un <b>agent conversationnel</b> dans Premiere Pro. Une
+      startup YC vient de sortir <b>Palmier Pro</b>, un éditeur macOS dont la timeline s'ouvre à
+      Claude par MCP. Ce n'est pas la même chose, et ni l'un ni l'autre ne fait ce que font Descript,
+      Runway ou CapCut. Il y a quatre familles, elles se distinguent par une seule question —
+      <b>à quelle distance de l'image la main humaine reste</b> — et une seule d'entre elles n'a
+      encore réglé son problème central.</p>
   </header>
 
   <div class="verdict">
@@ -242,6 +243,10 @@
       des outils qu'on appelle, des pixels qu'on fabrique, et depuis juin un agent qui pilote
       l'application à ta place — mais il s'arrête au bout rush, tout passe par le cloud, et il
       n'invente aucune image.</p>
+    <p><b>Palmier Pro</b> (Y&nbsp;Combinator, Swift, Apple Silicon) fait le pari inverse d'Adobe :
+      tout en local, un serveur MCP sur <code>127.0.0.1</code>, et ton agent édite la même timeline
+      que toi. C'est le voisin le plus proche d'ici — même plateforme, même idée. Il a aussi fermé
+      ses sources après la v0.7.6.</p>
     <p>La famille que personne n'a fini, c'est la quatrième : <b>l'IA qui écrit le code qui fait la
       vidéo</b>. Remotion y est arrivé en janvier 2026 et s'est cogné au mur que tout le monde a :
       un agent qui génère une animation <b>n'a aucun moyen de vérifier son propre travail</b>. « Ça
@@ -312,7 +317,66 @@
     </table>
   </div>
 
-  <h2>2 · Les quatre familles <em>l'axe, c'est la distance à l'image</em></h2>
+  <h2>2 · Palmier Pro <em>le voisin le plus proche</em></h2>
+
+  <div class="col">
+    <p class="say"><b>Palmier, Inc.</b> (Y Combinator S24) a sorti un éditeur vidéo macOS écrit en
+      <strong>Swift</strong>, natif, Apple Silicon, macOS 26 minimum. Marcos et Harrison le
+      construisent parce qu'ils faisaient des vidéos de lancement pour des boîtes YC et passaient
+      leur temps dans la même boucle : <em>générer une vidéo IA → la télécharger → l'importer →
+      monter → se rendre compte qu'il faut la regénérer → recommencer</em>.</p>
+    <p class="say">Ce qu'ils ont construit contre ça : l'éditeur ouvre un <strong>serveur MCP sur
+      <code>127.0.0.1:19789</code></strong>. Claude, Codex ou Cursor s'y branchent et éditent
+      <strong>la même timeline que toi, pendant que tu l'as sous les yeux</strong>. L'agent peut
+      gérer le projet, importer un média depuis une URL, chercher dans les rushes, manipuler la
+      timeline, générer image, son, musique et sous-titres, et exporter.</p>
+
+    <h3>Ce qui tourne sur ta machine</h3>
+    <p class="say">C'est la partie que je trouve la plus intéressante, et l'inverse exact du choix
+      d'Adobe. Quatre modèles locaux, aucun cloud : <strong>SpeechAnalyzer</strong> pour la
+      transcription, <strong>SigLIP2</strong> pour les embeddings — c'est comme ça que tu retrouves
+      un plan en le décrivant —, <strong>beat_this</strong> pour la détection de tempo, et
+      <strong>Silero VAD</strong> pour les silences. Transcription, recherche, rythme, blancs : de
+      quoi monter, sans qu'une image sorte de la machine.</p>
+    <p class="say">Le génératif, lui, est hébergé chez eux, fermé, payant, et branché sur Seedance,
+      Kling et Nano Banana Pro. Ils ont coupé la ligne exactement là : <b>ce qui comprend ton rush
+      est local, ce qui fabrique des pixels est chez eux.</b></p>
+
+    <h3>La phrase qu'il faut retenir</h3>
+    <p class="say">De l'auteur lui-même, sur Hacker News : <strong>« l'IA n'est pas très bonne en
+      montage créatif, mais sur un motif donné — la transcription, le tempo — elle fait un ours
+      correct ».</strong> C'est le diagnostic le plus honnête que j'aie lu de toute la recherche, et
+      il vient du concurrent le plus proche.</p>
+
+    <h3>Ce qui a mal tourné</h3>
+    <p class="say">Le dépôt annonce que <strong>les binaires après la v0.7.6 sont propriétaires</strong>
+      et qu'il n'accepte plus de contributions ; le code GPLv3 reste disponible, gelé, sur la branche
+      <code>last-gpl-source</code>. « Open source » est resté dans le titre du lancement. Les
+      sources secondaires se contredisent sur ce qui est encore libre — le dépôt fait foi.</p>
+    <p class="say">Et sur Hacker News, la critique qui pique : un monteur de 300+ vidéos écrit
+      qu'automatiser la « corvée » <strong>supprime le lieu où se prennent les décisions
+      créatives</strong> — que séparer le mécanique de l'artistique est une simplification. Le
+      reste : l'interface est jugée dense et encombrée, et l'abonnement crée l'hésitation qu'un
+      crédit prépayé n'aurait pas.</p>
+  </div>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th></th><th>Palmier Pro</th><th>video-code</th></tr></thead>
+      <tbody>
+        <tr><td>La langue de l'édition</td><td>La timeline, par appels MCP</td><td>Le code Python de la scène</td></tr>
+        <tr><td>Ce que l'agent te rend</td><td>Un projet binaire modifié</td><td>Un diff</td></tr>
+        <tr><td>Comment il se relit</td><td>Une capture d'image</td><td><code>--inspect</code>, <code>--sheet</code>, l'empreinte 52 scènes</td></tr>
+        <tr><td>Modèles locaux</td><td>Quatre — parole, recherche, tempo, silences</td><td>Aucun : il n'y a pas de rush à comprendre, la scène est écrite</td></tr>
+        <tr><td>Génératif</td><td>Hébergé, fermé, payant</td><td>Aucun</td></tr>
+        <tr><td>Sortie</td><td>FCPXML vers Final Cut pour la finition</td><td>Le rendu est le produit</td></tr>
+        <tr><td>Licence</td><td>GPLv3 gelée à la v0.7.6 ; les binaires suivants sont fermés</td><td>—</td></tr>
+        <tr><td>Plateforme</td><td>Apple Silicon, macOS 26+</td><td>Apple Silicon</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>3 · Les quatre familles <em>l'axe, c'est la distance à l'image</em></h2>
 
   <figure>
     <svg viewBox="0 0 900 268" role="img" aria-label="Les quatre familles placées sur un axe allant de « la main sur l'image » à « la main sur l'intention »">
@@ -348,6 +412,7 @@
         <text x="602" y="138" text-anchor="middle" font-size="15" font-weight="600" fill="var(--ink)">Le pilote</text>
         <text x="602" y="120" text-anchor="middle" font-size="11.5" fill="var(--ink-dim)">il clique à ta place</text>
         <text x="602" y="104" text-anchor="middle" font-size="11" fill="var(--ink-faint)">Premiere Assistant · CapCut</text>
+        <text x="602" y="88" text-anchor="middle" font-size="11" font-weight="600" fill="var(--live)">Palmier Pro</text>
 
         <!-- 4 -->
         <circle cx="812" cy="212" r="5" fill="var(--ok)"/>
@@ -401,8 +466,10 @@
     <div class="fam">
       <header><h3>Le pilote</h3><span class="who">il fait les gestes à ta place</span></header>
       <p class="body">Premiere AI Assistant, l'auto-montage de <b>CapCut</b> (500 M d'utilisateurs
-        par mois — le plus gros monteur IA du monde, de loin), et les serveurs <b>MCP</b> qui
-        exposent l'API Python de Resolve à n'importe quel agent. Même idée : l'agent tient la souris.</p>
+        par mois — le plus gros monteur IA du monde, de loin), les serveurs <b>MCP</b> qui exposent
+        l'API Python de Resolve, et <b>Palmier Pro</b>, qui est né comme ça. Même idée : l'agent
+        tient la souris. Palmier montre que ça peut être entièrement local ; Premiere montre que la
+        version cloud arrive avec des quotas.</p>
       <div class="ledger">
         <div class="p">Tue le travail d'assistant : le rangement, les chutiers, l'ours</div>
         <div class="p">Rien de neuf à apprendre — tu parles</div>
@@ -427,7 +494,7 @@
 
   </div>
 
-  <h2>3 · Le trou que personne n'a bouché <em>« ça compile » n'est pas « c'est bien »</em></h2>
+  <h2>4 · Le trou que personne n'a bouché <em>« ça compile » n'est pas « c'est bien »</em></h2>
 
   <div class="gap">
     <h3>Le problème du retour</h3>
@@ -457,7 +524,7 @@
     </div>
   </div>
 
-  <h2>4 · Les autres, en un tableau <em>ce que chacun a vraiment</em></h2>
+  <h2>5 · Les autres, en un tableau <em>ce que chacun a vraiment</em></h2>
 
   <div class="scroll">
     <table>
@@ -470,22 +537,36 @@
         <tr><td>Descript</td><td><span class="tag t-out">outil</span></td><td>La vidéo est un document : tu supprimes un mot, la vidéo se coupe</td><td>Cloud</td><td>Ne marche que sur de la parole</td></tr>
         <tr><td>Opus Clip</td><td><span class="tag t-drv">pilote</span></td><td>Extrait les moments courts d'une longue vidéo</td><td>Cloud</td><td>Fait une seule chose</td></tr>
         <tr><td>Runway</td><td><span class="tag t-gen">générateur</span></td><td>Fabrique du plan à partir de rien</td><td>Cloud</td><td>Ne monte pas ; ayant droit incertain</td></tr>
+        <tr><td>Palmier&nbsp;Pro</td><td><span class="tag t-drv">pilote</span></td><td>Serveur MCP local : ton agent édite la même timeline que toi. Parole, recherche, tempo et silences en modèles locaux</td><td>Local (le génératif est hébergé)</td><td>Sources gelées à la v0.7.6 ; Apple Silicon et macOS 26 seulement</td></tr>
         <tr><td>Resolve&nbsp;MCP</td><td><span class="tag t-drv">pilote</span></td><td>34 outils exposant l'API de Resolve à Claude Code, Cursor, Zed…</td><td>Local</td><td>Non officiel ; Studio requis</td></tr>
         <tr><td>Remotion</td><td><span class="tag t-cod">auteur</span></td><td>Agent Skills : tu décris, l'agent écrit du React, Remotion rend</td><td>Local</td><td>Aucun retour automatique sur le résultat ; rendu facturé en équipe</td></tr>
       </tbody>
     </table>
   </div>
 
-  <h2>5 · Ce que j'en tire <em>pour ici</em></h2>
+  <h2>6 · Ce que j'en tire <em>pour ici</em></h2>
 
   <div class="col">
-    <p class="say"><strong>Un.</strong> Le pari de video-code est le bon et il est rare. Sur neuf
-      outils regardés, <strong>un seul autre</strong> est dans la famille « l'agent écrit le code », et
-      il vient d'y arriver. Ce n'est pas un retard à rattraper, c'est une avance à tenir.</p>
+    <p class="say"><strong>Un.</strong> Le pari de video-code est le bon et il est rare. Sur dix
+      outils regardés, <strong>un seul autre</strong> est dans la famille « l'agent écrit le code »,
+      et il vient d'y arriver. Ce n'est pas un retard à rattraper, c'est une avance à tenir.</p>
+    <p class="say"><strong>Un bis, et c'est le vrai sujet.</strong> Palmier Pro est le voisin. Même
+      plateforme, même refus du cloud, même conviction qu'un agent doit tenir l'outil et pas
+      seulement le conseiller. Il est arrivé avant nous sur la partie « l'agent pilote l'éditeur » —
+      c'est fait, c'est un serveur MCP, ça marche. La différence n'est donc pas <em>si</em> l'agent
+      édite, mais <strong>en quelle langue</strong> : eux lui donnent des appels sur un projet
+      binaire, nous lui donnons du code. Un projet binaire, tu ne peux que le rouvrir pour voir ce
+      qui a changé. Un diff, tu le lis.</p>
     <p class="say"><strong>Deux.</strong> Le trou du retour est <em>l'</em>argument. Tout le monde
       l'a — Remotion, Premiere, CapCut. On est les seuls à avoir déjà les trois outils qui le
       bouchent. Ça mérite d'être dit quelque part de visible : pas « un éditeur vidéo en Python »,
       mais <strong>« le seul où l'agent peut vérifier ce qu'il a fait »</strong>.</p>
+    <p class="say"><strong>Deux bis.</strong> Palmier a une réponse partielle au trou, et il faut
+      la reconnaître : leur agent peut <strong>capturer une image</strong> de la timeline, ce qui lui
+      évite de ré-uploader une vidéo pour la regarder. C'est exactement le premier des trois
+      barreaux — « exploiter les images fixes ». Ils n'ont ni le deuxième (échantillonner aux
+      frontières, notre <code>--sheet</code>) ni le troisième (une référence connue, notre
+      empreinte). C'est un écart réel, pas une posture.</p>
     <p class="say"><strong>Trois.</strong> Ce que Premiere fait et qu'on ne fait pas, c'est
       <strong>le rangement</strong> : lire cent rushes, les nommer, les trier, repérer les questions
       d'une interview. C'est là que leur assistant gagne du temps, et c'est le seul endroit où je
@@ -496,6 +577,12 @@
       leur propre documentation admet que ça casse si l'humain travaille pendant que l'agent
       travaille. Notre équivalent (⌘Z qui reprend tout un tour d'agent, désarmé dès que tu tapes)
       est déjà plus honnête. C'est un détail qui vaut d'être gardé.</p>
+    <p class="say"><strong>Quatre bis, à voler à Palmier.</strong> Leurs quatre modèles locaux —
+      parole, recherche visuelle, tempo, silences — tournent sur la machine et rien ne sort. Trois
+      des quatre ne nous servent à rien : il n'y a pas de rush à comprendre, la scène est écrite.
+      Mais <strong>le tempo</strong>, si. <code>beat_this</code> sur la piste musicale d'une scène
+      donnerait des <code>timestamp()</code> posés sur les temps forts, et caler une animation sur
+      un beat est exactement ce qu'on ne sait pas faire aujourd'hui.</p>
     <p class="say"><strong>Cinq, et c'est un avertissement.</strong> Une étude 2026 mesure que
       <strong>71 % des débutants acceptent une transition proposée par l'IA sans la regarder</strong>,
       alors que 43 % sont hors sujet. Un agent qui écrit du code qu'on relit est immunisé contre ce
@@ -510,6 +597,7 @@
     <li><a href="https://kompozy.io/reviews/premiere-ai-assistant">Kompozy — Premiere AI Assistant, verdict 2026</a></li>
     <li><a href="https://www.broadcastnow.co.uk/production-and-post/adobe-rolls-out-ai-agent-on-premiere/5217912.article">Broadcast — Adobe déploie son agent IA sur Premiere</a></li>
     <li><a href="https://helpx.adobe.com/premiere/desktop/edit-projects/edit-with-generative-ai/generative-extend-overview.html">Adobe — Generative Extend</a></li>
+    <li><a href="https://github.com/palmier-io/palmier-pro">GitHub — palmier-io/palmier-pro</a> · <a href="https://news.ycombinator.com/item?id=49022911">Show HN, la discussion</a> · <a href="https://www.ycombinator.com/launches/QtT-palmier-pro-an-open-source-video-editor-your-agents-can-operate">le lancement YC</a> · <a href="https://www.palmier.io/">palmier.io</a></li>
     <li><a href="https://www.blackmagicdesign.com/products/davinciresolve/whatsnew">Blackmagic — DaVinci Resolve 20, nouveautés</a> · <a href="https://thepostflow.com/ai/ai-in-davinci-resolve/">The Post Flow — ce que fait vraiment le Neural Engine</a></li>
     <li><a href="https://www.apple.com/newsroom/2026/06/apple-creator-studio-gets-smarter-faster-and-more-connected/">Apple Newsroom — Creator Studio, juin 2026</a> · <a href="https://www.cined.com/apple-creator-studio-update-adds-generate-captions-edit-detection-and-auto-mask-to-final-cut-pro/">CineD — Auto Mask et Generate Captions</a></li>
     <li><a href="https://www.digitalapplied.com/blog/video-as-code-remotion-agentic-generation-2026">Digital Applied — « Video as Code: Remotion and the Agent Feedback Gap »</a></li>
