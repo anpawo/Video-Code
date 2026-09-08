@@ -4,7 +4,7 @@
 // your hand, which is the actual question. Press a key and the whole
 // combination lights up — modifiers included, so there is no layer to switch to
 // — and a card under the board says what it does and stays there until the next
-// key. Pointing at an action, or at a cap that carries one thing, says the same.
+// key. The pointer changes nothing on it: the board answers a keyboard.
 //
 // Rebinding is by pressing the keys, not by picking from a list of names: the
 // gesture that sets the shortcut is the gesture that uses it. Everything here
@@ -61,20 +61,6 @@ Item {
             if (Keymap.baseOf(one.key) === token)
                 out.push(one.label + " · " + one.key);
         return out.join("   ");
-    }
-
-    // The one combination that ends on this cap, for pointing at a cap. Empty
-    // when the cap carries nothing, or more than one thing — a cap under two
-    // combinations has no single answer, and the card answers with one.
-    function boundSpec(token) {
-        let out = [];
-        for (const action of Keymap.actions)
-            if (Keymap.baseOf(Keymap.combo(action.id)) === token)
-                out.push(Keymap.combo(action.id));
-        for (const one of Keymap.reserved)
-            if (Keymap.baseOf(one.key) === token)
-                out.push(one.key);
-        return out.length === 1 ? out[0] : "";
     }
 
     readonly property var held: ["Cmd", "Ctrl", "Shift", "Alt"]
@@ -161,8 +147,9 @@ Item {
         return "";
     }
 
-    // One door for both ways in: a key you pressed and an action you pointed at
-    // put the same thing on screen, so the caps and the card can never disagree.
+    // A key you pressed, on the board and in the card. The pointer never comes
+    // through here: the drawing of a keyboard answers a keyboard, and a picture
+    // that lit up under the mouse was answering the wrong hand.
     function showSpec(spec) {
         if (spec.length === 0)
             return;
@@ -289,8 +276,7 @@ Item {
                                 width: line.unit * cap.units
                                 height: 30
                                 radius: Theme.radiusSmall
-                                color: cap.lit ? Qt.alpha(Theme.live, 0.22)
-                                               : (keyHit.containsMouse ? Theme.rail : Theme.sunk)
+                                color: cap.lit ? Qt.alpha(Theme.live, 0.22) : Theme.sunk
                                 border.width: 1
                                 border.color: cap.lit ? Theme.live : Theme.edge
 
@@ -302,12 +288,6 @@ Item {
                                     font.pixelSize: cap.modelData[0].length > 2 ? 9 : 11
                                 }
 
-                                MouseArea {
-                                    id: keyHit
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    onEntered: root.showSpec(root.boundSpec(cap.token))
-                                }
                             }
                         }
                     }
@@ -503,7 +483,6 @@ Item {
                         id: rowHit
                         anchors.fill: parent
                         hoverEnabled: true
-                        onEntered: root.showSpec(row.spec)
                         onClicked: {
                             if (row.fixed)
                                 return;

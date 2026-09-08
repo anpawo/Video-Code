@@ -178,27 +178,42 @@ Item {
     // handle to sit at 0 without touching the panel's edge — and, since every
     // ruler stamp is centred on the line it names, wide enough for the FIRST one
     // to centre like the others instead of being nudged right by the clamp
-    // below: half of "00:00" at 11px mono is about 17.
-    readonly property int gutter: 22
+    // below: half of "00:00" at 11px mono is about 17. Wider than that minimum
+    // because a clip that nearly touches the panel's edge still reads as one
+    // that was cut off there.
+    readonly property int gutter: 32
 
-    // A short scene at a low zoom does not fill the pane, and pinned to the left
-    // it reads as a timeline that has been cut off — the empty half looks like
-    // more time that is missing rather than time that does not exist. Centred,
-    // the whole of it is the whole of it. Measured against the PANEL's width, not
-    // the viewport's, or the margin below would feed back into the width it is
-    // computed from.
-    readonly property real centrePad: Math.max(0, (width - 2 * gutter - contentWidth) / 2)
-
-    // Where time zero is drawn, counted from the left of the CONTENT — not from
-    // the left of the pane.
+    // ── The runway ────────────────────────────────────────────────────────
+    // Blank kept before time zero and after the last frame, half the pane wide
+    // on each side. It is what lets ANY moment of the scene be scrolled to the
+    // middle of the pane — the first frame and the last included, which a 22 px
+    // gutter never could: they were pinned to the edges, and reading a clip
+    // that starts at the border means reading it in the corner of your eye.
     //
-    // The centring used to be a left margin on the viewport, which made the strip
-    // beside a short scene a place the timeline was not allowed into: flick, and
-    // the clips slid under a black band and were clipped away by an edge that
-    // looked like panel. The viewport is now the whole pane and the padding is
-    // part of what scrolls, so the same gesture carries the clips across all of
-    // it and nothing is eaten on the way.
-    readonly property real pad: gutter + centrePad
+    // It replaces a centring rule that put a short scene in the middle of the
+    // pane. That looked tidy and opened you onto nothing: half a pane of empty
+    // ground before a scene reads as time that is missing rather than time that
+    // does not exist. The runway is there to be scrolled INTO, not looked at —
+    // see `parked` below, which is what opens the pane on the first frame.
+    readonly property real pad: Math.max(gutter, width * 0.5)
+
+    // Opening on the runway would be opening on nothing. Once — and only once,
+    // or the pane would snap back to the start every time it is resized — time
+    // zero is put a gutter in from the left edge.
+    property bool parked: false
+
+    // On the NEXT turn, never in the same one: the runway widens the flickable's
+    // own content, and a contentX written before that binding has caught up is
+    // clamped straight back to zero by a Flickable that does not yet know it has
+    // anywhere to go.
+    onPadChanged: if (!root.parked && root.pad > root.gutter) Qt.callLater(root.park)
+
+    function park() {
+        if (root.parked || root.pad <= root.gutter)
+            return;
+        flick.contentX = root.pad - root.gutter;
+        root.parked = true;
+    }
 
     // Lent to the tab strip of whichever slot is showing this panel. A zoom
     // slider is chrome about the panel, not content in it: in the strip it costs
@@ -249,10 +264,10 @@ Item {
                 // which left it riding a few pixels above the label beside it.
                 height: 14
                 padding: 0
-                // 20 px per second at the least, whatever the scene's length:
+                // 25 px per second at the least, whatever the scene's length:
                 // the floor used to be the fitting zoom, which pushed the default
-                // up on a long scene and made 20 unreachable there.
-                from: 20
+                // up on a long scene and made the opening zoom unreachable there.
+                from: 25
                 // Twice that at most: five seconds on screen and no further. A
                 // value already past it — saved, or left over from a wider pane —
                 // is pulled back by the Slider itself when the range moves.

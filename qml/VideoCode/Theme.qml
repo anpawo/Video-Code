@@ -213,5 +213,5 @@ QtObject {
     // A tenth of a second is the coarsest thing the timeline ever snaps to; the
     // real quantum is the frame, filled in by the scene's framerate.
     // 20 px per second: the zoom the timeline opens at, asked for on 7 Sept.
-    readonly property real pxPerSecond: 20
+    readonly property real pxPerSecond: 25
 }
