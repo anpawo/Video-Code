@@ -1061,15 +1061,34 @@ Item {
                     border.color: editing
                                   ? Qt.rgba(0.878, 0.376, 0.361, 0.8)
                                   : Qt.rgba(0.878, 0.376, 0.361, 0.22)
-                    visible: join.width > width + 6
+                    visible: join.width > gapStamp.room(gapStamp.brief)
 
                     readonly property bool editing: root.editingWait === join.modelData.line
+
+                    // A band too narrow for the sentence is not a band with
+                    // nothing to say: 2.5 s is 62 px at the opening zoom, six
+                    // short of "wait 2.5s", and the label vanished entirely for
+                    // want of one word. The word goes first, the number last.
+                    readonly property string words: "wait " + join.modelData.says.toFixed(1) + "s"
+                    readonly property string brief: join.modelData.says.toFixed(1) + "s"
+
+                    // Mono at 10 px is 6 px to the character, and the chip is 12
+                    // wide plus the 4 it is inset by. Counted rather than
+                    // measured because `width` is the measurement: asking the
+                    // Text how wide it is in order to choose its text is a loop.
+                    //
+                    // Nothing to spare on the right: "wait 3.0s" wants 76 of the
+                    // 75 a three-second gap is drawn at the opening zoom, and a
+                    // pixel of politeness there cost the word on every one of
+                    // them.
+                    function room(what) { return what.length * 6 + 18; }
 
                     Text {
                         id: stampText
                         anchors.centerIn: parent
                         visible: !gapStamp.editing
-                        text: "wait " + join.modelData.says.toFixed(1) + "s"
+                        text: join.width > gapStamp.room(gapStamp.words) ? gapStamp.words
+                                                                         : gapStamp.brief
                         color: Qt.rgba(0.945, 0.541, 0.525, 1)
                         font.family: Theme.mono
                         font.pixelSize: 10
@@ -1111,43 +1130,43 @@ Item {
                     }
                 }
 
-                // ── Clocks, rising ────────────────────────────────────────
-                // Two or three small clocks drift up the gap, faint, and gone
-                // by the ruler: the band is a pause, and this is what says so
-                // from across the room, before the stamp is read. Their hands
-                // do not turn — a pause is exactly a clock whose hands are
-                // still.
+                // ── Clocks, standing ──────────────────────────────────────
+                // A column of small clocks down the gap: the band is a pause,
+                // and this is what says so from across the room, before the
+                // stamp is read. Their hands do not turn — a pause is exactly a
+                // clock whose hands are still.
                 //
-                // Circles and two lines, no image and no shader: the band is
-                // the picture, these are a hint laid over it, and they must
-                // lose to a clip's name every time they cross one — half
-                // opacity at their brightest, one pixel of stroke.
+                // They used to drift up the band and fade, two or three of them,
+                // each on its own phase. Movement in a timeline belongs to the
+                // playhead: a dozen bands all breathing separately is a picture
+                // that never settles, and it was marking the one thing on screen
+                // that is defined by nothing happening. So they stand, and there
+                // are enough of them that a band is marked wherever your eye
+                // happens to be — a narrow band included, which used to get none
+                // at all and was then a red stripe with nothing to say.
                 //
-                // None at all when they cannot be seen: while the band is
-                // scrolled out of the pane, while it is too narrow to hold one,
-                // and when the system asked for less movement — a still clock
-                // sitting on a clip for an hour is not a quieter version of
-                // this, it is a smudge.
+                // Circles and two lines, no image and no shader: the band is the
+                // picture, these are a hint laid over it, and they must lose to
+                // a clip's name every time they cross one — a third of opacity,
+                // one pixel of stroke.
                 Repeater {
                     id: clocks
-                    model: !Theme.reducedMotion
-                           && join.x < flick.contentX + flick.width
+                    // None while the band is scrolled out of the pane: they are
+                    // one Item each and there is no reason to build them.
+                    model: join.x < flick.contentX + flick.width
                            && join.x + join.width > flick.contentX
-                           ? Math.min(3, Math.floor(join.width / 20)) : 0
+                           ? Math.max(1, Math.floor((join.height - 60) / 190)) : 0
 
                     Item {
                         id: clock
                         required property int index
                         width: 14
                         height: 14
-                        x: (index + 0.5) * join.width / clocks.count - width / 2
-
-                        // 0 at the foot of the pane, 1 just under the ruler.
-                        property real climb: 0
-                        readonly property real foot: join.height - 26
-                        readonly property real head: ruler.height + 6
-                        y: foot - climb * (foot - head)
-                        opacity: Math.sin(climb * Math.PI) * 0.5
+                        // Centred on the band, whatever it is wide: a gap of a
+                        // few pixels still gets its mark, overhanging both sides.
+                        x: join.width / 2 - width / 2
+                        y: ruler.height + 30 + index * 190
+                        opacity: 0.34
 
                         Rectangle {
                             anchors.fill: parent
@@ -1171,19 +1190,6 @@ Item {
                             width: parent.width / 2 - 3
                             height: 1
                             color: Qt.rgba(0.878, 0.376, 0.361, 1)
-                        }
-
-                        // Each starts later and climbs slower than the one
-                        // before it, so they never line up into a row — a row
-                        // is a pattern, and a pattern is something to read.
-                        SequentialAnimation on climb {
-                            running: true
-                            PauseAnimation { duration: clock.index * 2100 }
-                            NumberAnimation {
-                                from: 0; to: 1
-                                duration: 6000 + clock.index * 900
-                                loops: Animation.Infinite
-                            }
                         }
                     }
                 }

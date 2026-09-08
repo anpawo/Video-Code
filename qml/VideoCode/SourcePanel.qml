@@ -580,7 +580,11 @@ Item {
         visible: false
         z: 10
         width: Math.min(Math.max(signature.implicitWidth, body.implicitWidth) + 18, root.width - 24)
-        height: bubble.implicitHeight + 16
+        // Half the pane at most. A docstring is as long as its author felt
+        // like, and an uncapped bubble grew past the pane, flipped itself
+        // above the line because it no longer fitted below, and then hung off
+        // the top with the first paragraph — the part you wanted — cut away.
+        height: Math.min(bubble.implicitHeight + 16, root.height * 0.5)
         // The bubble belongs to the CODE, not to the chrome: VS Code paints its
         // hovers on their own surface, a step up from the editor's ground, and a
         // panel-blue box over a black buffer reads as a different application.
@@ -600,58 +604,85 @@ Item {
             // Kept inside the pane on both axes: a bubble half off the right
             // edge is worse than one that does not line up with the word.
             tip.x = Math.max(8, Math.min(at.x, root.width - tip.width - 8));
-            tip.y = at.y + tip.height + 6 > root.height ? at.y - tip.height - 18 : at.y + 6;
+
+            // Four pixels under the line, or four above it when there is no
+            // room below — near enough to walk the pointer into. Leaving the
+            // word is what closes the bubble, so any gap wider than the step
+            // that carries you across it is a bubble you cannot reach: it
+            // shuts on the way. Never off the top either; a bubble whose head
+            // is above the pane is one whose first line is gone.
+            const below = at.y + 4;
+            tip.y = below + tip.height <= root.height - 8
+                    ? below
+                    : Math.max(8, at.y - gutter.lineHeight - tip.height - 4);
+            scroll.contentY = 0;
             tip.visible = true;
         }
 
         function hide() { tip.visible = false; }
 
-        Column {
-            id: bubble
+        // And what does not fit scrolls, rather than being cut off with no way
+        // to see the rest.
+        Flickable {
+            id: scroll
             anchors.fill: parent
             anchors.margins: 8
-            spacing: signature.text.length > 0 && body.text.length > 0 ? 7 : 0
+            contentWidth: width
+            contentHeight: bubble.implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
 
-            // A TextEdit rather than a Text, for one reason: it owns a document,
-            // and a document is what a syntax highlighter attaches to. The
-            // signature is code, so it is painted by the same rules and the same
-            // palette as the buffer behind it.
-            TextEdit {
-                id: signature
-                width: bubble.width
-                visible: text.length > 0
-                readOnly: true
-                selectByMouse: false
-                color: Theme.codeSkin.ink
-                font.family: Theme.mono
-                font.pixelSize: root.codeSize
-                wrapMode: TextEdit.NoWrap
-                textFormat: TextEdit.PlainText
+            ScrollBar.vertical: ScrollBar {
+                policy: scroll.contentHeight > scroll.height ? ScrollBar.AlwaysOn
+                                                             : ScrollBar.AlwaysOff
+            }
 
-                Component.onCompleted: root.documentReady(signature.textDocument)
+            Column {
+                id: bubble
+                width: scroll.width
+                spacing: signature.text.length > 0 && body.text.length > 0 ? 7 : 0
 
-                Connections {
-                    target: Theme
-                    function onCodeThemeChanged() { root.documentReady(signature.textDocument); }
+                // A TextEdit rather than a Text, for one reason: it owns a document,
+                // and a document is what a syntax highlighter attaches to. The
+                // signature is code, so it is painted by the same rules and the same
+                // palette as the buffer behind it.
+                TextEdit {
+                    id: signature
+                    width: bubble.width
+                    visible: text.length > 0
+                    readOnly: true
+                    selectByMouse: false
+                    color: Theme.codeSkin.ink
+                    font.family: Theme.mono
+                    font.pixelSize: root.codeSize
+                    wrapMode: TextEdit.NoWrap
+                    textFormat: TextEdit.PlainText
+
+                    Component.onCompleted: root.documentReady(signature.textDocument)
+
+                    Connections {
+                        target: Theme
+                        function onCodeThemeChanged() { root.documentReady(signature.textDocument); }
+                    }
                 }
-            }
 
-            Rectangle {
-                width: bubble.width
-                height: 1
-                visible: signature.text.length > 0 && body.text.length > 0
-                color: Theme.edgeSoft
-            }
+                Rectangle {
+                    width: bubble.width
+                    height: 1
+                    visible: signature.text.length > 0 && body.text.length > 0
+                    color: Theme.edgeSoft
+                }
 
-            Text {
-                id: body
-                width: bubble.width
-                visible: text.length > 0
-                color: Theme.codeSkin.ink
-                font.family: Theme.ui
-                font.pixelSize: root.codeSize
-                wrapMode: Text.Wrap
-                textFormat: Text.PlainText
+                Text {
+                    id: body
+                    width: bubble.width
+                    visible: text.length > 0
+                    color: Theme.codeSkin.ink
+                    font.family: Theme.ui
+                    font.pixelSize: root.codeSize
+                    wrapMode: Text.Wrap
+                    textFormat: Text.PlainText
+                }
             }
         }
     }
