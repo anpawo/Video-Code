@@ -903,8 +903,20 @@ Item {
         // where you were standing.
         property var hits: []
         property int at: -1
+        // The buffer these offsets were counted in. Attaching the syntax
+        // highlighter and re-colouring a block both raise `onTextChanged`
+        // WITHOUT a character moving, and a recount on one of those blanked the
+        // counter to "0/3" the instant after a search had landed on a match.
+        property string counted: ""
+        // Where the caret stood when the search opened. Stepping from the LIVE
+        // caret instead walked forward with every letter typed — the caret is
+        // moved by each landing — so typing "Circle" pushed you past the first
+        // Circle in the file. A search starts where you were standing, and
+        // stays anchored there until you ask for the next one.
+        property int anchor: 0
 
         function open() {
+            finding.anchor = editor.selectionStart;
             if (editor.selectedText.length > 0 && editor.selectedText.indexOf("\n") < 0)
                 query.text = editor.selectedText;
             finding.visible = true;
@@ -936,25 +948,37 @@ Item {
             // while the selection is still sitting on a match — and -1 is what
             // `indexOf` gives back when it genuinely is not one of them.
             finding.at = out.indexOf(editor.selectionStart);
+            finding.counted = editor.text;
         }
 
-        function step(by) {
+        // Put the current match on screen. WHICH one is current is `at`, or the
+        // first one at or after the anchor when nothing has been chosen yet.
+        function show() {
             if (finding.hits.length === 0)
                 return;
             if (finding.at < 0) {
                 let k = 0;
-                while (k < finding.hits.length && finding.hits[k] < editor.cursorPosition)
+                while (k < finding.hits.length && finding.hits[k] < finding.anchor)
                     ++k;
-                finding.at = by > 0 ? k % finding.hits.length
-                                    : (k - 1 + finding.hits.length) % finding.hits.length;
-            } else {
-                finding.at = (finding.at + by + finding.hits.length) % finding.hits.length;
+                finding.at = k % finding.hits.length;
             }
-
             const from = finding.hits[finding.at];
             editor.select(from, from + query.text.length);
             (view.contentItem as Flickable).contentY =
                 Math.max(0, editor.cursorRectangle.y - view.height / 3);
+        }
+
+        // One match on, or one back. Separate from `show` on purpose: typing a
+        // letter SHOWS where you are, it does not walk. Stepping on every
+        // keystroke walked forward once per letter — narrowing "C" to "Circle"
+        // keeps landing on the same match, `recount` recognised it, and each
+        // letter then advanced past it.
+        function step(by) {
+            if (finding.hits.length === 0)
+                return;
+            if (finding.at >= 0)
+                finding.at = (finding.at + by + finding.hits.length) % finding.hits.length;
+            finding.show();
         }
 
         TextField {
@@ -972,7 +996,7 @@ Item {
             background: null
             onTextChanged: {
                 finding.recount();
-                finding.step(1);
+                finding.show();
             }
             // Enter walks forward, ⇧⏎ back — the two keys every editor on this
             // machine already answers to, so there is nothing new to learn.
@@ -1594,7 +1618,7 @@ Item {
                 // keystroke rather than leaving stale prose over live code.
                 probe.dismiss();
 
-                if (finding.visible)
+                if (finding.visible && editor.text !== finding.counted)
                     finding.recount();
 
                 if (!ready || text === pristine)

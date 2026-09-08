@@ -43,17 +43,35 @@ def probe(keys: str, panel: str = "") -> dict[str, str]:
     )
     # `Probed the expression <what> → ["value"]` — a one-element JSON array, so
     # a value with newlines in it survives the single line it is printed on.
-    return {m[1]: m[2] for m in re.finditer(r"Probed the expression (.+?) → (.*)$", run.stdout, re.M)}
+    seen: dict[str, str] = {}
+    for m in re.finditer(r"Probed the expression (.+?) → (.*)$", run.stdout, re.M):
+        # The same expression asked twice is two answers, not one: `source.found`
+        # before and after a step is the whole point of asking it twice.
+        key, n = m[1], 1
+        while key in seen:
+            n += 1
+            key = f"{m[1]}·{n}"
+        seen[key] = m[2]
+    return seen
 
 
 section("⌘F finds text in the open file")
-seen = probe('Ctrl+F;Text:Circle;Eval:source.found;Return;Eval:source.found')
-check("the strip opens and lands on a match", seen.get("source.found", "").startswith('["2/2'))
-check("the count is the whole file — tour.py writes Circle twice", '2/2' in seen.get("source.found", ""))
+seen = probe('Ctrl+F;Text:Circle;Eval:source.found;Return;Eval:source.found;Return;Eval:source.found')
+# One key, read twice: the strip lands on the first match after the caret, and
+# Enter walks to the next. The count is of the whole file — tour.py writes
+# Circle twice — and it must survive the re-colouring that follows a scroll.
+check("the strip lands on the first match, of the two in the file",
+      seen.get("source.found") == '["1/2"]')
+check("and Enter walks to the next", seen.get("source.found·2") == '["2/2"]')
+check("and Enter again comes back round", seen.get("source.found·3") == '["1/2"]')
 
 section("the keyboard board keeps the keys it hears")
-board = probe('I;Eval:shortcuts.said();Eval:keyFree("markIn")', panel="shortcuts")
-check("a key struck on the board says what it does", board.get("shortcuts.said()") == '["I → Mark in"]')
+board = probe('I;Eval:shortcuts.heading();Eval:shortcuts.bullets().length;Eval:keyFree("markIn")',
+              panel="shortcuts")
+check("a key struck on the board names the action it fires",
+      board.get("shortcuts.heading()") == '["Mark in"]')
+check("and explains it in at most three lines",
+      board.get("shortcuts.bullets().length") in ("[1]", "[2]", "[3]"))
 check("and the shell's own shortcuts stand down while it is open",
       board.get('keyFree("markIn")') == "[false]")
 

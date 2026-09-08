@@ -18,51 +18,88 @@ QtObject {
 
     // What can be rebound, and where it applies. `where` is the group the
     // viewer draws them under.
+    // `says` is what the board prints under a key that was pressed: at most
+    // three short lines, because a fourth is a paragraph and this is a
+    // keyboard. The qualifier line for `only` is DERIVED, not written here —
+    // an action that gains or loses it changes its own explanation with it.
     readonly property var actions: [
-        { id: "definition",  label: "Go to definition",   where: "Code" },
-        { id: "references",  label: "Find every use",     where: "Code" },
-        { id: "rename",      label: "Rename everywhere",  where: "Code" },
-        { id: "back",        label: "Back",               where: "Code" },
-        { id: "forward",     label: "Forward",            where: "Code" },
-        { id: "complete",    label: "Ask for completions", where: "Code" },
-        { id: "save",        label: "Save the buffer",    where: "Code" },
-        { id: "find",        label: "Find in this file",  where: "Code" },
+        { id: "definition",  label: "Go to definition",   where: "Code",
+          says: ["Jumps to where the name under the caret is written.",
+                 "Back brings you here again."] },
+        { id: "references",  label: "Find every use",     where: "Code",
+          says: ["Lists every place the name is used, with the line it sits on.",
+                 "Click a row to go there."] },
+        { id: "rename",      label: "Rename everywhere",  where: "Code",
+          says: ["Renames the word under the caret in every file that uses it.",
+                 "The field opens over the word itself, not in a dialog."] },
+        { id: "back",        label: "Back",               where: "Code",
+          says: ["Returns to where you were before the last jump."] },
+        { id: "forward",     label: "Forward",            where: "Code",
+          says: ["Walks back down the trail Back came up."] },
+        { id: "complete",    label: "Ask for completions", where: "Code",
+          says: ["Asks the analyser what can be written here.",
+                 "It also offers itself as you type a name."] },
+        { id: "save",        label: "Save the buffer",    where: "Code",
+          says: ["Writes the buffer to its file.",
+                 "The scene is the file — nothing else is kept anywhere."] },
+        { id: "find",        label: "Find in this file",  where: "Code",
+          says: ["Opens the find strip over the code.",
+                 "Enter and Shift+Enter walk the matches; the count says which one."] },
 
-        { id: "execute",     label: "Execute the scene",  where: "Scene" },
+        { id: "execute",     label: "Execute the scene",  where: "Scene",
+          says: ["Runs the scene and repaints the preview and the timeline.",
+                 "With an agent edit waiting, it takes the edit first."] },
         // In the Code group, and deliberately: the caret is what it plays
         // from, so it has to work with your hands in the pane.
-        { id: "playFromCaret", label: "Play from this line", where: "Code" },
+        { id: "playFromCaret", label: "Play from this line", where: "Code",
+          says: ["Plays from the moment the caret's line stands at.",
+                 "On a wait() that is the start of the wait; on a timestamp(), its marker."] },
 
         // `only` is the qualifier the board prints beside the key. All five are
         // keys a text editor already owns, so they belong to whichever of the
         // two has the caret — and a board that did not say so would be claiming
         // Space plays while you are writing a scene, which it does not.
-        { id: "play",        label: "Play / pause",       where: "Transport", only: "outside the code pane" },
-        { id: "toStart",     label: "Go to the start",    where: "Transport", only: "outside the code pane" },
-        { id: "toEnd",       label: "Go to the end",      where: "Transport", only: "outside the code pane" },
-        { id: "prevFrame",   label: "Previous frame",     where: "Transport", only: "outside the code pane" },
-        { id: "nextFrame",   label: "Next frame",         where: "Transport", only: "outside the code pane" },
+        { id: "play",        label: "Play / pause",       where: "Transport", only: "outside the code pane",
+          says: ["Plays, or stops where it is.", "At the end, it starts over."] },
+        { id: "toStart",     label: "Go to the start",    where: "Transport", only: "outside the code pane",
+          says: ["Puts the playhead on the first frame."] },
+        { id: "toEnd",       label: "Go to the end",      where: "Transport", only: "outside the code pane",
+          says: ["Puts the playhead on the last frame."] },
+        { id: "prevFrame",   label: "Previous frame",     where: "Transport", only: "outside the code pane",
+          says: ["One frame back."] },
+        { id: "nextFrame",   label: "Next frame",         where: "Transport", only: "outside the code pane",
+          says: ["One frame on."] },
         // The moments the scene named with `timestamp()`. The frame keys with
         // Shift held: the same direction, a bigger step.
-        { id: "prevMarker",  label: "Previous marker",    where: "Transport", only: "outside the code pane" },
-        { id: "nextMarker",  label: "Next marker",        where: "Transport", only: "outside the code pane" },
+        { id: "prevMarker",  label: "Previous marker",    where: "Transport", only: "outside the code pane",
+          says: ["Back to the last moment the scene named with timestamp()."] },
+        { id: "nextMarker",  label: "Next marker",        where: "Transport", only: "outside the code pane",
+          says: ["On to the next moment the scene named with timestamp()."] },
 
         // The range. Two keys every editor on this machine already spells the
         // same way, and one to give the whole scene back.
-        { id: "markIn",      label: "Mark in",            where: "Transport", only: "outside the code pane" },
-        { id: "markOut",     label: "Mark out",           where: "Transport", only: "outside the code pane" },
-        { id: "clearMarks",  label: "Clear the range",    where: "Transport", only: "outside the code pane" }
+        { id: "markIn",      label: "Mark in",            where: "Transport", only: "outside the code pane",
+          says: ["Starts the range here.", "An export with a range renders only that stretch."] },
+        { id: "markOut",     label: "Mark out",           where: "Transport", only: "outside the code pane",
+          says: ["Ends the range here."] },
+        { id: "clearMarks",  label: "Clear the range",    where: "Transport", only: "outside the code pane",
+          says: ["Gives the whole scene back."] }
     ]
 
     // What the system owns. Listed so the board is honest about which keys are
     // taken, but not rebindable here: these are native menu shortcuts, and Qt
     // hands them to macOS rather than to the window.
     readonly property var reserved: [
-        { id: "layout",    label: "Switch arrangement", key: "Cmd+1…4" },
-        { id: "settings",  label: "Settings",           key: "Cmd+," },
-        { id: "shortcuts", label: "This board",         key: "Cmd+/" },
-        { id: "indent",    label: "Four spaces",        key: "Tab" },
-        { id: "dismiss",   label: "Dismiss",            key: "Esc" }
+        { id: "layout",    label: "Switch arrangement", key: "Cmd+1…4",
+          says: ["Switches between the four saved arrangements of the panes."] },
+        { id: "settings",  label: "Settings",           key: "Cmd+,",
+          says: ["Opens Settings — the code theme and how the bin shows media."] },
+        { id: "shortcuts", label: "This board",         key: "Cmd+/",
+          says: ["Opens this board."] },
+        { id: "indent",    label: "Four spaces",        key: "Tab",
+          says: ["Writes four spaces.", "The buffer is Python, and a stray tab is a syntax error."] },
+        { id: "dismiss",   label: "Dismiss",            key: "Esc",
+          says: ["Puts away whatever is on top, one layer at a time."] }
     ]
 
     // The bindings themselves. Replaced wholesale rather than mutated, because a

@@ -1,9 +1,10 @@
 // The board, and what it is bound to.
 //
 // A list of shortcuts tells you what exists; a KEYBOARD tells you where to put
-// your hand, which is the actual question. Hover an action and the whole
-// combination lights up — modifiers included, so there is no layer to switch to;
-// hover a key and it says what it does.
+// your hand, which is the actual question. Press a key and the whole
+// combination lights up — modifiers included, so there is no layer to switch to
+// — and a card under the board says what it does and stays there until the next
+// key. Pointing at an action, or at a cap that carries one thing, says the same.
 //
 // Rebinding is by pressing the keys, not by picking from a list of names: the
 // gesture that sets the shortcut is the gesture that uses it. Everything here
@@ -27,11 +28,10 @@ Item {
     // A rebinding that would have stolen a key, and from whom.
     property string clash: ""
 
-    // The last key actually pressed, and the cap the pointer is on. Pressing
-    // wins: while the panel is open the keyboard belongs to it, and the honest
-    // way to learn what a key does is to hit it and read the answer.
+    // The combination the card under the board is answering for. Set by a key
+    // you press, or by an action you point at, and it STAYS there until
+    // something else replaces it: press, read, press again — nothing to chase.
     property string struck: ""
-    property string hovered: ""
 
     // One row per physical key. The third number widens a key in flex units;
     // "mod" marks the ones that are held rather than struck.
@@ -63,26 +63,61 @@ Item {
         return out.join("   ");
     }
 
-    // What a pressed combination does. The exact combination first; failing
-    // that, whatever else lives on the same cap — "⌘I does nothing" is half an
-    // answer while I on its own marks in.
-    function reading(spec) {
-        if (Keymap.baseOf(spec) === spec && ["Cmd", "Ctrl", "Shift", "Alt"].indexOf(spec) >= 0)
-            return spec + " held — press a combination to see if it is taken";
+    // The one combination that ends on this cap, for pointing at a cap. Empty
+    // when the cap carries nothing, or more than one thing — a cap under two
+    // combinations has no single answer, and the card answers with one.
+    function boundSpec(token) {
+        let out = [];
+        for (const action of Keymap.actions)
+            if (Keymap.baseOf(Keymap.combo(action.id)) === token)
+                out.push(Keymap.combo(action.id));
+        for (const one of Keymap.reserved)
+            if (Keymap.baseOf(one.key) === token)
+                out.push(one.key);
+        return out.length === 1 ? out[0] : "";
+    }
 
-        let exact = [];
+    readonly property var held: ["Cmd", "Ctrl", "Shift", "Alt"]
+
+    // The action a combination fires, or null. Reserved rows answer too: they
+    // are keys the menu bar owns, and "taken by the menu bar" is an answer.
+    function firing(spec) {
         for (const action of Keymap.actions)
             if (Keymap.combo(action.id) === spec)
-                exact.push(action.label);
+                return action;
         for (const one of Keymap.reserved)
             if (one.key === spec)
-                exact.push(one.label);
-        if (exact.length > 0)
-            return spec + " → " + exact.join(", ");
+                return one;
+        return null;
+    }
 
-        const rest = root.boundTo(Keymap.baseOf(spec));
-        return rest.length > 0 ? spec + " → nothing.   on this key: " + rest
-                               : spec + " → nothing";
+    function heading() {
+        const one = root.firing(root.struck);
+        return one !== null ? one.label : "Nothing on it";
+    }
+
+    // At most three lines. The qualifier is added here rather than written into
+    // the table, so an action that gains or loses it says so by itself.
+    function bullets() {
+        const spec = root.struck;
+        if (root.held.indexOf(spec) >= 0)
+            return ["Held on its own. Press a combination to see whether it is taken."];
+
+        const one = root.firing(spec);
+        if (one === null) {
+            // "⌘I does nothing" is half an answer while I on its own marks in.
+            const rest = root.boundTo(Keymap.baseOf(spec));
+            return rest.length > 0
+                   ? ["Nothing is bound to it.", "On this key: " + rest]
+                   : ["Nothing is bound to it."];
+        }
+
+        let out = (one.says !== undefined ? one.says.slice(0, 3) : []);
+        if (one.key !== undefined)
+            out.push("The menu bar answers it, so it cannot be rebound here.");
+        else if (one.only !== undefined && !Keymap.survivesTyping(one.id))
+            out.push("Works " + one.only + " — while the caret is in it, this key writes.");
+        return out.slice(0, 3);
     }
 
     // A modifier struck alone is not a combination: nothing fires, but the cap
@@ -95,27 +130,20 @@ Item {
         return "";
     }
 
-    function light(id) {
-        root.struck = "";
-        const spec = Keymap.combo(id);
-        if (spec.length === 0) {
-            root.hot = [];
+    // One door for both ways in: a key you pressed and an action you pointed at
+    // put the same thing on screen, so the caps and the card can never disagree.
+    function showSpec(spec) {
+        if (spec.length === 0)
             return;
-        }
-        root.hot = Keymap.modsOf(spec).concat([Keymap.baseOf(spec)]);
+        root.struck = spec;
+        root.hot = root.held.indexOf(spec) >= 0
+                   ? [spec]
+                   : Keymap.modsOf(spec).concat([Keymap.baseOf(spec)]);
     }
 
     function stopCapturing() {
         root.capturing = "";
         root.clash = "";
-    }
-
-    // The line under the board. It answers the key you pressed when you pressed
-    // one, and the cap you are pointing at otherwise.
-    function said() {
-        if (root.struck.length > 0)
-            return root.reading(root.struck);
-        return root.hovered.length > 0 ? root.boundTo(root.hovered) : "";
     }
 
     Rectangle {
@@ -135,7 +163,7 @@ Item {
         // the list on the right. Sized from the content rather than fixed,
         // because adding an action must not quietly clip the last row off.
         height: Math.min(
-            Math.max(keyboard.height + 150,
+            Math.max(keyboard.height + 96 + Math.max(answer.height, invite.height + 8),
                      (Keymap.actions.length + Keymap.reserved.length) * 28 + 92),
             root.height - 60)
         color: Theme.panel
@@ -239,8 +267,7 @@ Item {
                                     id: keyHit
                                     anchors.fill: parent
                                     hoverEnabled: true
-                                    onEntered: { root.struck = ""; root.hovered = cap.token; }
-                                    onExited: root.hovered = ""
+                                    onEntered: root.showSpec(root.boundSpec(cap.token))
                                 }
                             }
                         }
@@ -292,48 +319,87 @@ Item {
             }
         }
 
+        // ── What the last key does ────────────────────────────────────────
+        // An invitation until you press something, then a card: the action's
+        // name, the keys you held, and what it does in at most three lines. It
+        // stays until the next key replaces it — press, read, press again,
+        // with nothing to chase and nothing to hover.
         Text {
-            id: legend
-            anchors {
-                left: keyboard.left; right: keyboard.right
-                top: sides.bottom; topMargin: 10
-            }
-            text: root.said()
-            color: root.struck.length > 0 ? Theme.ink : Theme.inkDim
-            font.family: Theme.mono
-            font.pixelSize: 11
-            elide: Text.ElideRight
+            id: invite
+            anchors { left: keyboard.left; top: sides.bottom; topMargin: 16 }
+            visible: root.struck.length === 0
+            text: "Press any key"
+            color: Theme.inkDim
+            font.family: Theme.ui
+            font.pixelSize: 17
         }
 
-        Text {
-            anchors { left: keyboard.left; right: keyboard.right; top: legend.bottom; topMargin: 6 }
-            // The second sentence is DERIVED, not written: it names the actions
-            // Keymap says are qualified, so an action that gains or loses the
-            // qualifier changes this line with it. The column beside the board
-            // is too narrow to carry it per row — an ellipsis over a caveat is
-            // not a caveat.
-            text: {
-                // Only the ones a caret really takes: an action whose
-                // combination holds ⌘, ⌃ or ⌥ is not something anyone types,
-                // so it works wherever you are and saying otherwise would be
-                // the board lying about the keyboard.
-                let qualified = [];
-                for (const action of Keymap.actions)
-                    if (action.only !== undefined && !Keymap.survivesTyping(action.id))
-                        qualified.push(action.label.toLowerCase());
-                let line = "Press any key — it stops here, lights up and says what it does. "
-                         + "Hover an action to light the keys you press for it; "
-                         + "click its combination and press the new one.";
-                if (qualified.length > 0)
-                    line += "\n" + qualified.join(", ")
-                          + " work " + Keymap.actions.find(a => a.only !== undefined).only
-                          + " — while the caret is in it, those keys write.";
-                return line;
+        Rectangle {
+            id: answer
+            anchors {
+                left: keyboard.left; right: keyboard.right
+                top: sides.bottom; topMargin: 12
             }
-            color: Theme.inkFaint
-            font.family: Theme.ui
-            font.pixelSize: 11
-            wrapMode: Text.Wrap
+            visible: root.struck.length > 0
+            height: name.height + says.height + 26
+            radius: Theme.radius
+            color: Theme.sunk
+            border.width: 1
+            border.color: Theme.edge
+
+            Text {
+                id: name
+                anchors { left: parent.left; leftMargin: 14; right: chip.left; rightMargin: 10; top: parent.top; topMargin: 12 }
+                text: root.struck.length > 0 ? root.heading() : ""
+                color: Theme.ink
+                font.family: Theme.ui
+                font.pixelSize: 14
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+            }
+
+            // The keys themselves, written the way the caps are.
+            Rectangle {
+                id: chip
+                anchors { right: parent.right; rightMargin: 14; verticalCenter: name.verticalCenter }
+                width: Math.max(pressed.implicitWidth + 16, 40)
+                height: 22
+                radius: Theme.radiusSmall
+                color: Qt.alpha(Theme.live, 0.18)
+                border.width: 1
+                border.color: Theme.live
+
+                Text {
+                    id: pressed
+                    anchors.centerIn: parent
+                    text: root.struck.replace(/Cmd/g, "⌘").replace(/Ctrl/g, "⌃")
+                                     .replace(/Shift/g, "⇧").replace(/Alt/g, "⌥")
+                                     .replace(/\+/g, "")
+                    color: Theme.live
+                    font.family: Theme.mono
+                    font.pixelSize: 11
+                }
+            }
+
+            Column {
+                id: says
+                anchors { left: parent.left; leftMargin: 14; right: parent.right; rightMargin: 14; top: name.bottom; topMargin: 6 }
+                spacing: 2
+
+                Repeater {
+                    model: root.struck.length > 0 ? root.bullets() : []
+
+                    Text {
+                        required property string modelData
+                        width: says.width
+                        text: "·  " + modelData
+                        color: Theme.inkDim
+                        font.family: Theme.ui
+                        font.pixelSize: 12
+                        wrapMode: Text.Wrap
+                    }
+                }
+            }
         }
 
         // ── The actions ───────────────────────────────────────────────────
@@ -441,7 +507,7 @@ Item {
                         id: rowHit
                         anchors.fill: parent
                         hoverEnabled: true
-                        onEntered: root.light(row.fixed ? "" : row.modelData.id)
+                        onEntered: root.showSpec(row.spec)
                         onExited: root.hot = []
                         onClicked: {
                             if (row.fixed)
@@ -479,16 +545,7 @@ Item {
 
         if (root.capturing.length === 0) {
             const mod = root.modifierToken(event.key);
-            if (mod.length > 0) {
-                root.struck = mod;
-                root.hot = [mod];
-                return;
-            }
-            const pressed = Keymap.comboFrom(event);
-            if (pressed.length === 0)
-                return;
-            root.struck = pressed;
-            root.hot = Keymap.modsOf(pressed).concat([Keymap.baseOf(pressed)]);
+            root.showSpec(mod.length > 0 ? mod : Keymap.comboFrom(event));
             return;
         }
 
@@ -516,7 +573,6 @@ Item {
             stopCapturing();
             hot = [];
             struck = "";
-            hovered = "";
         }
     }
 }
