@@ -68,7 +68,7 @@ Item {
     // answer while I on its own marks in.
     function reading(spec) {
         if (Keymap.baseOf(spec) === spec && ["Cmd", "Ctrl", "Shift", "Alt"].indexOf(spec) >= 0)
-            return spec + " held — press the key it goes with";
+            return spec + " held — press a combination to see if it is taken";
 
         let exact = [];
         for (const action of Keymap.actions)
