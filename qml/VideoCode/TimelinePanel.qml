@@ -173,7 +173,12 @@ Item {
 
 
     readonly property real contentWidth: span * pxPerSecond
-    readonly property int laneHeight: 48
+    // Half of what it was. A lane is a row in a map, and the map is the whole
+    // point: twice as many elements on screen without scrolling is worth more
+    // than the waveform the extra height was carrying — a drawn pseudo-waveform
+    // says "this has sound", which one glyph beside the name says as well and in
+    // a fifth of the room.
+    readonly property int laneHeight: 24
     // Blank strip kept to the left of time zero. Wide enough for the playhead's
     // handle to sit at 0 without touching the panel's edge — and, since every
     // ruler stamp is centred on the line it names, wide enough for the FIRST one
@@ -407,13 +412,13 @@ Item {
                     Rectangle {
                         id: bar
                         x: (lane.modelData.l + bar.heldIn) * root.pxPerSecond
-                        y: 5
+                        y: 3
                         width: Math.max(
                             (lane.modelData.d - bar.heldIn + bar.heldOut) * root.pxPerSecond - 2, 8)
                         // The LANE grows when it opens; the bar does not. It is
                         // still one clip, and a clip that swells to hold its own
                         // contents stops reading as a clip.
-                        height: root.laneHeight - 10
+                        height: root.laneHeight - 6
                         radius: 4
 
                         readonly property bool away: root.openedName.length > 0
@@ -463,52 +468,6 @@ Item {
                             }
                         }
 
-                        // The waveform is one bar per tenth of a second, so each
-                        // bar is exactly one snap step wide and the whole row
-                        // reads as the same grid everything else is measured on.
-                        Row {
-                            id: wave
-                            visible: !bar.away
-                                     && (lane.modelData.kind === "video" || lane.modelData.kind === "sound")
-                            anchors {
-                                left: parent.left; right: parent.right
-                                top: label.bottom; bottom: parent.bottom
-                                leftMargin: 4; rightMargin: 4
-                                topMargin: 3; bottomMargin: 4
-                            }
-                            spacing: 0
-
-                            Repeater {
-                                model: Math.max(Math.round(lane.modelData.d * 10), 1)
-
-                                Item {
-                                    required property int index
-                                    // Divide the row the bars actually live in,
-                                    // not the clip: measuring the clip and then
-                                    // insetting the row by its own margins made
-                                    // the waveform exactly those margins too
-                                    // wide, so it ran out past the right edge.
-                                    width: Math.max(wave.width / Math.max(Math.round(lane.modelData.d * 10), 1), 1)
-                                    // `parent` is null while a delegate is being
-                                    // built or torn down, and the model is
-                                    // replaced wholesale on every run.
-                                    height: wave.height
-
-                                    Rectangle {
-                                        anchors.centerIn: parent
-                                        width: Math.max(parent.width - 1, 1)
-                                        // Deterministic pseudo-waveform: it must
-                                        // not reshuffle on every re-render.
-                                        height: parent.height * (0.22 + 0.78 * Math.abs(
-                                            Math.sin(parent.index * 0.7)
-                                            * Math.cos(parent.index * 0.21)
-                                            * Math.sin(parent.index * 0.05 + 1)))
-                                        color: Qt.alpha(Theme.kind[lane.modelData.kind], 0.55)
-                                    }
-                                }
-                            }
-                        }
-
                         // The name sits on a band of its own along the top of
                         // the clip, the way every NLE that has to write over a
                         // waveform does it. Outlined text on top of the waveform
@@ -520,9 +479,7 @@ Item {
                         Rectangle {
                             id: label
                             visible: !bar.away
-                            anchors { left: parent.left; right: parent.right; top: parent.top }
-                            anchors.margins: 1
-                            height: 16
+                            anchors { fill: parent; margins: 1 }
                             topLeftRadius: 3
                             topRightRadius: 3
                             color: Qt.alpha(Theme.kind[lane.modelData.kind], 0.92)
@@ -589,6 +546,20 @@ Item {
                                     font.pixelSize: 11
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
+                                }
+
+                                // This clip carries sound. It stands where the
+                                // waveform used to run, and says the same thing:
+                                // the waveform was never read for its shape —
+                                // it is a deterministic squiggle, not the file's
+                                // own — only for the fact that it was there.
+                                KindGlyph {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: lane.modelData.kind === "video"
+                                             || lane.modelData.kind === "sound"
+                                    kind: "volume"
+                                    size: 9
+                                    tint: Qt.rgba(0.04, 0.06, 0.09, 0.62)
                                 }
 
                                 // How many things one line made. A loop, or a

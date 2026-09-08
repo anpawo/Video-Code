@@ -23,6 +23,7 @@ Item {
     })
 
     readonly property bool drawn: kind === "video" || kind === "image" || kind === "sound"
+                                 || kind === "volume"
 
     implicitWidth: size
     implicitHeight: size
@@ -97,6 +98,32 @@ Item {
                 ctx.lineTo(width * 0.95, height * 0.8);
                 ctx.closePath();
                 ctx.fill();
+                return;
+            }
+
+            if (root.kind === "volume") {
+                // A speaker: the cone as one filled shape, then two arcs coming
+                // off it. Says "this clip carries sound" on a video as well as on
+                // a sound, which the note cannot — a note on a video reads as
+                // music rather than as audio.
+                ctx.beginPath();
+                ctx.moveTo(width * 0.06, height * 0.36);
+                ctx.lineTo(width * 0.26, height * 0.36);
+                ctx.lineTo(width * 0.48, height * 0.14);
+                ctx.lineTo(width * 0.48, height * 0.86);
+                ctx.lineTo(width * 0.26, height * 0.64);
+                ctx.lineTo(width * 0.06, height * 0.64);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.lineCap = "round";
+                ctx.lineWidth = Math.max(root.size * 0.1, 1);
+                for (const r of [0.16, 0.3]) {
+                    ctx.beginPath();
+                    ctx.arc(width * 0.48, height * 0.5, width * (0.16 + r),
+                            -Math.PI / 3, Math.PI / 3);
+                    ctx.stroke();
+                }
                 return;
             }
 
