@@ -56,7 +56,10 @@ def probe(keys: str, panel: str = "") -> dict[str, str]:
 
 
 section("⌘F finds text in the open file")
-seen = probe('Ctrl+F;Text:Circle;Eval:source.found;Return;Eval:source.found;Return;Eval:source.found')
+# The caret has to be in the pane first, and which pane opens focused is the
+# saved arrangement's business — not this test's.
+seen = probe('Eval:showPanel("code");Eval:source.takeFocus();'
+             'Ctrl+F;Text:Circle;Eval:source.found;Return;Eval:source.found;Return;Eval:source.found')
 # One key, read twice: the strip lands on the first match after the caret, and
 # Enter walks to the next. The count is of the whole file — tour.py writes
 # Circle twice — and it must survive the re-colouring that follows a scroll.
@@ -74,6 +77,15 @@ check("and explains it in at most three lines",
       board.get("shortcuts.bullets().length") in ("[1]", "[2]", "[3]"))
 check("and the shell's own shortcuts stand down while it is open",
       board.get('keyFree("markIn")') == "[false]")
+
+section("the two ⌘ keys are two keys")
+# The side bits ride on nativeModifiers(), which a synthesised key event does
+# not carry — so the rule is asked directly rather than through a keypress.
+sides = probe('Eval:"" + shortcuts.sideLit(1, "Cmd", false) + shortcuts.sideLit(1, "Cmd", true)'
+              ' + shortcuts.sideLit(2, "Cmd", false) + shortcuts.sideLit(0, "Cmd", true)',
+              panel="shortcuts")
+check("the ⌘ under your thumb lights, and only that one",
+      list(sides.values()) == ['["truefalsefalsetrue"]'])
 
 section("escape is the one key it lets through")
 out = probe('Escape;Eval:shortcuts.visible', panel="shortcuts")

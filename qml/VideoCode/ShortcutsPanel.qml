@@ -45,9 +45,9 @@ Item {
         [["caps", "CapsLock", 2], ["A", "A"], ["S", "S"], ["D", "D"], ["F", "F"], ["G", "G"], ["H", "H"],
          ["J", "J"], ["K", "K"], ["L", "L"], [";", ";"], ["'", "'"], ["⏎", "Enter", 2]],
         [["⇧", "Shift", 2.5, "mod"], ["Z", "Z"], ["X", "X"], ["C", "C"], ["V", "V"], ["B", "B"],
-         ["N", "N"], ["M", "M"], [",", ","], [".", "."], ["/", "/"], ["⇧", "Shift", 2.5, "mod"]],
+         ["N", "N"], ["M", "M"], [",", ","], [".", "."], ["/", "/"], ["⇧", "Shift", 2.5, "modR"]],
         [["⌃", "Ctrl", 1.5, "mod"], ["⌥", "Alt", 1.5, "mod"], ["⌘", "Cmd", 1.5, "mod"],
-         ["space", "Space", 6], ["⌘", "Cmd", 1.5, "mod"], ["⌥", "Alt", 1.5, "mod"],
+         ["space", "Space", 6], ["⌘", "Cmd", 1.5, "modR"], ["⌥", "Alt", 1.5, "modR"],
          ["←", "←"], ["↑", "↑"], ["↓", "↓"], ["→", "→"]]
     ]
 
@@ -78,6 +78,37 @@ Item {
     }
 
     readonly property var held: ["Cmd", "Ctrl", "Shift", "Alt"]
+
+    // ── The two ⌘ keys are two keys ───────────────────────────────────────
+    // Qt cannot tell them apart — `Qt.AltModifier` means "an Alt key" — but
+    // macOS reports the side beside the ordinary flags and the shell reads it
+    // off every event. Lighting BOTH caps was the board claiming a keyboard has
+    // one ⌘ in two places; the one under your thumb is the one that answered.
+    //
+    // Left and right bits, in the order the shell packs them.
+    readonly property var sideBits: ({
+        "Cmd":   [1 << 0, 1 << 1], "Alt":  [1 << 2, 1 << 3],
+        "Shift": [1 << 4, 1 << 5], "Ctrl": [1 << 6, 1 << 7]
+    })
+
+    // Split in two so the rule can be checked without a keyboard: the bits come
+    // from `nativeModifiers()`, which a synthesised key event does not carry, so
+    // nothing about the sides is reachable from a scripted run otherwise.
+    function sideLit(bits, token, right) {
+        const pair = root.sideBits[token];
+        if (pair === undefined)
+            return true;
+        // Nothing of that modifier is physically down, so the card is
+        // describing a BINDING — and ⌘S does not name a side. Both caps are
+        // then places you could put your hand, and both light.
+        if ((bits & (pair[0] | pair[1])) === 0)
+            return true;
+        return (bits & pair[right ? 1 : 0]) !== 0;
+    }
+
+    function sideDown(token, right) {
+        return root.sideLit(Shell.modifierSides, token, right);
+    }
 
     // The action a combination fires, or null. Reserved rows answer too: they
     // are keys the menu bar owns, and "taken by the menu bar" is an answer.
@@ -141,6 +172,12 @@ Item {
                    : Keymap.modsOf(spec).concat([Keymap.baseOf(spec)]);
     }
 
+    // Held as a property, not called from the Repeater: a function in a model
+    // hands back a NEW array whenever anything it read changes, and every one of
+    // those destroys and rebuilds the lines. This changes when the combination
+    // does, which is once per key.
+    readonly property var lines: root.struck.length > 0 ? root.bullets() : []
+
     function stopCapturing() {
         root.capturing = "";
         root.clash = "";
@@ -163,7 +200,7 @@ Item {
         // the list on the right. Sized from the content rather than fixed,
         // because adding an action must not quietly clip the last row off.
         height: Math.min(
-            Math.max(keyboard.height + 96 + Math.max(answer.height, invite.height + 8),
+            Math.max(keyboard.height + 96 + 104,
                      (Keymap.actions.length + Keymap.reserved.length) * 28 + 92),
             root.height - 60)
         color: Theme.panel
@@ -244,8 +281,10 @@ Item {
                                 required property var modelData
                                 readonly property real units: cap.modelData.length > 2 ? cap.modelData[2] : 1
                                 readonly property string token: cap.modelData[1]
-                                readonly property bool lit: root.hot.indexOf(cap.token) >= 0
                                 readonly property bool held: cap.modelData.length > 3
+                                readonly property bool rightHand: cap.held && cap.modelData[3] === "modR"
+                                readonly property bool lit: root.hot.indexOf(cap.token) >= 0
+                                                            && root.sideDown(cap.token, cap.rightHand)
 
                                 width: line.unit * cap.units
                                 height: 30
@@ -276,49 +315,6 @@ Item {
             }
         }
 
-        // Which modifier is PHYSICALLY down, left or right.
-        //
-        // Qt cannot tell the two ⌥ keys apart — `Qt.AltModifier` means "an Alt
-        // key" — but macOS reports the side beside the ordinary flags, and the
-        // shell reads them off every key event. Shown here because a claim
-        // about a keyboard is worth nothing until you have pressed the key and
-        // seen it answer.
-        Row {
-            id: sides
-            anchors { left: keyboard.left; top: keyboard.bottom; topMargin: 12 }
-            spacing: 6
-            visible: Shell.modifierSides !== 0
-
-            Repeater {
-                model: [
-                    { bit: 1 << 4, label: "⇧ gauche" }, { bit: 1 << 5, label: "⇧ droite" },
-                    { bit: 1 << 6, label: "⌃ gauche" }, { bit: 1 << 7, label: "⌃ droite" },
-                    { bit: 1 << 2, label: "⌥ gauche" }, { bit: 1 << 3, label: "⌥ droite" },
-                    { bit: 1 << 0, label: "⌘ gauche" }, { bit: 1 << 1, label: "⌘ droite" }
-                ]
-
-                Rectangle {
-                    required property var modelData
-                    visible: (Shell.modifierSides & modelData.bit) !== 0
-                    width: side.implicitWidth + 14
-                    height: 20
-                    radius: Theme.radiusSmall
-                    color: Qt.alpha(Theme.live, 0.18)
-                    border.width: 1
-                    border.color: Theme.live
-
-                    Text {
-                        id: side
-                        anchors.centerIn: parent
-                        text: parent.modelData.label
-                        color: Theme.live
-                        font.family: Theme.mono
-                        font.pixelSize: 10
-                    }
-                }
-            }
-        }
-
         // ── What the last key does ────────────────────────────────────────
         // An invitation until you press something, then a card: the action's
         // name, the keys you held, and what it does in at most three lines. It
@@ -326,7 +322,7 @@ Item {
         // with nothing to chase and nothing to hover.
         Text {
             id: invite
-            anchors { left: keyboard.left; top: sides.bottom; topMargin: 16 }
+            anchors { left: keyboard.left; top: keyboard.bottom; topMargin: 20 }
             visible: root.struck.length === 0
             text: "Press any key"
             color: Theme.inkDim
@@ -338,7 +334,7 @@ Item {
             id: answer
             anchors {
                 left: keyboard.left; right: keyboard.right
-                top: sides.bottom; topMargin: 12
+                top: keyboard.bottom; topMargin: 16
             }
             visible: root.struck.length > 0
             height: name.height + says.height + 26
@@ -387,7 +383,7 @@ Item {
                 spacing: 2
 
                 Repeater {
-                    model: root.struck.length > 0 ? root.bullets() : []
+                    model: root.lines
 
                     Text {
                         required property string modelData
@@ -508,7 +504,6 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         onEntered: root.showSpec(row.spec)
-                        onExited: root.hot = []
                         onClicked: {
                             if (row.fixed)
                                 return;
