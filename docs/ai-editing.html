@@ -1,0 +1,530 @@
+<title>Le montage assisté</title>
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap">
+
+<style>
+  /* Les jetons de l'application — Theme.qml, comme le tableau de chantier.
+     Ce rapport est une pièce du même chantier ; il en porte les couleurs. */
+  :root {
+    --ground: #f4f5f8;
+    --panel: #ffffff;
+    --sunk: #eceff5;
+    --edge: #d3d9e4;
+    --edge-soft: #e6eaf1;
+    --ink: #171b23;
+    --ink-dim: #4e5769;
+    --ink-faint: #838da1;
+    --live: #c04d1c;
+    --ok: #2f8f60;
+    --warn: #a9781f;
+    --ai: #35709f;
+    --bad: #c2453f;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --ui: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --read: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  }
+
+  :root:not([data-theme="light"]) {
+    @media (prefers-color-scheme: dark) {
+      --ground: #0d1015;
+      --panel: #151922;
+      --sunk: #0a0d12;
+      --edge: #2a3140;
+      --edge-soft: #1e242f;
+      --ink: #e6eaf2;
+      --ink-dim: #9aa3b5;
+      --ink-faint: #6b7488;
+      --live: #f0703c;
+      --ok: #4fbe86;
+      --warn: #d9a94e;
+      --ai: #6aa6e0;
+      --bad: #e0605c;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0d1015;
+    --panel: #151922;
+    --sunk: #0a0d12;
+    --edge: #2a3140;
+    --edge-soft: #1e242f;
+    --ink: #e6eaf2;
+    --ink-dim: #9aa3b5;
+    --ink-faint: #6b7488;
+    --live: #f0703c;
+    --ok: #4fbe86;
+    --warn: #d9a94e;
+    --ai: #6aa6e0;
+    --bad: #e0605c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--read);
+    font-size: 16px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 24px 96px; }
+  .col { max-width: 68ch; }
+
+  /* ── L'en-tête : une bande de timecode, parce que c'est le sujet ─────── */
+  header {
+    padding: 56px 0 28px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .tc {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .14em;
+    text-transform: uppercase; color: var(--live);
+    display: flex; flex-wrap: wrap; gap: 6px 18px; margin-bottom: 22px;
+  }
+  .tc span { color: var(--ink-faint); }
+  h1 {
+    font-family: var(--read); font-weight: 600; font-size: clamp(34px, 6vw, 56px);
+    line-height: 1.02; letter-spacing: -.02em; margin: 0 0 18px; text-wrap: balance;
+    max-width: 20ch;
+  }
+  .lede {
+    font-size: 19px; line-height: 1.55; color: var(--ink-dim);
+    max-width: 62ch; margin: 0;
+  }
+  .lede b { color: var(--ink); font-weight: 600; }
+
+  h2 {
+    font-family: var(--ui); font-weight: 600; font-size: 13px;
+    letter-spacing: .12em; text-transform: uppercase; color: var(--live);
+    margin: 72px 0 6px; padding-bottom: 8px; border-bottom: 1px solid var(--edge);
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  h2 em {
+    font-style: normal; font-family: var(--mono); font-size: 11px;
+    letter-spacing: 0; text-transform: none; color: var(--ink-faint);
+    margin-left: auto;
+  }
+  h3 {
+    font-family: var(--read); font-weight: 600; font-size: 22px;
+    letter-spacing: -.01em; margin: 34px 0 8px; text-wrap: balance;
+  }
+  p { margin: 0 0 16px; }
+  a { color: var(--ai); }
+  code {
+    font-family: var(--mono); font-size: .88em;
+    background: var(--sunk); border: 1px solid var(--edge-soft);
+    border-radius: 3px; padding: 1px 5px;
+  }
+  strong { font-weight: 600; }
+
+  .say {
+    font-family: var(--ui); font-size: 14.5px; line-height: 1.55;
+    color: var(--ink-dim);
+  }
+
+  /* ── Le verdict, posé haut ───────────────────────────────────────────── */
+  .verdict {
+    margin: 40px 0 0; padding: 24px 26px;
+    background: var(--panel); border: 1px solid var(--edge);
+    border-left: 3px solid var(--live); border-radius: 0 6px 6px 0;
+  }
+  .verdict p { margin: 0 0 12px; font-size: 17px; }
+  .verdict p:last-child { margin: 0; }
+
+  /* ── Le schéma : l'axe qui sépare vraiment les quatre familles ───────── */
+  figure { margin: 34px 0 8px; }
+  figure svg { display: block; width: 100%; height: auto; }
+  figcaption {
+    font-family: var(--ui); font-size: 12.5px; color: var(--ink-faint);
+    margin-top: 10px; max-width: 66ch;
+  }
+
+  /* ── Les familles ────────────────────────────────────────────────────── */
+  .fams { display: grid; gap: 14px; margin: 26px 0 0; }
+  @media (min-width: 900px) { .fams { grid-template-columns: 1fr 1fr; } }
+
+  .fam {
+    background: var(--panel); border: 1px solid var(--edge-soft);
+    border-radius: 6px; padding: 20px 22px 18px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .fam > header {
+    padding: 0; border: 0; display: flex; align-items: baseline; gap: 10px;
+  }
+  .fam h3 { margin: 0; font-size: 19px; }
+  .fam .who {
+    margin-left: auto; font-family: var(--mono); font-size: 10.5px;
+    color: var(--ink-faint); white-space: nowrap;
+  }
+  .fam .body { font-size: 15px; line-height: 1.55; color: var(--ink-dim); margin: 0; }
+  .fam .body b { color: var(--ink); font-weight: 600; }
+  .ledger { display: grid; gap: 4px; margin-top: 2px; }
+  .ledger div {
+    font-family: var(--ui); font-size: 13.5px; line-height: 1.45;
+    display: grid; grid-template-columns: 16px 1fr; gap: 8px; align-items: start;
+  }
+  .ledger .p::before { content: "+"; color: var(--ok); font-family: var(--mono); font-weight: 600; }
+  .ledger .m::before { content: "−"; color: var(--bad); font-family: var(--mono); font-weight: 600; }
+  .ledger .p, .ledger .m { color: var(--ink-dim); }
+
+  /* ── Les tableaux ────────────────────────────────────────────────────── */
+  .scroll { overflow-x: auto; margin: 22px 0 0; border: 1px solid var(--edge-soft); border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; min-width: 780px; background: var(--panel); }
+  th, td {
+    text-align: left; vertical-align: top; padding: 10px 14px;
+    border-bottom: 1px solid var(--edge-soft);
+    font-family: var(--ui); font-size: 13.5px; line-height: 1.45;
+  }
+  th {
+    font-size: 10.5px; letter-spacing: .09em; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 600; background: var(--sunk);
+    border-bottom: 1px solid var(--edge); position: sticky; top: 0;
+  }
+  tbody tr:last-child td { border-bottom: 0; }
+  td:first-child { font-weight: 600; color: var(--ink); white-space: nowrap; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink-dim); }
+  .tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .04em;
+    padding: 2px 7px; border-radius: 3px; white-space: nowrap;
+    border: 1px solid currentColor;
+  }
+  .t-out { color: var(--ai); }
+  .t-gen { color: var(--warn); }
+  .t-drv { color: var(--live); }
+  .t-cod { color: var(--ok); }
+
+  /* ── Le trou, et ce qu'on a déjà ─────────────────────────────────────── */
+  .gap {
+    margin: 26px 0 0; padding: 22px 24px;
+    background: var(--sunk); border: 1px solid var(--edge); border-radius: 6px;
+  }
+  .gap h3 { margin-top: 0; }
+  .have { display: grid; gap: 0; margin-top: 18px; }
+  .have div {
+    display: grid; grid-template-columns: 190px 1fr; gap: 16px;
+    padding: 9px 0; border-top: 1px solid var(--edge-soft);
+    font-family: var(--ui); font-size: 13.5px; line-height: 1.5; color: var(--ink-dim);
+  }
+  .have div:first-child { border-top: 0; }
+  .have code { background: none; border: 0; padding: 0; color: var(--live); font-size: 13px; }
+  @media (max-width: 620px) { .have div { grid-template-columns: 1fr; gap: 2px; } }
+
+  /* ── Les sources ─────────────────────────────────────────────────────── */
+  ol.src { font-family: var(--ui); font-size: 13px; line-height: 1.6; color: var(--ink-faint);
+           padding-left: 20px; margin: 18px 0 0; }
+  ol.src li { margin-bottom: 5px; }
+  ol.src a { color: var(--ai); text-decoration: none; }
+  ol.src a:hover { text-decoration: underline; }
+
+  a:focus-visible, :focus-visible { outline: 2px solid var(--live); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <div class="tc">
+      8 septembre 2026 <span>·</span> recherche demandée à 05:00 <span>·</span>
+      Premiere Pro, Resolve, Final Cut, CapCut, Descript, Runway, Remotion
+    </div>
+    <h1>Quatre façons de laisser une IA monter</h1>
+    <p class="lede">Adobe vient de mettre un <b>agent conversationnel</b> dans Premiere Pro. Ce n'est
+      pas la même chose que les outils IA qu'il avait déjà, et ce n'est pas non plus ce que font
+      Descript, Runway ou CapCut. Il y a quatre familles, elles se distinguent par une seule
+      question — <b>à quelle distance de l'image la main humaine reste</b> — et une seule d'entre
+      elles n'a encore réglé son problème central.</p>
+  </header>
+
+  <div class="verdict">
+    <p><b>Le verdict en trois phrases.</b> Premiere fait de l'IA à trois étages empilés en six ans :
+      des outils qu'on appelle, des pixels qu'on fabrique, et depuis juin un agent qui pilote
+      l'application à ta place — mais il s'arrête au bout rush, tout passe par le cloud, et il
+      n'invente aucune image.</p>
+    <p>La famille que personne n'a fini, c'est la quatrième : <b>l'IA qui écrit le code qui fait la
+      vidéo</b>. Remotion y est arrivé en janvier 2026 et s'est cogné au mur que tout le monde a :
+      un agent qui génère une animation <b>n'a aucun moyen de vérifier son propre travail</b>. « Ça
+      compile » n'est pas « c'est bien ».</p>
+    <p>Video-code est dans cette quatrième famille, et a déjà construit exactement ce qui manque
+      aux autres.</p>
+  </div>
+
+  <h2>1 · Ce que fait Premiere Pro <em>trois étages, six ans</em></h2>
+
+  <div class="col">
+    <h3>Étage 1 — l'outil qu'on appelle</h3>
+    <p class="say">Le plus ancien et le plus utilisé. Une fonction dans un menu, un modèle derrière,
+      un résultat qu'on accepte ou qu'on jette. L'éditeur décide quand, où et sur quoi.</p>
+  </div>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Fonction</th><th>Ce qu'elle fait</th><th>Ce qui casse</th></tr></thead>
+      <tbody>
+        <tr><td>Text-Based Editing</td><td>Transcrit le rush, tu montes en supprimant des mots du texte ; la timeline suit</td><td>Rien si le son est propre ; tout si l'accent ou le bruit fait rater la transcription</td></tr>
+        <tr><td>Enhance Speech</td><td>Débruite une voix jusqu'à un rendu « cabine »</td><td>Sur-traite les voix déjà propres, écrase les respirations</td></tr>
+        <tr><td>Auto Reframe</td><td>Suit le sujet et recadre un 16:9 en 9:16, 1:1, 4:3</td><td>Choisit le mauvais sujet dès qu'il y en a deux</td></tr>
+        <tr><td>Scene Edit Detection</td><td>Repose les coupes dans un fichier déjà monté</td><td>Lit un fondu, un travelling rapide ou un shake comme une coupe</td></tr>
+        <tr><td>Auto Ducking</td><td>Écrit les images-clés qui baissent la musique sous la voix</td><td>Une seule courbe, jamais la bonne sur un mix serré</td></tr>
+        <tr><td>Media Intelligence</td><td>Cherche un plan par sa description, sans l'avoir tagué</td><td>Cherche ce que le modèle a vu, pas ce que tu voulais dire</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <h3>Étage 2 — les pixels fabriqués</h3>
+    <p class="say"><strong>Generative Extend</strong> (Firefly, 4K depuis avril 2025) : tu tires le
+      bord d'un clip et le modèle invente la suite — <strong>2 secondes de vidéo</strong>,
+      <strong>10 secondes d'audio</strong>. Tenir une réaction un temps de plus, rattraper une
+      transition, cacher un mouvement de caméra parasite. C'est tout, et c'est délibéré : deux
+      secondes, ça bouche un trou, ça ne raconte rien.</p>
+    <p class="say">L'argument d'Adobe n'est pas la qualité, c'est le <strong>droit</strong> : Firefly
+      n'est entraîné que sur Adobe Stock et du domaine public, jamais sur les fichiers des clients,
+      et Adobe paie les frais de justice si un plan généré déclenche une plainte. C'est le seul
+      modèle qu'une agence peut mettre dans une pub sans réfléchir. Sora et Veo sont meilleurs et
+      juridiquement nus.</p>
+
+    <h3>Étage 3 — l'agent qui pilote l'application <span class="tag t-drv">nouveau</span></h3>
+    <p class="say"><strong>Premiere AI Assistant</strong>, bêta publique le 18 juin 2026. Un panneau
+      de chat dans Premiere. Tu écris en français ce que tu veux, il le fait — dans le panneau
+      Projet et dans la timeline.</p>
+    <p class="say">Ce qu'il fait : ranger les rushes en chutiers, renommer et colorer les clips par
+      lot, synchroniser un multicam, lire les transcriptions, repérer les claps, poser des marqueurs,
+      trouver les questions d'une interview, et <strong>assembler un ours</strong> — un premier
+      montage bout à bout. Il apprend tes habitudes. Tout ce qu'il fait passe par la pile d'annulation
+      et s'affiche dans l'historique.</p>
+    <p class="say">Ce qu'il ne fait pas, et Adobe le dit : <strong>aucune image nouvelle</strong>,
+      pas d'étalonnage, pas de sous-titres, pas de détection de moments courts, pas de recadrage
+      vertical, pas de publication. Il s'arrête à l'ours long.</p>
+  </div>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Le point</th><th>Ce qu'on sait</th></tr></thead>
+      <tbody>
+        <tr><td>Où ça tourne</td><td>Cloud, pas d'option locale. Ce que tu tapes dans le chat sort de la machine — problème réel sur du rush sous NDA</td></tr>
+        <tr><td>Le prix</td><td>Inclus dans Premiere (~23 $/mois annuel). Gratuit en bêta sans toucher aux crédits Firefly ; Adobe a annoncé une facturation au calcul ensuite</td></tr>
+        <tr><td>Les quotas</td><td>Des testeurs épuisent leur capacité en une journée sur un projet simple</td></tr>
+        <tr><td>L'annulation</td><td>Réversible — sauf si tu continues à travailler pendant qu'il travaille : les deux se mélangent dans l'historique et ⌘Z ne fait plus ce que tu crois</td></tr>
+        <tr><td>La fiabilité</td><td>Bêta assumée. Des tâches échouent au premier essai et demandent une reformulation</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>2 · Les quatre familles <em>l'axe, c'est la distance à l'image</em></h2>
+
+  <figure>
+    <svg viewBox="0 0 900 268" role="img" aria-label="Les quatre familles placées sur un axe allant de « la main sur l'image » à « la main sur l'intention »">
+      <defs>
+        <marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3.2" orient="auto">
+          <path d="M0,0 L7,3.2 L0,6.4 z" fill="currentColor"/>
+        </marker>
+      </defs>
+      <g style="color: var(--ink-faint)">
+        <line x1="52" y1="212" x2="848" y2="212" stroke="currentColor" stroke-width="1.5" marker-end="url(#ar)"/>
+      </g>
+      <text x="52" y="238" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-faint)">la main sur l'image</text>
+      <text x="848" y="238" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ink-faint)">la main sur l'intention</text>
+
+      <g font-family="Inter, sans-serif">
+        <!-- 1 -->
+        <circle cx="128" cy="212" r="5" fill="var(--ai)"/>
+        <line x1="128" y1="207" x2="128" y2="150" stroke="var(--ai)" stroke-width="1.2"/>
+        <text x="128" y="138" text-anchor="middle" font-size="15" font-weight="600" fill="var(--ink)">L'outil</text>
+        <text x="128" y="120" text-anchor="middle" font-size="11.5" fill="var(--ink-dim)">tu l'appelles</text>
+        <text x="128" y="104" text-anchor="middle" font-size="11" fill="var(--ink-faint)">Resolve · Final Cut</text>
+
+        <!-- 2 -->
+        <circle cx="365" cy="212" r="5" fill="var(--warn)"/>
+        <line x1="365" y1="207" x2="365" y2="176" stroke="var(--warn)" stroke-width="1.2"/>
+        <text x="365" y="164" text-anchor="middle" font-size="15" font-weight="600" fill="var(--ink)">Le générateur</text>
+        <text x="365" y="146" text-anchor="middle" font-size="11.5" fill="var(--ink-dim)">il fabrique les pixels</text>
+        <text x="365" y="130" text-anchor="middle" font-size="11" fill="var(--ink-faint)">Firefly · Runway · Veo</text>
+
+        <!-- 3 -->
+        <circle cx="602" cy="212" r="5" fill="var(--live)"/>
+        <line x1="602" y1="207" x2="602" y2="150" stroke="var(--live)" stroke-width="1.2"/>
+        <text x="602" y="138" text-anchor="middle" font-size="15" font-weight="600" fill="var(--ink)">Le pilote</text>
+        <text x="602" y="120" text-anchor="middle" font-size="11.5" fill="var(--ink-dim)">il clique à ta place</text>
+        <text x="602" y="104" text-anchor="middle" font-size="11" fill="var(--ink-faint)">Premiere Assistant · CapCut</text>
+
+        <!-- 4 -->
+        <circle cx="812" cy="212" r="5" fill="var(--ok)"/>
+        <line x1="812" y1="207" x2="812" y2="176" stroke="var(--ok)" stroke-width="1.2"/>
+        <text x="812" y="164" text-anchor="middle" font-size="15" font-weight="600" fill="var(--ink)">L'auteur</text>
+        <text x="812" y="146" text-anchor="middle" font-size="11.5" fill="var(--ink-dim)">il écrit le code</text>
+        <text x="812" y="130" text-anchor="middle" font-size="11" fill="var(--ink-faint)">Remotion · video-code</text>
+      </g>
+
+      <g font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--ink-faint)">
+        <text x="52" y="34">réversible d'un geste</text>
+        <text x="848" y="34" text-anchor="end">réversible d'un diff</text>
+      </g>
+      <line x1="52" y1="46" x2="848" y2="46" stroke="var(--edge)" stroke-width="1" stroke-dasharray="2 4"/>
+    </svg>
+    <figcaption>Ce n'est pas une échelle de puissance : les quatre coexistent dans le même métier.
+      Ce qui change de gauche à droite, c'est ce que tu tiens dans la main — un point de l'image,
+      un plan entier, une intention, ou une phrase de code.</figcaption>
+  </figure>
+
+  <div class="fams">
+
+    <div class="fam">
+      <header><h3>L'outil</h3><span class="who">tu décides où, il exécute</span></header>
+      <p class="body">Une fonction, un modèle, un résultat. <b>Resolve</b> en a le plus : Magic Mask,
+        Depth Map, Super Scale, Voice Convert, IntelliScript (il monte une scène en comparant le
+        script à la transcription). <b>Final Cut</b> fait le pari inverse — Magnetic Mask, Auto Mask,
+        Generate Captions, tout <b>sur la machine</b>, rien qui sorte.</p>
+      <div class="ledger">
+        <div class="p">Tu sais toujours ce qui vient de toi</div>
+        <div class="p">Local possible ; Apple le fait déjà</div>
+        <div class="m">Une fonction de plus à connaître à chaque version</div>
+        <div class="m">Ne fait rien tant que tu ne l'appelles pas</div>
+      </div>
+    </div>
+
+    <div class="fam">
+      <header><h3>Le générateur</h3><span class="who">il fabrique ce qui n'existe pas</span></header>
+      <p class="body">Firefly, Runway, Veo, Sora. Du texte vers des images. Dans un logiciel de
+        montage ça reste <b>bordé exprès</b> : Generative Extend s'arrête à 2 s. Le vrai sujet n'est
+        pas la qualité, c'est de savoir <b>sur quoi le modèle a appris</b> — Adobe indemnise, les
+        autres non.</p>
+      <div class="ledger">
+        <div class="p">Bouche un trou qu'aucun rush ne bouche</div>
+        <div class="p">Firefly : utilisable en pub sans risque juridique</div>
+        <div class="m">Artefacts visibles sur 29 % des séquences &gt; 15 s</div>
+        <div class="m">Le public s'en détourne : le brut et le tremblé remontent</div>
+      </div>
+    </div>
+
+    <div class="fam">
+      <header><h3>Le pilote</h3><span class="who">il fait les gestes à ta place</span></header>
+      <p class="body">Premiere AI Assistant, l'auto-montage de <b>CapCut</b> (500 M d'utilisateurs
+        par mois — le plus gros monteur IA du monde, de loin), et les serveurs <b>MCP</b> qui
+        exposent l'API Python de Resolve à n'importe quel agent. Même idée : l'agent tient la souris.</p>
+      <div class="ledger">
+        <div class="p">Tue le travail d'assistant : le rangement, les chutiers, l'ours</div>
+        <div class="p">Rien de neuf à apprendre — tu parles</div>
+        <div class="m">Un ours faux ressemble à un ours vrai ; rien ne le signale</div>
+        <div class="m">Cloud, quotas, et un ⌘Z qui ment si tu travailles en même temps</div>
+      </div>
+    </div>
+
+    <div class="fam">
+      <header><h3>L'auteur</h3><span class="who">il écrit ce que tu relis</span></header>
+      <p class="body">L'agent n'édite pas la vidéo : il écrit le <b>programme</b> qui la fabrique.
+        <b>Remotion</b> (vidéo = application React) a sorti ses Agent Skills en janvier 2026 : tu
+        décris, l'agent écrit du TypeScript, Remotion rend le MP4. C'est la seule famille où ce que
+        l'IA a fait est <b>lisible ligne à ligne</b>.</p>
+      <div class="ledger">
+        <div class="p">Un diff au lieu d'une timeline à re-vérifier à l'œil</div>
+        <div class="p">Local, versionné, rejouable, paramétrable</div>
+        <div class="m">Il faut savoir lire du code — ou faire confiance</div>
+        <div class="m">Et surtout : l'agent ne voit pas ce qu'il a fait <span class="tag t-cod">le trou</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <h2>3 · Le trou que personne n'a bouché <em>« ça compile » n'est pas « c'est bien »</em></h2>
+
+  <div class="gap">
+    <h3>Le problème du retour</h3>
+    <p class="say">Un agent qui écrit une page web fait une capture d'écran et un modèle de vision
+      lui dit si c'est raté. <strong>Une vidéo n'a pas cette propriété.</strong> Une image seule ne
+      dit rien du mouvement : un saut d'image, une entrée en retard, une courbe mécanique
+      n'apparaissent qu'entre les images. Dix secondes à 30 i/s font 300 images, et même les
+      échantillonner toutes ne dit rien du <em>rythme</em>.</p>
+    <p class="say">Et il n'y a pas de référence. Les outils de test vidéo existants comparent soit à
+      une image de référence connue (régression), soit mesurent une perte d'encodage (SSIM, PSNR,
+      VMAF). Une animation qu'on vient d'inventer n'a ni l'une ni l'autre : sa seule référence est
+      la phrase qui l'a demandée.</p>
+    <p class="say">La CI de Remotion rend la vidéo, la met en artefact… et s'arrête là. Un humain
+      ouvre le fichier et décide. Pire : sur le palier « Automators », <strong>chaque rendu est
+      facturé</strong> — un agent qui voudrait boucler sur son propre travail paie chaque essai.</p>
+
+    <h3>Ce que video-code a déjà</h3>
+    <p class="say">Les trois pistes que l'article propose pour boucher ce trou, on les a construites
+      cette semaine sans savoir que c'était ça qu'on faisait :</p>
+    <div class="have">
+      <div><code>--inspect</code><span>La timeline en JSON : les éléments, leurs classes, leurs lignes, leurs durées, les attentes, les moments nommés. L'agent lit ce qu'il a fabriqué <b>sans regarder un pixel</b>.</span></div>
+      <div><code>--sheet N</code><span>N moments côte à côte dans une seule image, chacun étiqueté de son temps. Exactement « échantillonner aux frontières, pas uniformément ».</span></div>
+      <div><code>--check-widget</code><span>Les pixels de l'aperçu mesurés contre ceux du moteur, sans fenêtre, 1,8 s.</span></div>
+      <div><code>l'empreinte 52 scènes</code><span>La référence connue que Remotion n'a pas : si un changement bouge une scène, on le sait avant de la regarder.</span></div>
+      <div><code>tell</code><span>Une socket locale : l'agent pilote l'éditeur ouvert — <code>state</code>, <code>seek</code>, <code>select</code>, <code>run</code>, <code>screenshot</code>. Il voit ce que tu vois.</span></div>
+      <div><code>le code</code><span>Et la garantie de fond : l'édition est un diff. Pas une timeline modifiée dont il faut redécouvrir ce qui a bougé.</span></div>
+    </div>
+  </div>
+
+  <h2>4 · Les autres, en un tableau <em>ce que chacun a vraiment</em></h2>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Outil</th><th>Famille</th><th>Ce qu'il apporte</th><th>Où ça tourne</th><th>Le défaut</th></tr></thead>
+      <tbody>
+        <tr><td>Premiere Pro</td><td><span class="tag t-drv">pilote</span></td><td>Assistant conversationnel jusqu'à l'ours ; Generative Extend ; Media Intelligence</td><td>Cloud</td><td>S'arrête à l'ours ; quotas ; bêta</td></tr>
+        <tr><td>DaVinci Resolve</td><td><span class="tag t-out">outil</span></td><td>Le plus grand nombre de fonctions IA du marché ; IntelliScript monte depuis le script</td><td>Local (Neural Engine)</td><td>API Python réservée à Resolve Studio (payant)</td></tr>
+        <tr><td>Final Cut Pro</td><td><span class="tag t-out">outil</span></td><td>Magnetic Mask, Auto Mask, sous-titres — tout sur l'appareil</td><td>Local</td><td>Peu de fonctions ; rien de conversationnel</td></tr>
+        <tr><td>CapCut</td><td><span class="tag t-drv">pilote</span></td><td>Auto-Edit complet : reconnaissance de scène, transcription, notation, assemblage, étalonnage, transitions</td><td>Cloud</td><td>Format court uniquement ; aucun contrôle fin</td></tr>
+        <tr><td>Descript</td><td><span class="tag t-out">outil</span></td><td>La vidéo est un document : tu supprimes un mot, la vidéo se coupe</td><td>Cloud</td><td>Ne marche que sur de la parole</td></tr>
+        <tr><td>Opus Clip</td><td><span class="tag t-drv">pilote</span></td><td>Extrait les moments courts d'une longue vidéo</td><td>Cloud</td><td>Fait une seule chose</td></tr>
+        <tr><td>Runway</td><td><span class="tag t-gen">générateur</span></td><td>Fabrique du plan à partir de rien</td><td>Cloud</td><td>Ne monte pas ; ayant droit incertain</td></tr>
+        <tr><td>Resolve&nbsp;MCP</td><td><span class="tag t-drv">pilote</span></td><td>34 outils exposant l'API de Resolve à Claude Code, Cursor, Zed…</td><td>Local</td><td>Non officiel ; Studio requis</td></tr>
+        <tr><td>Remotion</td><td><span class="tag t-cod">auteur</span></td><td>Agent Skills : tu décris, l'agent écrit du React, Remotion rend</td><td>Local</td><td>Aucun retour automatique sur le résultat ; rendu facturé en équipe</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>5 · Ce que j'en tire <em>pour ici</em></h2>
+
+  <div class="col">
+    <p class="say"><strong>Un.</strong> Le pari de video-code est le bon et il est rare. Sur neuf
+      outils regardés, <strong>un seul autre</strong> est dans la famille « l'agent écrit le code », et
+      il vient d'y arriver. Ce n'est pas un retard à rattraper, c'est une avance à tenir.</p>
+    <p class="say"><strong>Deux.</strong> Le trou du retour est <em>l'</em>argument. Tout le monde
+      l'a — Remotion, Premiere, CapCut. On est les seuls à avoir déjà les trois outils qui le
+      bouchent. Ça mérite d'être dit quelque part de visible : pas « un éditeur vidéo en Python »,
+      mais <strong>« le seul où l'agent peut vérifier ce qu'il a fait »</strong>.</p>
+    <p class="say"><strong>Trois.</strong> Ce que Premiere fait et qu'on ne fait pas, c'est
+      <strong>le rangement</strong> : lire cent rushes, les nommer, les trier, repérer les questions
+      d'une interview. C'est là que leur assistant gagne du temps, et c'est le seul endroit où je
+      leur envie quelque chose. Mais ça ne s'applique qu'à du rush filmé — video-code fabrique ses
+      images, il n'y a rien à ranger. <em>À ne pas copier.</em></p>
+    <p class="say"><strong>Quatre.</strong> Ce qu'il faut leur voler, en revanche : l'assistant de
+      Premiere <strong>écrit dans la pile d'annulation</strong> et s'affiche dans l'historique — et
+      leur propre documentation admet que ça casse si l'humain travaille pendant que l'agent
+      travaille. Notre équivalent (⌘Z qui reprend tout un tour d'agent, désarmé dès que tu tapes)
+      est déjà plus honnête. C'est un détail qui vaut d'être gardé.</p>
+    <p class="say"><strong>Cinq, et c'est un avertissement.</strong> Une étude 2026 mesure que
+      <strong>71 % des débutants acceptent une transition proposée par l'IA sans la regarder</strong>,
+      alors que 43 % sont hors sujet. Un agent qui écrit du code qu'on relit est immunisé contre ce
+      chiffre-là. Un agent qui bouge des clips ne l'est pas.</p>
+  </div>
+
+  <h2>Sources</h2>
+  <ol class="src">
+    <li><a href="https://blog.adobe.com/en/publish/2025/04/02/introducing-new-ai-powered-features-workflow-enhancements-premiere-pro-after-effects">Adobe Blog — nouvelles fonctions IA, Premiere Pro 25.2 (NAB 2025)</a></li>
+    <li><a href="https://helpx.adobe.com/premiere/desktop/premiere-ai-assistant/overview.html">Adobe — Premiere AI Assistant, vue d'ensemble</a> · <a href="https://helpx.adobe.com/premiere/desktop/premiere-ai-assistant/assistant-faq.html">FAQ</a></li>
+    <li><a href="https://www.provideocoalition.com/premiere-ai-assistant/">ProVideo Coalition — Scott Simmons, « Premiere is getting an AI Assistant »</a></li>
+    <li><a href="https://kompozy.io/reviews/premiere-ai-assistant">Kompozy — Premiere AI Assistant, verdict 2026</a></li>
+    <li><a href="https://www.broadcastnow.co.uk/production-and-post/adobe-rolls-out-ai-agent-on-premiere/5217912.article">Broadcast — Adobe déploie son agent IA sur Premiere</a></li>
+    <li><a href="https://helpx.adobe.com/premiere/desktop/edit-projects/edit-with-generative-ai/generative-extend-overview.html">Adobe — Generative Extend</a></li>
+    <li><a href="https://www.blackmagicdesign.com/products/davinciresolve/whatsnew">Blackmagic — DaVinci Resolve 20, nouveautés</a> · <a href="https://thepostflow.com/ai/ai-in-davinci-resolve/">The Post Flow — ce que fait vraiment le Neural Engine</a></li>
+    <li><a href="https://www.apple.com/newsroom/2026/06/apple-creator-studio-gets-smarter-faster-and-more-connected/">Apple Newsroom — Creator Studio, juin 2026</a> · <a href="https://www.cined.com/apple-creator-studio-update-adds-generate-captions-edit-detection-and-auto-mask-to-final-cut-pro/">CineD — Auto Mask et Generate Captions</a></li>
+    <li><a href="https://www.digitalapplied.com/blog/video-as-code-remotion-agentic-generation-2026">Digital Applied — « Video as Code: Remotion and the Agent Feedback Gap »</a></li>
+    <li><a href="https://www.remotion.dev/docs/ai/generate">Remotion — générer du code Remotion avec un LLM</a> · <a href="https://gaga.art/blog/remotion-skills/">Remotion Skills, janvier 2026</a></li>
+    <li><a href="https://github.com/samuelgursky/davinci-resolve-mcp">GitHub — DaVinci Resolve MCP Server</a></li>
+    <li><a href="https://sendshort.ai/statistics/capcut/">CapCut — revenus et croissance, 2026</a> · <a href="https://flowith.io/blog/capcut-desktop-pro-2026-ai-auto-edit-define-short-form-video-2026/">CapCut Desktop Pro, AI Auto-Edit</a></li>
+    <li><a href="https://www.aihustleguy.com/blog/descript-vs-capcut-vs-opus-clip-ai-video-editor">Descript vs CapCut vs Opus Clip, 2026</a></li>
+    <li><a href="https://www.buildmvpfast.com/blog/ai-video-generation-copyright-crisis-sora-veo-runway-2026">La crise du droit d'auteur : Sora, Veo, Runway</a></li>
+    <li><a href="https://resource.digen.ai/common-mistakes-ai-video-editing-2026/">Les erreurs du montage IA en 2026 — les chiffres 29 %, 71 %, 43 %</a></li>
+    <li><a href="https://outlierkit.com/resources/youtube-ai-editing-scandal-2026/">OutlierKit — YouTube retouchant des Shorts sans consentement</a></li>
+  </ol>
+
+  <p class="say" style="margin-top:26px;color:var(--ink-faint);font-size:12.5px">
+    Deux pages d'aide d'Adobe (vue d'ensemble et FAQ de l'Assistant) n'ont pas répondu depuis cette
+    machine ; ce qui les concerne vient des reprises et des tests publiés, et est signalé comme tel.
+  </p>
+
+</div>
