@@ -589,6 +589,114 @@
       chiffre-là. Un agent qui bouge des clips ne l'est pas.</p>
   </div>
 
+  <h2>7 · Ce qu'on peut leur prendre <em>et à quel prix</em></h2>
+
+  <div class="col">
+    <p class="say">Palmier fait tourner quatre modèles sur la machine. La question posée était : est-ce
+      compatible avec ce qu'on a, et implémentable bientôt. La réponse tient dans un tableau, et elle
+      est meilleure que je ne l'attendais — <strong>trois des quatre sont déjà réglés ici</strong>,
+      ou ne s'appliquent pas.</p>
+  </div>
+
+  <div class="scroll">
+    <table>
+      <thead><tr><th>Chez Palmier</th><th>À quoi ça sert</th><th>Ici</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr><td>SpeechAnalyzer</td><td>Transcrire la parole</td><td><code>Sound.transcribe()</code>, faster-whisper, déjà dans <code>requirements.txt</code></td><td><span class="tag t-cod">déjà là</span></td></tr>
+        <tr><td>SigLIP2</td><td>Retrouver un plan en le décrivant</td><td>Rien — et rien à faire : il n'y a pas de rushes à fouiller, la scène est <em>écrite</em>. Le <code>⌘F</code> d'hier cherche dans le code, ce qui est la même question posée à la bonne couche</td><td><span class="tag t-out">hors sujet</span></td></tr>
+        <tr><td>Silero VAD</td><td>Trouver les blancs à couper</td><td>Rien — même raison : on ne coupe pas un rush, on écrit des <code>wait()</code></td><td><span class="tag t-out">hors sujet</span></td></tr>
+        <tr><td><b>beat_this</b></td><td><b>Le tempo et les mesures</b></td><td><code>Sound.beats()</code> — mais ce n'est pas la même chose</td><td><span class="tag t-gen">le seul vrai écart</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="col">
+    <h3>L'écart : détecter des attaques ≠ suivre un tempo</h3>
+    <p class="say"><code>Sound.beats()</code> fait de la <strong>détection d'attaques</strong> : flux
+      spectral, seuil adaptatif, un pic = un transitoire. Elle trouve <em>chaque</em> coup — et rien
+      d'autre. Si le batteur saute un temps, il n'y a pas de temps. Si le charley double, il y en a
+      deux. Ce qu'elle rend est <strong>irrégulier par construction</strong>.</p>
+    <p class="say">Un suivi de tempo répond à une autre question : <em>où est la pulsation</em> —
+      un tempo et une phase, y compris là où rien ne sonne, et en ignorant les attaques qui ne
+      tombent pas dessus. C'est ça qu'il faut pour caler une animation sur la musique. Aujourd'hui,
+      un <code>stagger()</code> posé sur <code>beats()</code> donne un bégaiement, pas un groove.</p>
+    <p class="say">Et <code>beat_this</code> donne en plus les <strong>premiers temps de mesure</strong>.
+      C'est la seule chose qu'aucune méthode classique ne sait faire — et c'est exactement ce sur
+      quoi on coupe.</p>
+
+    <h3>Deux chemins, chiffrés</h3>
+  </div>
+
+  <div class="fams">
+    <div class="fam">
+      <header><h3>A — le numpy qu'on a déjà</h3><span class="who">zéro dépendance</span></header>
+      <p class="body">L'enveloppe d'attaques est <b>déjà calculée</b> dans
+        <code>_spectralFluxOnsets</code> ; elle est jetée après le seuillage. On la garde, on
+        l'autocorrèle pour trouver la période dominante, puis une <b>programmation dynamique</b>
+        (Ellis, 2007 — l'algorithme derrière <code>librosa.beat_track</code>) choisit la grille qui
+        maximise à la fois « ça tombe sur une attaque » et « l'écart reste constant ».</p>
+      <div class="ledger">
+        <div class="p">Rien à installer, rien à empaqueter, rien de nouveau à faire tourner</div>
+        <div class="p">~60 lignes sur une fonction qui existe et qui est déjà testée</div>
+        <div class="p">Donne un tempo et une pulsation régulière — le manque immédiat</div>
+        <div class="m">Aucune mesure : pas de premier temps, donc pas de coupe sur la barre</div>
+        <div class="m">Le défaut connu de cette famille : les temps arrivent 20 à 60 ms tard, soit <b>1 à 2 images</b> à 30 i/s. Visible sur une coupe.</div>
+      </div>
+    </div>
+
+    <div class="fam">
+      <header><h3>B — beat_this, en C++</h3><span class="who">une dépendance, un modèle</span></header>
+      <p class="body">Il existe un <b>port C++</b> (MIT) qui n'a pas besoin de PyTorch : ONNX Runtime,
+        PocketFFT, r8brain, et <b>miniaudio — qu'on embarque déjà</b> depuis l'aperçu sonore. Et
+        <code>onnxruntime</code> est un port vcpkg, donc c'est <b>une ligne dans
+        <code>vcpkg.json</code></b>. macOS et Windows.</p>
+      <div class="ledger">
+        <div class="p">L'état de l'art : 75,5 % de F1 sur les premiers temps</div>
+        <div class="p">Les mesures, que A ne donnera jamais</div>
+        <div class="p">Trois des quatre briques sont déjà dans le build</div>
+        <div class="m">Le modèle : 8 Mo en « small », 78 à 97 Mo en complet — le dossier portable fait 139 Mo</div>
+        <div class="m">Il faut un pont : la scène est en Python, le tracker serait en C++</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col">
+    <h3>Ce que je ferais</h3>
+    <p class="say"><strong>A d'abord, et bientôt.</strong> Le manque qui se voit aujourd'hui, ce
+      n'est pas la précision sur un morceau difficile, c'est qu'il n'y a <em>pas de pulsation du
+      tout</em>. Une autocorrélation et une programmation dynamique sur une enveloppe qu'on calcule
+      déjà, c'est le genre de changement que ce dépôt sait faire en une session : pas de dépendance,
+      pas de modèle à empaqueter, et un test synthétique existe déjà — un fichier WAV de clics à des
+      instants connus, dans <code>beat_sync_test.py</code>. Il suffit de lui demander une grille
+      régulière plutôt qu'une liste d'attaques.</p>
+    <p class="say">Deux verbes plutôt qu'un, parce que ce sont deux questions :</p>
+  </div>
+
+  <div class="gap">
+    <div class="have">
+      <div><code>sound.beats()</code><span>Ce qui existe, inchangé : <b>chaque attaque</b>. Pour faire clignoter un logo sur les coups.</span></div>
+      <div><code>sound.tempo()</code><span>Un nombre. <b>124.0</b>.</span></div>
+      <div><code>sound.grid()</code><span>La <b>pulsation</b> : une liste régulière, y compris là où rien ne sonne. Ce sur quoi on cale une animation.</span></div>
+      <div><code>sound.grid(bars=4)</code><span>Un temps sur quatre — l'approximation des mesures que A peut donner, en supposant une signature. Ce que B donnerait <em>vraiment</em>.</span></div>
+    </div>
+  </div>
+
+  <div class="col">
+    <p class="say"><strong>B ensuite, et seulement si les mesures manquent pour de vrai.</strong>
+      La question à se poser après A n'est pas « est-ce plus précis » mais <strong>« ai-je voulu
+      couper sur une barre et n'ai-je pas pu »</strong>. Si oui, le chemin est court et je le
+      connais maintenant : <code>onnxruntime</code> dans <code>vcpkg.json</code>, le petit modèle de
+      8 Mo à côté des shaders, et un verbe de plus. Si non, on aura ajouté 97 Mo au dossier portable
+      pour une différence que personne ne regarde.</p>
+    <p class="say">Le détail qui décide, et qui n'est pas dans les papiers : <strong>ici la musique
+      est souvent générée par la scène elle-même</strong>. La visite fabrique ses huit secondes de
+      musique en Python, deux accords, un tempo qu'on connaît puisqu'on l'a écrit. Sur ce
+      cas-là — qui est le cas courant d'un outil où tout est du code — <b>aucun des deux n'est
+      nécessaire : le tempo est une variable</b>. Le tracker ne sert qu'aux fichiers importés. Ça ne
+      l'annule pas, ça le range : c'est une commodité pour du son qui vient d'ailleurs, pas une
+      fondation.</p>
+  </div>
+
   <h2>Sources</h2>
   <ol class="src">
     <li><a href="https://blog.adobe.com/en/publish/2025/04/02/introducing-new-ai-powered-features-workflow-enhancements-premiere-pro-after-effects">Adobe Blog — nouvelles fonctions IA, Premiere Pro 25.2 (NAB 2025)</a></li>
@@ -606,6 +714,10 @@
     <li><a href="https://sendshort.ai/statistics/capcut/">CapCut — revenus et croissance, 2026</a> · <a href="https://flowith.io/blog/capcut-desktop-pro-2026-ai-auto-edit-define-short-form-video-2026/">CapCut Desktop Pro, AI Auto-Edit</a></li>
     <li><a href="https://www.aihustleguy.com/blog/descript-vs-capcut-vs-opus-clip-ai-video-editor">Descript vs CapCut vs Opus Clip, 2026</a></li>
     <li><a href="https://www.buildmvpfast.com/blog/ai-video-generation-copyright-crisis-sora-veo-runway-2026">La crise du droit d'auteur : Sora, Veo, Runway</a></li>
+    <li><a href="https://github.com/CPJKU/beat_this">CPJKU/beat_this — le tracker (MIT)</a> · <a href="https://arxiv.org/html/2407.21658v1">le papier, ISMIR 2024</a> · <a href="https://github.com/mosynthkey/beat_this_cpp">le port C++ sur ONNX Runtime</a></li>
+    <li><a href="https://www.ee.columbia.edu/~dpwe/pubs/Ellis07-beattrack.pdf">Ellis (2007) — « Beat Tracking by Dynamic Programming »</a> · <a href="https://www.audiolabs-erlangen.de/resources/MIR/FMP/C6/C6S3_BeatTracking.html">FMP, l'algorithme expliqué</a></li>
+    <li><a href="https://github.com/librosa/librosa/issues/1052">librosa #1052 — « les temps arrivent légèrement en retard »</a></li>
+    <li><a href="https://arxiv.org/pdf/2508.09790">BeatFM (2026) — 79,6 % contre 75,5 % pour Beat This</a></li>
     <li><a href="https://resource.digen.ai/common-mistakes-ai-video-editing-2026/">Les erreurs du montage IA en 2026 — les chiffres 29 %, 71 %, 43 %</a></li>
     <li><a href="https://outlierkit.com/resources/youtube-ai-editing-scandal-2026/">OutlierKit — YouTube retouchant des Shorts sans consentement</a></li>
   </ol>
