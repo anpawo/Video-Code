@@ -1021,12 +1021,12 @@ Item {
                 width: modelData.d * root.pxPerSecond
                 height: flick.height
                 z: 3
-                // 0.24. It was 0.20 under the lanes and dropped to 0.16 when it
-                // moved in front of them, on the guess that anything in front
-                // had to be fainter. The guess was too careful: at 0.16 the
-                // bands read as a tint on the ground rather than as a thing
-                // laid over it, which is the one job it has up here.
-                color: Qt.rgba(0.878, 0.376, 0.361, 0.24)
+                // 0.325. It was 0.20 under the lanes and dropped to 0.16 when
+                // it moved in front of them, on the guess that anything in
+                // front had to be fainter. The guess was wrong twice over: this
+                // far up it has to read as something LAID OVER the clips, and
+                // under a third of red they are still perfectly legible.
+                color: Qt.rgba(0.878, 0.376, 0.361, 0.325)
             }
         }
 
