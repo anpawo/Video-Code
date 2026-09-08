@@ -431,23 +431,32 @@ Item {
             anchors.margins: card.pad
             height: 12
 
-            Rectangle {
-                id: glyph
-                anchors.verticalCenter: parent.verticalCenter
-                width: 9; height: 9
-                radius: 2
-                color: root.hue
-            }
+            // What it is, in the middle of the card's own top bar rather than
+            // in its left corner. The bar is the card's title, and the kind is
+            // the title — everything else along it (where it was written, how
+            // long it is, the way out) is a fact ABOUT it and belongs at the
+            // ends. Left-aligned it read as one more of those.
+            Row {
+                anchors.centerIn: parent
+                spacing: 8
 
-            Text {
-                anchors { left: glyph.right; leftMargin: 8; verticalCenter: parent.verticalCenter }
-                text: root.kindLabel[root.kind] !== undefined
-                      ? root.kindLabel[root.kind].toUpperCase() : root.kind.toUpperCase()
-                color: Theme.inkFaint
-                font.family: Theme.ui
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-                font.letterSpacing: 1.1
+                Rectangle {
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 9; height: 9
+                    radius: 2
+                    color: root.hue
+                }
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.kindLabel[root.kind] !== undefined
+                          ? root.kindLabel[root.kind].toUpperCase() : root.kind.toUpperCase()
+                    color: Theme.inkFaint
+                    font.family: Theme.ui
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                    font.letterSpacing: 1.1
+                }
             }
 
             // Where it was written. The card is the one surface that can afford

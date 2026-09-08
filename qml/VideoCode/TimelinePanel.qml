@@ -202,6 +202,40 @@ Item {
     // see `parked` below, which is what opens the pane on the first frame.
     readonly property real pad: Math.max(gutter, width * 0.5)
 
+    // How many rows up a wait's label has to sit so it does not land on the one
+    // before it. Two short gaps in a row are two chips of the same width a few
+    // pixels apart: side by side they overlap and neither reads. Stacked, both
+    // do. Counted from the neighbours rather than fixed per index, so a run of
+    // three climbs and a lone gap stays on the floor.
+    // The tallest stack any of them ends up in, which is how much empty ground
+    // the content needs under its last lane: the labels are pinned to the foot
+    // of the VIEWPORT, so at the end of the scroll they land wherever the
+    // content stops. A constant would be wrong the moment two gaps met.
+    readonly property int stampRows: {
+        let most = 0;
+        const waits = root.scene.waits;
+        if (waits !== undefined)
+            for (let i = 0; i < waits.length; ++i)
+                most = Math.max(most, root.stampRow(i));
+        return most;
+    }
+
+    function stampRow(index) {
+        const waits = root.scene.waits;
+        if (waits === undefined || index <= 0)
+            return 0;
+        const middle = (i) => (waits[i].at + waits[i].d / 2) * root.pxPerSecond;
+        let row = 0;
+        for (let k = index - 1; k >= 0 && row < 3; --k) {
+            // 74: the widest "wait N.Ns" chip, plus a hair. Narrower than that
+            // apart and the two would touch.
+            if (middle(index) - middle(k) > 74)
+                break;
+            ++row;
+        }
+        return row;
+    }
+
     // Opening on the runway would be opening on nothing. Once — and only once,
     // or the pane would snap back to the start every time it is resized — time
     // zero is put a gutter in from the left edge.
@@ -359,9 +393,12 @@ Item {
         // The lanes start BELOW the ruler, so the content is that much taller
         // than the lanes are: leaving the ruler out of the count made the last
         // lane unreachable — cut off by exactly the ruler's height, however far
-        // you scrolled. The few pixels after it are so the bottom lane does not
-        // sit flush against the panel's edge.
-        contentHeight: lanes.height + ruler.height + 6
+        // you scrolled.
+        // The few pixels after the last lane used to be so it did not sit flush
+        // against the panel's edge. It is a strip now, because the wait labels
+        // live down there: scrolled to the bottom, a label with nothing under it
+        // was printed straight onto the last clip.
+        contentHeight: lanes.height + ruler.height + 34 + root.stampRows * 25
         flickableDirection: Flickable.HorizontalAndVerticalFlick
         clip: true
 
@@ -962,13 +999,18 @@ Item {
         // half a second in which nothing is scheduled, and a bare line would say
         // it was instantaneous.
         //
-        // The gap is painted UNDER the lanes, not over them. Over them it had
-        // to be faint enough to leave a clip's name readable through it, and at
-        // 10% it was faint enough to miss altogether. On the ground it can be
-        // twice as strong and cover nothing: a bar is 30% of its hue, so the
-        // wait shows through it as a warmer bar, and the name band at 92% is
-        // simply on top. What still crosses the lanes is the join line, the
-        // stamp, and the clocks — all of them thin or see-through.
+        // The gap is painted OVER the lanes, and takes no clicks.
+        //
+        // Under them it could be twice as strong and cover nothing, which is why
+        // it was there — but a clip drawn on top of a wait says the clip is in
+        // front of it, and a clip is never in front of a wait: the wait is when
+        // the clock stopped, and everything crossing it is crossing it. Over,
+        // it has to be faint, and faint is all it needs to be now that the stamp
+        // says what it is.
+        //
+        // A bare Rectangle takes no pointer at all — no MouseArea, no handler —
+        // so the clip underneath still opens when you click through the band.
+        // That is the whole trick: it is a drawing, not a surface.
         Repeater {
             model: root.scene.waits !== undefined ? root.scene.waits : []
 
@@ -978,8 +1020,8 @@ Item {
                 y: flick.contentY
                 width: modelData.d * root.pxPerSecond
                 height: flick.height
-                z: -1
-                color: Qt.rgba(0.878, 0.376, 0.361, 0.20)
+                z: 3
+                color: Qt.rgba(0.878, 0.376, 0.361, 0.16)
             }
         }
 
@@ -989,6 +1031,7 @@ Item {
             Item {
                 id: join
                 required property var modelData
+                required property int index
                 x: root.pad + modelData.at * root.pxPerSecond
                 y: flick.contentY
                 width: Math.max(modelData.d * root.pxPerSecond, 1)
@@ -1024,9 +1067,9 @@ Item {
                     // Centred on the join LINE instead, which is the gap's left
                     // edge, it read as centred on the narrow gaps and as pinned
                     // to the left of the wide ones: the same rule looking like
-                    // two. The clocks stand on this middle too.
+                    // two.
                     x: join.width / 2 - width / 2
-                    y: join.height - height - 4
+                    y: join.height - height - 4 - root.stampRow(join.index) * (height + 3)
                     width: stampText.implicitWidth + 12
                     height: stampText.implicitHeight + 6
                     radius: 3
@@ -1091,69 +1134,6 @@ Item {
                     }
                 }
 
-                // ── Clocks, standing ──────────────────────────────────────
-                // A column of small clocks down the gap: the band is a pause,
-                // and this is what says so from across the room, before the
-                // stamp is read. Their hands do not turn — a pause is exactly a
-                // clock whose hands are still.
-                //
-                // They used to drift up the band and fade, two or three of them,
-                // each on its own phase. Movement in a timeline belongs to the
-                // playhead: a dozen bands all breathing separately is a picture
-                // that never settles, and it was marking the one thing on screen
-                // that is defined by nothing happening. So they stand, and there
-                // are enough of them that a band is marked wherever your eye
-                // happens to be — a narrow band included, which used to get none
-                // at all and was then a red stripe with nothing to say.
-                //
-                // Circles and two lines, no image and no shader: the band is the
-                // picture, these are a hint laid over it, and they must lose to
-                // a clip's name every time they cross one — a third of opacity,
-                // one pixel of stroke.
-                Repeater {
-                    id: clocks
-                    // None while the band is scrolled out of the pane: they are
-                    // one Item each and there is no reason to build them.
-                    model: join.x < flick.contentX + flick.width
-                           && join.x + join.width > flick.contentX
-                           ? Math.max(1, Math.floor((join.height - 60) / 190)) : 0
-
-                    Item {
-                        id: clock
-                        required property int index
-                        width: 14
-                        height: 14
-                        // Centred on the band, whatever it is wide: a gap of a
-                        // few pixels still gets its mark, overhanging both sides.
-                        x: join.width / 2 - width / 2
-                        y: ruler.height + 30 + index * 190
-                        opacity: 0.34
-
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: width / 2
-                            color: "transparent"
-                            border.width: 1
-                            border.color: Qt.rgba(0.878, 0.376, 0.361, 1)
-                        }
-
-                        Rectangle {
-                            x: parent.width / 2 - 0.5
-                            y: 3
-                            width: 1
-                            height: parent.height / 2 - 3
-                            color: Qt.rgba(0.878, 0.376, 0.361, 1)
-                        }
-
-                        Rectangle {
-                            x: parent.width / 2
-                            y: parent.height / 2 - 0.5
-                            width: parent.width / 2 - 3
-                            height: 1
-                            color: Qt.rgba(0.878, 0.376, 0.361, 1)
-                        }
-                    }
-                }
             }
         }
 
