@@ -1043,7 +1043,13 @@ Item {
                 // the smallest edit this timeline can make.
                 Rectangle {
                     id: gapStamp
-                    x: 4
+                    // Centred on the join line, and allowed to overhang it on
+                    // both sides. A gap half a second long is twelve pixels at
+                    // the opening zoom and can hold no writing at all, so the
+                    // label used to disappear — the shortest waits, the ones
+                    // hardest to see, were the ones that never said what they
+                    // were. The line it is centred on is the thing it names.
+                    x: -width / 2
                     y: join.height - height - 4
                     width: stampText.implicitWidth + 12
                     height: stampText.implicitHeight + 6
@@ -1061,34 +1067,13 @@ Item {
                     border.color: editing
                                   ? Qt.rgba(0.878, 0.376, 0.361, 0.8)
                                   : Qt.rgba(0.878, 0.376, 0.361, 0.22)
-                    visible: join.width > gapStamp.room(gapStamp.brief)
-
                     readonly property bool editing: root.editingWait === join.modelData.line
-
-                    // A band too narrow for the sentence is not a band with
-                    // nothing to say: 2.5 s is 62 px at the opening zoom, six
-                    // short of "wait 2.5s", and the label vanished entirely for
-                    // want of one word. The word goes first, the number last.
-                    readonly property string words: "wait " + join.modelData.says.toFixed(1) + "s"
-                    readonly property string brief: join.modelData.says.toFixed(1) + "s"
-
-                    // Mono at 10 px is 6 px to the character, and the chip is 12
-                    // wide plus the 4 it is inset by. Counted rather than
-                    // measured because `width` is the measurement: asking the
-                    // Text how wide it is in order to choose its text is a loop.
-                    //
-                    // Nothing to spare on the right: "wait 3.0s" wants 76 of the
-                    // 75 a three-second gap is drawn at the opening zoom, and a
-                    // pixel of politeness there cost the word on every one of
-                    // them.
-                    function room(what) { return what.length * 6 + 18; }
 
                     Text {
                         id: stampText
                         anchors.centerIn: parent
                         visible: !gapStamp.editing
-                        text: join.width > gapStamp.room(gapStamp.words) ? gapStamp.words
-                                                                         : gapStamp.brief
+                        text: "wait " + join.modelData.says.toFixed(1) + "s"
                         color: Qt.rgba(0.945, 0.541, 0.525, 1)
                         font.family: Theme.mono
                         font.pixelSize: 10

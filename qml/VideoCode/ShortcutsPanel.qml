@@ -4,7 +4,8 @@
 // your hand, which is the actual question. Press a key and the whole
 // combination lights up — modifiers included, so there is no layer to switch to
 // — and a card under the board says what it does and stays there until the next
-// key. The pointer changes nothing on it: the board answers a keyboard.
+// key. Pointing at an action says the same thing — that is asking where a key
+// is. Pointing at a CAP says nothing: the board answers a keyboard, not a mouse.
 //
 // Rebinding is by pressing the keys, not by picking from a list of names: the
 // gesture that sets the shortcut is the gesture that uses it. Everything here
@@ -155,13 +156,20 @@ Item {
         return "";
     }
 
-    // A key you pressed, on the board and in the card. The pointer never comes
-    // through here: the drawing of a keyboard answers a keyboard, and a picture
-    // that lit up under the mouse was answering the wrong hand.
-    function showSpec(spec) {
+    // What the board is answering for, and which sides were down when it was
+    // asked. Two ways in, and they differ only in that second number:
+    //
+    //   a key you PRESSED   — the very cap under your hand lights, and no other
+    //   a row you POINT AT  — that is a binding, and ⌘S names no side, so both
+    //
+    // Pointing at a CAP is not one of them. The drawing of a keyboard answers a
+    // keyboard; a picture that lit up under the pointer was answering the wrong
+    // hand. Pointing at an action is a different gesture — it is asking where a
+    // thing is, which is the whole reason there is a keyboard drawn here.
+    function showSpec(spec, sides) {
         if (spec.length === 0)
             return;
-        root.sidesAt = Shell.modifierSides;
+        root.sidesAt = sides;
         root.struck = spec;
         root.hot = root.held.indexOf(spec) >= 0
                    ? [spec]
@@ -492,6 +500,7 @@ Item {
                         id: rowHit
                         anchors.fill: parent
                         hoverEnabled: true
+                        onEntered: root.showSpec(row.spec, 0)
                         onClicked: {
                             if (row.fixed)
                                 return;
@@ -528,7 +537,7 @@ Item {
 
         if (root.capturing.length === 0) {
             const mod = root.modifierToken(event.key);
-            root.showSpec(mod.length > 0 ? mod : Keymap.comboFrom(event));
+            root.showSpec(mod.length > 0 ? mod : Keymap.comboFrom(event), Shell.modifierSides);
             return;
         }
 
