@@ -161,17 +161,28 @@ jobs:
 
       - run: cp build/video-code.app/Contents/MacOS/video-code video-code
 
-      # The bundler's own smoke test: the folder copied elsewhere, run with an
-      # empty environment, rendering the tour. There is no container on a macOS
-      # runner, so this and `check_clean` — which refuses any path under /Users
-      # or /opt/homebrew — are what stand in for one.
-      - name: Bundle, and run the copy from elsewhere
-        run: python3 scripts/bundle.py --zip
+      # --no-smoke: the bundler's smoke test RENDERS, and this runner cannot.
+      # Its GPU is paravirtualised and MoltenVK dies inside vkCreateInstance
+      # probing it — "-[AppleParavirtDevice newArgumentEncoderWithLayout:]:
+      # unrecognized selector". Nothing about the zip; the machine has no
+      # usable Metal device, and macOS has no software Vulkan to fall back on
+      # the way Linux has lavapipe.
+      #
+      # So what is checked here is what a runner CAN answer, and it is the part
+      # that packaging gets wrong: `check_clean` refuses any path under /Users,
+      # /opt/homebrew or /Library/Frameworks, the copy imports every package
+      # from a private Python with an empty environment, and the chrome loads
+      # with the Qt that travelled beside it. Rendering is the same code the
+      # local build runs all day; being findable is what changes in a zip.
+      - name: Bundle
+        run: python3 scripts/bundle.py --zip --no-smoke
 
-      - name: The chrome loads from the copy, with the Qt that travels
+      - name: The copy runs where nothing was built
         run: |
           cd dist/video-code-macos-arm64
-          env -i PATH=/usr/bin:/bin HOME="$TMPDIR" ./video-code --check-chrome
+          printf 'import shapely, PIL, freetype, uharfbuzz, pygments, svgelements\nfrom videocode import *\nSquare(side=1)\n' > /tmp/probe.py
+          env -i PATH=/usr/bin:/bin HOME=/tmp ./video-code --file /tmp/probe.py --inspect > /dev/null
+          env -i PATH=/usr/bin:/bin HOME=/tmp ./video-code --check-chrome
 
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
