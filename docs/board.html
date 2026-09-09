@@ -166,19 +166,19 @@
     <h1>Chantier Video-Code</h1>
     <span class="branch">feat/night-2026-09-03</span>
     <span class="chips">
-      <span class="chip"><b>62</b> livrés</span>
+      <span class="chip"><b>63</b> livrés</span>
       <span class="chip"><b>5</b> à faire</span>
       <span class="chip"><b>69</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">8 sept. · 7 h</span>
+    <span class="stamp">9 sept. · 4 h</span>
   </header>
 
   <div class="board">
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">8</span></h2>
+        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">7</span></h2>
         <ul class="rows">
           <li data-b="La bulle de survol n'avait aucune limite de hauteur : une longue docstring dépassait le volet, basculait au-dessus de la ligne et finissait à cheval sur le haut, le début coupé.¦La moitié du volet au maximum, ce qui dépasse défile, et elle se pose à 4 px de la ligne — assez près pour y amener la souris sans la refermer.¦Impossible à vérifier sans fenêtre : un survol synthétique n'atteint aucun symbole. Ta souris décide."><span class="id">B13</span><span class="lbl">La bulle de survol : bornée, défilante, atteignable</span><span class="meta">ta souris</span></li>
           <li data-b="Trois fichiers d'une commande : tour_formats-youtube (1920×1080), -tiktok (1080×1920), -square (1080×1080).¦Ce n'est pas un recadrage : la scène est rejouée à chaque taille, la légende reste collée à son bord dans les trois.¦Ouvre le tiktok et le carré envoyés dans le fil : même film, remis en page."><span class="id">C3</span><span class="lbl">Une scène, tous les formats : ouvre le tiktok et le carré</span><span class="meta lock">un mot</span></li>
@@ -186,7 +186,6 @@
           <li data-b="⌘E exporte avec le même binaire que le terminal.¦Coupe un export en cours ; exporte une scène cassée : la phrase du moteur."><span class="id">C4</span><span class="lbl">Export depuis l'éditeur</span><span class="meta">ta souris</span></li>
           <li data-b="Mets un fichier cassé dans templates/ : il apparaît en rouge avec la raison."><span class="id">C5</span><span class="lbl">Tes propres modèles</span><span class="meta">une minute</span></li>
           <li data-b="Demande « décale ça vers la gauche » sans préciser : il sait de quoi tu parles.¦Demande un changement visible : il va regarder son image avant de répondre, et peut piloter l'éditeur (tell)."><span class="id">C1</span><span class="lbl">Le panneau Agent sait où tu es et regarde son image</span><span class="meta">claude requis</span></li>
-          <li class="hot" data-b="Une animation lit son point de départ quand elle joue. Débloque B4, A3, B3.¦Rends deferred_base.py sur feat/s1-deferred-base, puis un mot et je fusionne."><span class="id">S1</span><span class="lbl">Résolution différée de la base</span><span class="meta lock">ton mot</span></li>
           <li class="hot" data-b="Rends pivot_ink.py dans le worktree next-to : un mot tourné reste centré.¦Un mot et je fusionne (10 scènes bougent en appels, aucun pixel)."><span class="id">X9</span><span class="lbl">Un texte tourne autour de son encre</span><span class="meta lock">ton mot</span></li>
         </ul>
       </div>
@@ -210,8 +209,11 @@
 
     <div class="col">
       <div class="card todo">
-        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">2</span></h2>
+        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">5</span></h2>
         <ul class="rows">
+          <li data-b="La valeur d'un élément à l'instant du curseur, tu en tapes une autre, la ligne s'écrit.¦Le chronomètre d'After Effects.¦Faux sans S1. Pas commencé, attend ton œil."><span class="id">B4</span><span class="lbl">Fiche chronomètre</span><span class="meta">ton œil</span></li>
+          <li data-b="Un nombre qui évolue, et des objets qui le lisent.¦L'écriture existe (<code>attachTo</code>), il manque le verbe général.¦Lit une source pas encore tournée : d'où S1."><span class="id">A3</span><span class="lbl">Valeur suivie + liaison</span><span class="meta">ton œil</span></li>
+          <li data-b="Tirer un clip écrit son <code>.wait()</code> ; tirer une bande écrit le <code>wait()</code> global.¦Les deux outils de Premiere, en deux mots du langage.¦Vers la gauche demande S1."><span class="id">B3</span><span class="lbl">Glisser un clip / tirer une bande</span><span class="meta">ton œil</span></li>
           <li class="hot" data-b="Coins 6 → 10 px, onglet actif en capsule, champs en gélule.¦Aucune couleur touchée.¦Branche feat/apple-shapes, avant/après dans le fil. Ton œil décide."><span class="id">B8</span><span class="lbl">Des formes plus proches du système</span><span class="meta lock">prêt, ton œil</span></li>
           <li data-b="La fenêtre sans écran reçoit le focus, la photo attend les touches.¦Reste : <code>window.active</code> est faux sans fenêtre plateforme.¦Piste restante <code>QWindow::create()</code>, non tentée : elle pourrait afficher."><span class="id">H1</span><span class="lbl">Les raccourcis de fenêtre en automatique</span><span class="meta">ton avis</span></li>
         </ul>
@@ -220,14 +222,6 @@
     </div>
 
     <div class="col">
-      <div class="card todo">
-        <h2>To do · attendent S1 <em>écrit, pas encore fusionné</em> <span class="n">3</span></h2>
-        <ul class="rows">
-          <li data-b="La valeur d'un élément à l'instant du curseur, tu en tapes une autre, la ligne s'écrit.¦Le chronomètre d'After Effects.¦Faux sans S1. Pas commencé, attend ton go."><span class="id">B4</span><span class="lbl">Fiche chronomètre</span><span class="meta lock">ton go</span></li>
-          <li data-b="Un nombre qui évolue, et des objets qui le lisent.¦L'écriture existe (<code>attachTo</code>), il manque le verbe général.¦Lit une source pas encore tournée : d'où S1."><span class="id">A3</span><span class="lbl">Valeur suivie + liaison</span><span class="meta lock">S1 à fusionner</span></li>
-          <li data-b="Tirer un clip écrit son <code>.wait()</code> ; tirer une bande écrit le <code>wait()</code> global.¦Les deux outils de Premiere, en deux mots du langage.¦Vers la gauche demande S1."><span class="id">B3</span><span class="lbl">Glisser un clip / tirer une bande</span><span class="meta lock">ton mot · fleet-bc</span></li>
-        </ul>
-      </div>
 
       <div class="card todo">
         <h2>To do · the rest <em>vidée cette nuit</em> <span class="n">0</span></h2>
@@ -237,8 +231,9 @@
 
     <div class="col">
       <div class="card">
-        <h2>Shipped <em>aujourd'hui</em> <span class="n">48</span></h2>
+        <h2>Shipped <em>aujourd'hui</em> <span class="n">49</span></h2>
         <ul class="rows">
+          <li data-b="Une animation lit sa base à l'image où elle OUVRE, plus au curseur du script : le film ne dépend plus de l'ordre dans lequel il a été tapé.¦La scène tourne deux fois — la première donne la vérité image par image, la seconde rejoue en donnant à chaque animation sa vraie base. Aucun modèle réécrit, zéro C++.¦0 des 52 scènes déclenchent la deuxième passe : l'empreinte prouve elle-même que rien ne bouge. Validé le 9 sept."><span class="id">S1</span><span class="lbl">Résolution différée de la base</span><span class="meta sha">7015df1</span></li>
           <li data-b="Les lanes font la moitié de leur hauteur, un haut-parleur remplace la forme d'onde, et les bandes d'attente passent devant les clips à 32,5 % sans prendre le moindre clic.¦Les horloges sont parties : le mouvement dans une timeline appartient à la tête de lecture.¦Chaque wait a son étiquette, centrée sur le milieu de sa bande ; deux étiquettes serrées montent d'un cran. Validé le 8 sept."><span class="id">T2</span><span class="lbl">La timeline relue : lanes moitié, waits devant</span><span class="meta sha">2041871</span></li>
           <li data-b="Quatre familles, séparées par une seule question : à quelle distance de l'image la main reste. L'outil qu'on appelle, le générateur de pixels, le pilote qui clique à ta place, l'auteur qui écrit le code.¦Premiere a mis un agent conversationnel dans la timeline en juin — il range, synchronise et assemble un ours, puis s'arrête. Cloud, quotas, aucune image nouvelle.¦Le trou que personne n'a bouché : un agent qui fabrique une animation ne peut pas vérifier son travail. On a déjà les trois outils qui le bouchent. Rapport : claude.ai/code/artifact/f4a43828"><span class="id">R1</span><span class="lbl">Recherche : le montage vidéo assisté par IA</span><span class="meta sha">rapport</span></li>
           <li data-b="Frappe une touche : sa capsule s'allume et une carte sous le clavier dit ce qu'elle fait, en trois lignes, et reste jusqu'à la suivante.¦Les raccourcis de la fenêtre se taisent tant que le tableau est ouvert — sans ça, apprendre ce que fait I posait une marque sur une timeline invisible.¦Les deux ⌘ sont deux touches : seule celle sous ta main s'allume, et elle le reste après le relâchement. Validé le 8 sept."><span class="id">B11</span><span class="lbl">Le clavier attrape toutes les touches et dit ce qu'elles font</span><span class="meta sha">b07093a</span></li>

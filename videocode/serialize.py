@@ -136,20 +136,6 @@ def _reportContendedKeys() -> list[dict]:
                     "file": b["file"], "message": _oneLine(hit)})
     return out
 
-def _oneLineBackdated(hit: dict) -> str:
-    """
-    Its own line: a backdated write has no shared frames to count. Reusing the
-    contention line raised a KeyError from inside the warning, and the scene
-    died on the report instead of rendering with it.
-    """
-    a, b = hit["a"], hit["b"]
-    return (
-        f"{b['call']}() opens at frame {b['first']}, before {a['call']}() (line {a['line']}) "
-        f"written above it — it starts from a value that belongs to a later moment. "
-        f"Put them in the order they play, or give the earlier one its own start=."
-    )
-
-
 def _reportBackdatedWrites() -> list[dict]:
     """
     Say it out loud when a line reaches back behind one already written.

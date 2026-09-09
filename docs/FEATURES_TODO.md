@@ -46,7 +46,7 @@ condition d'autres features (X6 porte D1, D2, D6).
 
 ## 2. Le verrou structurel
 
-### S1 — Résolution différée de la base · 2 semaines · 0 C++
+### S1 — Résolution différée de la base · **Fait — `7015df1`, validé le 9 sept.** · 0 C++
 
 Aujourd'hui une animation lit sa valeur de départ **au moment où la ligne est
 exécutée** (`moveTo.py:24` : `src = v2(*input.meta.position)`), pas au moment où
@@ -93,7 +93,7 @@ barrière du corpus prouve elle-même que rien ne bouge.
 `test/contention_test.py:162-166` et exiger que les deux ordres donnent le même
 film, et qu'une chaîne de `moveBy` inversée finisse à 3.0 (aujourd'hui 2.0).
 
-**S1 commande D7, B4, A3 et B3.** Ces quatre-là sont faux sans lui.
+**S1 commandait D7, B4, A3 et B3.** Les quatre sont libres depuis le 9 sept.
 
 ---
 
@@ -108,7 +108,7 @@ projet.
 |---|---|---|---|
 | **A1** | **Fait — `8928df6`.** **Comp** — un groupe qui se rend comme **un seul calque** : sa propre transformation, son opacité, ses effets, son masque. Corrige d'un coup les groupes imbriqués qui perdent l'animation intérieure, le fondu de groupe où les membres se traversent, et le masque qui exige d'aplatir un texte à la main. Le moteur a déjà les couches isolées et la passe qui aplatit une plage de maillages | L | — |
 | **A2** | **Fait — `56377fe`.** Une matrice dans l'étage sommet, résolue par image et posée sur chaque maillage (`Mesh::camera`), pas un composite de toute la scène. Mesuré à 1920×1080 : à zoom 2 un marqueur à 2 unités passe de 240 à 480 px du centre et double de taille ; un élément `pinToFrame()` garde son pixel et ses 48 px à travers un zoom ET un panoramique. La caméra n'a pas d'entrée dans la pile tant qu'elle n'est pas revendiquée, donc une scène qui l'ignore atteint le C++ à l'identique. Trouvé au passage : `pyToJson` rendait `null` pour un dictionnaire vide — premier input construit sans arguments. Non fait : la rotation de caméra (les sommets arrivent en NDC, qui n'est pas carré : une rotation y cisaille l'image), et les pixels du panneau d'aperçu, qu'aucune fenêtre ne peut montrer. **Caméra** — déplacer et zoomer l'image entière. Un uniforme dans l'étage sommet, **pas** un composite de tout. Demande un `pinToFrame()` pour ce qui ne doit pas zoomer (sous-titres) | M | — |
-| **A3** | **Valeur suivie + liaison** — un nombre qui évolue, des objets qui le lisent. `attachTo` est déjà la moitié écriture, `Group._ownPositions` la moitié lecture ; il manque le verbe général | M | S1 |
+| **A3** | **Valeur suivie + liaison** — un nombre qui évolue, des objets qui le lisent. `attachTo` est déjà la moitié écriture, `Group._ownPositions` la moitié lecture ; il manque le verbe général | M | — |
 | **A4** | ~~Flou de mouvement~~ — **écarté**, voir §5 | — | — |
 | **A5** | **Fait — `c650536`.** L'échantillonnage par longueur d'arc était bien la seule pièce manquante : la marche est mesurée d'abord, et chaque image est un pas de la même longueur. Mesuré sur un trajet écrit avec un point au centième du chemin : pas de 0,344 à 0,345 au lieu de 0,1 puis le reste. `face=True` lit la direction de l'image d'avant à celle d'après, donc un virage tourne par ses angles. N'a PAS demandé A3 : suivre une courbe déclarée n'est pas suivre une valeur qui évolue. **`moveAlong(path)`** — parcourir une courbe, tourné dans le sens de la marche. Presque tout existe : il manque l'échantillonnage par longueur d'arc | S | A3 |
 | **A6** | **Fait — `4c66575`, validé le 8 sept.** `over().volume` était revendiqué sur la timeline et jeté au montage. Le graphe audio lit maintenant le niveau image par image (une expression `volume` posée APRÈS `adelay`, donc dans l'horloge de la scène), et `duck(under=)` écrit les deux rampes du geste. Mesuré sur deux rendus du même son : 0,20 après une rampe vers 0,2, et 1,00 retrouvé après la voix. **Le son sur le modèle de revendications** — `music.over(duration=1.5).volume = 0`, et `music.duck(under=voice)` | M | X7 |
@@ -120,8 +120,8 @@ projet.
 |---|---|---|---|
 | **B1** | **Fait — `406b110`, validé le 8 sept.** La ligne du curseur allume la barre qu'elle fabrique — l'animation gagne sur la déclaration — et ⌘⏎ joue depuis ce moment. Mesuré : la barre du cercle passe de 124 à 135 de vert quand le curseur entre dans sa ligne, celle du carré ne bouge pas. A demandé de réparer le harnais d'abord (`fa0fe1e`) : la fenêtre sans écran ne recevait aucune touche. **Le curseur de texte est une tête de lecture** — la ligne où tu es allume sa barre ; une touche joue depuis là. Aucune écriture, que de la lecture | S | — |
 | **B2** | ~~Glissement sur les nombres~~ — **écarté**, voir §5 | — | — |
-| **B3** | **Glisser vs décaler** — tirer le corps d'un clip écrit son `.wait()`, tirer le bord d'une bande rouge écrit le `wait()` global. Les deux outils de Premiere sont deux mots du langage. Demande un `insertLinkSpan` dans `edit.py` | M | S1 (vers la gauche) |
-| **B4** | **Fiche chronomètre** — la valeur de l'élément **à la tête de lecture**, et en taper une autre écrit l'animation qui y mène. Doit refuser d'écrire dans une fenêtre déjà revendiquée | M | S1 |
+| **B3** | **Glisser vs décaler** — tirer le corps d'un clip écrit son `.wait()`, tirer le bord d'une bande rouge écrit le `wait()` global. Les deux outils de Premiere sont deux mots du langage. Demande un `insertLinkSpan` dans `edit.py` | M | — |
+| **B4** | **Fiche chronomètre** — la valeur de l'élément **à la tête de lecture**, et en taper une autre écrit l'animation qui y mène. Doit refuser d'écrire dans une fenêtre déjà revendiquée | M | — |
 | **B5** | **Fait — `38315e3`, validé le 8 sept.** Une pastille de courbe au bout de chaque ligne d'effet, un panneau de 200 px avec deux points tirables et les presets, et l'écriture au relâchement seulement. `CubicBezier` existait déjà dans la librairie mais n'était pas dans l'espace de noms d'une scène — c'était ça, le trou. **Éditeur de courbes** — une courbe tirable sur chaque effet, qui écrit `easing=CubicBezier(...)`. Les presets et les courbes à main sont déjà le même type | M | — |
 | **B6** | **Fait — `775459a`.** La règle prend une deuxième rangée seulement si la scène a nommé quelque chose ; ⇧←/⇧→ sautent d'un repère à l'autre et disent le nom. **Les repères** — `timestamp()` est écrit 30 fois dans le tutoriel et n'est **jamais dessiné**. Le C++ sait déjà sauter de l'un à l'autre. Il manque trois lignes dans `sceneModel` | S | — |
 | **B7** | **Fait — `3fbfc71`.** Le refus est devenu le bouton : « PAUSE_DELAY → 0.9, lu sur 3 lignes · clique pour le changer », et un clic change la ligne de la constante et rien d'autre. Une barre fabriquée par une boucle porte « ×3 ». **Ce qu'un geste doit refuser** — badge « ×3 » sur un clip fait dans une boucle, refus sur un autre fichier (X5), et l'inverse constructif : si l'argument est une constante nommée, proposer de changer **la constante** | S puis M | X4, X5 |
