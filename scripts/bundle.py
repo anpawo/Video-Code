@@ -232,6 +232,10 @@ def main() -> None:
     shutil.copy2(dylib, lib / dylib.name)
     os.chmod(lib / dylib.name, 0o755)
     sh("install_name_tool", "-id", f"@rpath/{dylib.name}", str(lib / dylib.name))
+    # python.org signs its framework; renaming it breaks that signature and
+    # dyld then refuses the library outright. relocate() re-signs what it
+    # touches for the same reason — this copy is made before it runs.
+    sh("codesign", "-f", "-s", "-", str(lib / dylib.name))
     dest = DIST / "python" / "lib" / stdlib.name
     copy_tree(stdlib, dest, STDLIB_SKIP)
     for so in list((dest / "lib-dynload").glob("_test*")) + list((dest / "lib-dynload").glob("xx*")):
