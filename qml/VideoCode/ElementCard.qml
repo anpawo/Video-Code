@@ -480,9 +480,14 @@ Item {
         readonly property int pad: 18
         readonly property int wide: Math.min(1080, root.width - 48)
         readonly property int rowsTall: Math.max(root.rows.length * 42 + Math.max(root.rows.length - 1, 0) * 7, 28)
-        // Les pastilles vivent DANS la barre depuis qu'elles y sont entrées ; ce
-        // qu'elles coûtent à la fiche, c'est ce que la barre a grandi.
-        readonly property int fieldsTall: 0
+        // Ce que les pastilles ajoutent : celles qui sont ÉCRITES font grandir la
+        // barre, les deux lectures se posent dessous. Sans ce compte, la fiche
+        // gardait la hauteur d'une barre de 76 px et les effets tombaient hors
+        // du cadre, qui est en `clip` — ils avaient disparu sans un mot.
+        readonly property int fieldsTall: Math.max(0, bar.height - 76)
+                                        + (liveRow.visible ? liveRow.height + 10 : 0)
+                                        + (rule.visible ? 8 : 0)
+                                        + (metaRow.visible ? metaRow.height + 7 : 0)
         readonly property int tall: Math.min(pad + 22 + 76 + 8 + 24 + 12 + rowsTall + fieldsTall + 34 + pad,
                                              root.height - 48)
 
@@ -593,10 +598,7 @@ Item {
             }
             // Assez haut pour le nom et les pastilles, et pas moins que 76 —
             // en dessous la barre cesse de se lire comme le clip qu'elle est.
-            height: Math.max(76, 42 + (argRow.visible ? argRow.height + 7 : 0)
-                                    + (liveRow.visible ? liveRow.height + 7 : 0)
-                                    + (rule.visible ? 8 : 0)
-                                    + (metaRow.visible ? metaRow.height + 7 : 0))
+            height: Math.max(76, 42 + (argRow.visible ? argRow.height + 7 : 0))
             radius: 6
             color: root.hue
             border.width: 1
@@ -697,7 +699,7 @@ Item {
             id: scale
             anchors {
                 left: bar.left; right: bar.right
-                top: bar.bottom; topMargin: 8
+                top: metaRow.visible ? metaRow.bottom : bar.bottom; topMargin: 8
             }
             height: 24
 
@@ -780,10 +782,13 @@ Item {
         // ── What animates it, on the element's own axis ───────────────────
         Item {
             id: applied
+            // Jusqu'à la phrase du bas, pas jusqu'aux pastilles : celles-ci sont
+            // remontées DANS la barre, donc au-dessus d'ici, et le bloc a eu une
+            // hauteur négative — les effets ont disparu sans un mot.
             anchors {
                 left: bar.left; right: bar.right
                 top: scale.bottom; topMargin: 12
-                bottom: argRow.top; bottomMargin: 10
+                bottom: hint.top; bottomMargin: 10
             }
 
             // The ruler's half-second and whole-second lines, carried down
@@ -1344,8 +1349,8 @@ Item {
             // sa propre barre, la question ne se pose plus.
             anchors {
                 left: bar.left; right: bar.right
-                bottom: liveRow.visible ? liveRow.top : (metaRow.visible ? metaRow.top : bar.bottom)
-                leftMargin: 14; rightMargin: 14; bottomMargin: liveRow.visible || metaRow.visible ? 7 : 12
+                bottom: bar.bottom
+                leftMargin: 14; rightMargin: 14; bottomMargin: 12
             }
             spacing: 6
             visible: root.arguments.length > 0
@@ -1442,10 +1447,14 @@ Item {
         // qu'on ait à lire.
         Flow {
             id: liveRow
+            // Sous la barre, pas dedans. Le rectangle vert EST le clip : ce qui
+            // y est écrit est ce qui le fabrique. Une lecture n'est pas le clip,
+            // c'est ce qu'on en dit à un instant — la poser dessus mélangeait
+            // les deux, et faisait grandir une barre qui doit rester la taille
+            // d'un clip.
             anchors {
                 left: bar.left; right: bar.right
-                bottom: rule.top
-                leftMargin: 14; rightMargin: 14; bottomMargin: 7
+                top: bar.bottom; topMargin: 10
             }
             spacing: 6
             visible: root.argsNow.length > 0
@@ -1459,13 +1468,13 @@ Item {
                     width: liveText.implicitWidth + 16
                     height: 22
                     radius: Theme.radiusSmall
-                    color: Qt.rgba(0.04, 0.06, 0.09, 0.22)
+                    color: Theme.sunk
 
                     Text {
                         id: liveText
                         anchors.centerIn: parent
                         text: live.modelData.n + " " + live.modelData.v
-                        color: Qt.rgba(0.93, 0.96, 1, 0.82)
+                        color: Theme.inkDim
                         font.family: Theme.mono
                         font.pixelSize: 11
                         elide: Text.ElideRight
@@ -1481,12 +1490,11 @@ Item {
             id: rule
             anchors {
                 left: bar.left; right: bar.right
-                bottom: metaRow.top; bottomMargin: 7
-                leftMargin: 14; rightMargin: 14
+                top: liveRow.bottom; topMargin: 7
             }
             height: 1
             visible: metaRow.visible && liveRow.visible
-            color: Qt.rgba(0.04, 0.06, 0.09, 0.28)
+            color: Theme.edgeSoft
         }
 
         // ── Où il en est, à l'image du curseur ────────────────────────────
@@ -1503,8 +1511,7 @@ Item {
             id: metaRow
             anchors {
                 left: bar.left; right: bar.right
-                bottom: bar.bottom
-                leftMargin: 14; rightMargin: 14; bottomMargin: 12
+                top: rule.visible ? rule.bottom : liveRow.bottom; topMargin: 7
             }
             spacing: 6
             visible: root.metaShown.length > 0
@@ -1513,7 +1520,7 @@ Item {
                 height: 22
                 verticalAlignment: Text.AlignVCenter
                 text: "à " + root.playhead.toFixed(2) + "s"
-                color: Qt.rgba(0.04, 0.06, 0.09, 0.62)
+                color: Theme.inkFaint
                 font.family: Theme.mono
                 font.pixelSize: 10
             }
@@ -1527,10 +1534,7 @@ Item {
                     width: readout.implicitWidth + 16
                     height: 22
                     radius: Theme.radiusSmall
-                    // Creusé dans la barre plutôt que posé dessus : ces valeurs
-                    // se lisent, celles du dessus s'écrivent, et la différence
-                    // doit se voir sans avoir à lire.
-                    color: Qt.rgba(0.04, 0.06, 0.09, 0.22)
+                    color: Theme.sunk
 
                     Text {
                         id: readout
@@ -1539,7 +1543,7 @@ Item {
                               + (Math.abs(chip.modelData.v) >= 100
                                  ? Math.round(chip.modelData.v)
                                  : chip.modelData.v.toFixed(2))
-                        color: Qt.rgba(0.93, 0.96, 1, 0.82)
+                        color: Theme.inkDim
                         font.family: Theme.mono
                         font.pixelSize: 11
                     }

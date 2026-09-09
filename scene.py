@@ -36,8 +36,8 @@ wait(0.5)
 # Two lines claiming x over the same frames. The later one wins them, and the
 # editor says so in orange — on the line, on the element in the timeline, and on
 # the call in its effect tree. Comment them out for a clean scene.
-square.moveBy(x=1, duration=1)
-square.moveBy(x=-1, duration=1)
+# square.moveBy(x=1, duration=1)
+# square.moveBy(x=-1, duration=1)
 
 # And a fault that stops the scene running at all. Uncomment it to watch the
 # picture keep the last frame that worked while the message lands on the line.
