@@ -58,6 +58,15 @@ SYSTEM = (
 QML_MODULES = ["QtQml", "QtQuick"]
 QML_SKIP = {"Imagine", "Material", "Universal", "iOS", "macOS", "Windows", "Fusion"}
 
+# The plugin folders this application can actually load. Not the whole
+# directory: Qt ships a driver for the Mimer database that names a library
+# nobody outside Mimer has, and a GTK platform theme that would drag all of
+# GTK into the zip. `platforms` is the one that must be here — it holds
+# offscreen and xcb.
+QT_PLUGINS = ["platforms", "platforminputcontexts", "imageformats", "iconengines",
+              "xcbglintegrations", "tls", "wayland-shell-integration",
+              "wayland-decoration-client", "wayland-graphics-integration-client"]
+
 
 def sh(*args: str) -> str:
     return subprocess.run(args, check=True, capture_output=True, text=True).stdout
@@ -90,7 +99,7 @@ def ours(path: Path) -> bool:
 
 
 def deps(elf: Path) -> list[tuple[str, str]]:
-    """(soname, resolved path) for what this file loads, the unresolvable named."""
+    """(soname, resolved path) for what this file loads; "" when nothing answers."""
     out = []
     for line in sh("ldd", str(elf)).splitlines():
         line = line.strip()
@@ -98,10 +107,7 @@ def deps(elf: Path) -> list[tuple[str, str]]:
             continue  # linux-vdso, and the loader itself
         name, _, rest = line.partition(" => ")
         resolved = rest.rsplit(" (", 1)[0].strip()
-        if resolved == "not found":
-            sys.exit(f"{elf} needs {name}, which is not on this machine")
-        if resolved:
-            out.append((name.strip(), resolved))
+        out.append((name.strip(), "" if resolved == "not found" else resolved))
     return out
 
 
@@ -126,14 +132,25 @@ def relocate(lib_dir: Path) -> None:
             continue
         seen.add(elf)
         for name, resolved in deps(elf):
-            if is_system(name) or Path(resolved).is_relative_to(DIST):
+            if not resolved and not is_system(name):
+                # Qt ships plugins for hardware and databases this machine has
+                # never seen. One that cannot be satisfied is dropped rather
+                # than shipped broken — Qt skips a plugin it cannot load, and
+                # if the dropped one mattered, --check-chrome says so.
+                if elf.is_relative_to(lib_dir / "qt"):
+                    print(f"dropped {elf.relative_to(DIST)}: needs {name}, absent here")
+                    elf.unlink()
+                    break
+                sys.exit(f"{elf} needs {name}, which is not on this machine")
+            if not resolved or is_system(name) or Path(resolved).is_relative_to(DIST):
                 continue
             target = lib_dir / name
             if not target.exists():
                 shutil.copy2(resolved, target)
                 os.chmod(target, 0o755)
                 queue.append(target)
-        set_rpath(elf, lib_dir)
+        if elf.exists():  # unless it was just dropped
+            set_rpath(elf, lib_dir)
 
 
 def check_clean() -> None:
@@ -141,8 +158,8 @@ def check_clean() -> None:
     dirty = []
     for elf in (p for p in DIST.rglob("*") if is_elf(p) and ours(p)):
         for name, resolved in deps(elf):
-            if not is_system(name) and not Path(resolved).is_relative_to(DIST):
-                dirty.append(f"{elf.relative_to(DIST)} → {resolved}")
+            if not is_system(name) and (not resolved or not Path(resolved).is_relative_to(DIST)):
+                dirty.append(f"{elf.relative_to(DIST)} → {resolved or 'nothing'}")
     if dirty:
         sys.exit("still pointing outside the folder:\n  " + "\n  ".join(dirty))
 
@@ -217,7 +234,9 @@ def main() -> None:
     # launcher script or an environment variable.
     prefix = qt_prefix(binary)
     qt = lib / "qt"
-    bundle.copy_tree(prefix / "plugins", qt / "plugins")
+    for folder in QT_PLUGINS:
+        if (prefix / "plugins" / folder).is_dir():
+            bundle.copy_tree(prefix / "plugins" / folder, qt / "plugins" / folder)
     (qt / "qml").mkdir(parents=True)
     for module in QML_MODULES:
         bundle.copy_tree(prefix / "qml" / module, qt / "qml" / module, QML_SKIP)
