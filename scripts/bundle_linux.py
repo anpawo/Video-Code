@@ -42,16 +42,26 @@ SYSTEM = (
     "libutil.so", "libresolv.so", "libnsl.so", "libcrypt.so", "libgcc_s.so",
     "libstdc++.so",
     "libGL", "libEGL", "libGLX", "libGLdispatch", "libOpenGL", "libGLESv2",
-    "libgbm", "libdrm", "libvulkan", "libX", "libxcb", "libxkbcommon",
+    "libgbm", "libdrm", "libvulkan", "libX", "libxcb.so", "libxkbcommon.so",
     "libwayland", "libxshmfence",
     "libdbus-1", "libsystemd", "libudev", "libselinux", "libcap",
     "libz.so", "liblzma", "libbz2", "libexpat", "libffi", "libuuid",
-    "libssl", "libcrypto", "libasound", "libpulse", "libnss", "libmount",
+    "libssl", "libcrypto", "libasound", "libpulse", "libnss_", "libmount",
     "libblkid",
 )
-# glib is deliberately NOT in that list: it travels. Its package is
-# `libglib2.0-0t64` on 24.04 and was `libglib2.0-0` before, and a prerequisite
-# line that a distribution renames under you is a line testers get wrong.
+# Three names are deliberately NOT in that list, and each cost a run to learn:
+#   glib          — its package is `libglib2.0-0t64` on 24.04 and was
+#                   `libglib2.0-0` before; a prerequisite line the distribution
+#                   renames under you is a line testers get wrong.
+#   libnss3       — Mozilla's NSS, which the binary itself names. Only glibc's
+#                   name-service modules (`libnss_files`) have to be the
+#                   machine's, hence the underscore above.
+#   libxcb-cursor and the other xcb helpers, libxkbcommon-x11 — the xcb
+#                   platform plugin's own, missing from plenty of desktops
+#                   (this is the famous "could not load the Qt platform plugin
+#                   xcb" of every Qt 6 application). The core libxcb and
+#                   libxkbcommon still come from the machine: they talk to its
+#                   X server.
 
 # The QML modules the chrome imports (QtQml, QtQuick, QtQuick.Controls,
 # QtQuick.Window — all of them live under these two directories), minus the
