@@ -99,15 +99,27 @@ def ours(path: Path) -> bool:
 
 
 def deps(elf: Path) -> list[tuple[str, str]]:
-    """(soname, resolved path) for what this file loads; "" when nothing answers."""
+    """
+    (soname, resolved path) for what this file NAMES; "" when nothing answers.
+
+    `ldd` prints the whole tree, not the file's own list, so everything the
+    system's openssl reaches shows up under a Qt plugin that never heard of
+    Kerberos. DT_NEEDED is the file's own business and the only thing worth
+    rewriting; the rest belongs to whoever named it, and is reached here too
+    because every copy is walked in turn.
+    """
+    own = {line.strip() for line in sh("patchelf", "--print-needed", str(elf)).splitlines() if line.strip()}
     out = []
     for line in sh("ldd", str(elf)).splitlines():
         line = line.strip()
         if "=>" not in line:
             continue  # linux-vdso, and the loader itself
         name, _, rest = line.partition(" => ")
+        name = name.strip()
+        if name not in own:
+            continue
         resolved = rest.rsplit(" (", 1)[0].strip()
-        out.append((name.strip(), "" if resolved == "not found" else resolved))
+        out.append((name, "" if resolved == "not found" else resolved))
     return out
 
 
@@ -208,7 +220,12 @@ def main() -> None:
     # same as the macOS bundle's.
     dest = DIST / "python" / "lib" / stdlib.name
     bundle.copy_tree(stdlib, dest, bundle.STDLIB_SKIP)
-    for so in list((dest / "lib-dynload").glob("_test*")) + list((dest / "lib-dynload").glob("xx*")):
+    # _tkinter goes with the tkinter package STDLIB_SKIP already leaves behind:
+    # the module without its package imports nothing, and it is the one thing
+    # in the stdlib that names a windowing toolkit.
+    for so in (list((dest / "lib-dynload").glob("_test*"))
+               + list((dest / "lib-dynload").glob("xx*"))
+               + list((dest / "lib-dynload").glob("_tkinter*"))):
         so.unlink()
     for config in dest.glob("config-*"):  # the static library and the makefiles a build needs, 10 MB
         shutil.rmtree(config)
