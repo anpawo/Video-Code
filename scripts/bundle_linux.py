@@ -165,13 +165,23 @@ def relocate(lib_dir: Path) -> None:
             set_rpath(elf, lib_dir)
 
 
-def check_clean() -> None:
-    """Nothing may resolve to the build machine: that is the whole point."""
+def check_clean(lib_dir: Path) -> None:
+    """
+    Every library named is either the system's, by policy, or in the folder.
+
+    Not what `ldd` answers: it answers for THIS machine, where LD_LIBRARY_PATH
+    points at the Qt the build used and wins over any rpath — so a copy that is
+    perfectly self-contained still reads as pointing at the builder. What the
+    loader will do on the tester's machine is decided by two things, and both
+    are checked here: the name is one we expect them to have, or the file sits
+    in lib/ where the rpath points.
+    """
     dirty = []
     for elf in (p for p in DIST.rglob("*") if is_elf(p) and ours(p)):
         for name, resolved in deps(elf):
-            if not is_system(name) and (not resolved or not Path(resolved).is_relative_to(DIST)):
-                dirty.append(f"{elf.relative_to(DIST)} → {resolved or 'nothing'}")
+            if is_system(name) or (lib_dir / name).exists() or (elf.parent / name).exists():
+                continue
+            dirty.append(f"{elf.relative_to(DIST)} → {resolved or 'nothing'}")
     if dirty:
         sys.exit("still pointing outside the folder:\n  " + "\n  ".join(dirty))
 
@@ -269,7 +279,7 @@ def main() -> None:
         os.chmod(lib / dylib.name, 0o755)
 
     relocate(lib)
-    check_clean()
+    check_clean(lib)
 
     (DIST / "README.txt").write_text(README)
     size = sum(p.stat().st_size for p in DIST.rglob("*") if p.is_file()) // 1_000_000
