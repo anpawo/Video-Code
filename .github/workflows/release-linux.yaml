@@ -76,6 +76,8 @@ jobs:
             apt-get update -qq
             DEBIAN_FRONTEND=noninteractive apt-get install -y -qq unzip ffmpeg mesa-vulkan-drivers libvulkan1 > /dev/null
             cd /tmp && unzip -q /dist/video-code-linux-x86_64.zip && cd video-code-linux-x86_64
+            printf "import shapely, PIL, freetype, uharfbuzz, pygments, svgelements\nfrom videocode import *\nSquare(side=1)\n" > /tmp/probe.py
+            ./video-code --file /tmp/probe.py --inspect > /dev/null
             ./video-code --file scenes/first_rectangle.py --generate /tmp/smoke.mp4
             test -s /tmp/smoke.mp4
             ./video-code --file scenes/tour.py --generate /tmp/look.png --from 2.5

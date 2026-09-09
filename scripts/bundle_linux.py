@@ -74,6 +74,21 @@ def is_system(name: str) -> bool:
     return name.startswith(SYSTEM)
 
 
+def ours(path: Path) -> bool:
+    """
+    Everything in the bundle except what a wheel brought with it.
+
+    A manylinux wheel ships its own libraries in a sibling `*.libs` directory,
+    already patched by auditwheel, and they are NOT loadable one at a time:
+    shapely's libgeos_c names libgeos with no rpath of its own, and only
+    resolves because the extension module that pulls both in has the rpath.
+    `ldd` on one of them alone says "not found" about a wheel that works
+    perfectly — so they are left exactly as they came, and what proves them is
+    the import in the container.
+    """
+    return "site-packages" not in path.parts
+
+
 def deps(elf: Path) -> list[tuple[str, str]]:
     """(soname, resolved path) for what this file loads, the unresolvable named."""
     out = []
@@ -104,7 +119,7 @@ def relocate(lib_dir: Path) -> None:
     then point it there. Repeats until the copies name nothing new.
     """
     seen: set[Path] = set()
-    queue = [p for p in DIST.rglob("*") if is_elf(p)]
+    queue = [p for p in DIST.rglob("*") if is_elf(p) and ours(p)]
     while queue:
         elf = queue.pop()
         if elf in seen:
@@ -124,7 +139,7 @@ def relocate(lib_dir: Path) -> None:
 def check_clean() -> None:
     """Nothing may resolve to the build machine: that is the whole point."""
     dirty = []
-    for elf in (p for p in DIST.rglob("*") if is_elf(p)):
+    for elf in (p for p in DIST.rglob("*") if is_elf(p) and ours(p)):
         for name, resolved in deps(elf):
             if not is_system(name) and not Path(resolved).is_relative_to(DIST):
                 dirty.append(f"{elf.relative_to(DIST)} → {resolved}")
@@ -191,7 +206,7 @@ def main() -> None:
     # and reaches them by an $ORIGIN rpath — copy the package without it and
     # numpy imports into an ImportError.
     for extra in site.glob("*.libs"):
-        if extra.name.split(".")[0].lower() in {n.lower() for n in bundle.SITE} | {"pillow"}:
+        if extra.name.split(".")[0].lower() in {n.lower() for n in bundle.SITE_INFO}:
             bundle.copy_tree(extra, dest / "site-packages" / extra.name)
     for info in site.glob("*.dist-info"):
         if any(info.name.lower().startswith(p + "-") for p in bundle.SITE_INFO):
