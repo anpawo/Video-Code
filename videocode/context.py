@@ -421,11 +421,26 @@ class Context:
         every span a single frame and hides the whole of paint animation. The
         editor already groups the same way, by (line, call) — see
         `serialize.sceneModel`.
+
+        Grouping by LINE was the approximation, and it swallowed a loop: three
+        `moveTo` written by the same `for` are three calls on one line, so they
+        merged into a single span reaching from the first to the last — and a
+        loop that writes its steps backwards became invisible to
+        `backdatedWrites()`. Since S1, a verb call knows which statements it
+        wrote (`Context.calls`), so the ones it claims are grouped by CALL and
+        the rest — placements, effects, what a group emits — keep the old key.
         """
+        owner: dict[int, tuple[int, int]] = {}
+        for index, written in Context.calls.items():
+            for rank, statements in enumerate(written):
+                for i in statements:
+                    owner[i] = (index, rank)
+
         calls: dict[tuple[Any, ...], dict[str, list[int]]] = {}
-        for st in Context.statements:
+        for i, st in enumerate(Context.statements):
+            mine = owner.get(i)
             spans = calls.setdefault((st["input"], st["file"], st["line"], st["call"],
-                                      st.get("derived", False), st.get("derivedBy")), {})
+                                      st.get("derived", False), st.get("derivedBy"), mine), {})
             for key, (first, last) in st["keys"].items():
                 held = spans.get(key)
                 if held is None:
@@ -435,12 +450,185 @@ class Context:
                     held[1] = max(held[1], last)
 
         out: list[dict[str, Any]] = []
-        for (inputIndex, file, line, call, derived, derivedBy), spans in calls.items():
+        for (inputIndex, file, line, call, derived, derivedBy, _), spans in calls.items():
             for key, (first, last) in spans.items():
                 out.append({"key": key, "input": inputIndex, "first": first, "last": last,
                             "file": file, "line": line, "call": call, "derived": derived,
                             "derivedBy": derivedBy})
         return out
+
+    # ── S1 : la résolution différée de la base ────────────────────────────
+    #
+    # Une animation lit sa valeur de départ au moment où la LIGNE s'exécute, et
+    # non au moment où elle JOUE. C'est juste tant que les lignes sont écrites
+    # dans l'ordre du film ; `backdatedWrites()` dit quand ça ne l'est plus.
+    #
+    # Le remède est d'exécuter la scène DEUX FOIS : la première donne la vérité
+    # image par image, la seconde rejoue en donnant à chaque animation la base
+    # qu'elle a vraiment à l'image où elle s'ouvre. Écrire un marqueur à la
+    # place de la valeur a été écarté à la conception : dix-neuf modèles font de
+    # la trigonométrie sur cette base, et un marqueur ne survit pas à un cosinus.
+    #
+    # `replaying` porte la vérité de la première passe pendant la seconde ; il
+    # est None le reste du temps, et le reste du temps est TOUT le temps pour
+    # les 50 scènes du corpus, qui ne déclenchent jamais la seconde passe.
+    replaying: maybe[dict[str, Any]] = None
+
+    #: Les instructions qu'un verbe a écrites, par entrée et dans l'ordre des
+    #: appels — la seule façon de dire, en relisant la pile, quelle revendication
+    #: appartient à qui.
+    calls: dict[int, list[list[int]]] = {}
+
+    #: Ce que valait chaque canal avant que le premier verbe ne touche l'entrée.
+    starts: dict[int, dict[str, Any]] = {}
+
+    #: Les canaux qu'un modèle lit comme base, et le champ où la valeur d'un axe
+    #: vit dans les arguments du shader.
+    _BASE_KEYS = {
+        "Position:x": "x", "Position:y": "y",
+        "Scale:x": "x", "Scale:y": "y",
+        "Align:x": "x", "Align:y": "y",
+        "Rotation": "degree",
+        "Opacity": "opacity",
+    }
+
+    @staticmethod
+    def record(input: Any, mark: int) -> None:
+        """Attribuer à l'appel qui vient de finir les instructions qu'il a écrites."""
+        index = getattr(input.meta, "index", None)
+        if index is None:
+            return
+        Context.calls.setdefault(index, []).append(list(range(mark, len(Context.statements))))
+
+    @staticmethod
+    def baseline() -> dict[str, Any]:
+        """
+        Ce que la première passe a prouvé, dans la forme où la seconde le lit :
+
+        - `opens` : par entrée et par appel, l'image où chaque canal s'ouvre ;
+        - `owned` : par entrée et par canal, les fenêtres écrites par chaque
+          appel — c'est ce qui permet à une animation de ne PAS se rebaser sur
+          sa propre sortie, faute de quoi la seconde passe rendrait la première ;
+        - `values` : la pile relue, triée par image ;
+        - `starts` : la valeur d'avant le premier verbe, le plancher quand rien
+          d'autre n'a revendiqué le canal avant l'ouverture.
+
+        La scène est déterministe : le n-ième appel de la seconde passe est le
+        n-ième de la première, et c'est ce qui rend l'attribution par rang juste.
+        """
+        opens: dict[int, list[dict[str, frame]]] = {}
+        owned: dict[tuple[int, str], list[tuple[frame, frame, int]]] = {}
+        for index, calls in Context.calls.items():
+            for rank, written in enumerate(calls):
+                keys: dict[str, frame] = {}
+                for i in written:
+                    st = Context.statements[i]
+                    if st["input"] != index:
+                        continue
+                    for key, (first, last) in st["keys"].items():
+                        if key not in Context._BASE_KEYS:
+                            continue
+                        keys[key] = min(keys.get(key, first), first)
+                        owned.setdefault((index, key), []).append((first, last, rank))
+                opens.setdefault(index, []).append(keys)
+
+        values: dict[tuple[int, str], list[tuple[frame, dict]]] = {}
+        for index, entry in Context.stack.items():
+            for f, claimed in entry.items():
+                if f == -1:
+                    continue
+                for key, shader in claimed.items():
+                    channel = key.split(":")[0]
+                    values.setdefault((index, channel), []).append((f, shader["args"]))
+        for series in values.values():
+            series.sort(key=lambda pair: pair[0])
+
+        return {
+            "opens": opens,
+            "owned": owned,
+            "values": values,
+            "starts": dict(Context.starts),
+            "seen": {},
+        }
+
+    @staticmethod
+    def rebase(input: Any) -> None:
+        """
+        Donner à l'appel qui va s'écrire la base qu'il a vraiment.
+
+        Appelée juste avant qu'un verbe ne lise `meta`, et sans effet hors de la
+        seconde passe — où elle ne touche que les canaux que cet appel écrit :
+        remettre à sa valeur d'autrefois un canal auquel il ne touche pas
+        casserait la ligne suivante.
+        """
+        index = getattr(input.meta, "index", None)
+        if index is None:
+            return
+        if index not in Context.starts:
+            Context.starts[index] = Context._readBase(input.meta)
+
+        told = Context.replaying
+        if told is None:
+            return
+        rank = told["seen"].get(index, 0)
+        told["seen"][index] = rank + 1
+        calls = told["opens"].get(index, [])
+        if rank >= len(calls):
+            return
+
+        for key, at in calls[rank].items():
+            value = Context._resolve(told, index, key, at, rank)
+            if value is not None:
+                Context._writeBase(input.meta, key, value)
+
+    @staticmethod
+    def _resolve(told: dict, index: int, key: str, at: frame, rank: int) -> Any:
+        """
+        Ce que valait `key` à l'image `at`, sans compter ce que l'appel y écrit.
+
+        La règle « même image » tombe de là toute seule : un placement statique
+        n'est pas un appel, donc il n'appartient à personne, donc l'image où il
+        pose l'objet reste lisible — quatre scènes du corpus ouvrent une
+        animation pile sur ce placement, à l'image zéro.
+        """
+        field = Context._BASE_KEYS[key]
+        series = told["values"].get((index, key.split(":")[0])) or []
+        windows = told["owned"].get((index, key)) or []
+
+        found = None
+        for f, args in series:
+            if f > at:
+                break
+            owners = {r for first, last, r in windows if first <= f <= last}
+            if owners and owners <= {rank}:
+                continue
+            if args.get(field) is not None:
+                found = args[field]
+        if found is None:
+            found = told["starts"].get(index, {}).get(key)
+        return found
+
+    @staticmethod
+    def _readBase(meta: Any) -> dict[str, Any]:
+        """La valeur de chaque canal, à plat, telle qu'un verbe la lirait."""
+        return {
+            "Position:x": meta.position.x, "Position:y": meta.position.y,
+            "Scale:x": meta.scale.x, "Scale:y": meta.scale.y,
+            "Align:x": meta.align.x, "Align:y": meta.align.y,
+            "Rotation": meta.rotation,
+            "Opacity": meta.opacity,
+        }
+
+    @staticmethod
+    def _writeBase(meta: Any, key: str, value: Any) -> None:
+        """La valeur relue, remise dans le meta — un axe à la fois."""
+        channel, _, axis = key.partition(":")
+        if channel == "Rotation":
+            meta.rotation = value
+        elif channel == "Opacity":
+            meta.opacity = value
+        else:
+            setattr(getattr(meta, channel.lower()), axis, value)
 
     @staticmethod
     def backdatedWrites() -> list[dict[str, Any]]:

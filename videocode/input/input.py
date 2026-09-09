@@ -2,6 +2,8 @@
 
 
 from __future__ import annotations
+
+import functools
 from copy import copy as _shallow_copy
 from abc import ABC, abstractmethod
 from typing import Any, Callable, Self, cast
@@ -32,6 +34,31 @@ from videocode.input.media.TrackedPath import TrackedPath
 from videocode.utils.bezier import animate, Easing, easing
 from videocode.utils.logger import *
 from videocode.utils.classutils import At, AttributeNameReference, EaseAttributeSimplifier, _Over
+
+
+
+def _rebasing(method):
+    """
+    Donner sa vraie base au verbe, juste avant qu'il ne la lise.
+
+    Le modèle lit `input.meta` dès qu'il est appelé — avant `apply`, puisque le
+    générateur est déballé par le `*`. Le seul moment où l'on peut corriger la
+    base est donc l'entrée du verbe, et c'est tout ce que fait ce décorateur.
+    Sans effet hors de la seconde passe de S1 : `Context.rebase` sort tout de
+    suite quand `Context.replaying` est None, ce qui est le cas de toutes les
+    scènes du corpus.
+    """
+
+    @functools.wraps(method)
+    def inner(self, *args, **kwargs):
+        Context.rebase(self)
+        mark = len(Context.statements)
+        try:
+            return method(self, *args, **kwargs)
+        finally:
+            Context.record(self, mark)
+
+    return inner
 
 
 class Input(ABC):
@@ -638,6 +665,7 @@ class Input(ABC):
 
     ### Template ###
 
+    @_rebasing
     def moveTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4) -> Self:
         return self.apply(*moveTo(self, x=x, y=y, easing=easing, start=start, duration=duration), at=at)
 
@@ -654,18 +682,22 @@ class Input(ABC):
         """
         return self.apply(*moveAlong(self, path, easing=easing, start=start, duration=duration, face=face), at=at)
 
+    @_rebasing
     def moveBy(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4) -> Self:
         return self.apply(*moveBy(self, x=x, y=y, easing=easing, start=start, duration=duration), at=at)
 
+    @_rebasing
     def fadeIn(self, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, from0: maybe[bool] = True) -> Self:
         return self.apply(*fadeTo(self, src=0 if from0 else None, dst=255, easing=easing, start=start, duration=duration), at=at)
 
+    @_rebasing
     def fadeOut(self, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, hide=False, from255: maybe[bool] = True) -> Self:
         self.apply(*fadeTo(self, src=255 if from255 else None, dst=0, easing=easing, start=start, duration=duration))
         if hide:
             return self.hide(start=start + duration)
         return self
 
+    @_rebasing
     def scaleTo(
         self,
         factor: maybe[number] = None,
@@ -683,6 +715,7 @@ class Input(ABC):
             y = factor
         return self.apply(*scaleTo(self, x=x, y=y, easing=easing, start=start, duration=duration, about=about), at=at)
 
+    @_rebasing
     def scaleBy(
         self,
         factor: maybe[number] = None,
@@ -700,6 +733,7 @@ class Input(ABC):
             y = factor
         return self.apply(*scaleBy(self, x=x, y=y, easing=easing, start=start, duration=duration, about=about), at=at)
 
+    @_rebasing
     def rotateTo(self, degree: number, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, about: maybe[v2] = None) -> Self:
         """
         Turn to an absolute angle. `about` places the pivot in world units;
@@ -707,11 +741,13 @@ class Input(ABC):
         """
         return self.apply(*rotateTo(self, dst=degree, easing=easing, start=start, duration=duration, about=about), at=at)
 
+    @_rebasing
     def rotateBy(self, degree: number, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, about: maybe[v2] = None) -> Self:
         """
         Turn by an angle relative to the current one — see `rotateTo` for `about`.
         """
         return self.apply(*rotateBy(self, dst=degree, easing=easing, start=start, duration=duration, about=about), at=at)
 
+    @_rebasing
     def alignTo(self, x: maybe[number] = None, y: maybe[number] = None, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4) -> Self:
         return self.apply(*alignTo(self, x=x, y=y, easing=easing, start=start, duration=duration), at=at)

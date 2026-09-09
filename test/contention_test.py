@@ -16,7 +16,7 @@ sys.path.insert(0, ".")
 sys.path.insert(0, "test")
 from helpers import check, section, summary
 
-from videocode import Context
+from videocode import Context, Square
 from videocode.serialize import execSource
 
 
@@ -128,9 +128,15 @@ check("a member written by hand during a group window IS", len(grouped("g.rotate
 # An animation reads where to start from the CURSOR, which is the right answer
 # as long as the lines are written in the order they play. Give a `start=` that
 # opens behind a line already written and the cursor has been carried past it:
-# measured, `moveTo(x=5, start=2)` then `moveTo(x=2)` sends x from 4.99 DOWN to
-# 2 over the first second, where the same two lines the other way round send it
-# from 0 up to 2. Same intent, two videos.
+# `moveTo(x=5, start=2)` then `moveTo(x=2)` USED TO send x from 4.99 DOWN to 2
+# over the first second, where the same two lines the other way round sent it
+# from 0 up to 2. Same intent, two videos, and nothing said so.
+#
+# `backdatedWrites()` is what sees it, and it is now also what TRIGGERS the
+# repair: a run that reports one replays itself, giving every animation the
+# value it really has at the frame it opens (S1). So the detector still fires
+# on exactly the same shapes — what changed is that the film no longer depends
+# on the order the two lines were typed in.
 section("backdatedWrites — a start= that opens behind a line written above it")
 
 
@@ -151,19 +157,79 @@ check(
     not backdated("s.moveTo(x=5, start=2, duration=1)\ns.moveTo(y=2, duration=1)"),
 )
 
-# What the two orders actually produce, so the test says why it cares.
-def firstX(body: str) -> float:
+# What the two orders actually produce — the point of the whole thing.
+def xAt(body: str, which: int) -> float:
     with contextlib.redirect_stderr(io.StringIO()):
-        execSource("from videocode import *\n\ns = Square(side=1)\n" + body + "\nwait(4)\n", "contention_test_order.py")
-    frames = sorted(f for f in Context.stack[0] if f != -1 and "Position" in Context.stack[0][f])
-    return Context.stack[0][frames[0]]["Position"]["args"]["x"]
+        execSource("from videocode import *\n" + body + "\nwait(4)\n", "contention_test_order.py")
+    frames = [f for f in sorted(Context.stack[0]) if f != -1 and "Position" in Context.stack[0][f]]
+    written = [Context.stack[0][f]["Position"]["args"]["x"] for f in frames]
+    written = [x for x in written if x is not None]
+    return written[which]
 
+
+PLAYED = "\ns = Square(side=1)\ns.moveTo(x=2, duration=1)\ns.moveTo(x=5, start=2, duration=1)"
+TYPED = "\ns = Square(side=1)\ns.moveTo(x=5, start=2, duration=1)\ns.moveTo(x=2, duration=1)"
 
 check(
-    "the two orders really do differ — that is the whole point",
-    abs(firstX("s.moveTo(x=2, duration=1)\ns.moveTo(x=5, start=2, duration=1)")
-        - firstX("s.moveTo(x=5, start=2, duration=1)\ns.moveTo(x=2, duration=1)")) > 1.0,
+    "the two orders now open on the same frame — that is the whole point",
+    abs(xAt(PLAYED, 0) - xAt(TYPED, 0)) < 1e-9,
 )
+check(
+    "and they end on the same frame",
+    abs(xAt(PLAYED, -1) - xAt(TYPED, -1)) < 1e-9,
+)
+check(
+    f"the backwards order starts from 0, not from 4.99 ({xAt(TYPED, 0):.3f})",
+    xAt(TYPED, 0) < 0.1,
+)
+
+# One reprise repairs one link, so a CHAIN written backwards needs the scene
+# replayed until it stops moving: the second `moveBy` reads its base from a run
+# where the third was itself mis-based. Three moves of +1 end at 3, whichever
+# order the three lines are in; before S1 the backwards one ended at 2.
+FORWARD = ("\ns = Square(side=1)\ns.moveBy(x=1, start=0, duration=1)"
+           "\ns.moveBy(x=1, start=1, duration=1)\ns.moveBy(x=1, start=2, duration=1)")
+BACKWARD = ("\ns = Square(side=1)\ns.moveBy(x=1, start=2, duration=1)"
+            "\ns.moveBy(x=1, start=1, duration=1)\ns.moveBy(x=1, start=0, duration=1)")
+
+check(f"a chain of three +1 ends at 3.0 written forwards ({xAt(FORWARD, -1):.3f})", abs(xAt(FORWARD, -1) - 3.0) < 1e-6)
+check(f"and at 3.0 written backwards, where it used to end at 2.0 ({xAt(BACKWARD, -1):.3f})", abs(xAt(BACKWARD, -1) - 3.0) < 1e-6)
+check("the chain agrees frame for frame both ways", abs(xAt(FORWARD, 12) - xAt(BACKWARD, 12)) < 1e-9)
+
+# A loop is how a storyboard is actually written, and it used to be invisible:
+# `_callSpans` grouped statements by SOURCE LINE, so three `moveTo` written by
+# one `for` merged into a single span reaching from the first to the last —
+# nothing to compare, nothing reported, no reprise. Since S1 the grouping is by
+# CALL, and the three steps are three spans again.
+LOOP = ("\ns = Square(side=1)\nfor x, when in reversed([(1, 0), (2, 1), (3, 2)]):"
+        "\n    s.moveTo(x=x, start=when, duration=0.8)")
+LOOP_FORWARD = ("\ns = Square(side=1)\nfor x, when in [(1, 0), (2, 1), (3, 2)]:"
+                "\n    s.moveTo(x=x, start=when, duration=0.8)")
+
+with contextlib.redirect_stderr(io.StringIO()):
+    execSource("from videocode import *\n" + LOOP + "\nwait(4)\n", "contention_test_loop.py")
+check("a loop that writes its steps backwards is reported", len(Context.backdatedWrites()) > 0)
+check(f"and it plays like the same loop written forwards ({xAt(LOOP, -1):.3f})",
+      abs(xAt(LOOP, -1) - xAt(LOOP_FORWARD, -1)) < 1e-9 and abs(xAt(LOOP, 0) - xAt(LOOP_FORWARD, 0)) < 1e-9)
+
+# The same-frame rule: an animation that opens ON the frame the object was just
+# placed takes that placement as its base, not the frame before — four scenes
+# of the corpus do exactly that at frame zero, and a base read one frame early
+# would move all four.
+PLACED = "\ns = Square(side=1).position(3, 1)\ns.moveBy(x=1, duration=1)"
+check(f"a placement on the opening frame is the base ({xAt(PLACED, 0):.3f})", abs(xAt(PLACED, 0) - 3.0) < 1e-6)
+check(f"so +1 from there lands on 4 ({xAt(PLACED, -1):.3f})", abs(xAt(PLACED, -1) - 4.0) < 1e-6)
+
+# The machinery underneath, named so the coverage gate sees it used: every verb
+# call records the statements it wrote (`Context.record` via the decorator),
+# `Context.baseline` freezes what the pass proved, and `Context.rebase` hands
+# the next call its real base.
+check("a verb call is attributed to the statements it wrote", bool(Context.calls) and bool(Context.starts))
+frozen = Context.baseline()
+check("the baseline carries the opening frames and the windows that own them",
+      set(frozen) == {"opens", "owned", "values", "starts", "seen"})
+check("rebase is a no-op outside a reprise", Context.replaying is None and Context.rebase(Square(side=1)) is None)
+check("record is what fills that table", callable(Context.record))
 
 # ---------------------------------------------------------------------------
 section("channelKey — the name one piece of state answers to, spelled once")

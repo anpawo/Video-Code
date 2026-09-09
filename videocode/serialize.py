@@ -28,6 +28,11 @@ def _resetContext():
     # group — until an effect is attributed to a line that moved three edits ago.
     Context.statements = []
 
+    # Et ce que S1 en a retenu : quel appel a écrit quoi, et ce que valait
+    # chaque canal avant qu'un verbe n'y touche.
+    Context.calls = {}
+    Context.starts = {}
+
     # And the register of every input's metadata, with the counter that breaks
     # ties between equal z-indices.
     #
@@ -79,6 +84,22 @@ def _oneLine(hit: dict) -> str:
     return (
         f"{b['call']}() and {a['call']}() (line {a['line']}) both write {hit['key']} over "
         f"{hit['frames']} shared frames — the later call wins them."
+    )
+
+
+def _oneLineBackdated(hit: dict) -> str:
+    """
+    The same, for a statement that opens BEHIND one written above it.
+
+    It needs its own sentence: a backdated hit has no `frames`, since the two
+    windows do not have to overlap at all — and reading the contention line's
+    `hit["frames"]` here raised a KeyError that killed the whole render. The
+    warning that names the trap refused to draw the picture.
+    """
+    a, b = hit["a"], hit["b"]
+    return (
+        f"{b['call']}() opens at frame {b['first']}, behind {a['call']}() (line {a['line']}) "
+        f"which was written above it — both write {hit['key']}."
     )
 
 
@@ -215,6 +236,65 @@ def _besideScene(filepath: str) -> None:
     if folder and folder not in sys.path:
         sys.path.append(folder)
 
+def _sceneScope(_=None) -> dict:
+    """Un décor neuf pour une exécution : ce que les deux entrées se donnaient déjà."""
+    scope = dict(globals())
+    scope["__name__"] = "Scene"
+    return scope
+
+
+def _runOnce(code, scope) -> None:
+    exec(code, scope)
+
+
+def _pileup() -> str:
+    """L'empreinte de la pile, pour dire si une passe de plus change encore le film."""
+    return repr(sorted((index, sorted(entry.items())) for index, entry in Context.stack.items()))
+
+
+def _runUntilStable(code, scope, fresh, limit: int = 8) -> Any:
+    """
+    Exécuter la scène, et la rejouer tant que sa base bouge encore.
+
+    La première passe donne la vérité image par image. Si une ligne ouvre
+    derrière une ligne déjà écrite — ce que `backdatedWrites()` sait dire — sa
+    base a été lue sur un curseur déjà emporté plus loin, et une passe de plus
+    rejoue la scène en donnant à chaque animation la valeur qu'elle a vraiment
+    à l'image où elle s'ouvre.
+
+    Une seule reprise ne suffit pas pour une CHAÎNE écrite à l'envers : le
+    deuxième maillon lit sa base dans une passe où le troisième était lui-même
+    mal basé, et chaque passe n'en corrige donc qu'un. On rejoue jusqu'à ce que
+    la pile ne bouge plus ; `limit` est là pour qu'une scène pathologique
+    s'arrête au lieu de tourner.
+
+    Aucune des 50 scènes du corpus ne déclenche la moindre reprise : la barrière
+    de l'empreinte prouve elle-même que rien ne bouge. C'est ce qui permet de
+    livrer S1 sans drapeau.
+
+    `fresh` refait un décor vierge — une reprise doit repartir de zéro, pas
+    s'ajouter à la précédente.
+    """
+    _runOnce(code, scope)
+    if not Context.backdatedWrites():
+        return scope
+
+    before = _pileup()
+    for _ in range(limit):
+        told = Context.baseline()
+        scope = fresh()
+        Context.replaying = told
+        try:
+            _runOnce(code, scope)
+        finally:
+            Context.replaying = None
+        after = _pileup()
+        if after == before:
+            break
+        before = after
+    return scope
+
+
 def execScene(filepath: str) -> None:
     """
     Execute the scene file and populate Context.stack.
@@ -259,7 +339,7 @@ def execScene(filepath: str) -> None:
         ps.print_stats(30)
         print("[profile] Top 30 cumulative:\n" + s.getvalue(), flush=True)
     else:
-        exec(code, scope)
+        scope = _runUntilStable(code, scope, lambda: _sceneScope(_resetContext()))
 
     _applyBackground(scope)
     _reportContendedKeys()
@@ -905,7 +985,7 @@ def execSource(source: str, filepath: str) -> dict:
     try:
         _besideScene(filepath)
         code = compile(source, filepath, "exec")
-        exec(code, scope)
+        scope = _runUntilStable(code, scope, lambda: _sceneScope(_resetContext()))
         _applyBackground(scope)
         # Collected as well as printed. These two ran on every keystroke in the
         # editor and spoke only to stderr, which the editor does not read — the
