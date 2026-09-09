@@ -37,7 +37,7 @@ FOREIGN = ("/Users/", "/opt/homebrew/", "/usr/local/")
 SITE = ["shapely", "numpy", "PIL", "freetype", "uharfbuzz", "pygments", "svgelements", "typing_extensions.py"]
 SITE_INFO = ["shapely", "numpy", "pillow", "freetype_py", "uharfbuzz", "pygments", "svgelements", "typing_extensions"]
 # What the stdlib carries that no scene needs: 150 MB of tests, an IDE, Tk.
-STDLIB_SKIP = {"site-packages", "test", "tests", "idlelib", "tkinter", "turtledemo", "ensurepip", "__pycache__", "config-3.14-darwin", "lib2to3", "pydoc_data"}
+STDLIB_SKIP = {"site-packages", "test", "tests", "idlelib", "tkinter", "turtledemo", "ensurepip", "__pycache__", "lib2to3", "pydoc_data"}
 
 # The Acceptance Test Plan's own scenes — its 24 tests name these files and
 # describe what they show, so they ship as written — plus the tour.
@@ -129,6 +129,37 @@ def check_clean(bundle: Path) -> None:
         sys.exit("still pointing at this machine:\n  " + "\n  ".join(dirty))
 
 
+def copy_qt(loaded: list[str], dist: Path, plugins: list[str], qml_skip: set[str]) -> None:
+    """
+    Qt, when it is a library rather than something linked in.
+
+    The build on this machine is static — vcpkg's arm64-osx is — so the binary
+    names no Qt at all and this does nothing. A CI build links the Qt the
+    workflow unpacked into its workspace, which will not exist on the tester's
+    machine: then its libraries travel (relocate() takes them, like any other),
+    and so must the plugins and the QML modules the chrome imports. `qt.conf`
+    beside the executable is what points Qt at them, with no launcher script
+    and no environment variable.
+    """
+    # …/6.8.1/macos/lib/QtCore.framework/Versions/A/QtCore on one platform,
+    # …/6.8.1/gcc_64/lib/libQt6Core.so.6 on the other: the prefix is what comes
+    # before /lib/ in both.
+    prefix = next((Path(dep.split("/lib/")[0]) for dep in loaded
+                   if ("QtCore" in dep or "Qt6Core" in dep) and "/lib/" in dep), None)
+    if prefix is None:
+        return
+
+    qt = dist / "lib" / "qt"
+    for folder in plugins:
+        if (prefix / "plugins" / folder).is_dir():
+            copy_tree(prefix / "plugins" / folder, qt / "plugins" / folder)
+    for module in ("QtQml", "QtQuick"):
+        if (prefix / "qml" / module).is_dir():
+            copy_tree(prefix / "qml" / module, qt / "qml" / module, qml_skip)
+    (dist / "qt.conf").write_text("[Paths]\nPrefix = .\nLibraries = lib\nPlugins = lib/qt/plugins\nQml2Imports = lib/qt/qml\n")
+    print(f"qt: shipped from {prefix}")
+
+
 def smoke(bundle: Path) -> None:
     """Run the copy from elsewhere, with an empty environment, and render."""
     with tempfile.TemporaryDirectory() as tmp:
@@ -187,8 +218,11 @@ def main() -> None:
     for name in ("shapes", "camera", "composition"):
         shutil.copy2(ROOT / "test" / "visual" / "scenes" / f"{name}.py", DIST / "test" / "visual" / "scenes" / f"{name}.py")
 
-    # Python: the interpreter's library, the stdlib, the packages.
-    dylib = py_home / "lib" / "libpython3.14.dylib"
+    # Python: the interpreter's library, the stdlib, the packages. The name is
+    # asked for rather than spelled out — this machine's Python is 3.14 from
+    # pyenv, a CI runner's is whatever the workflow asked for, and a bundler
+    # that only works on one of them is a bundler that only runs here.
+    dylib = Path(sysconfig.get_config_var("LIBDIR") or py_home / "lib") / str(sysconfig.get_config_var("LDLIBRARY"))
     shutil.copy2(dylib, lib / dylib.name)
     os.chmod(lib / dylib.name, 0o755)
     sh("install_name_tool", "-id", f"@rpath/{dylib.name}", str(lib / dylib.name))
@@ -196,6 +230,8 @@ def main() -> None:
     copy_tree(stdlib, dest, STDLIB_SKIP)
     for so in list((dest / "lib-dynload").glob("_test*")) + list((dest / "lib-dynload").glob("xx*")):
         so.unlink()
+    for config in dest.glob("config-*"):  # a static libpython and the makefiles a build needs
+        shutil.rmtree(config)
     (dest / "site-packages").mkdir()
     for name in SITE:
         src = site / name
@@ -207,10 +243,15 @@ def main() -> None:
         if any(info.name.lower().startswith(p + "-") for p in SITE_INFO):
             copy_tree(info, dest / "site-packages" / info.name)
 
+    # The Controls styles this application never asks for stay behind; the
+    # macOS one is the one it draws with.
+    copy_qt(deps(binary), DIST, ["platforms", "styles", "imageformats", "iconengines", "tls"],
+            {"Imagine", "Material", "Universal", "iOS", "Windows", "Fusion"})
+
     # The executable's own references first, by name, so the rewrite is exact.
     for dep in deps(DIST / "video-code"):
-        if dep.endswith("libpython3.14.dylib"):
-            sh("install_name_tool", "-change", dep, "@executable_path/lib/libpython3.14.dylib", str(DIST / "video-code"))
+        if dep.endswith(dylib.name):
+            sh("install_name_tool", "-change", dep, f"@executable_path/lib/{dylib.name}", str(DIST / "video-code"))
     relocate(DIST, lib)
     sh("codesign", "-f", "-s", "-", str(DIST / "video-code"))
     check_clean(DIST)

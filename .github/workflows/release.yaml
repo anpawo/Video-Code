@@ -1,0 +1,191 @@
+name: Release binaries
+
+# Both zips, on every push, replacing the assets of the current release.
+#
+# The Mac zip used to be built by hand on the author's Mac and the Linux one
+# could not be built there at all. Now neither is: each is built on a machine
+# that has nothing of this project on it, and each is RUN before it is
+# published — a folder that only works where it was made is the failure this
+# whole thing exists to catch.
+#
+# The upload is the last step of each job on purpose: a build that does not
+# run does not replace what people are downloading.
+
+on:
+  push:
+    branches-ignore: ['ga-ignore-**']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach the zips to (default: the latest release)'
+
+# Two pushes in a minute should publish the second, not both — and never the
+# first after the second. Not per-ref: both write the same two assets.
+concurrency:
+  group: release-assets
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Ubuntu 24.04 · x86_64
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # uploads the asset to the release
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same list as ci.yaml's build lane, minus LaTeX (no test runs here),
+      # plus patchelf, which is what rewrites the copies' rpath.
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config \
+            python3-dev ffmpeg libopencv-dev libcurl4-openssl-dev libvulkan-dev \
+            libfreetype6-dev glslang-dev glslang-tools g++-13 gcc-13 \
+            mesa-vulkan-drivers libxcb1-dev patchelf
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - run: pip install pybind11 -r requirements.txt
+
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.1'
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          cache: true
+
+      - name: Configure CMake
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/.vcpkg-unused
+        run: cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=g++-13 -DCI_BUILD=ON
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - run: cp build/video-code video-code
+
+      # --no-smoke: the smoke test that means anything is the container below,
+      # not a run on the machine that owns every library already.
+      - name: Bundle
+        run: python3 scripts/bundle_linux.py --zip --no-smoke
+
+      # A machine that never built it, with only what the README asks for.
+      - name: It runs on a machine that never built it
+        run: |
+          docker run --rm -v "$PWD/dist:/dist:ro" ubuntu:24.04 bash -eux -c '
+            apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq unzip ffmpeg mesa-vulkan-drivers libvulkan1 > /dev/null
+            cd /tmp && unzip -q /dist/video-code-linux-x86_64.zip && cd video-code-linux-x86_64
+            # What the folder asks of the machine, listed rather than guessed
+            # one CI round at a time. The README.txt line has to install these.
+            echo "— missing with ffmpeg and Vulkan alone:"
+            ldd ./video-code lib/qt/plugins/platforms/*.so | awk "/not found/ {print \$1}" | sort -u
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libopengl0 libegl1 libglx0 libxkbcommon0 > /dev/null
+            echo "— still missing after the README.txt line:"
+            ldd ./video-code lib/qt/plugins/platforms/*.so | awk "/not found/ {print \$1}" | sort -u
+            printf "import shapely, PIL, freetype, uharfbuzz, pygments, svgelements\nfrom videocode import *\nSquare(side=1)\n" > /tmp/probe.py
+            ./video-code --file /tmp/probe.py --inspect > /dev/null
+            ./video-code --file scenes/first_rectangle.py --generate /tmp/smoke.mp4
+            test -s /tmp/smoke.mp4
+            ./video-code --file scenes/tour.py --generate /tmp/look.png --from 2.5
+            test -s /tmp/look.png
+            QT_QPA_PLATFORM=offscreen ./video-code --check-chrome
+          '
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: video-code-linux-x86_64
+          path: dist/video-code-linux-x86_64.zip
+          retention-days: 14
+
+      - name: Replace it on the release
+        if: github.repository == 'anpawo/Video-Code'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ inputs.tag }}"
+          [ -n "$tag" ] || tag=$(gh release view --json tagName -q .tagName)
+          gh release upload "$tag" dist/video-code-linux-x86_64.zip --clobber
+          echo "linux zip → $tag ($(git rev-parse --short HEAD))" >> "$GITHUB_STEP_SUMMARY"
+
+  macos:
+    name: macOS 14 · Apple Silicon
+    runs-on: macos-14
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # No vcpkg: CI_BUILD=ON fetches the header-only dependencies itself and
+      # everything else comes from Homebrew. molten-vk IS the Vulkan driver on
+      # this platform — there is no system loader to find.
+      - name: Install dependencies
+        run: |
+          brew install --quiet ninja opencv ffmpeg freetype glslang \
+                               molten-vk vulkan-headers vulkan-loader
+
+      # setup-python and not the runner's own: the `build (macOS)` lane of
+      # ci.yaml pip-installs into one Python while CMake finds another, and
+      # dies on "Could not find pybind11". One Python, named, for both.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - run: pip install pybind11 -r requirements.txt
+
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.1'
+          host: mac
+          target: desktop
+          arch: clang_64
+          cache: true
+
+      - name: Configure CMake
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/.vcpkg-unused
+        run: cmake -S . -B build -G Ninja -DCI_BUILD=ON
+
+      - name: Build
+        run: cmake --build build -j"$(sysctl -n hw.ncpu)"
+
+      - run: cp build/video-code.app/Contents/MacOS/video-code video-code
+
+      # The bundler's own smoke test: the folder copied elsewhere, run with an
+      # empty environment, rendering the tour. There is no container on a macOS
+      # runner, so this and `check_clean` — which refuses any path under /Users
+      # or /opt/homebrew — are what stand in for one.
+      - name: Bundle, and run the copy from elsewhere
+        run: python3 scripts/bundle.py --zip
+
+      - name: The chrome loads from the copy, with the Qt that travels
+        run: |
+          cd dist/video-code-macos-arm64
+          env -i PATH=/usr/bin:/bin HOME="$TMPDIR" ./video-code --check-chrome
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: video-code-macos-arm64
+          path: dist/video-code-macos-arm64.zip
+          retention-days: 14
+
+      - name: Replace it on the release
+        if: github.repository == 'anpawo/Video-Code'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag="${{ inputs.tag }}"
+          [ -n "$tag" ] || tag=$(gh release view --json tagName -q .tagName)
+          gh release upload "$tag" dist/video-code-macos-arm64.zip --clobber
+          echo "macos zip → $tag ($(git rev-parse --short HEAD))" >> "$GITHUB_STEP_SUMMARY"

@@ -67,7 +67,6 @@ SYSTEM = (
 # QtQuick.Window — all of them live under these two directories), minus the
 # Controls styles nothing here asks for. `--check-chrome` in a bare container
 # is what keeps this pruning honest: every binding resolves, or the build fails.
-QML_MODULES = ["QtQml", "QtQuick"]
 QML_SKIP = {"Imagine", "Material", "Universal", "iOS", "macOS", "Windows", "Fusion"}
 
 # The plugin folders this application can actually load. Not the whole
@@ -214,13 +213,6 @@ def check_clean(lib_dir: Path) -> None:
         sys.exit("still pointing outside the folder:\n  " + "\n  ".join(dirty))
 
 
-def qt_prefix(binary: Path) -> Path:
-    for name, resolved in deps(binary):
-        if name.startswith("libQt6Core"):
-            return Path(resolved).resolve().parent.parent
-    sys.exit("the binary does not link Qt6Core — nothing to take Qt from")
-
-
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--zip", action="store_true")
@@ -287,15 +279,7 @@ def main() -> None:
     # Qt: the plugins (the offscreen and xcb platforms live here) and the QML
     # modules the chrome imports. qt.conf is how the copy finds them without a
     # launcher script or an environment variable.
-    prefix = qt_prefix(binary)
-    qt = lib / "qt"
-    for folder in QT_PLUGINS:
-        if (prefix / "plugins" / folder).is_dir():
-            bundle.copy_tree(prefix / "plugins" / folder, qt / "plugins" / folder)
-    (qt / "qml").mkdir(parents=True)
-    for module in QML_MODULES:
-        bundle.copy_tree(prefix / "qml" / module, qt / "qml" / module, QML_SKIP)
-    (DIST / "qt.conf").write_text("[Paths]\nPrefix = .\nLibraries = lib\nPlugins = lib/qt/plugins\nQml2Imports = lib/qt/qml\n")
+    bundle.copy_qt([path for _, path in deps(binary)], DIST, QT_PLUGINS, QML_SKIP)
 
     # relocate() would pick libpython up from the binary's own list, but only
     # if the loader can still find it — a Python outside /usr is exactly the
