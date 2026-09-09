@@ -29,7 +29,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 DIST = ROOT / "dist" / "video-code-macos-arm64"
-FOREIGN = ("/Users/", "/opt/homebrew/", "/usr/local/")
+FOREIGN = ("/Users/", "/opt/homebrew/", "/usr/local/", "/Library/Frameworks/")
 
 # The Python packages a scene can reach. basedpyright, cv2 and faster-whisper
 # are left out: the first is the editor's language server (72 MB, pip installs
@@ -222,7 +222,13 @@ def main() -> None:
     # asked for rather than spelled out — this machine's Python is 3.14 from
     # pyenv, a CI runner's is whatever the workflow asked for, and a bundler
     # that only works on one of them is a bundler that only runs here.
-    dylib = Path(sysconfig.get_config_var("LIBDIR") or py_home / "lib") / str(sysconfig.get_config_var("LDLIBRARY"))
+    # A framework Python — the one a CI runner installs — does not keep its
+    # library in LIBDIR at all: LDLIBRARY is then a path
+    # (`Python.framework/Versions/3.12/Python`) read from the frameworks
+    # directory, and joining it to LIBDIR names a file nothing has.
+    ldlibrary = str(sysconfig.get_config_var("LDLIBRARY"))
+    home = sysconfig.get_config_var("PYTHONFRAMEWORKPREFIX" if "/" in ldlibrary else "LIBDIR")
+    dylib = Path(home or py_home / "lib") / ldlibrary
     shutil.copy2(dylib, lib / dylib.name)
     os.chmod(lib / dylib.name, 0o755)
     sh("install_name_tool", "-id", f"@rpath/{dylib.name}", str(lib / dylib.name))
