@@ -90,6 +90,18 @@ if(CI_BUILD)
     )
     FetchContent_Populate(earcut)
     include_directories(${earcut_SOURCE_DIR}/include)
+
+    # miniaudio is one header, and it is in vcpkg but in no apt repository —
+    # so every Linux CI build has failed to configure since the preview grew a
+    # loudspeaker. Same version vcpkg installs here. `find_path` below leaves a
+    # cache entry that is already set alone, so this is all it takes.
+    FetchContent_Declare(
+        miniaudio
+        GIT_REPOSITORY https://github.com/mackron/miniaudio.git
+        GIT_TAG 0.11.25
+    )
+    FetchContent_Populate(miniaudio)
+    set(MINIAUDIO_INCLUDE_DIR ${miniaudio_SOURCE_DIR} CACHE PATH "miniaudio, fetched")
 endif()
 
 find_package(OpenCV CONFIG REQUIRED)
