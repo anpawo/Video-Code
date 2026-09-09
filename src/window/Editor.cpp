@@ -892,6 +892,22 @@ bool VC::Editor::eventFilter(QObject* watched, QEvent* event)
     return QObject::eventFilter(watched, event);
 }
 
+QVariantMap VC::Editor::stateAt(int index, int at)
+{
+    QVariantMap out;
+    try {
+        py::gil_scoped_acquire hold;
+        const py::object       context = py::module::import("videocode.context").attr("Context");
+        for (auto item : context.attr("stateAt")(index, at).cast<py::dict>())
+            out.insert(QString::fromStdString(py::str(item.first).cast<std::string>()), item.second.cast<double>());
+    } catch (const py::error_already_set&) {
+        // A scene that has not run has no state to read, and a card open on the
+        // element of an older run asks about an index that is gone. Neither is
+        // worth a message: the row simply has nothing to show.
+    }
+    return out;
+}
+
 QVariantList VC::Editor::effects()
 {
     QVariantList found;
@@ -1205,29 +1221,81 @@ QString VC::Editor::pickExport(const QString& suggested) const
     );
 }
 
+// The buffer on disk, ready to hand to a second copy of this binary.
+//
+// What is rendered is what you are LOOKING at, which is not always what is on
+// disk. The copy goes beside the author's own file rather than into a temporary
+// folder: a scene says `Video("clips/shot.mp4")`, and a copy rendered from
+// anywhere else would fail on paths that are correct.
+//
+// `temp` comes back holding the copy's path when one was made, so the caller
+// can delete it; empty when the file on disk was already right. The empty
+// string is the failure — a path that could not be written.
+QString VC::Editor::sceneToRender(const QString& scenePath, const QString& source, const QString& tag, QString* temp) const
+{
+    if (scenePath.isEmpty() || source == readTextFile(scenePath))
+        return scenePath;
+
+    const QFileInfo scene(scenePath);
+    const QString   copyPath = scene.absolutePath() + QStringLiteral("/.") + scene.completeBaseName() + QStringLiteral(".") + tag + QStringLiteral(".py");
+    QFile           copy(copyPath);
+    if (!copy.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return {};
+    copy.write(source.toUtf8());
+    copy.close();
+    if (temp != nullptr)
+        *temp = copyPath;
+    return copyPath;
+}
+
+QVariantMap VC::Editor::renderSheet(const QString& scenePath, const QString& source, const QString& output, int tiles, const QString& at)
+{
+    if (scenePath.isEmpty())
+        return {{"ok", false}, {"error", "nothing is open to render"}};
+
+    QString       temp;
+    const QString rendered = sceneToRender(scenePath, source, QStringLiteral("verify"), &temp);
+    if (rendered.isEmpty())
+        return {{"ok", false}, {"error", "could not write the scene to render"}};
+
+    QStringList args{QStringLiteral("--file"), rendered, QStringLiteral("--generate"), output};
+    // The scene's own named moments when it has any; an even spread otherwise.
+    if (at.isEmpty())
+        args << QStringLiteral("--sheet") << QString::number(std::max(tiles, 2));
+    else
+        args << QStringLiteral("--at") << at;
+
+    QProcess sheet;
+    sheet.setProcessChannelMode(QProcess::SeparateChannels);
+    sheet.start(QCoreApplication::applicationFilePath(), args);
+
+    // Two minutes. A scene that takes longer than that to lay eight stills side
+    // by side has a problem the sheet was not going to show anyway.
+    const bool done = sheet.waitForFinished(120000);
+    if (!done)
+        sheet.kill();
+    const QString said = QString::fromUtf8(sheet.readAllStandardError()).trimmed();
+
+    if (!temp.isEmpty())
+        QFile::remove(temp);
+
+    if (!done)
+        return {{"ok", false}, {"error", "the render did not finish in two minutes"}};
+    if (sheet.exitCode() != 0 || !QFile::exists(output))
+        return {{"ok", false}, {"error", said.isEmpty() ? QStringLiteral("the render refused") : said}};
+    return {{"ok", true}, {"out", output}};
+}
+
 bool VC::Editor::startExport(const QString& scenePath, const QString& source, const QString& output, double from, double to)
 {
     if (_export != nullptr)
         return false;
 
-    // What is rendered is what you are LOOKING at, which is not always what is
-    // on disk. The copy goes beside the author's own file rather than into a
-    // temporary folder: a scene says `Video("clips/shot.mp4")`, and a copy
-    // rendered from anywhere else would fail on paths that are correct.
-    QString rendered = scenePath;
     _exportTemp.clear();
-    const QFileInfo scene(scenePath);
-    if (!scenePath.isEmpty() && source != readTextFile(scenePath)) {
-        _exportTemp = scene.absolutePath() + QStringLiteral("/.") + scene.completeBaseName() + QStringLiteral(".export.py");
-        QFile copy(_exportTemp);
-        if (!copy.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-            _exportTemp.clear();
-            Q_EMIT exportFinished(false, QStringLiteral("could not write the scene to render"));
-            return false;
-        }
-        copy.write(source.toUtf8());
-        copy.close();
-        rendered = _exportTemp;
+    const QString rendered = sceneToRender(scenePath, source, QStringLiteral("export"), &_exportTemp);
+    if (rendered.isEmpty()) {
+        Q_EMIT exportFinished(false, QStringLiteral("could not write the scene to render"));
+        return false;
     }
 
     QStringList args{QStringLiteral("--file"), rendered, QStringLiteral("--generate"), output};

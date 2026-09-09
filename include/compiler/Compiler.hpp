@@ -48,6 +48,11 @@ namespace VC
 
         Config config;
 
+        ///< --at, resolved to scene frames once the scene has run and its
+        ///< timestamp() names exist. Empty when the sheet spreads evenly, which
+        ///< is what a scene that named nothing gets.
+        std::vector<size_t> _sheetFrames;
+
         ///< Core handling the images
         Core _core;
     };

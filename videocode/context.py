@@ -609,6 +609,31 @@ class Context:
         return found
 
     @staticmethod
+    def stateAt(index: int, at: frame) -> dict[str, Any]:
+        """
+        Ce que l'entrée `index` vaut à l'image `at` — ses canaux, résolus.
+
+        La même lecture que la seconde passe de S1, sans le filtre de propriété :
+        elle, elle demande « sans compter ce que J'écris » ; ici on veut tout,
+        puisque la question est ce que le film montre à cette image-là.
+
+        C'est la seule réponse à « où est cet objet MAINTENANT ». Les arguments
+        d'un appel disent avec quoi il a été fabriqué, jamais où il en est.
+        """
+        out: dict[str, Any] = dict(Context.starts.get(index, {}))
+        entry = Context.stack.get(index, {})
+        for f in sorted(f for f in entry if f != -1 and f <= at):
+            for key, shader in entry[f].items():
+                channel = key.split(":")[0]
+                for full, field in Context._BASE_KEYS.items():
+                    if full.split(":")[0] != channel:
+                        continue
+                    value = shader["args"].get(field)
+                    if value is not None:
+                        out[full] = value
+        return out
+
+    @staticmethod
     def _readBase(meta: Any) -> dict[str, Any]:
         """La valeur de chaque canal, à plat, telle qu'un verbe la lirait."""
         return {

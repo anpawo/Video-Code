@@ -107,6 +107,21 @@ try:
     ok, answer = tell("dance")
     check("an unknown verb lists the known ones", not ok and "seek" in answer.get("error", ""))
 
+    section("verify — the whole loop in one answer")
+    sheet = f"/tmp/videocode-verify-{os.getpid()}.png"
+    ok, answer = tell("verify", f"out={sheet}")
+    check("verify runs the scene and answers", ok and answer.get("run", {}).get("state") == "fresh")
+    check("it carries what the scene made", ok and answer.get("elements", 0) > 10)
+    check("and what the engine noticed", ok and isinstance(answer.get("run", {}).get("warnings"), list))
+    check("the sheet is on disk", ok and answer.get("sheet") == sheet and os.path.exists(sheet))
+    # The scene named six moments, so the sheet shows THOSE — not an even
+    # spread, which on this scene draws the same picture twice.
+    check("laid on the scene's own timestamps, not an even spread",
+          ok and [round(x, 2) for x in answer.get("sheetAt", [])]
+                 == [round(m["at"], 2) for m in answer.get("markers", [])])
+    if os.path.exists(sheet):
+        os.remove(sheet)
+
     section("quit")
     ok, answer = tell("quit")
     check("quit is acknowledged", ok)

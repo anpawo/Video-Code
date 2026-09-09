@@ -1912,6 +1912,7 @@ ApplicationWindow {
         anchors.fill: parent
         z: 310
         effectNames: app.effectNames
+        playhead: app.playhead
         onEffectRequested: (element, effect, options) => app.applyEffect(element, effect, options)
         onMemberOpened: (member, where) => elementCard.open(member, where)
         // Reading the source is the card's own business — `Shell` is in scope
@@ -3135,6 +3136,52 @@ ApplicationWindow {
         case "run":
             executeScene(true);
             return state();
+
+        // ── verify ────────────────────────────────────────────────────────
+        // Run the scene, and answer with everything needed to judge what it
+        // made — the state AND a picture of it — in ONE reply.
+        //
+        // This is the verb the whole `tell` channel exists for. An agent that
+        // writes a scene can already run it and read `state`, but "it ran" is
+        // not "it is right": the warnings say what the engine noticed, the
+        // markers say where the scene thinks its moments are, and only the
+        // sheet says what it LOOKS like. Three calls the agent had to know to
+        // chain, and would not; one call it cannot get wrong.
+        //
+        // The sheet samples the scene's own `timestamp()` moments when it named
+        // any — the frames the author said were the ones that matter — and
+        // falls back to an even spread when it named none.
+        case "verify": {
+            executeScene(true);
+            const tiles = req.sheet !== undefined ? Math.max(2, Number(req.sheet)) : 8;
+            const out = req.out ? String(req.out)
+                                : "/tmp/videocode-verify-" + Date.now() + ".png";
+            // The MIDDLE of each named section, not the instant the name sits on.
+            //
+            // A timestamp() marks where a section BEGINS, so the frame at that
+            // exact instant is the last frame of the section before it: the tile
+            // labelled "the camera" showed the bar chart that the camera section
+            // was about to replace. Named moments are still what decides where
+            // to look — they are the author saying which stretches matter — but
+            // what a stretch LOOKS like is in the middle of it.
+            //
+            // The last one runs to the end of the scene, which is its section.
+            const marks = shownScene.markers;
+            let named = [];
+            for (let i = 0; i < marks.length; ++i) {
+                const ends = i + 1 < marks.length ? marks[i + 1].at : shownScene.duration;
+                named.push(((marks[i].at + ends) / 2).toFixed(2));
+            }
+
+            let answer = state();
+            const drawn = Shell.renderSheet(source.path, source.text, out, tiles,
+                                            named.length > 1 ? named.join(",") : "");
+            answer.sheet = drawn.ok === true ? out : null;
+            if (drawn.ok !== true)
+                answer.sheetError = drawn.error;
+            answer.sheetAt = named.length > 1 ? named.map(Number) : [];
+            return answer;
+        }
         case "open":
             if (!req.file)
                 return { ok: false, error: "open wants file=<scene.py>" };
@@ -3161,7 +3208,7 @@ ApplicationWindow {
             return { ok: true, out: out };
         }
         default:
-            return { ok: false, error: "unknown verb " + verb + " — state, brief, caret, elements, audio, mute, seek, play, pause, select, run, open, reveal, show, say, export, key, click, panel, screenshot, quit" };
+            return { ok: false, error: "unknown verb " + verb + " — state, brief, caret, elements, audio, mute, seek, play, pause, select, run, verify, open, reveal, show, say, export, key, click, panel, screenshot, quit" };
         }
     }
 

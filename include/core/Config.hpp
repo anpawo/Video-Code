@@ -45,6 +45,14 @@ struct Config
     ///< plain still.
     int sheetTiles = 1;
 
+    ///< --at: the exact moments a sheet shows, as typed — seconds or
+    ///< timestamp() names, comma-separated, empty when absent. An even spread
+    ///< across a stretch is the right sheet when nothing in the scene says
+    ///< where to look; when the scene HAS named its moments, spreading evenly
+    ///< spends tiles on stillness and misses the ones that were named. Given,
+    ///< it decides both which frames are shown and how many.
+    std::string sheetAt;
+
     ///< --for: which named shape this render is and its place in the run
     ///< ("tiktok, 2 of 3"), for the Generating line. Empty for a lone render.
     std::string shapeNote;

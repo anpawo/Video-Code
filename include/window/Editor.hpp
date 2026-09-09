@@ -282,6 +282,16 @@ namespace VC
 
         // effects() — every effect name the library exposes, discovered at run
         // time so the list cannot drift from what `apply()` will accept.
+        // stateAt() — what element `index` is worth at scene frame `at`: its
+        // position, scale, rotation, opacity and align, resolved.
+        //
+        // The card's chips say what the CALL takes — `side`, `fillColor`. They
+        // never say where the thing is, because that is not an argument: it is
+        // what every line above has done to it by that frame. This is the only
+        // answer to "where is it now", and it reads the same stack S1's second
+        // pass reads.
+        Q_INVOKABLE QVariantMap stateAt(int index, int at);
+
         Q_INVOKABLE QVariantList effects();
 
         // templates() — everything a scene can be GIVEN, as opposed to what can
@@ -426,6 +436,19 @@ namespace VC
         // race for the same file.
         Q_INVOKABLE bool startExport(const QString& scenePath, const QString& source, const QString& output, double from, double to);
 
+        // renderSheet() — `tiles` moments of `source`, side by side and labelled,
+        // written to `output` as one PNG. Blocks until it is there.
+        //
+        // Blocking, where the export does not, because of who calls it: an agent
+        // asking `tell verify` wants ONE answer holding the picture, not a path
+        // to poll. A contact sheet is stills — 1.6 s for eight moments of a
+        // 38-second scene on this machine — and nothing is looking at the window
+        // while an agent drives it.
+        //
+        // False on a timeout or a renderer that refused; the reason is on the
+        // child's stderr, which is returned rather than swallowed.
+        Q_INVOKABLE QVariantMap renderSheet(const QString& scenePath, const QString& source, const QString& output, int tiles, const QString& at);
+
         // cancelExport() — stop the child. What it had already written stays on
         // disk, and `exportFinished` says so rather than leaving a half video
         // looking finished.
@@ -520,8 +543,12 @@ namespace VC
         // written beside the author's scene so relative media paths still
         // resolve, and removed when the child is done.
         QProcess* _export = nullptr;
-        QString   _exportTemp;
-        QString   _exportSaid;
+        // The buffer written beside the author's file for a child render, and
+        // deleted after. Shared by the export and the verify sheet.
+        QString sceneToRender(const QString& scenePath, const QString& source, const QString& tag, QString* temp) const;
+
+        QString _exportTemp;
+        QString _exportSaid;
 
         // editorScenePath() — the file the pane opens on.
         static QString editorScenePath();

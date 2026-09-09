@@ -958,6 +958,52 @@ stretch cut out of the result, so nothing is re-delayed and a sound that
 started earlier is at the right moment. The frame indices are unchanged, so
 `--from 12 --to 22` renders the same pixels frames 360–659 of the whole would.
 
+### A contact sheet — `--sheet` / `--at`
+
+```bash
+./video-code --file scene.py --generate look.png --sheet 8 --from 0 --to 20
+./video-code --file scene.py --generate look.png --at 0,3.9,"the camera"
+```
+
+Several moments side by side in one image, each labelled with its time. One
+look shows the motion, which a single still never does.
+
+`--sheet N` spreads N moments evenly across `--from`…`--to`. That is the right
+picture when nothing says where to look. `--at` says exactly where instead —
+seconds or `timestamp()` names, comma-separated — and then it decides how many
+tiles there are. A scene that named its moments has already said which ones
+matter, and spreading evenly across it spends tiles on stillness: eight even
+samples of the tour draw the same picture twice.
+
+### Reading the editor from outside — `tell verify`
+
+```bash
+./video-code tell verify                    # runs the scene, answers with everything
+./video-code tell verify sheet=6 out=/tmp/look.png
+```
+
+One call that runs the scene and answers with what it made AND what it looks
+like: the elements, the moments it named, whatever the engine warned about, and
+a contact sheet on disk. Without it that is three calls an agent has to know to
+chain — and "it ran" is not "it is right". The sheet is laid on the scene's own
+`timestamp()` moments when it named any.
+
+### Where an element IS — `Context.stateAt(index, frame)`
+
+```python
+Context.stateAt(0, 30)   # {"Position:x": 4.0, "Position:y": 0.0, "Opacity": 255.0, …}
+```
+
+The channels an element actually holds at one frame — position, scale, rotation,
+opacity, align — read off the stack the render draws from. The arguments of a
+call say what a thing was *made with* and never change; this says where it *is*,
+which is what every line above it has done to it by that frame. The editor's
+element card shows it under the arguments, and it is the reading half of the
+timecard.
+
+An index no scene made answers with nothing rather than raising: a card left
+open on an older run asks about an element that is gone.
+
 ### One scene, every format — `--for`
 
 ```bash

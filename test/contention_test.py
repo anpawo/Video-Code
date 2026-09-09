@@ -27,6 +27,37 @@ def contentions(body: str) -> list[dict]:
     return Context.contendedKeys()
 
 
+def stateOf(body: str, index: int, at: int) -> dict:
+    """The same scene shape, read at one frame through `Context.stateAt`."""
+    with contextlib.redirect_stderr(io.StringIO()):
+        execSource("from videocode import *\n\ns = Square(side=1)\n" + body + "\nwait(3)\n", "state_test_scene.py")
+    return Context.stateAt(index, at)
+
+
+# ── Where an element IS, at one frame ───────────────────────────────────────
+# The card's chips say what the CALL takes — `side`, `fillColor`. They never say
+# where the thing is, because that is not an argument: it is what every line
+# above has done to it by that frame. This is the only answer, and the editor's
+# read-out is the only place it is shown.
+section("stateAt — the element's own channels, resolved at a frame")
+
+# One second of travel from wherever the square starts to x = 4: at the frame it
+# opens the base still holds, halfway it is between, at the end it has arrived.
+opening = stateOf("s.moveTo(x=4, duration=1)", 0, 0)
+midway = stateOf("s.moveTo(x=4, duration=1)", 0, 15)
+landed = stateOf("s.moveTo(x=4, duration=1)", 0, 30)
+
+check("it answers with the channels, not with arguments",
+      "Position:x" in landed and "side" not in landed)
+check("at the end of the move it has arrived", abs(landed["Position:x"] - 4) < 0.01)
+check("halfway it is between the two", opening["Position:x"] < midway["Position:x"] < 4)
+check("an element nobody has moved still reads its placement",
+      abs(stateOf("s.position(2, 0)", 0, 30)["Position:x"] - 2) < 0.01)
+check("a frame before anything was written reads the placement too",
+      abs(stateOf("s.position(2, 0)\ns.moveTo(x=4, start=1, duration=1)", 0, 5)["Position:x"] - 2) < 0.01)
+check("an index no scene made answers with nothing", Context.stateAt(9999, 0) == {})
+
+
 # ── What it must catch ──────────────────────────────────────────────────────
 # Two animations over the same frames on one key do not blend: a frame holds
 # one entry per key, so the later call erases the earlier one wherever they

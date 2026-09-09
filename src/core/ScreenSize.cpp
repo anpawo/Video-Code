@@ -116,6 +116,7 @@ Config VC::makeConfig(const argparse::ArgumentParser &parser)
         .renderTo = parser.present("--to").value_or(""),
 
         .sheetTiles = parser.present<int>("--sheet").value_or(1),
+        .sheetAt = parser.present("--at").value_or(""),
     };
 }
 

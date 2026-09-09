@@ -117,6 +117,42 @@ Item {
 
     // The clip's own extent, which is what the bars below are measured against.
     readonly property real span: element !== null && element.d > 0 ? element.d : 1
+
+    // Où la tête de lecture est, pour que la carte puisse dire ce que l'élément
+    // vaut LÀ. Les pastilles du dessus disent avec quoi il a été fabriqué ; ça,
+    // c'est où il en est.
+    property real playhead: 0
+
+    // Les huit canaux, relus à l'image du curseur. Une carte ouverte sur une
+    // scène qui n'a pas tourné en rend zéro, et la ligne disparaît.
+    readonly property var meta: {
+        if (root.element === null || root.element.index === undefined)
+            return ({});
+        // Le QML se relit du disque, le C++ non : une chrome plus récente que le
+        // binaire qui la charge est l'état NORMAL entre deux compilations, et
+        // une carte qui casse là-dessus emporte le clic qui l'ouvre. La ligne
+        // disparaît, le reste de la fiche vit.
+        if (typeof Shell.stateAt !== "function")
+            return ({});
+        return Shell.stateAt(root.element.index, Math.round(root.playhead * 30));
+    }
+
+    // Ce qui se lit, dans l'ordre où on le cherche, et seulement ce que la scène
+    // a vraiment revendiqué : afficher « rotation 0 » sur un carré que personne
+    // n'a tourné, c'est huit pastilles dont sept ne disent rien.
+    readonly property var metaShown: {
+        const order = [
+            ["x", "Position:x"], ["y", "Position:y"],
+            ["scaleX", "Scale:x"], ["scaleY", "Scale:y"],
+            ["rotation", "Rotation"], ["opacity", "Opacity"],
+            ["alignX", "Align:x"], ["alignY", "Align:y"]
+        ];
+        let out = [];
+        for (const [label, key] of order)
+            if (root.meta[key] !== undefined)
+                out.push({ n: label, v: root.meta[key] });
+        return out;
+    }
     readonly property real origin: element !== null ? element.l : 0
 
     readonly property string kind: element !== null && element.kind !== undefined
@@ -398,7 +434,9 @@ Item {
         readonly property int pad: 18
         readonly property int wide: Math.min(1080, root.width - 48)
         readonly property int rowsTall: Math.max(root.rows.length * 42 + Math.max(root.rows.length - 1, 0) * 7, 28)
-        readonly property int fieldsTall: root.arguments.length > 0 ? 32 : 0
+        // Les pastilles vivent DANS la barre depuis qu'elles y sont entrées ; ce
+        // qu'elles coûtent à la fiche, c'est ce que la barre a grandi.
+        readonly property int fieldsTall: 0
         readonly property int tall: Math.min(pad + 22 + 76 + 8 + 24 + 12 + rowsTall + fieldsTall + 34 + pad,
                                              root.height - 48)
 
@@ -507,7 +545,10 @@ Item {
                 leftMargin: card.pad; rightMargin: card.pad
                 top: head.bottom; topMargin: 10
             }
-            height: 76
+            // Assez haut pour le nom et les pastilles, et pas moins que 76 —
+            // en dessous la barre cesse de se lire comme le clip qu'elle est.
+            height: Math.max(76, 42 + (argRow.visible ? argRow.height + 7 : 0)
+                                    + (metaRow.visible ? metaRow.height + 7 : 0))
             radius: 6
             color: root.hue
             border.width: 1
@@ -542,7 +583,7 @@ Item {
             }
 
             Text {
-                anchors { left: parent.left; leftMargin: 16; verticalCenter: parent.verticalCenter }
+                anchors { left: parent.left; leftMargin: 16; top: parent.top; topMargin: 12 }
                 text: root.element !== null ? root.element.n : ""
                 color: "#eef3f9"
                 font.family: Theme.ui
@@ -1247,9 +1288,14 @@ Item {
         // knows that is what trimming means.
         Flow {
             id: argRow
+            // DANS la barre, pas sous elle. Les valeurs sont celles de cet
+            // élément-là ; posées dessous elles flottaient entre lui et le reste
+            // de la fiche, et il fallait décider à qui elles appartenaient. Sur
+            // sa propre barre, la question ne se pose plus.
             anchors {
                 left: bar.left; right: bar.right
-                bottom: hint.top; bottomMargin: 10
+                bottom: metaRow.visible ? metaRow.top : bar.bottom
+                leftMargin: 14; rightMargin: 14; bottomMargin: metaRow.visible ? 7 : 12
             }
             spacing: 6
             visible: root.arguments.length > 0
@@ -1333,6 +1379,64 @@ Item {
                             argEntry.forceActiveFocus();
                             argEntry.selectAll();
                         }
+                    }
+                }
+            }
+        }
+
+        // ── Où il en est, à l'image du curseur ────────────────────────────
+        // La ligne du dessus dit ce que l'APPEL prend — `side`, `fillColor` —
+        // et ne dira jamais autre chose : ce sont les arguments écrits, ils ne
+        // bougent pas. Celle-ci dit où l'élément EST, ce qu'aucun argument ne
+        // porte parce que ce n'en est pas un : c'est ce que toutes les lignes
+        // au-dessus lui ont fait à cette image-là.
+        //
+        // Relue, pas modifiable : écrire ici est l'autre moitié de B4, et un
+        // champ qu'on peut taper sans qu'il écrive une ligne serait un champ
+        // qui ment.
+        Flow {
+            id: metaRow
+            anchors {
+                left: bar.left; right: bar.right
+                bottom: bar.bottom
+                leftMargin: 14; rightMargin: 14; bottomMargin: 12
+            }
+            spacing: 6
+            visible: root.metaShown.length > 0
+
+            Text {
+                height: 22
+                verticalAlignment: Text.AlignVCenter
+                text: "à " + root.playhead.toFixed(2) + "s"
+                color: Qt.rgba(0.04, 0.06, 0.09, 0.62)
+                font.family: Theme.mono
+                font.pixelSize: 10
+            }
+
+            Repeater {
+                model: root.metaShown
+
+                Rectangle {
+                    id: chip
+                    required property var modelData
+                    width: readout.implicitWidth + 16
+                    height: 22
+                    radius: Theme.radiusSmall
+                    // Creusé dans la barre plutôt que posé dessus : ces valeurs
+                    // se lisent, celles du dessus s'écrivent, et la différence
+                    // doit se voir sans avoir à lire.
+                    color: Qt.rgba(0.04, 0.06, 0.09, 0.22)
+
+                    Text {
+                        id: readout
+                        anchors.centerIn: parent
+                        text: chip.modelData.n + " "
+                              + (Math.abs(chip.modelData.v) >= 100
+                                 ? Math.round(chip.modelData.v)
+                                 : chip.modelData.v.toFixed(2))
+                        color: Qt.rgba(0.93, 0.96, 1, 0.82)
+                        font.family: Theme.mono
+                        font.pixelSize: 11
                     }
                 }
             }

@@ -300,6 +300,27 @@ int VC::Compiler::generateVideo()
                 return std::min(frame, sceneFrames);
         return std::nullopt;
     };
+    // --at, resolved by the same rule and refused by the same message. Held on
+    // the Compiler because the sheet is laid out in generateImage(), which is
+    // past the point where the scene's names are still in scope.
+    _sheetFrames.clear();
+    for (size_t cut = 0, next = 0; cut <= config.sheetAt.size(); cut = next + 1) {
+        next = config.sheetAt.find(',', cut);
+        if (next == std::string::npos)
+            next = config.sheetAt.size();
+        std::string one = config.sheetAt.substr(cut, next - cut);
+        const auto  from = one.find_first_not_of(" \t");
+        if (from == std::string::npos)
+            continue;
+        one = one.substr(from, one.find_last_not_of(" \t") - from + 1);
+        const auto when = sceneFrame(one, 0);
+        if (!when) {
+            std::cerr << std::format("video-code: --at \"{}\" is neither seconds nor a timestamp() of this scene.\n", one);
+            return EXIT_FAILURE;
+        }
+        _sheetFrames.push_back(*when);
+    }
+
     const auto first = sceneFrame(config.renderFrom, 0);
     const auto last = sceneFrame(config.renderTo, sceneFrames);
     if (!first || !last) {
@@ -558,8 +579,10 @@ int VC::Compiler::generateImage(VulkanHeadlessRenderer& renderer, size_t first, 
 
     cv::Mat frame = still(first);
 
-    if (config.sheetTiles > 1) {
-        if (last <= first) {
+    const bool named = !_sheetFrames.empty();
+
+    if (config.sheetTiles > 1 || named) {
+        if (!named && last <= first) {
             std::cerr << std::format("video-code: --sheet needs a stretch to sample, and {} → {} is not one.\n", config.renderFrom.empty() ? "the start" : config.renderFrom, config.renderTo.empty() ? "the end" : config.renderTo);
             return EXIT_FAILURE;
         }
@@ -570,15 +593,16 @@ int VC::Compiler::generateImage(VulkanHeadlessRenderer& renderer, size_t first, 
         // would have written, so what the sheet shows can be trusted against
         // one, and the time goes in a strip beneath rather than over the
         // picture, which would be a change to the frame it claims to show.
-        const int    tiles = config.sheetTiles;
+        const int    tiles = named ? (int)_sheetFrames.size() : config.sheetTiles;
         const int    strip = std::max(16, frame.rows / 12);
         const double fontScale = strip / 44.0;
         const int    thickness = std::max(1, strip / 22);
         cv::Mat      sheet(frame.rows + strip, frame.cols * tiles, frame.type(), cv::Scalar(0, 0, 0, 255));
 
         for (int k = 0; k < tiles; ++k) {
-            const size_t  at = first + (size_t)std::llround((double)(last - first) * k / (tiles - 1));
-            const cv::Mat tile = k == 0 ? frame : still(at);
+            const size_t  at = named ? _sheetFrames[k]
+                                     : first + (size_t)std::llround((double)(last - first) * k / std::max(tiles - 1, 1));
+            const cv::Mat tile = at == first ? frame : still(at);
             tile.copyTo(sheet(cv::Rect(k * frame.cols, 0, frame.cols, frame.rows)));
 
             const std::string label = std::format("{:.2f}s", (double)std::min(at, lastFrame) / Config::SCENE_FRAMERATE);

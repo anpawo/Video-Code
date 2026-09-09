@@ -235,6 +235,15 @@ void setParserArgument(argparse::ArgumentParser &p)
             "With an image --generate, lay this many moments side by side in the one file, "
             "evenly spaced from --from to --to and each labelled with its time. One look shows the motion."
         );
+
+    p
+        .add_argument("--at")
+        .help(
+            "With --generate to an image, the exact moments the sheet shows — seconds or timestamp() names, "
+            "comma-separated: \"0,3.9,the camera\". An even spread is right when nothing says where to look; "
+            "a scene that named its moments has already said, and spreading evenly spends tiles on stillness. "
+            "Overrides --sheet, which then only says a sheet is wanted."
+        );
 }
 
 namespace
