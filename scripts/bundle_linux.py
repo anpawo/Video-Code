@@ -177,6 +177,22 @@ def relocate(lib_dir: Path) -> None:
             set_rpath(elf, lib_dir)
 
 
+def megabytes() -> int:
+    return sum(p.stat().st_size for p in DIST.rglob("*") if p.is_file()) // 1_000_000
+
+
+def strip_symbols() -> None:
+    """
+    The debug tables nobody here can use. Qt's own Linux libraries carry
+    theirs, and they are most of a 555 MB folder — a tester downloads this
+    once, over whatever connection they have. `--strip-unneeded` keeps every
+    dynamic symbol, which is all that is resolved at load time. A wheel's own
+    libraries are left alone, like everything else under site-packages.
+    """
+    for elf in (p for p in DIST.rglob("*") if is_elf(p) and ours(p)):
+        subprocess.run(["strip", "--strip-unneeded", str(elf)], capture_output=True)
+
+
 def check_clean(lib_dir: Path) -> None:
     """
     Every library named is either the system's, by policy, or in the folder.
@@ -291,11 +307,12 @@ def main() -> None:
         os.chmod(lib / dylib.name, 0o755)
 
     relocate(lib)
+    before = megabytes()
+    strip_symbols()
     check_clean(lib)
 
     (DIST / "README.txt").write_text(README)
-    size = sum(p.stat().st_size for p in DIST.rglob("*") if p.is_file()) // 1_000_000
-    print(f"bundle: {DIST} ({size} MB), nothing left pointing outside it")
+    print(f"bundle: {DIST} ({megabytes()} MB, {before} before stripping), nothing left pointing outside it")
 
     if not args.no_smoke:
         bundle.smoke(DIST)
