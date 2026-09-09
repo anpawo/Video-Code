@@ -1,0 +1,98 @@
+name: Linux zip
+
+# The Mac zip is built on the author's Mac; this one cannot be — no x86_64
+# Linux here. So it is built where one is free: the same steps as the `build`
+# lane of ci.yaml, which is the version of this build that is known to work,
+# then bundled, then RUN in a bare ubuntu:24.04 container that never saw a
+# compiler. That container is the whole point: it is the tester's machine.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to attach the zip to'
+        default: 'v0.1.0'
+  push:
+    paths:
+      - '.github/workflows/release-linux.yaml'
+      - 'scripts/bundle_linux.py'
+
+permissions:
+  contents: read
+
+jobs:
+  zip:
+    name: build + bundle (Ubuntu 24.04, x86_64)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write # uploads the asset to the release
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same list as ci.yaml's build lane, minus LaTeX (no test runs here),
+      # plus patchelf, which is what rewrites the copies' rpath.
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config \
+            python3-dev ffmpeg libopencv-dev libcurl4-openssl-dev libvulkan-dev \
+            libfreetype6-dev glslang-dev glslang-tools g++-13 gcc-13 \
+            mesa-vulkan-drivers libxcb1-dev patchelf
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - run: pip install pybind11 -r requirements.txt
+
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.1'
+          host: linux
+          target: desktop
+          arch: linux_gcc_64
+          cache: true
+
+      - name: Configure CMake
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/.vcpkg-unused
+        run: cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=g++-13 -DCI_BUILD=ON
+
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+
+      - run: cp build/video-code video-code
+
+      # --no-smoke: the smoke test that means anything is the container below,
+      # not a run on the machine that owns every library already.
+      - name: Bundle
+        run: python3 scripts/bundle_linux.py --zip --no-smoke
+
+      # A machine that never built it, with only what the README asks for.
+      - name: It runs on a machine that never built it
+        run: |
+          docker run --rm -v "$PWD/dist:/dist:ro" ubuntu:24.04 bash -eux -c '
+            apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq unzip ffmpeg mesa-vulkan-drivers libvulkan1 > /dev/null
+            cd /tmp && unzip -q /dist/video-code-linux-x86_64.zip && cd video-code-linux-x86_64
+            ./video-code --file scenes/first_rectangle.py --generate /tmp/smoke.mp4
+            test -s /tmp/smoke.mp4
+            ./video-code --file scenes/tour.py --generate /tmp/look.png --from 2.5
+            test -s /tmp/look.png
+            QT_QPA_PLATFORM=offscreen ./video-code --check-chrome
+          '
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: video-code-linux-x86_64
+          path: dist/video-code-linux-x86_64.zip
+          retention-days: 14
+
+      - name: Attach it to the release
+        if: github.repository == 'anpawo/Video-Code'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ inputs.tag || 'v0.1.0' }}
+        run: gh release upload "$TAG" dist/video-code-linux-x86_64.zip --clobber
