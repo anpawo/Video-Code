@@ -46,10 +46,12 @@ SYSTEM = (
     "libwayland", "libxshmfence",
     "libdbus-1", "libsystemd", "libudev", "libselinux", "libcap",
     "libz.so", "liblzma", "libbz2", "libexpat", "libffi", "libuuid",
-    "libssl", "libcrypto", "libglib-2.0", "libgobject", "libgio", "libgmodule",
-    "libgthread", "libpcre", "libasound", "libpulse", "libnss", "libmount",
+    "libssl", "libcrypto", "libasound", "libpulse", "libnss", "libmount",
     "libblkid",
 )
+# glib is deliberately NOT in that list: it travels. Its package is
+# `libglib2.0-0t64` on 24.04 and was `libglib2.0-0` before, and a prerequisite
+# line that a distribution renames under you is a line testers get wrong.
 
 # The QML modules the chrome imports (QtQml, QtQuick, QtQuick.Controls,
 # QtQuick.Window — all of them live under these two directories), minus the
@@ -295,13 +297,16 @@ def main() -> None:
 README = """Video-Code — a folder that runs
 ================================
 
-Needs: Ubuntu 24.04 or newer (x86_64), and three packages from apt:
+Needs: Ubuntu 24.04 or newer (x86_64), and this line from apt:
 
-    sudo apt install ffmpeg mesa-vulkan-drivers libvulkan1
+    sudo apt install ffmpeg mesa-vulkan-drivers libvulkan1 \
+                     libopengl0 libegl1 libglx0 libxkbcommon0
 
-Nothing else: Python, its packages and Qt are inside. The renderer draws with
-Vulkan — mesa-vulkan-drivers is what makes it work on a machine with no GPU
-driver of its own.
+Nothing else: Python, its packages and Qt are inside. A desktop Ubuntu already
+has everything after the first two. The renderer draws with Vulkan —
+mesa-vulkan-drivers is what makes it work on a machine with no GPU driver of
+its own — and the GL libraries are the driver's front door: they have to be
+the machine's own, which is why they are not in the folder.
 
   1. cd into this folder
   2. ./video-code --file scenes/first_rectangle.py --generate smoke.mp4

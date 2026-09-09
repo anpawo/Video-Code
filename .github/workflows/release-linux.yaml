@@ -76,6 +76,13 @@ jobs:
             apt-get update -qq
             DEBIAN_FRONTEND=noninteractive apt-get install -y -qq unzip ffmpeg mesa-vulkan-drivers libvulkan1 > /dev/null
             cd /tmp && unzip -q /dist/video-code-linux-x86_64.zip && cd video-code-linux-x86_64
+            # What the folder asks of the machine, listed rather than guessed
+            # one CI round at a time. The README.txt line has to install these.
+            echo "— missing with ffmpeg and Vulkan alone:"
+            ldd ./video-code lib/qt/plugins/platforms/*.so | awk "/not found/ {print \$1}" | sort -u
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libopengl0 libegl1 libglx0 libxkbcommon0 > /dev/null
+            echo "— still missing after the README.txt line:"
+            ldd ./video-code lib/qt/plugins/platforms/*.so | awk "/not found/ {print \$1}" | sort -u
             printf "import shapely, PIL, freetype, uharfbuzz, pygments, svgelements\nfrom videocode import *\nSquare(side=1)\n" > /tmp/probe.py
             ./video-code --file /tmp/probe.py --inspect > /dev/null
             ./video-code --file scenes/first_rectangle.py --generate /tmp/smoke.mp4
