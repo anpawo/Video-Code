@@ -898,8 +898,18 @@ QVariantMap VC::Editor::stateAt(int index, int at)
     try {
         py::gil_scoped_acquire hold;
         const py::object       context = py::module::import("videocode.context").attr("Context");
-        for (auto item : context.attr("stateAt")(index, at).cast<py::dict>())
-            out.insert(QString::fromStdString(py::str(item.first).cast<std::string>()), item.second.cast<double>());
+        for (auto item : context.attr("stateAt")(index, at).cast<py::dict>()) {
+            const QString key = QString::fromStdString(py::str(item.first).cast<std::string>());
+            // A transform channel is a number; an animated ARGUMENT is whatever
+            // its argument is, and a colour comes back as a tuple. Asking for a
+            // double on that throws, and one `fill()` would take the whole
+            // read-out down with it.
+            try {
+                out.insert(key, item.second.cast<double>());
+            } catch (const py::cast_error&) {
+                out.insert(key, QString::fromStdString(py::str(item.second).cast<std::string>()));
+            }
+        }
     } catch (const py::error_already_set&) {
         // A scene that has not run has no state to read, and a card open on the
         // element of an older run asks about an index that is gone. Neither is

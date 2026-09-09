@@ -57,6 +57,19 @@ check("a frame before anything was written reads the placement too",
       abs(stateOf("s.position(2, 0)\ns.moveTo(x=4, start=1, duration=1)", 0, 5)["Position:x"] - 2) < 0.01)
 check("an index no scene made answers with nothing", Context.stateAt(9999, 0) == {})
 
+# An ARGUMENT that something animates is in there too, under its own name: a
+# `fill()` writes the colour it has reached, frame by frame. Without it the card
+# would go on showing the colour the line was written with while the shape has
+# changed — and nothing else in the editor knows the difference.
+fading = "s.fill(BLUE, duration=1)"
+landedColor = stateOf(fading, 0, 30)["Args:fillColor"]
+check("an animated argument reads its value at that frame",
+      (landedColor.r, landedColor.g, landedColor.b) == (0, 0, 255))
+check("and halfway through it is between the two",
+      0 < stateOf(fading, 0, 15)["Args:fillColor"].b < 255)
+check("an argument nobody animates is not claimed at all",
+      "Args:side" not in stateOf(fading, 0, 30))
+
 
 # ── What it must catch ──────────────────────────────────────────────────────
 # Two animations over the same frames on one key do not blend: a frame holds

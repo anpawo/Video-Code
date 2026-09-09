@@ -153,6 +153,52 @@ Item {
                 out.push({ n: label, v: root.meta[key] });
         return out;
     }
+
+    // Une couleur en chemin, écrite comme la ligne au-dessus l'écrit.
+    //
+    // Le moteur la porte en quadruplet, ce qui est juste et illisible à côté de
+    // `fillColor RED`. Une couleur à mi-parcours n'a pas de nom — c'est le
+    // propre d'un fondu — donc elle prend la seule autre écriture qu'une scène
+    // accepte, et l'alpha ne s'écrit que lorsqu'il compte.
+    function readable(value) {
+        const rgba = String(value).match(/^\((\d+), *(\d+), *(\d+)(?:, *(\d+))?\)$/);
+        if (rgba === null)
+            return String(value);
+        const hex = (n) => ("0" + Number(n).toString(16)).slice(-2);
+        return "#" + hex(rgba[1]) + hex(rgba[2]) + hex(rgba[3])
+                   + (rgba[4] !== undefined && Number(rgba[4]) !== 255 ? hex(rgba[4]) : "");
+    }
+
+    // Les MÊMES arguments que la ligne du dessus, à l'image du curseur.
+    //
+    // La plupart ne bougent jamais : un `side` que personne n'anime vaut à
+    // toute heure ce que la ligne dit. Ceux qu'un verbe anime, en revanche —
+    // un `fill()` écrit `Args:fillColor` image par image — n'ont nulle part
+    // ailleurs où se lire, et la ligne du dessus continue d'afficher la couleur
+    // de départ pendant que la forme en a changé.
+    //
+    // Même ordre, même largeur de mots : les deux lignes se lisent en colonnes,
+    // ce qui rend la différence visible sans avoir à comparer deux textes.
+    readonly property var argsNow: {
+        let out = [];
+        for (const one of root.arguments) {
+            const live = root.meta["Args:" + one.name];
+            // Rien d'animé sur ce nom : sa valeur à cette image EST celle qui
+            // est écrite. La rangée reste complète, et ce qui a bougé se repère
+            // parce que c'est la seule chose qui diffère de la ligne au-dessus.
+            // Écrit → animé → par défaut. Un argument absent de la ligne n'est
+            // pas un argument sans valeur : il a celle de la signature, et une
+            // pastille qui ne montre qu'un nom ne dit rien de ce que l'élément
+            // vaut à cette image.
+            const asWritten = root.written(one.name);
+            out.push({
+                n: one.name,
+                v: live !== undefined ? root.readable(live)
+                                      : (asWritten.length > 0 ? asWritten : one.value)
+            });
+        }
+        return out;
+    }
     readonly property real origin: element !== null ? element.l : 0
 
     readonly property string kind: element !== null && element.kind !== undefined
@@ -548,6 +594,8 @@ Item {
             // Assez haut pour le nom et les pastilles, et pas moins que 76 —
             // en dessous la barre cesse de se lire comme le clip qu'elle est.
             height: Math.max(76, 42 + (argRow.visible ? argRow.height + 7 : 0)
+                                    + (liveRow.visible ? liveRow.height + 7 : 0)
+                                    + (rule.visible ? 8 : 0)
                                     + (metaRow.visible ? metaRow.height + 7 : 0))
             radius: 6
             color: root.hue
@@ -583,7 +631,9 @@ Item {
             }
 
             Text {
-                anchors { left: parent.left; leftMargin: 16; top: parent.top; topMargin: 12 }
+                // 14, comme les rangées dessous : un nom décalé de deux pixels
+                // par rapport à ce qu'il nomme se voit, et ne veut rien dire.
+                anchors { left: parent.left; leftMargin: 14; top: parent.top; topMargin: 12 }
                 text: root.element !== null ? root.element.n : ""
                 color: "#eef3f9"
                 font.family: Theme.ui
@@ -1294,8 +1344,8 @@ Item {
             // sa propre barre, la question ne se pose plus.
             anchors {
                 left: bar.left; right: bar.right
-                bottom: metaRow.visible ? metaRow.top : bar.bottom
-                leftMargin: 14; rightMargin: 14; bottomMargin: metaRow.visible ? 7 : 12
+                bottom: liveRow.visible ? liveRow.top : (metaRow.visible ? metaRow.top : bar.bottom)
+                leftMargin: 14; rightMargin: 14; bottomMargin: liveRow.visible || metaRow.visible ? 7 : 12
             }
             spacing: 6
             visible: root.arguments.length > 0
@@ -1382,6 +1432,61 @@ Item {
                     }
                 }
             }
+        }
+
+        // ── Les mêmes arguments, à l'image du curseur ─────────────────────
+        // La rangée du dessus dit ce que la LIGNE écrit ; celle-ci ce que
+        // l'élément en a fait à cette image-là. La plupart sont identiques —
+        // personne n'anime `side` — et c'est voulu : ce qui a bougé est alors
+        // la seule chose qui diffère entre les deux rangées, et se voit sans
+        // qu'on ait à lire.
+        Flow {
+            id: liveRow
+            anchors {
+                left: bar.left; right: bar.right
+                bottom: rule.top
+                leftMargin: 14; rightMargin: 14; bottomMargin: 7
+            }
+            spacing: 6
+            visible: root.argsNow.length > 0
+
+            Repeater {
+                model: root.argsNow
+
+                Rectangle {
+                    id: live
+                    required property var modelData
+                    width: liveText.implicitWidth + 16
+                    height: 22
+                    radius: Theme.radiusSmall
+                    color: Qt.rgba(0.04, 0.06, 0.09, 0.22)
+
+                    Text {
+                        id: liveText
+                        anchors.centerIn: parent
+                        text: live.modelData.n + " " + live.modelData.v
+                        color: Qt.rgba(0.93, 0.96, 1, 0.82)
+                        font.family: Theme.mono
+                        font.pixelSize: 11
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+        }
+
+        // Ce qui est ÉCRIT au-dessus, ce que la scène FAIT en dessous. Les deux
+        // se lisent de la même façon et ne veulent pas dire la même chose ; une
+        // ligne coûte moins qu'une légende et se voit de plus loin.
+        Rectangle {
+            id: rule
+            anchors {
+                left: bar.left; right: bar.right
+                bottom: metaRow.top; bottomMargin: 7
+                leftMargin: 14; rightMargin: 14
+            }
+            height: 1
+            visible: metaRow.visible && liveRow.visible
+            color: Qt.rgba(0.04, 0.06, 0.09, 0.28)
         }
 
         // ── Où il en est, à l'image du curseur ────────────────────────────

@@ -995,11 +995,15 @@ Context.stateAt(0, 30)   # {"Position:x": 4.0, "Position:y": 0.0, "Opacity": 255
 ```
 
 The channels an element actually holds at one frame — position, scale, rotation,
-opacity, align — read off the stack the render draws from. The arguments of a
+opacity, align — plus any ARGUMENT something animates, under `Args:<name>`: a
+`fill()` writes the colour it has reached, frame by frame. Read off the stack the
+render draws from. The arguments of a
 call say what a thing was *made with* and never change; this says where it *is*,
 which is what every line above it has done to it by that frame. The editor's
-element card shows it under the arguments, and it is the reading half of the
-timecard.
+element card shows it under the arguments — twice: the same argument names with
+their values at the playhead, then a rule, then the transform channels. What has
+moved is the only thing that differs between the two rows, which is what makes it
+readable without comparing two texts. It is the reading half of the timecard.
 
 An index no scene made answers with nothing rather than raising: a card left
 open on an older run asks about an element that is gone.

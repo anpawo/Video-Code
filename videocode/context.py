@@ -624,11 +624,18 @@ class Context:
         entry = Context.stack.get(index, {})
         for f in sorted(f for f in entry if f != -1 and f <= at):
             for key, shader in entry[f].items():
+                # `Args:fillColor` is a written argument that something animates
+                # — a `fill()` writes one per frame with the colour it has
+                # reached. It carries its value directly rather than through a
+                # channel, because it IS the argument, not a transform of it.
+                if key.startswith("Args:"):
+                    out[key] = shader.get("args", {}).get("value")
+                    continue
                 channel = key.split(":")[0]
                 for full, field in Context._BASE_KEYS.items():
                     if full.split(":")[0] != channel:
                         continue
-                    value = shader["args"].get(field)
+                    value = shader.get("args", {}).get(field)
                     if value is not None:
                         out[full] = value
         return out
