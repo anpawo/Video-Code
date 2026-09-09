@@ -114,11 +114,18 @@ try:
     check("it carries what the scene made", ok and answer.get("elements", 0) > 10)
     check("and what the engine noticed", ok and isinstance(answer.get("run", {}).get("warnings"), list))
     check("the sheet is on disk", ok and answer.get("sheet") == sheet and os.path.exists(sheet))
-    # The scene named six moments, so the sheet shows THOSE — not an even
-    # spread, which on this scene draws the same picture twice.
-    check("laid on the scene's own timestamps, not an even spread",
-          ok and [round(x, 2) for x in answer.get("sheetAt", [])]
-                 == [round(m["at"], 2) for m in answer.get("markers", [])])
+    # The MIDDLE of each named section, not the instant the name sits on: a
+    # timestamp marks where a section begins, so the frame at that exact instant
+    # is the last frame of the one before it — the tile labelled "the camera"
+    # showed the bar chart the camera was about to replace. The last section runs
+    # to the end of the scene.
+    marks = [m["at"] for m in answer.get("markers", [])]
+    middles = [round((a + b) / 2, 2)
+               for a, b in zip(marks, marks[1:] + [answer.get("duration", 0)])]
+    check("laid on the middle of each named section, not an even spread",
+          ok and [round(x, 2) for x in answer.get("sheetAt", [])] == middles)
+    check("and that is not the same as the timestamps themselves",
+          ok and middles != [round(m, 2) for m in marks])
     if os.path.exists(sheet):
         os.remove(sheet)
 
