@@ -342,6 +342,26 @@ Item {
     }
 
     // The other direction: where the mouse is, told in the protocol's terms.
+    // Renommer un élément depuis ailleurs dans la fenêtre — un double-clic sur
+    // son clip, son nom sur sa fiche. Le curseur se pose là où la ligne le
+    // déclare et le renommage du volet prend la suite : une seule boîte, un seul
+    // chemin par le serveur de langage, et tous les fichiers qui s'en servent.
+    function renameAt(line, name) {
+        const rows = editor.text.split("\n");
+        if (line < 1 || line > rows.length)
+            return false;
+        const column = rows[line - 1].indexOf(name);
+        if (column < 0)
+            return false;
+        let offset = 0;
+        for (let i = 0; i < line - 1; i++)
+            offset += rows[i].length + 1;
+        root.takeFocus();
+        editor.cursorPosition = offset + column;
+        renaming.begin();
+        return true;
+    }
+
     function locationAt(offset) {
         const before = editor.text.substring(0, offset).split("\n");
         return { line: before.length - 1, character: before[before.length - 1].length };

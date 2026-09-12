@@ -62,6 +62,7 @@ Item {
     // A clip was opened, and this is where it sits on screen. The rect is the
     // whole point: whatever opens it can start there.
     signal elementOpened(var element, rect where)
+    signal renameRequested(var element)
     signal scrubbed(real seconds)
 
     // The element that is currently open in the middle of the window, by name.
@@ -712,6 +713,10 @@ Item {
                                     Qt.rect(at.x, at.y, bar.width, bar.height)
                                 );
                             }
+
+                            // Un nom, ici, est la variable que la scène déclare :
+                            // le renommer est celui du volet de code.
+                            onDoubleTapped: root.renameRequested(lane.modelData)
                         }
                     }
                 }

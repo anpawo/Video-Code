@@ -51,6 +51,7 @@ Item {
     // re-runs the scene; the card never edits the buffer itself.
     signal argumentWritten(var element, string call, string name, string value)
     signal jumpRequested(var element)
+    signal renameRequested(var element)
     signal effectRequested(var element, var effect, var options)
     signal memberOpened(var member, rect where)
     // An applied effect, acted on through the call that wrote it.
@@ -730,6 +731,12 @@ Item {
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
                 width: Math.min(implicitWidth, head.width / 3)
+
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                TapHandler {
+                    onTapped: if (root.element !== null) root.renameRequested(root.element)
+                }
             }
 
             // What it is, in the middle of the card's own top bar rather than

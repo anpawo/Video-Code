@@ -1923,6 +1923,7 @@ ApplicationWindow {
         onMetadataWritten: (element, call, name, at, value) => app.writeMetadata(element, call, name, at, value)
         buffer: source.text
         onJumpRequested: (element) => app.revealLine(element.line)
+        onRenameRequested: (element) => app.renameElement(element)
         // An effect row answers for the call that wrote it: the ✕ deletes that
         // call, a drag rewrites its `start` or `duration`, a click goes to it.
         onEffectRemoved: (fx) => app.removeCall(fx.line, fx.call, fx.file)
@@ -2874,6 +2875,21 @@ ApplicationWindow {
     // Going to a line: the pane comes up, the caret lands on it, and the card
     // gets out of the way. Claimed with `callLater` because the pane may have
     // been behind another tab when the line was asked for.
+    // Un nom vit dans le code, donc le renommer est le renommage du volet de
+    // code — celui du serveur de langage, qui atteint tous les fichiers qui s'en
+    // servent. Un élément dont les lignes sont dans un autre document est refusé
+    // pour la raison qui refuse déjà tous les gestes sur lui : le numéro de ligne
+    // n'est pas celui de ce document.
+    function renameElement(one) {
+        if (one === null || one === undefined || !fromOpenFile(one.file)) {
+            source.say("those lines are in another file");
+            return;
+        }
+        showPanel("code");
+        if (!source.renameAt(one.line, one.n))
+            source.say("no name to rename on line " + one.line);
+    }
+
     function revealLine(line) {
         if (line === undefined || line <= 0 || source.path.length === 0)
             return;
@@ -3601,6 +3617,7 @@ ApplicationWindow {
         openedName: elementCard.element !== null && elementCard.element.n !== undefined
                     ? elementCard.element.n : ""
         onElementOpened: (element, where) => elementCard.open(element, where)
+        onRenameRequested: (element) => app.renameElement(element)
         // Scrubbing stops playback: the two are the same control, and a playhead
         // that keeps running away from where you put it is not a scrub.
         // A gap edited on the timeline is one number rewritten in the file: the
