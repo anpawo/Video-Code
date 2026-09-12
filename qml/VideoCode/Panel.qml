@@ -186,6 +186,21 @@ Rectangle {
     // is shown. A panel that has left for another slot is not touched here — the
     // slot that took it reparents it, so the two never fight over one item.
     function syncBody() {
+        // A tab CLOSED here leaves its panel behind: the model drops the key and
+        // nothing else ever touches an item this slot no longer lists, so it
+        // kept drawing, at full size, over whichever tab took its place. A tab
+        // MOVED is not ours to hide — the slot that took it is already its
+        // parent, and that is exactly what tells the two apart.
+        for (const key in items) {
+            const gone = items[key];
+            if (!gone || keys.indexOf(key) >= 0)
+                continue;
+            if (gone.parent === body)
+                gone.visible = false;
+            if (gone.stripControl && gone.stripControl.parent === root.extraSlot)
+                gone.stripControl.visible = false;
+        }
+
         for (let i = 0; i < keys.length; i++) {
             const item = items[keys[i]];
             if (!item)
