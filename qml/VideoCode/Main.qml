@@ -3491,9 +3491,6 @@ ApplicationWindow {
                 items: app.panelItems
                 dropZone: app.hoverSlot === floater.modelData.id ? app.hoverZone : ""
 
-                Component.onCompleted: app.registerNode(floater.modelData.id, this)
-                Component.onDestruction: app.forgetNode(floater.modelData.id, this)
-
                 onFloatRequested: {} // already a window of its own
                 onTabPicked: (index) => app.pickTab(floater.modelData.id, index)
                 onTabClosed: (key) => app.closeTab(floater.modelData.id, key)
