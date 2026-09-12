@@ -3,9 +3,9 @@
 // A list of shortcuts tells you what exists; a KEYBOARD tells you where to put
 // your hand, which is the actual question. Press a key and the whole
 // combination lights up — modifiers included, so there is no layer to switch to
-// — and a card under the board says what it does and stays there until the next
-// key. Pointing at an action says the same thing — that is asking where a key
-// is. Pointing at a CAP says nothing: the board answers a keyboard, not a mouse.
+// — and, while you hold it, so does every action that uses it. Pointing at an
+// action lights its keys — that is asking where a key is. Pointing at a CAP says
+// nothing: the board answers a keyboard, not a mouse.
 //
 // Rebinding is by pressing the keys, not by picking from a list of names: the
 // gesture that sets the shortcut is the gesture that uses it. Everything here
@@ -29,10 +29,14 @@ Item {
     // A rebinding that would have stolen a key, and from whom.
     property string clash: ""
 
-    // The combination the card under the board is answering for. Set by a key
-    // you press, or by an action you point at, and it STAYS there until
-    // something else replaces it: press, read, press again — nothing to chase.
+    // The combination the board is showing. Set by a key you press, or by an
+    // action you point at, and it STAYS there until something else replaces it.
     property string struck: ""
+
+    // The keys held down right now — pressed, not pointed at. Every action whose
+    // own combination holds all of them lights up, so holding ⌘ shows everything
+    // ⌘ is part of, and letting go puts them out.
+    property var keysStruck: []
 
     // One row per physical key. The third number widens a key in flex units;
     // "mod" marks the ones that are held rather than struck.
@@ -52,16 +56,59 @@ Item {
          ["←", "←"], ["↑", "↑"], ["↓", "↓"], ["→", "→"]]
     ]
 
-    // What is bound to a key, for the label under the board.
-    function boundTo(token) {
-        let out = [];
-        for (const action of Keymap.actions)
-            if (Keymap.baseOf(Keymap.combo(action.id)) === token)
-                out.push(action.label + " · " + Keymap.combo(action.id));
-        for (const one of Keymap.reserved)
-            if (Keymap.baseOf(one.key) === token)
-                out.push(one.label + " · " + one.key);
-        return out.join("   ");
+    // Les volets du dock, donnés par la coquille : c'est elle qui les connaît,
+    // et un volet ajouté demain doit avoir son onglet ici sans qu'on y pense.
+    property var docks: []
+
+    // À quel volet une action appartient : celui qui doit être sélectionné pour
+    // qu'elle agisse. Aucun, c'est une touche globale — elle marche où qu'on soit.
+    //
+    // Lu sur `where`, qui existait déjà, plutôt que sur un deuxième champ à
+    // tenir d'accord avec lui : Code est le volet de code ; Transport, ce sont
+    // la tête de lecture et la plage, qui vivent sur la timeline ; le reste —
+    // exécuter la scène, les touches que la barre de menus possède — n'attend
+    // aucun volet.
+    function dockOf(action) {
+        if (action.where === "Code")
+            return "code";
+        if (action.where === "Transport")
+            return "timeline";
+        return "";
+    }
+
+    // Les familles : tout, les touches globales, puis un onglet par volet.
+    readonly property var groups: {
+        let out = [
+            { id: "all",    label: "all",    holds: function (action) { return true; } },
+            { id: "global", label: "global", holds: function (action) { return root.dockOf(action) === ""; } }
+        ];
+        for (const dock of root.docks) {
+            const key = dock.id;
+            out.push({ id: key, label: dock.label.toLowerCase(),
+                       holds: function (action) { return root.dockOf(action) === key; } });
+        }
+        return out;
+    }
+    property string group: "all"
+
+    function livesHere(action) {
+        for (const one of root.groups)
+            if (one.id === root.group)
+                return one.holds(action);
+        return true;
+    }
+
+    // Les deux familles, séparées par un blanc : celles qu'on peut relier, et
+    // celles que la barre de menus possède — grises, et qui ne répondront pas
+    // à un clic. Le blanc est un objet de la liste plutôt qu'une deuxième
+    // grille : un seul flux garde les quatre colonnes alignées de part et
+    // d'autre, et une famille vide ne laisse pas un trou derrière elle.
+    readonly property var shown: {
+        const mine = Keymap.actions.filter(root.livesHere);
+        const theirs = Keymap.reserved.filter(root.livesHere);
+        if (mine.length === 0 || theirs.length === 0)
+            return mine.concat(theirs);
+        return mine.concat([{ gap: true, id: "", label: "" }], theirs);
     }
 
     readonly property var held: ["Cmd", "Ctrl", "Shift", "Alt"]
@@ -86,10 +133,12 @@ Item {
         if (pair === undefined)
             return true;
         // Nothing of that modifier is physically down, so the card is
-        // describing a BINDING — and ⌘S does not name a side. Both caps are
-        // then places you could put your hand, and both light.
+        // describing a BINDING — and a binding is shown on the LEFT key. The
+        // two ⌘ are two keys; lighting both said "either", which reads as one
+        // key drawn twice. The left one is where a shortcut is written and
+        // where a hand goes without being asked.
         if ((bits & (pair[0] | pair[1])) === 0)
-            return true;
+            return !right;
         return (bits & pair[right ? 1 : 0]) !== 0;
     }
 
@@ -105,45 +154,11 @@ Item {
         return root.sideLit(root.sidesAt, token, right);
     }
 
-    // The action a combination fires, or null. Reserved rows answer too: they
-    // are keys the menu bar owns, and "taken by the menu bar" is an answer.
-    function firing(spec) {
-        for (const action of Keymap.actions)
-            if (Keymap.combo(action.id) === spec)
-                return action;
-        for (const one of Keymap.reserved)
-            if (one.key === spec)
-                return one;
-        return null;
-    }
-
-    function heading() {
-        const one = root.firing(root.struck);
-        return one !== null ? one.label : "Nothing on it";
-    }
-
-    // At most three lines. The qualifier is added here rather than written into
-    // the table, so an action that gains or loses it says so by itself.
-    function bullets() {
-        const spec = root.struck;
-        if (root.held.indexOf(spec) >= 0)
-            return ["Held on its own. Press a combination to see whether it is taken."];
-
-        const one = root.firing(spec);
-        if (one === null) {
-            // "⌘I does nothing" is half an answer while I on its own marks in.
-            const rest = root.boundTo(Keymap.baseOf(spec));
-            return rest.length > 0
-                   ? ["Nothing is bound to it.", "On this key: " + rest]
-                   : ["Nothing is bound to it."];
-        }
-
-        let out = (one.says !== undefined ? one.says.slice(0, 3) : []);
-        if (one.key !== undefined)
-            out.push("The menu bar answers it, so it cannot be rebound here.");
-        else if (one.only !== undefined && !Keymap.survivesTyping(one.id))
-            out.push("Works " + one.only + " — while the caret is in it, this key writes.");
-        return out.slice(0, 3);
+    // The modifiers a key event says are down, as tokens, leaving out `except`.
+    // A released modifier is left out by name because platforms disagree on
+    // whether its own release still carries its flag.
+    function heldIn(modifiers, except) {
+        return root.held.filter((token) => token !== except && (modifiers & Keymap.flagFor(token)) !== 0);
     }
 
     // A modifier struck alone is not a combination: nothing fires, but the cap
@@ -176,11 +191,30 @@ Item {
                    : Keymap.modsOf(spec).concat([Keymap.baseOf(spec)]);
     }
 
-    // Held as a property, not called from the Repeater: a function in a model
-    // hands back a NEW array whenever anything it read changes, and every one of
-    // those destroys and rebuilds the lines. This changes when the combination
-    // does, which is once per key.
-    readonly property var lines: root.struck.length > 0 ? root.bullets() : []
+    // Survoler une pastille est un APERÇU, pas une frappe.
+    //
+    // La carte gardait la dernière survolée quand le pointeur était reparti
+    // ailleurs : elle décrivait alors une action que plus rien à l'écran ne
+    // désignait. En quittant, on revient à ce qui était là avant — la dernière
+    // touche pressée, ou l'invitation quand il n'y en a pas eu.
+    property string pressed: ""
+
+    function previewSpec(spec) {
+        if (root.pressed.length === 0)
+            root.pressed = root.struck;
+        root.showSpec(spec, 0);
+    }
+
+    function endPreview() {
+        if (root.pressed.length === 0 && root.struck.length === 0)
+            return;
+        const back = root.pressed;
+        root.pressed = "";
+        root.struck = "";
+        root.hot = [];
+        if (back.length > 0)
+            root.showSpec(back, 0);
+    }
 
     function stopCapturing() {
         root.capturing = "";
@@ -204,7 +238,7 @@ Item {
         // the list on the right. Sized from the content rather than fixed,
         // because adding an action must not quietly clip the last row off.
         height: Math.min(
-            Math.max(keyboard.height + 96 + 104,
+            Math.max(keyboard.height + 96,
                      (Keymap.actions.length + Keymap.reserved.length) * 28 + 92),
             root.height - 60)
         color: Theme.panel
@@ -245,7 +279,7 @@ Item {
             id: keyboard
             anchors {
                 left: parent.left; leftMargin: 20
-                right: actions.left; rightMargin: 20
+                right: parent.right; rightMargin: 20
                 top: title.bottom; topMargin: 16
             }
             height: rows.implicitHeight
@@ -312,106 +346,70 @@ Item {
             }
         }
 
-        // ── What the last key does ────────────────────────────────────────
-        // An invitation until you press something, then a card: the action's
-        // name, the keys you held, and what it does in at most three lines. It
-        // stays until the next key replaces it — press, read, press again,
-        // with nothing to chase and nothing to hover.
-        Text {
-            id: invite
-            anchors { left: keyboard.left; top: keyboard.bottom; topMargin: 20 }
-            visible: root.struck.length === 0
-            text: "Press any key"
-            color: Theme.inkDim
-            font.family: Theme.ui
-            font.pixelSize: 17
-        }
-
-        Rectangle {
-            id: answer
-            anchors {
-                left: keyboard.left; right: keyboard.right
-                top: keyboard.bottom; topMargin: 16
-            }
-            visible: root.struck.length > 0
-            height: name.height + says.height + 26
-            radius: Theme.radius
-            color: Theme.sunk
-            border.width: 1
-            border.color: Theme.edge
-
-            Text {
-                id: name
-                anchors { left: parent.left; leftMargin: 14; right: chip.left; rightMargin: 10; top: parent.top; topMargin: 12 }
-                text: root.struck.length > 0 ? root.heading() : ""
-                color: Theme.ink
-                font.family: Theme.ui
-                font.pixelSize: 14
-                font.weight: Font.DemiBold
-                elide: Text.ElideRight
-            }
-
-            // The keys themselves, written the way the caps are.
-            Rectangle {
-                id: chip
-                anchors { right: parent.right; rightMargin: 14; verticalCenter: name.verticalCenter }
-                width: Math.max(pressed.implicitWidth + 16, 40)
-                height: 22
-                radius: Theme.radiusSmall
-                color: Qt.alpha(Theme.live, 0.18)
-                border.width: 1
-                border.color: Theme.live
-
-                Text {
-                    id: pressed
-                    anchors.centerIn: parent
-                    text: root.struck.replace(/Cmd/g, "⌘").replace(/Ctrl/g, "⌃")
-                                     .replace(/Shift/g, "⇧").replace(/Alt/g, "⌥")
-                                     .replace(/\+/g, "")
-                    color: Theme.live
-                    font.family: Theme.mono
-                    font.pixelSize: 11
-                }
-            }
-
-            Column {
-                id: says
-                anchors { left: parent.left; leftMargin: 14; right: parent.right; rightMargin: 14; top: name.bottom; topMargin: 6 }
-                spacing: 2
-
-                Repeater {
-                    model: root.lines
-
-                    Text {
-                        required property string modelData
-                        width: says.width
-                        text: "·  " + modelData
-                        color: Theme.inkDim
-                        font.family: Theme.ui
-                        font.pixelSize: 12
-                        wrapMode: Text.Wrap
-                    }
-                }
-            }
-        }
-
         // ── The actions ───────────────────────────────────────────────────
+        // Sous le clavier, pas à côté : la question qu'on se pose devant cette
+        // planche est « où j'appuie », et la réponse est le dessin. La liste est
+        // ce qu'on lit ensuite, donc elle vient après, en largeur.
+        //
+        // Et en pastilles à la taille de leur nom : une rangée pleine largeur
+        // par action donnait trente lignes de vide à droite, et il fallait
+        // descendre pour lire ce qui tenait en trois colonnes.
         Item {
             id: actions
             anchors {
-                right: parent.right; rightMargin: 20
-                top: title.bottom; topMargin: 16
+                left: keyboard.left; right: keyboard.right
+                top: keyboard.bottom; topMargin: 18
                 bottom: parent.bottom; bottomMargin: 18
             }
-            width: 250
 
             Text {
                 id: head
+                anchors { left: parent.left; top: parent.top }
                 text: "ACTIONS"
                 color: Theme.inkFaint
                 font.family: Theme.ui
                 font.pixelSize: 10
                 font.letterSpacing: 0.8
+            }
+
+            // Le filtre. Deux familles aujourd'hui ; la barre se remplira toute
+            // seule quand `groups` en portera d'autres.
+            Row {
+                id: filters
+                anchors { left: head.right; leftMargin: 14; verticalCenter: head.verticalCenter }
+                spacing: 6
+
+                Repeater {
+                    model: root.groups
+
+                    Rectangle {
+                        id: tab
+                        required property var modelData
+                        readonly property bool on: root.group === tab.modelData.id
+                        width: tabText.implicitWidth + 20
+                        height: 22
+                        radius: Theme.radiusSmall
+                        color: tab.on ? Qt.alpha(Theme.live, 0.16) : Theme.sunk
+                        border.width: 1
+                        border.color: tab.on ? Theme.live : Theme.edge
+
+                        Text {
+                            id: tabText
+                            anchors.centerIn: parent
+                            text: tab.modelData.label
+                            color: tab.on ? Theme.live : Theme.ink
+                            font.family: Theme.ui
+                            font.pixelSize: 13
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.group = tab.modelData.id
+                        }
+                    }
+                }
             }
 
             Rectangle {
@@ -433,79 +431,167 @@ Item {
                 }
             }
 
-            ListView {
+            // Un volet sans touche à lui n'est pas un volet sans clavier : ce
+            // sont les touches globales qui y répondent, et le dire vaut mieux
+            // qu'une liste vide qui laisse croire que rien ne marche.
+            Text {
+                anchors { left: parent.left; top: warning.bottom; topMargin: 12 }
+                visible: root.shown.length === 0
+                text: "No keys of its own — the global keys apply here."
+                color: Theme.ink
+                font.family: Theme.ui
+                font.pixelSize: 13
+            }
+
+            Flickable {
                 anchors {
                     left: parent.left; right: parent.right
                     top: warning.bottom; topMargin: 8
                     bottom: parent.bottom
                 }
-                model: Keymap.actions.concat(Keymap.reserved)
                 clip: true
-                spacing: 2
+                contentWidth: width
+                contentHeight: grid.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
 
-                delegate: Item {
-                    id: row
-                    required property var modelData
-                    width: ListView.view.width
-                    height: 26
+                Flow {
+                    id: grid
+                    width: parent.width
+                    spacing: 6
 
-                    // A reserved row has its key written into it; a bindable one
-                    // reads the map. That is also what makes it clickable.
-                    readonly property bool fixed: row.modelData.key !== undefined
-                    readonly property string spec: row.fixed ? row.modelData.key : Keymap.combo(row.modelData.id)
+                    Repeater {
+                        model: root.shown
 
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: Theme.radiusSmall
-                        color: rowHit.containsMouse && !row.fixed ? Theme.rail : "transparent"
-                    }
+                        Rectangle {
+                            id: chipItem
+                            required property var modelData
 
-                    Text {
-                        anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
-                        width: parent.width - 120
-                        text: row.modelData.label
-                        color: row.fixed ? Theme.inkFaint : Theme.ink
-                        font.family: Theme.ui
-                        font.pixelSize: 12
-                        elide: Text.ElideRight
-                    }
+                            // Une ligne réservée porte sa touche ; une liaison la
+                            // lit dans la carte, et c'est ce qui la rend cliquable.
+                            readonly property bool gap: chipItem.modelData.gap === true
+                            // Découpé une fois par liaison, pas à chaque lecture :
+                            // `split` rend un tableau NEUF à chaque évaluation, et
+                            // un Repeater nourri d'un tableau neuf détruit et
+                            // refait ses cases sans arrêt.
+                            readonly property var parts: chipItem.spec.length > 0 ? chipItem.spec.split("+") : []
+                            readonly property bool fixed: chipItem.modelData.key !== undefined
+                            readonly property string spec: chipItem.fixed
+                                                           ? chipItem.modelData.key
+                                                           : Keymap.combo(chipItem.modelData.id)
+                            readonly property bool lit: !chipItem.gap && root.keysStruck.length > 0
+                                                        && root.keysStruck.every((k) => chipItem.parts.indexOf(k) >= 0)
 
-                    Rectangle {
-                        anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
-                        width: Math.max(shown.implicitWidth + 14, 44)
-                        height: 20
-                        radius: Theme.radiusSmall
-                        color: root.capturing === row.modelData.id ? Qt.alpha(Theme.live, 0.18) : Theme.sunk
-                        border.width: 1
-                        border.color: root.capturing === row.modelData.id ? Theme.live : Theme.edge
+                            // Toutes la même largeur, un quart de la rangée :
+                            // quatre colonnes qui s'alignent se parcourent d'un
+                            // regard, là où des pastilles à la taille de leur
+                            // nom faisaient un mur en dents de scie.
+                            // Toute la largeur : dans un Flow, c'est ce qui casse
+                            // la ligne, et sa hauteur EST l'écart entre les deux
+                            // familles.
+                            width: chipItem.gap ? grid.width : (grid.width - 3 * grid.spacing) / 4
+                            height: chipItem.gap ? 12 : 26
+                            // 8, pas 3 : une pastille est un objet qu'on prend,
+                            // pas un champ. Le capuchon dedans garde 3 — deux
+                            // rayons égaux emboîtés se lisent comme un rectangle
+                            // dans un rectangle.
+                            radius: 8
+                            color: chipItem.gap ? "transparent"
+                                   : chipItem.lit ? Qt.alpha(Theme.live, 0.14)
+                                   : (rowHit.containsMouse && !chipItem.fixed ? Theme.rail : Theme.sunk)
+                            border.width: chipItem.gap ? 0 : 1
+                            border.color: root.capturing === chipItem.modelData.id || chipItem.lit ? Theme.live : Theme.edgeSoft
 
-                        Text {
-                            id: shown
-                            anchors.centerIn: parent
-                            text: root.capturing === row.modelData.id
-                                  ? "press…"
-                                  : (row.spec.length > 0 ? row.spec.replace(/Cmd/g, "⌘").replace(/Ctrl/g, "⌃")
-                                                                  .replace(/Shift/g, "⇧").replace(/Alt/g, "⌥")
-                                                                  .replace(/\+/g, "")
-                                                         : "—")
-                            color: row.fixed ? Theme.inkFaint
-                                             : (root.capturing === row.modelData.id ? Theme.live : Theme.inkDim)
-                            font.family: Theme.mono
-                            font.pixelSize: 10
-                        }
-                    }
+                            Text {
+                                id: label
+                                visible: !chipItem.gap
+                                anchors {
+                                    left: parent.left; leftMargin: 9
+                                    right: keyCap.left; rightMargin: 8
+                                    verticalCenter: parent.verticalCenter
+                                }
+                                elide: Text.ElideRight
+                                text: chipItem.modelData.label
+                                color: chipItem.lit ? Theme.live : (chipItem.fixed ? Theme.inkFaint : Theme.ink)
+                                font.family: Theme.ui
+                                font.pixelSize: 12
+                            }
 
-                    MouseArea {
-                        id: rowHit
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        onEntered: root.showSpec(row.spec, 0)
-                        onClicked: {
-                            if (row.fixed)
-                                return;
-                            root.clash = "";
-                            root.capturing = root.capturing === row.modelData.id ? "" : row.modelData.id;
+                            Rectangle {
+                                id: keyCap
+                                visible: !chipItem.gap
+                                anchors { right: parent.right; rightMargin: 8; verticalCenter: parent.verticalCenter }
+                                width: Math.max(shown.implicitWidth + 12, 30)
+                                height: 18
+                                radius: Theme.radiusSmall
+                                color: root.capturing === chipItem.modelData.id ? Qt.alpha(Theme.live, 0.18) : Theme.rail
+                                border.width: 1
+                                border.color: root.capturing === chipItem.modelData.id ? Theme.live : Theme.edge
+
+                                // Une case par touche : celles qu'on sait dessiner
+                                // le sont, les autres s'écrivent. Un `⇧` de police
+                                // était fin et creux à côté des lettres ; tracé, il
+                                // a le poids de ce qui l'entoure.
+                                Row {
+                                    id: shown
+                                    anchors.centerIn: parent
+                                    spacing: 3
+                                    visible: chipItem.spec.length > 0 && root.capturing !== chipItem.modelData.id
+
+                                    Repeater {
+                                        model: chipItem.parts
+
+                                        Item {
+                                            id: part
+                                            required property string modelData
+                                            readonly property color ink: chipItem.fixed ? Theme.inkFaint : Theme.ink
+                                            width: drawn.drawn ? drawn.width : written.implicitWidth
+                                            height: 11
+
+                                            KeyGlyph {
+                                                id: drawn
+                                                token: Keymap.symbols(part.modelData)
+                                                ink: part.ink
+                                                width: 11; height: 11
+                                            }
+
+                                            Text {
+                                                id: written
+                                                visible: !drawn.drawn
+                                                anchors.centerIn: parent
+                                                text: Keymap.symbols(part.modelData)
+                                                color: part.ink
+                                                font.family: Theme.mono
+                                                font.pixelSize: 10
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    visible: !shown.visible
+                                    text: root.capturing === chipItem.modelData.id ? "press…" : "—"
+                                    color: root.capturing === chipItem.modelData.id ? Theme.live : Theme.inkFaint
+                                    font.family: Theme.mono
+                                    font.pixelSize: 10
+                                }
+                            }
+
+                            MouseArea {
+                                id: rowHit
+                                anchors.fill: parent
+                                enabled: !chipItem.gap
+                                hoverEnabled: !chipItem.gap
+                                onEntered: root.previewSpec(chipItem.spec)
+                                onExited: root.endPreview()
+                                onClicked: {
+                                    if (chipItem.fixed)
+                                        return;
+                                    root.clash = "";
+                                    root.capturing = root.capturing === chipItem.modelData.id
+                                                     ? "" : chipItem.modelData.id;
+                                }
+                            }
                         }
                     }
                 }
@@ -520,7 +606,7 @@ Item {
     // behind it — Space would play, I would mark in, and you would be told what
     // the key does by a timeline you cannot see. The shell's own shortcuts stand
     // down while this is open (Main.qml), and what is left lands here, lights
-    // its caps and says what it does under the board.
+    // its caps and the actions that use it.
     //
     // Escape is the one exception, because it is the way out.
     Keys.onPressed: (event) => {
@@ -537,7 +623,11 @@ Item {
 
         if (root.capturing.length === 0) {
             const mod = root.modifierToken(event.key);
-            root.showSpec(mod.length > 0 ? mod : Keymap.comboFrom(event), Shell.modifierSides);
+            const spec = mod.length > 0 ? mod : Keymap.comboFrom(event);
+            root.pressed = "";          // une frappe remplace l'aperçu, elle ne s'y ajoute pas
+            root.showSpec(spec, Shell.modifierSides);
+            const parts = spec.length > 0 ? spec.split("+") : [];
+            root.keysStruck = parts.concat(root.heldIn(event.modifiers, "").filter((token) => parts.indexOf(token) < 0));
             return;
         }
 
@@ -548,14 +638,23 @@ Item {
         root.clash = Keymap.holder(spec, root.capturing);
         // A key the system owns cannot be taken: the menu bar answers it before
         // the window ever sees it, so binding to it would do nothing at all.
+        // Tab is the exception scope buys — it belongs to the code pane, so an
+        // action of another pane may have it without either losing anything.
         for (const one of Keymap.reserved) {
-            if (one.key === spec) {
+            if (one.key === spec
+                && !Keymap.sharable(Keymap.scopeOf(root.capturing), Keymap.scopeOf(one.id))) {
                 root.capturing = "";
                 return;
             }
         }
         Keymap.bind(root.capturing, spec);
         root.capturing = "";
+    }
+
+    Keys.onReleased: (event) => {
+        event.accepted = true;
+        if (!event.isAutoRepeat)
+            root.keysStruck = root.heldIn(event.modifiers, root.modifierToken(event.key));
     }
 
     onVisibleChanged: {
@@ -565,6 +664,7 @@ Item {
             stopCapturing();
             hot = [];
             struck = "";
+            keysStruck = [];
             sidesAt = 0;
         }
     }

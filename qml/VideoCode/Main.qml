@@ -3308,6 +3308,44 @@ ApplicationWindow {
         }
     }
 
+    // ⌘H is ⌘F with the second line showing: the same band, the same walk
+    // through the matches, plus what goes in their place.
+    Shortcut {
+        sequence: Keymap.sequence("replace")
+        enabled: !shortcuts.visible && !source.typing
+        onActivated: {
+            app.showPanel("code");
+            source.openReplace();
+        }
+    }
+
+    // ⌘⏎ from anywhere, the way ⌘F is: the pane answers it while the caret is in
+    // it, and this is the same key once focus is elsewhere — the agent's field
+    // after a turn, where it did nothing at all.
+    Shortcut {
+        id: playKey
+        sequence: Keymap.sequence("playFromCaret")
+        enabled: !shortcuts.visible && !source.typing
+        onActivated: app.playFromCaret()
+    }
+
+    // Refaire, monter, descendre, effacer un mot : le volet de code les prend
+    // lui-même, dans son `Keys.onPressed`. Un `Shortcut` ici ne tirerait jamais
+    // — un TextEdit qui a le curseur réclame la touche avant lui — et ⌘↑ est
+    // le début du document pour macOS tant que personne ne la lui prend.
+
+    // F5 : les deux choses que F5 veut dire ailleurs, ensemble. La scène est
+    // rejouée d'abord — sans ça on lit une timeline qui décrit le texte d'avant
+    // — puis la lecture part de ce que cette ligne fabrique.
+    Shortcut {
+        sequence: Keymap.sequence("runFrom")
+        enabled: !shortcuts.visible
+        onActivated: {
+            app.executeScene();
+            app.playFromCaret();
+        }
+    }
+
     // ⌘Z is the editor's own undo, except while an agent turn is still the last
     // thing that happened — then it takes the WHOLE turn back in one press,
     // which is the unit the turn was asked for in. `Agent.disarm()` hands the

@@ -22,68 +22,73 @@ QtObject {
     // three short lines, because a fourth is a paragraph and this is a
     // keyboard. The qualifier line for `only` is DERIVED, not written here —
     // an action that gains or loses it changes its own explanation with it.
+    //
+    // `says` ne porte QUE ce que le nom ne dit pas. « Va à la définition » n'a
+    // pas besoin qu'on écrive « saute là où le nom est écrit » : la ligne se
+    // lit deux fois pour n'apprendre rien, et la vraie phrase — « Back te
+    // ramène ici » — se noie dans la première. Un titre qui se suffit n'a rien
+    // en dessous.
+    //
+    // `scope` is the pane that must have the FOCUS for the key to answer.
+    // Written where there is one, absent where the action is global. It is not
+    // `where`: `where` is the group the board lists the action under, and the
+    // transport is listed on the timeline while answering from the picture just
+    // as well. Scope is the narrower question, and the only one that decides
+    // who may share a combination with whom. An action with no scope is global
+    // — so a new one that belongs to a pane has to say which.
     readonly property var actions: [
-        { id: "definition",  label: "Go to definition",   where: "Code",
-          says: ["Jumps to where the name under the caret is written.",
-                 "Back brings you here again."] },
-        { id: "references",  label: "Find every use",     where: "Code",
-          says: ["Lists every place the name is used, with the line it sits on.",
-                 "Click a row to go there."] },
-        { id: "rename",      label: "Rename everywhere",  where: "Code",
-          says: ["Renames the word under the caret in every file that uses it.",
-                 "The field opens over the word itself, not in a dialog."] },
-        { id: "back",        label: "Back",               where: "Code",
-          says: ["Returns to where you were before the last jump."] },
-        { id: "forward",     label: "Forward",            where: "Code",
-          says: ["Walks back down the trail Back came up."] },
-        { id: "complete",    label: "Ask for completions", where: "Code",
-          says: ["Asks the analyser what can be written here.",
-                 "It also offers itself as you type a name."] },
-        { id: "save",        label: "Save the buffer",    where: "Code",
-          says: ["Writes the buffer to its file.",
-                 "The scene is the file — nothing else is kept anywhere."] },
+        { id: "definition",  label: "Go to definition",   where: "Code", scope: "code",
+          says: ["Back brings you here again."] },
+        { id: "references",  label: "Find every use",     where: "Code", scope: "code",
+          says: ["Click a row to go there."] },
+        { id: "rename",      label: "Rename everywhere",  where: "Code", scope: "code",
+          says: ["Every file that uses it, not just this one."] },
+        { id: "back",        label: "Back",               where: "Code", scope: "code" },
+        { id: "forward",     label: "Forward",            where: "Code", scope: "code" },
+        { id: "complete",    label: "Ask for completions", where: "Code", scope: "code",
+          says: ["It offers itself as you type a name; this is how you ask on an empty line."] },
+        { id: "save",        label: "Save the buffer",    where: "Code", scope: "code",
+          says: ["The scene is the file — nothing else is kept anywhere."] },
         { id: "find",        label: "Find in this file",  where: "Code",
-          says: ["Opens the find strip over the code.",
-                 "Enter and Shift+Enter walk the matches; the count says which one."] },
+          says: ["⏎ and ⇧⏎ walk the matches; the count says which one."] },
 
+        { id: "redo",        label: "Redo",               where: "Code", scope: "code" },
+        { id: "moveUp",      label: "Move the line up",   where: "Code", scope: "code" },
+        { id: "moveDown",    label: "Move the line down", where: "Code", scope: "code" },
+        { id: "deleteWord",  label: "Delete the word right", where: "Code", scope: "code",
+          says: ["⌥⌫ does the one before it, and always has."] },
+        { id: "replace",     label: "Find and replace",   where: "Code",
+          says: ["⏎ replaces this one, ⇧⏎ replaces them all."] },
+        { id: "runFrom",     label: "Run, then play from this line", where: "Scene" },
         { id: "execute",     label: "Execute the scene",  where: "Scene",
-          says: ["Runs the scene and repaints the preview and the timeline.",
-                 "With an agent edit waiting, it takes the edit first."] },
+          says: ["With an agent edit waiting, it takes the edit first."] },
         // In the Code group, and deliberately: the caret is what it plays
         // from, so it has to work with your hands in the pane.
         { id: "playFromCaret", label: "Play from this line", where: "Code",
-          says: ["Plays from the moment the caret's line stands at.",
-                 "On a wait() that is the start of the wait; on a timestamp(), its marker."] },
+          says: ["On a wait() that is the start of the wait; on a timestamp(), its marker."] },
 
         // `only` is the qualifier the board prints beside the key. All five are
         // keys a text editor already owns, so they belong to whichever of the
         // two has the caret — and a board that did not say so would be claiming
         // Space plays while you are writing a scene, which it does not.
         { id: "play",        label: "Play / pause",       where: "Transport", only: "outside the code pane",
-          says: ["Plays, or stops where it is.", "At the end, it starts over."] },
-        { id: "toStart",     label: "Go to the start",    where: "Transport", only: "outside the code pane",
-          says: ["Puts the playhead on the first frame."] },
-        { id: "toEnd",       label: "Go to the end",      where: "Transport", only: "outside the code pane",
-          says: ["Puts the playhead on the last frame."] },
-        { id: "prevFrame",   label: "Previous frame",     where: "Transport", only: "outside the code pane",
-          says: ["One frame back."] },
-        { id: "nextFrame",   label: "Next frame",         where: "Transport", only: "outside the code pane",
-          says: ["One frame on."] },
+          says: ["At the end, it starts over."] },
+        { id: "toStart",     label: "Go to the start",    where: "Transport", only: "outside the code pane" },
+        { id: "toEnd",       label: "Go to the end",      where: "Transport", only: "outside the code pane" },
+        { id: "prevFrame",   label: "Previous frame",     where: "Transport", only: "outside the code pane" },
+        { id: "nextFrame",   label: "Next frame",         where: "Transport", only: "outside the code pane" },
         // The moments the scene named with `timestamp()`. The frame keys with
         // Shift held: the same direction, a bigger step.
         { id: "prevMarker",  label: "Previous marker",    where: "Transport", only: "outside the code pane",
-          says: ["Back to the last moment the scene named with timestamp()."] },
-        { id: "nextMarker",  label: "Next marker",        where: "Transport", only: "outside the code pane",
-          says: ["On to the next moment the scene named with timestamp()."] },
+          says: ["A marker is a moment the scene named with timestamp()."] },
+        { id: "nextMarker",  label: "Next marker",        where: "Transport", only: "outside the code pane" },
 
         // The range. Two keys every editor on this machine already spells the
         // same way, and one to give the whole scene back.
         { id: "markIn",      label: "Mark in",            where: "Transport", only: "outside the code pane",
-          says: ["Starts the range here.", "An export with a range renders only that stretch."] },
-        { id: "markOut",     label: "Mark out",           where: "Transport", only: "outside the code pane",
-          says: ["Ends the range here."] },
-        { id: "clearMarks",  label: "Clear the range",    where: "Transport", only: "outside the code pane",
-          says: ["Gives the whole scene back."] }
+          says: ["An export with a range renders only that stretch."] },
+        { id: "markOut",     label: "Mark out",           where: "Transport", only: "outside the code pane" },
+        { id: "clearMarks",  label: "Clear the range",    where: "Transport", only: "outside the code pane" }
     ]
 
     // What the system owns. Listed so the board is honest about which keys are
@@ -91,15 +96,14 @@ QtObject {
     // hands them to macOS rather than to the window.
     readonly property var reserved: [
         { id: "layout",    label: "Switch arrangement", key: "Cmd+1…4",
-          says: ["Switches between the four saved arrangements of the panes."] },
+          says: ["Four saved arrangements of the panes."] },
         { id: "settings",  label: "Settings",           key: "Cmd+,",
-          says: ["Opens Settings — the code theme and how the bin shows media."] },
-        { id: "shortcuts", label: "This board",         key: "Cmd+/",
-          says: ["Opens this board."] },
-        { id: "indent",    label: "Four spaces",        key: "Tab",
-          says: ["Writes four spaces.", "The buffer is Python, and a stray tab is a syntax error."] },
+          says: ["The code theme, and how the bin shows media."] },
+        { id: "shortcuts", label: "This board",         key: "Cmd+/" },
+        { id: "indent",    label: "Four spaces",        key: "Tab",   where: "Code", scope: "code",
+          says: ["The buffer is Python, and a stray tab is a syntax error."] },
         { id: "dismiss",   label: "Dismiss",            key: "Esc",
-          says: ["Puts away whatever is on top, one layer at a time."] }
+          says: ["One layer at a time, whatever is on top."] }
     ]
 
     // The bindings themselves. Replaced wholesale rather than mutated, because a
@@ -124,8 +128,45 @@ QtObject {
         "nextMarker": "Shift+→",
         "markIn":     "I",
         "markOut":    "O",
-        "clearMarks": "Shift+X"
+        "clearMarks": "Shift+X",
+        "redo":       "Cmd+Y",
+        "moveUp":     "Cmd+↑",
+        "moveDown":   "Cmd+↓",
+        "deleteWord": "Alt+\\",
+        "replace":    "Cmd+H",
+        "runFrom":    "F5"
     })
+
+    // Une touche, écrite comme un clavier l'écrit.
+    //
+    // Les mots — `Cmd`, `Enter`, `Esc` — sont ce que la carte STOCKE, parce
+    // qu'ils se relisent dans un fichier de réglages. Ce qui s'affiche est le
+    // signe : ⌘ ⏎ ⎋, comme sur les capuchons et comme partout ailleurs sur
+    // cette machine. Une seule fonction, pour que deux surfaces ne puissent pas
+    // épeler la même touche de deux façons.
+    // Exactement ce qui est écrit sur le capuchon du dessin, touche par touche.
+    // `␣` et `⎋` n'existent pas dans la police du logiciel : elles sortaient en
+    // caractères de secours, plus petits et d'un autre dessin — « ^␣ » ne se
+    // lisait plus. Le clavier dit « space » et « esc » depuis toujours ; la
+    // pastille dit la même chose, et les deux ne peuvent plus diverger.
+    readonly property var glyphs: ({
+        "Cmd": "⌘", "Ctrl": "⌃", "Shift": "⇧", "Alt": "⌥", "Meta": "⌘",
+        "Enter": "⏎", "Return": "⏎", "Esc": "esc", "Escape": "esc",
+        "Tab": "⇥", "Space": "space", "Backspace": "⌫", "Delete": "⌦"
+    })
+
+    function symbols(spec) {
+        if (spec === undefined || spec.length === 0)
+            return "";
+        let parts = [];
+        for (const part of spec.split("+")) {
+            const glyph = Keymap.glyphs[part];
+            parts.push(glyph !== undefined ? glyph : part);
+        }
+        // Une espace fine entre les signes : collés, `⌘⇧F12` se lit comme un
+        // seul mot inconnu ; écartés d'un cheveu, on compte trois touches.
+        return parts.join("\u2009");
+    }
 
     // Raised when a binding changes, so the shell can persist the whole map.
     signal changed()
@@ -142,7 +183,8 @@ QtObject {
         if (spec.length === 0)
             return "";
 
-        const names = ({ "←": "Left", "→": "Right", "↑": "Up", "↓": "Down" });
+        // "Enter" in a key sequence is the keypad key; the one by the letters is Return.
+        const names = ({ "←": "Left", "→": "Right", "↑": "Up", "↓": "Down", "Enter": "Return" });
         let parts = [];
         for (const mod of root.modsOf(spec))
             parts.push(mod === "Cmd" ? "Ctrl" : (mod === "Ctrl" ? "Meta" : mod));
@@ -259,26 +301,50 @@ QtObject {
         return parts.join("+");
     }
 
+    function scopeOf(id) {
+        for (const action of root.actions)
+            if (action.id === id)
+                return action.scope !== undefined ? action.scope : "";
+        for (const one of root.reserved)
+            if (one.id === id)
+                return one.scope !== undefined ? one.scope : "";
+        return "";
+    }
+
+    // Two actions may hold the same combination when, and only when, two
+    // DIFFERENT panes own them: one pane has the focus, so only one of the two
+    // is ever in reach and the key means one thing at a time. A global action is
+    // in reach everywhere, so it shares with nobody in either direction — and
+    // two actions of the same pane are both in reach the moment it is focused.
+    function sharable(here, there) {
+        return here.length > 0 && there.length > 0 && here !== there;
+    }
+
     // Who else already holds this combination — the question that has to be
     // answered BEFORE a rebinding lands, not after two things start firing.
+    // Nobody, when the focus keeps the two apart.
     function holder(spec, exceptId) {
+        const mine = root.scopeOf(exceptId);
         for (const action of root.actions)
-            if (action.id !== exceptId && root.combo(action.id) === spec)
+            if (action.id !== exceptId && root.combo(action.id) === spec
+                && !root.sharable(mine, root.scopeOf(action.id)))
                 return action.label;
         for (const one of root.reserved)
-            if (one.key === spec)
+            if (one.key === spec && !root.sharable(mine, root.scopeOf(one.id)))
                 return one.label;
         return "";
     }
 
     function bind(id, spec) {
+        const mine = root.scopeOf(id);
         let next = ({});
         for (const key in root.bindings)
             next[key] = root.bindings[key];
         // Whoever held it loses it: two actions on one combination means one of
-        // them silently never fires.
+        // them silently never fires. Unless they live in two panes — there the
+        // focus answers for them, and one key doing two things is the point.
         for (const key in next)
-            if (key !== id && next[key] === spec)
+            if (key !== id && next[key] === spec && !root.sharable(mine, root.scopeOf(key)))
                 next[key] = "";
         next[id] = spec;
         root.bindings = next;
