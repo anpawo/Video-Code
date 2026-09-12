@@ -405,6 +405,10 @@ def sceneModel() -> dict:
                 continue
             if not statement["keys"]:
                 continue
+            # The hiding an element gets until a wait lets it appear is written
+            # by the library, not by the line that made it.
+            if statement.get("placement"):
+                continue
 
             first = min(span[0] for span in statement["keys"].values())
             # Exclusive on the stack, inclusive here: `__end = start + duration`

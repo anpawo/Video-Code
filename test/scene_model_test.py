@@ -66,6 +66,19 @@ check("moveBy is on line 5", one["effects"][1]["line"] == 5)
 check("the shaders behind it are kept", one["effects"][0]["kinds"] == ["Opacity"])
 check("they do not overlap", span(one, "fadeIn")[1] < span(one, "moveBy")[0])
 
+# Made after a wait, an element is hidden from frame 0 until it appears. That is
+# the library's bookkeeping, not a call on the line: listed, it had no name, it
+# started at 0, and "play from this line" played the film from the top.
+late = model(
+    "from videocode import *\n"
+    "wait(1)\n"
+    "square = Square(side=1)\n"
+    "square.fadeIn()\n"
+)["elements"][0]
+check("the hiding until it appears is not one of its effects", "" not in called(late))
+check("so its line starts where it appears, a second in",
+      min(fx["start"] for fx in late["effects"] if fx["line"] == 3) == FPS)
+
 section("a group writes several kinds from one call, and stays one row")
 members = model(
     "from videocode import *\n"
