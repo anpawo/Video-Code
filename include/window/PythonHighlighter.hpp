@@ -43,7 +43,11 @@ namespace VC
 
         // The document owns the highlighter, so it dies with the panel it was
         // attached to — which is what makes reloading the chrome safe.
-        explicit PythonHighlighter(QTextDocument* document, const QVariantMap& colours);
+        // `signature` paints the shape a HOVER has and a buffer does not: a
+        // parameter DECLARED, `degree: number`, where a scene only ever passes one
+        // by name, `degree=3`. Off by default, because in a buffer the same shape
+        // is a dict key or an `else:`, and painting those would be a lie.
+        explicit PythonHighlighter(QTextDocument* document, const QVariantMap& colours, bool signature = false);
         ~PythonHighlighter() override = default;
 
         // recolour() — same rules, new palette.  Switching theme must not mean
@@ -77,6 +81,11 @@ namespace VC
             // how `def name` colours the name and not the keyword again.
             int group = 0;
         };
+
+        // Whether this document is a hover's signature. Kept, not passed: the
+        // rules are rebuilt on every theme change, and the document does not stop
+        // being a signature because the palette moved.
+        bool _signature = false;
 
         // colour() — a format built from the palette, falling back to plain ink
         // so a missing entry loses a colour rather than the whole panel.

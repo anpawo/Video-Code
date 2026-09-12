@@ -54,7 +54,9 @@ Item {
     // The buffer's document, offered once it exists. The panel does not know
     // what a syntax highlighter is or that a C++ shell exists — it says "here is
     // the document" and the shell decides what to do about it.
-    signal documentReady(var document)
+    // `signature` : le document est une bulle, pas le buffer. Les deux sont
+    // du Python, mais un paramètre déclaré ne s'écrit que dans une signature.
+    signal documentReady(var document, bool signature)
 
     // The document the buffer is painted through, kept so the shell can hand it
     // the analyser's tokens when they arrive.
@@ -701,11 +703,11 @@ Item {
                     wrapMode: TextEdit.NoWrap
                     textFormat: TextEdit.PlainText
 
-                    Component.onCompleted: root.documentReady(signature.textDocument)
+                    Component.onCompleted: root.documentReady(signature.textDocument, true)
 
                     Connections {
                         target: Theme
-                        function onCodeThemeChanged() { root.documentReady(signature.textDocument); }
+                        function onCodeThemeChanged() { root.documentReady(signature.textDocument, true); }
                     }
                 }
 
@@ -1804,7 +1806,7 @@ Item {
             Component.onCompleted: {
                 pristine = text;
                 root.document = editor.textDocument;
-                root.documentReady(editor.textDocument);
+                root.documentReady(editor.textDocument, false);
                 ready = true;
             }
 
@@ -1813,7 +1815,7 @@ Item {
             // document again and the shell repaints it.
             Connections {
                 target: Theme
-                function onCodeThemeChanged() { root.documentReady(editor.textDocument); }
+                function onCodeThemeChanged() { root.documentReady(editor.textDocument, false); }
             }
 
             // Arrowing away, or clicking elsewhere, is the same statement as

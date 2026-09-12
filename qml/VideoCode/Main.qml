@@ -3672,7 +3672,7 @@ ApplicationWindow {
         id: source
         visible: false
         name: "scene"
-        onDocumentReady: (document) => Shell.highlightPython(document, Theme.code)
+        onDocumentReady: (document, signature) => Shell.highlightPython(document, Theme.code, signature)
         onExecuteRequested: app.executeScene(true)
         onPlayFromCaret: app.playFromCaret()
 

@@ -43,9 +43,10 @@ namespace
     }
 } // namespace
 
-VC::PythonHighlighter::PythonHighlighter(QTextDocument* document, const QVariantMap& colours)
+VC::PythonHighlighter::PythonHighlighter(QTextDocument* document, const QVariantMap& colours, bool signature)
     : QSyntaxHighlighter(document)
 {
+    _signature = signature;
     recolour(colours);
 }
 
@@ -98,6 +99,12 @@ void VC::PythonHighlighter::recolour(const QVariantMap& colours)
     // plain — and a hover full of colours the editor beside it does not use is
     // exactly the mismatch this pane is trying not to have.
     _rules.push_back({QRegularExpression(QStringLiteral("[(,]\\s*([A-Za-z_]\\w*)\\s*=(?!=)")), colour(QStringLiteral("argument")), 1});
+
+    // The same argument, DECLARED rather than passed — `degree: number` — which
+    // is the shape a signature has and a scene never writes. Only in a hover:
+    // in a buffer this catches `else:` and a dict's keys.
+    if (_signature)
+        _rules.push_back({QRegularExpression(QStringLiteral("(?:^|[(,])\\s*([A-Za-z_]\\w*)\\s*:")), colour(QStringLiteral("argument")), 1});
 
     // A NAME IN CAPITALS is a constant, and every editor paints it apart —
     // VS Code tags it `variable.other.constant` and gives it its own hue,

@@ -1434,7 +1434,7 @@ bool VC::Editor::replaceRange(QQuickTextDocument* document, int start, int end, 
     return true;
 }
 
-void VC::Editor::highlightPython(QQuickTextDocument* document, const QVariantMap& colours)
+void VC::Editor::highlightPython(QQuickTextDocument* document, const QVariantMap& colours, bool signature)
 {
     if (!document || !document->textDocument())
         return;
@@ -1451,7 +1451,7 @@ void VC::Editor::highlightPython(QQuickTextDocument* document, const QVariantMap
         return;
     }
 
-    new PythonHighlighter(document->textDocument(), colours);
+    new PythonHighlighter(document->textDocument(), colours, signature);
 }
 
 void VC::Editor::setAudioMuted(bool muted)

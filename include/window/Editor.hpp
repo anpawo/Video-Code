@@ -403,7 +403,7 @@ namespace VC
         // The chrome passes its own `textDocument` and the palette out of
         // Theme.qml; the highlighter is parented to the document, so it lives
         // and dies with the panel and a chrome reload leaves nothing behind.
-        Q_INVOKABLE void highlightPython(QQuickTextDocument* document, const QVariantMap& colours);
+        Q_INVOKABLE void highlightPython(QQuickTextDocument* document, const QVariantMap& colours, bool signature = false);
 
         // replaceRange() — one edit, one undo.
         //
