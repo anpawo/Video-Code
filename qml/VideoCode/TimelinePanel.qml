@@ -571,18 +571,6 @@ Item {
                                     }
                                 }
 
-                                // Something animates this element, and clicking
-                                // opens it. Effects are never drawn on the
-                                // timeline itself: it stays a map of WHAT is on
-                                // screen and WHEN.
-                                Text {
-                                    visible: lane.modelData.effects.length > 0
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: "▸"
-                                    color: Qt.rgba(0, 0, 0, 0.55)
-                                    font.pixelSize: 9
-                                }
-
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: lane.modelData.n
