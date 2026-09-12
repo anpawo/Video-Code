@@ -62,4 +62,18 @@ check("is an int subclass (pyToJson takes the py::int_ branch)", all(isinstance(
 check("NORMAL is the Metadata default", BlendMode.NORMAL == 0 and Metadata().blendMode == 0)
 
 # ── summary ──────────────────────────────────────────────────────────────────
+section("what the editor may offer for an enum-typed field")
+
+# A card shows a field with a name and a value and no way to know what a value
+# may BE. For anything the library states as an enum the answer is a closed list,
+# and a closed list is a thing to pick from rather than to remember; everything
+# else answers nothing, and the field stays a place to type.
+from videocode.serialize import enumValues
+
+check("a StrEnum answers with its members, spelled the way a scene writes them",
+      enumValues("UVMapping") == ["UVMapping.STRETCH", "UVMapping.RADIAL", "UVMapping.CONIC"])
+check("and so does Align", enumValues("Align") == ["Align.START", "Align.CENTER", "Align.END"])
+check("a class that is not an enum answers nothing", enumValues("Square") == [])
+check("and so does a name the library does not have", enumValues("Nope") == [])
+
 summary()

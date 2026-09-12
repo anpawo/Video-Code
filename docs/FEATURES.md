@@ -264,6 +264,11 @@ which resolves because the project root is `sys.path[0]`. Helpers you do not
 want offered start with `_`. A file that fails to import is named on stderr and
 left out; the rest of the panel is unaffected. `templateCatalogue(root)` and
 `effectCatalogue(root)` in `videocode/serialize.py` are what the editor asks.
+`enumValues(name)` answers next to them, for a type rather than a folder: the
+members of `UVMapping` or `Align`, spelled the way a scene writes them
+(`Align.START`), and nothing at all for anything that is not an enum. That is
+how a field in an element's card knows whether to offer a list to pick from or
+a place to type.
 
 A default that depends on the frame must not spell `W`/`H` as a literal — take
 `None` and resolve in the body, as `SplitView` does (see `setScreen` in

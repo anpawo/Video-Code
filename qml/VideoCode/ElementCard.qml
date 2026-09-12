@@ -57,7 +57,120 @@ Item {
     signal effectRemoved(var fx)
     signal effectWritten(var fx, string name, string value)
     signal effectJumped(var fx)
-    // Off, or back on: the line is commented out rather than deleted.
+    // L'argument qu'on est en train de taper, et où sa pastille commence : la
+    // fiche du type se pose sous elle, hors de la rangée qui défile — dedans,
+    // elle partirait avec le défilement et ne serait pas cliquable (le + l'a
+    // appris pour tout le monde).
+    property var editing: null
+    property real editingAt: 0
+
+    // Ce que ce type accepte, quand la bibliothèque le ferme.
+    readonly property var editingValues: {
+        if (root.editing === null || root.editing.kind === undefined)
+            return [];
+        if (typeof Shell.enumValues !== "function")
+            return [];
+        return Shell.enumValues(root.editing.kind);
+    }
+
+    // Les couleurs du code, exactement — les mêmes règles que PythonHighlighter,
+    // dans le même ordre (la dernière qui s'applique gagne) :
+    //
+    //   `"marius.mov"`         string        `None` `True` `False`  constant
+    //   `6` `0.5`              number        `UVMapping` `Video`    type
+    //   `TRANSPARENT` `BLUE_C` caps          `[]` et le reste       rien — l'encre
+    //
+    // Lu sur la VALEUR affichée et non sur le type déclaré : `endFrame` est
+    // annoncé `maybe[frame]`, mais ce que la ligne dit est `None`, et `None` est
+    // bleu dans l'éditeur. Une pastille qui l'aurait peint en vert de nombre
+    // aurait dit autre chose que le code juste au-dessus.
+    function valueHue(text) {
+        const t = String(text).trim();
+        const tokens = Theme.code;
+        let hue = tokens.variable;
+        if (/^_*[A-Z][A-Z0-9_]+$/.test(t))
+            hue = tokens.caps;
+        if (/^[A-Z][A-Za-z0-9_]*[a-z][A-Za-z0-9_]*(\.[A-Za-z_]\w*)*$/.test(t))
+            hue = tokens.type;
+        if (/^-?(0[xX][0-9a-fA-F]+|\d+\.?\d*([eE][+-]?\d+)?)$/.test(t))
+            hue = tokens.number;
+        if (/^(True|False|None)$/.test(t))
+            hue = tokens.constant;
+        if (/^(["']).*\1$/.test(t))
+            hue = tokens.string;
+        return hue;
+    }
+
+    // `UVMapping.STRETCH` s'affiche `STRETCH`, et s'écrit toujours en entier.
+    //
+    // Sur une pastille qui s'appelle déjà `uvMapping` et porte la teinte d'un
+    // type, le préfixe ne disait rien et prenait la moitié de la place. Mais le
+    // fichier est du Python, et `uvMapping=STRETCH` est un NameError : ce qu'on
+    // tape, court ou long, est rallongé avant d'être écrit.
+    function closedValues(param) {
+        if (param === undefined || param.kind === undefined || typeof Shell.enumValues !== "function")
+            return [];
+        return Shell.enumValues(param.kind);
+    }
+
+    function shortValue(param, text) {
+        const full = String(text).trim();
+        if (root.closedValues(param).indexOf(full) < 0)
+            return full;
+        return full.substring(full.lastIndexOf(".") + 1);
+    }
+
+    function fullValue(param, text) {
+        const typed = String(text).trim();
+        for (const one of root.closedValues(param))
+            if (one === typed || one.substring(one.lastIndexOf(".") + 1) === typed)
+                return one;
+        return typed;
+    }
+
+    // Est-ce que ce qui a été tapé EST une valeur pour cet argument.
+    //
+    // Strict là où la bibliothèque ferme le type : `uvMapping` accepte trois
+    // mots et rien d'autre, et une faute de frappe y est une faute, pas une
+    // idée. Ailleurs, non : `width` accepte `6` comme `1 * RATIO` comme
+    // `carre.width`, et un champ qui refuserait les deux derniers refuserait le
+    // langage. Ce qui ne va pas là, la ligne le dira — c'est son métier.
+    function fits(param, value) {
+        if (value.length === 0)
+            return false;
+        if (param === undefined || param.kind === undefined)
+            return true;
+        if (typeof Shell.enumValues !== "function")
+            return true;
+        const closed = Shell.enumValues(param.kind);
+        return closed.length === 0 || closed.indexOf(root.fullValue(param, value)) >= 0;
+    }
+
+    // Le nom d'un effet que le moteur ne nomme pas. `.apply(popIn(...))` n'écrit
+    // aucun nom d'appel dans le modèle — l'effet est un objet passé à `apply`,
+    // pas un verbe sur l'élément — et la rangée n'avait donc qu'une durée à
+    // montrer. La ligne, elle, le nomme : c'est le dernier appel qui n'est ni la
+    // plomberie (`apply`) ni l'élément lui-même.
+    function effectName(fx) {
+        if (fx.n !== undefined && fx.n.length > 0)
+            return fx.n;
+        if (root.element === null || fx.line === undefined || fx.line <= 0)
+            return "";
+        const calls = Shell.callsOnLine(root.buffer, fx.line);
+        for (let i = calls.length - 1; i >= 0; i--)
+            if (calls[i] !== "apply" && calls[i] !== root.cls && calls[i] !== root.element.n)
+                return calls[i];
+        return calls.length > 0 ? calls[calls.length - 1] : "";
+    }
+
+    // Un réglage de plus sur la ligne de l'élément — `.opacity(255)` posé au
+    // bout de la chaîne, à sa valeur d'usine, prêt à être tapé par-dessus.
+    signal metadataAdded(var element, string write)
+    signal metadataWritten(var element, string call, string name, int at, string value)
+
+    // Off: the line is commented out rather than deleted. The card stops
+    // showing it at that point — what is commented is not in the scene, and
+    // the place to read it, or bring it back, is the code.
     signal effectToggled(int line, bool off, string file)
     // A gesture that cannot be made, in words. The card has no status line of
     // its own; the pane does, and a refusal nobody hears looks exactly like a
@@ -68,51 +181,26 @@ Item {
                                    ? element.members : []
     readonly property var effects: element !== null && element.effects !== undefined
                                    ? element.effects : []
-    // Statements about this element that are commented out.
-    //
-    // They are not in the scene — nothing ran — so they cannot come from it.
-    // They come from the BUFFER, which is where they still are: `# square.fadeIn()`
-    // is an effect that exists, in order, with its arguments, and is switched
-    // off. A card that showed only what ran would be a card you cannot switch
-    // anything back on from.
-    readonly property var silenced: {
-        if (element === null || members.length > 0 || element.n === undefined)
-            return [];
-
-        const out = [];
-        const lines = buffer.split("\n");
-        const head = element.n + ".";
-        for (let i = 0; i < lines.length; i++) {
-            const parts = /^\s*#\s?(.*)$/.exec(lines[i]);
-            if (parts === null)
-                continue;
-            const body = parts[1].trim();
-            if (body.indexOf(head) !== 0)
-                continue;
-            const call = /^[A-Za-z_]\w*\.([A-Za-z_]\w*)/.exec(body);
-            out.push({
-                n: call !== null ? call[1] : body, line: i + 1, off: true,
-                said: body, l: 0, d: 0, call: call !== null ? call[1] : "", kinds: []
-            });
-        }
-        return out;
-    }
-
     // Read top-down as a timeline: the effect that starts first is the one at
     // the top. Ties on the start go to the SHORTER one, which puts an instant
     // `opacity` above the `fadeIn` that begins alongside it — the short bar
     // would otherwise be buried under a long one it does not belong inside.
     //
-    // `slice()` because `sort` works in place and `effects` is a binding, and
-    // the commented-out statements stay together at the end: they never ran, so
-    // they have no start to be sorted by.
+    // `slice()` because `sort` works in place and `effects` is a binding.
     readonly property var rows: {
         if (members.length > 0)
             return members;
-        const played = effects.slice().sort(function (a, b) {
+        // Ce qui dure zéro image à l'ouverture n'est pas un effet : c'est la
+        // valeur de départ, et elle se lit dans `default:` au-dessus. Elles
+        // prenaient quatre rangées pour dire ce qu'une pastille dit — dont une
+        // sans nom du tout, le `Hide` que le moteur écrit lui-même quand un
+        // élément naît invisible, et que personne n'a jamais demandé à voir.
+        const played = effects.filter(function (fx) {
+            return !(fx.d <= root.oneFrame + 1e-6 && fx.l <= root.origin + 1e-6);
+        }).sort(function (a, b) {
             return a.l !== b.l ? a.l - b.l : a.d - b.d;
         });
-        return played.concat(silenced);
+        return played;
     }
 
     // The clip's own extent, which is what the bars below are measured against.
@@ -152,6 +240,78 @@ Item {
             if (root.meta[key] !== undefined)
                 out.push({ n: label, v: root.meta[key] });
         return out;
+    }
+
+    // Ce que l'élément vaut À SA PREMIÈRE IMAGE, et seulement là où ça diffère
+    // du réglage d'usine. `position(x=0, y=0)` sur un élément qui est déjà à
+    // zéro ne dit rien à personne ; `opacity 0` sur un élément qui va apparaître
+    // dit tout de la ligne qui l'a écrit.
+    //
+    // Ça remplace les rangées de durée nulle — `position 0.0s`, `opacity 0.0s` —
+    // qui prenaient chacune une ligne de timeline pour un instant qui ne dure
+    // pas : une valeur n'est pas une animation, et se lit comme une valeur.
+    // Un instant, pas une animation : une image ou moins, à l'ouverture de
+    // l'élément. `.opacity(0)`, `.position(x=0, y=0)`, le `show` qui suit — le
+    // moteur les porte comme des effets parce que tout est effet ici, mais ce
+    // qu'ils disent est une VALEUR, et une valeur n'a pas de durée à montrer.
+    readonly property real oneFrame: 1 / 30
+
+    readonly property var instants: {
+        return root.effects.filter(function (fx) {
+            return fx.d <= root.oneFrame + 1e-6 && fx.l <= root.origin + 1e-6;
+        });
+    }
+
+    function argOf(call, name) {
+        if (root.element === null || !writable)
+            return "";
+        return Shell.readArgument(root.buffer, root.element.line, call, name);
+    }
+
+    function positionalOf(call, index) {
+        if (root.element === null || !writable)
+            return "";
+        return Shell.readPositional(root.buffer, root.element.line, call, index);
+    }
+
+    // Ce que ces instants ÉCRIVENT, lu sur la ligne. Un `show` n'a pas
+    // d'argument et n'en montre pas ; un `hide` que personne n'a tapé — celui
+    // que le moteur pose lui-même sur un élément né invisible — n'a pas de nom
+    // d'appel, et ne se montre pas non plus : il n'y a rien à y changer.
+    readonly property var startShown: {
+        let out = [];
+        for (const fx of root.instants) {
+            const call = fx.call !== undefined && fx.call.length > 0 ? fx.call : "";
+            if (call.length === 0)
+                continue;
+            // Les champs sont ceux de la signature du setter, typés par elle :
+            // `position` donne x et y, `blendMode` sa liste fermée. `offset` et
+            // `at` disent QUAND, pas quoi, et restent l'affaire de la ligne.
+            // L'index est pris avant ce tri : c'est la place qu'occupe entre les
+            // parenthèses une valeur écrite sans nom — `.opacity(0)`.
+            const fields = Shell.inputParams(root.cls + "." + call).map(function (p, i) {
+                const named = root.argOf(call, p.name);
+                return { name: p.name, kind: p.kind, value: p.value, at: i,
+                         current: named.length > 0 ? named : root.positionalOf(call, i) };
+            }).filter(function (p) { return p.name !== "offset" && p.name !== "at"; });
+            out.push({ n: call, fields: fields });
+        }
+        return out;
+    }
+
+    // Ce qu'on peut encore poser sur la ligne : les quatre verbes qui écrivent
+    // une valeur plutôt qu'une animation, moins ceux qui y sont déjà.
+    readonly property var addable: {
+        if (root.element === null || !root.writable)
+            return [];
+        const calls = [
+            { name: "position", write: "position(x=0, y=0)" },
+            { name: "scale", write: "scale(1)" },
+            { name: "opacity", write: "opacity(255)" },
+            { name: "align", write: "align(x=0.5, y=0.5)" }
+        ];
+        const already = Shell.callsOnLine(root.buffer, root.element.line);
+        return calls.filter((one) => already.indexOf(one.name) < 0);
     }
 
     // Une couleur en chemin, écrite comme la ligne au-dessus l'écrit.
@@ -376,10 +536,23 @@ Item {
                                      && cls.length > 0
                                      && Shell.callsOnLine(buffer, element.line).indexOf(cls) >= 0
 
+    // `element` and not `writable`: the card is emptied by setting the element
+    // to null, and a binding that calls this can re-run before `writable` has
+    // caught up — which is the "Cannot read property 'line' of null" the console
+    // showed on closing a card.
     function written(name) {
-        if (!writable)
+        if (root.element === null || !writable)
             return "";
         return Shell.readArgument(buffer, element.line, cls, name);
+    }
+
+    // A value written WITHOUT a name still belongs to the argument it fills:
+    // `Video("marius.mov")` is the filepath, and a chip that shows nothing there
+    // is a chip that misreads the call it is describing.
+    function writtenAt(index) {
+        if (root.element === null || !writable)
+            return "";
+        return Shell.readPositional(buffer, element.line, cls, index);
     }
 
     // ── What a call's `easing=` says, as a curve ──────────────────────────
@@ -485,6 +658,8 @@ Item {
         // gardait la hauteur d'une barre de 76 px et les effets tombaient hors
         // du cadre, qui est en `clip` — ils avaient disparu sans un mot.
         readonly property int fieldsTall: Math.max(0, bar.height - 76)
+                                        + (argBlock.visible ? argBlock.height + 10 : 0)
+                                        + (metaBlock.visible ? metaBlock.height + 8 : 0)
                                         + (liveRow.visible ? liveRow.height + 10 : 0)
                                         + (rule.visible ? 8 : 0)
                                         + (metaRow.visible ? metaRow.height + 7 : 0)
@@ -513,12 +688,49 @@ Item {
 
         MouseArea { anchors.fill: parent }
 
+        // Cliquer ailleurs referme le champ ouvert. Il n'a pas de bouton
+        // « fini » et n'en veut pas : on part en regardant autre chose, et ce
+        // qui a été tapé se range tout seul — gardé s'il tient, remis comme
+        // avant sinon.
+        //
+        // Au-dessus de tout, et seulement pendant qu'un champ est ouvert : la
+        // barre, les rangées et la bibliothèque prennent chacune leurs propres
+        // appuis, et une zone posée SOUS elles ne voyait jamais le clic. Elle
+        // refuse l'appui qu'elle vient de voir, donc ce qu'on visait se produit
+        // quand même — y compris re-viser le champ, qui reprend alors le focus.
+        MouseArea {
+            anchors.fill: parent
+            z: 500
+            visible: root.editing !== null
+            acceptedButtons: Qt.AllButtons
+            onPressed: (mouse) => {
+                root.forceActiveFocus();
+                mouse.accepted = false;
+            }
+        }
+
         // ── What it is ────────────────────────────────────────────────────
         Item {
             id: head
             anchors { left: parent.left; right: parent.right; top: parent.top }
             anchors.margins: card.pad
             height: 12
+
+            // Its name, at the left end of the same row as the line it was
+            // written on. On the clip it was a label ON the picture, fighting
+            // the waveform under it; here it reads as what it is — the thing
+            // this card is about — and the row already carries the other two
+            // facts about it.
+            Text {
+                anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                text: root.element !== null && root.element.n !== undefined ? root.element.n : ""
+                color: Theme.ink
+                font.family: Theme.ui
+                font.pixelSize: 12
+                font.weight: Font.DemiBold
+                elide: Text.ElideRight
+                width: Math.min(implicitWidth, head.width / 3)
+            }
 
             // What it is, in the middle of the card's own top bar rather than
             // in its left corner. The bar is the card's title, and the kind is
@@ -596,9 +808,10 @@ Item {
                 leftMargin: card.pad; rightMargin: card.pad
                 top: head.bottom; topMargin: 10
             }
-            // Assez haut pour le nom et les pastilles, et pas moins que 76 —
-            // en dessous la barre cesse de se lire comme le clip qu'elle est.
-            height: Math.max(76, 42 + (argRow.visible ? argRow.height + 7 : 0))
+            // Le clip, et rien d'autre : le nom est monté dans l'en-tête et les
+            // arguments sont descendus dans leur propre cadre, donc la barre
+            // n'a plus à loger que ce qu'elle montre — la forme d'onde.
+            height: 76
             radius: 6
             color: root.hue
             border.width: 1
@@ -625,24 +838,14 @@ Item {
                             Math.sin(index * 0.7) * Math.cos(index * 0.21) * Math.sin(index * 0.05 + 1))
                         width: Math.max((bar.width - 20) / Math.max(Math.round(root.span * 10), 1) - 1, 1)
                         height: parent.height * v / 100
-                        anchors.verticalCenter: parent.verticalCenter
+                        // Vers le haut seulement. Centré, un son se lit comme
+                        // deux formes d'onde qui se regardent ; posé sur le
+                        // sol, il se lit comme ce qu'il est — un niveau.
+                        anchors.bottom: parent.bottom
                         radius: 1
                         color: "#dff3ee"
                     }
                 }
-            }
-
-            Text {
-                // 14, comme les rangées dessous : un nom décalé de deux pixels
-                // par rapport à ce qu'il nomme se voit, et ne veut rien dire.
-                anchors { left: parent.left; leftMargin: 14; top: parent.top; topMargin: 12 }
-                text: root.element !== null ? root.element.n : ""
-                color: "#eef3f9"
-                font.family: Theme.ui
-                font.pixelSize: 15
-                font.weight: Font.DemiBold
-                style: Text.Outline
-                styleColor: Qt.rgba(0.043, 0.055, 0.075, 0.85)
             }
 
             // What the drop would cover, drawn ON the element while you aim it.
@@ -694,12 +897,72 @@ Item {
             }
         }
 
+        // ── Ce que l'appel dit, avant que rien ne bouge ───────────────────
+        // Sorti de la barre : ce qui est ÉCRIT n'est pas le clip, c'est la
+        // recette du clip. Sur la barre, les pastilles couvraient la forme
+        // d'onde et faisaient grandir un rectangle qui doit rester la taille
+        // d'une durée. Ici elles ont un cadre, un titre, et la place de tenir
+        // sur une ligne.
+        Rectangle {
+            id: argBlock
+            anchors {
+                left: bar.left; right: bar.right
+                top: bar.bottom; topMargin: 10
+            }
+            height: 26 + argRow.height + 10
+            visible: argRow.visible
+            radius: 6
+            color: Theme.sunk
+            border.width: 1
+            border.color: Theme.edgeSoft
+
+            Text {
+                anchors { left: parent.left; leftMargin: 12; top: parent.top; topMargin: 8 }
+                text: "arguments:"
+                color: Theme.inkFaint
+                font.family: Theme.mono
+                font.pixelSize: 11
+            }
+        }
+
+        // Ce que la ligne RÈGLE, par opposition à ce qu'elle PREND. Deux cadres
+        // et pas un : un argument se retape, une metadata se pose ou s'enlève,
+        // et les mêmes pastilles côte à côte laissaient croire à une seule
+        // sorte de chose.
+        Rectangle {
+            id: metaBlock
+            anchors {
+                left: bar.left; right: bar.right
+                top: argBlock.visible ? argBlock.bottom : bar.bottom; topMargin: 8
+            }
+            height: 26 + 40 + 10
+            visible: startRow.visible
+            radius: 6
+            color: Theme.sunk
+            border.width: 1
+            border.color: Theme.edgeSoft
+
+            Text {
+                anchors { left: parent.left; leftMargin: 12; top: parent.top; topMargin: 8 }
+                text: "metadata:"
+                color: Theme.inkFaint
+                font.family: Theme.mono
+                font.pixelSize: 11
+            }
+        }
+
         // ── The element's own duration, laid out under it ─────────────────
         Item {
             id: scale
             anchors {
                 left: bar.left; right: bar.right
-                top: metaRow.visible ? metaRow.bottom : bar.bottom; topMargin: 8
+                // Sous la DERNIÈRE rangée visible, quelle qu'elle soit. Accrochée
+                // au seul metaRow, elle remontait sous la barre dès qu'il était
+                // vide — et les valeurs courantes se retrouvaient dessinées
+                // par-dessus la règle.
+                top: metaRow.visible ? metaRow.bottom
+                     : (liveRow.visible ? liveRow.bottom : bar.bottom)
+                topMargin: 8
             }
             height: 24
 
@@ -834,10 +1097,6 @@ Item {
 
                     readonly property bool isMember: root.members.length > 0
 
-                    // A statement that is commented out: it has a line and a
-                    // name and no frames at all, because it never ran.
-                    readonly property bool off: row.modelData.off === true
-
                     // A row can be edited when it knows the call that wrote it
                     // and that call is still where it said it was. An effect
                     // that came out of a loop, or from a helper the scene
@@ -886,7 +1145,7 @@ Item {
                     // it says nothing: an effect opens on the easing that is
                     // really running, never on a default the card invented.
                     readonly property string easingText: {
-                        if (!row.editable || row.off)
+                        if (!row.editable)
                             return "";
                         const said = Shell.readArgument(root.buffer, row.modelData.line,
                                                         row.modelData.call, "easing");
@@ -943,7 +1202,7 @@ Item {
                         anchors { right: easeChip.left; rightMargin: 8
                                   verticalCenter: parent.verticalCenter }
                         spacing: 8
-                        opacity: !row.off && row.editable
+                        opacity: row.editable
                                  && (hover.hovered || bar.pressed || row.curveOpen) ? 1 : 0
                         visible: opacity > 0
                         Behavior on opacity { NumberAnimation { duration: Theme.motion(110) } }
@@ -1012,7 +1271,6 @@ Item {
 
                     Rectangle {
                         id: span
-                        visible: !row.off
                         x: row.width * Math.max(0, row.modelData.l - root.origin + row.heldStart) / root.span
                         width: Math.max(row.width * (row.modelData.d + row.heldSpan) / root.span, 3)
                         anchors { top: parent.top; bottom: parent.bottom; topMargin: 4; bottomMargin: 4 }
@@ -1101,7 +1359,7 @@ Item {
                                 verticalCenter: parent.verticalCenter
                             }
                             visible: span.roomy
-                            text: row.modelData.n
+                            text: root.effectName(row.modelData)
                             color: span.ink
                             font.family: Theme.mono
                             font.pixelSize: 13
@@ -1142,7 +1400,7 @@ Item {
                     // just asked for.
                     MouseArea {
                         id: dragBar
-                        enabled: row.editable && !row.off
+                        enabled: row.editable
                         anchors.fill: span
                         hoverEnabled: true
                         cursorShape: onEdge || edging ? Qt.SizeHorCursor
@@ -1215,50 +1473,11 @@ Item {
                         }
                     }
 
-                    // A statement that is off: the line itself, greyed, with the
-                    // switch to bring it back. No bar — it covers no time,
-                    // because it did not happen.
-                    Rectangle {
-                        visible: row.off
-                        anchors { left: parent.left; right: parent.right; top: parent.top; bottom: parent.bottom }
-                        anchors.margins: 4
-                        radius: 4
-                        color: back.containsMouse ? Qt.alpha(Theme.live, 0.06) : "transparent"
-                        border.width: 1
-                        border.color: back.containsMouse ? Qt.alpha(Theme.live, 0.5) : Theme.edge
-
-                        Text {
-                            anchors { left: parent.left; leftMargin: 11; right: switchOn.left; rightMargin: 10; verticalCenter: parent.verticalCenter }
-                            text: "# " + (row.modelData.said !== undefined ? row.modelData.said : row.modelData.n)
-                            color: Theme.inkFaint
-                            font.family: Theme.mono
-                            font.pixelSize: 12
-                            elide: Text.ElideRight
-                        }
-
-                        Text {
-                            id: switchOn
-                            anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                            text: back.containsMouse ? "switch it back on" : "off"
-                            color: back.containsMouse ? Theme.live : Theme.inkFaint
-                            font.family: Theme.ui
-                            font.pixelSize: 10
-                        }
-
-                        MouseArea {
-                            id: back
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.effectToggled(row.modelData.line, false, row.modelData.file)
-                        }
-                    }
-
                     // What a bar too narrow to hold its name says, beside it.
                     Text {
                         anchors { left: span.right; leftMargin: 9; verticalCenter: span.verticalCenter }
-                        visible: !span.roomy && !row.off
-                        text: row.modelData.n + "  " + (row.modelData.d + row.heldSpan).toFixed(1) + "s"
+                        visible: !span.roomy
+                        text: root.effectName(row.modelData) + "  " + (row.modelData.d + row.heldSpan).toFixed(1) + "s"
                         color: row.isMember ? Theme.ink : root.fxHue
                         font.family: Theme.mono
                         font.pixelSize: 12
@@ -1341,19 +1560,43 @@ Item {
         // dimmed — writing it adds it to the line; clearing it takes it back
         // out. Trimming a video is `endFrame` here, and nothing in this card
         // knows that is what trimming means.
-        Flow {
+        Flickable {
             id: argRow
             // DANS la barre, pas sous elle. Les valeurs sont celles de cet
             // élément-là ; posées dessous elles flottaient entre lui et le reste
             // de la fiche, et il fallait décider à qui elles appartenaient. Sur
             // sa propre barre, la question ne se pose plus.
+            //
+            // UNE ligne, jamais deux : un `Flow` qui reprend à la ligne fait
+            // grandir la barre, et une barre qui grandit cesse de se lire comme
+            // le clip qu'elle est. Ce qui dépasse est coupé à droite et se
+            // ramène à la molette ou au doigt — pas d'ascenseur, il prendrait
+            // plus de hauteur que ce qu'il sert à voir.
             anchors {
-                left: bar.left; right: bar.right
-                bottom: bar.bottom
-                leftMargin: 14; rightMargin: 14; bottomMargin: 12
+                left: argBlock.left; right: argBlock.right
+                top: argBlock.top; topMargin: 26
+                leftMargin: 12; rightMargin: 12
             }
-            spacing: 6
+            height: 40
             visible: root.arguments.length > 0
+            clip: true
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            contentWidth: argLine.width
+            contentHeight: height
+
+            // La molette verticale pousse la rangée horizontalement : elle n'a
+            // qu'un axe, et c'est celui-là qu'on veut en tournant dessus.
+            WheelHandler {
+                onWheel: (event) => {
+                    argRow.contentX = Math.max(0, Math.min(argRow.contentWidth - argRow.width,
+                                                           argRow.contentX - event.angleDelta.y - event.angleDelta.x));
+                }
+            }
+
+            Row {
+            id: argLine
+            spacing: 6
 
             Repeater {
                 model: root.arguments
@@ -1361,31 +1604,48 @@ Item {
                 Rectangle {
                     id: arg
                     required property var modelData
+                    required property int index
 
-                    readonly property string current: root.written(arg.modelData.name)
+                    readonly property string current: {
+                        const named = root.written(arg.modelData.name);
+                        return named.length > 0 ? named : root.writtenAt(arg.index);
+                    }
                     readonly property bool set: current.length > 0
 
-                    height: 22
-                    width: argName.implicitWidth + argValue.width + 22
+                    height: 40
+                    width: Math.max(argName.implicitWidth, argValue.width + 4) + 18
                     radius: 4
-                    color: argEntry.activeFocus ? Qt.alpha(root.fxHue, 0.12) : Theme.sunk
+                    readonly property color hue: root.valueHue(root.fullValue(arg.modelData, argEntry.text))
+                    color: argEntry.activeFocus ? Qt.alpha(root.fxHue, 0.12) : Qt.alpha(arg.hue, 0.10)
                     border.width: 1
                     border.color: argEntry.activeFocus
                                   ? root.fxHue
-                                  : (arg.set ? Theme.edge : Theme.edgeSoft)
+                                  : Qt.alpha(arg.hue, arg.set ? 0.55 : 0.30)
 
+                    // Le nom au-dessus, la valeur en dessous, un cheveu entre les
+                    // deux. Côte à côte, une pastille large se lisait comme une
+                    // phrase — `width 6 height None` — et il fallait chercher où
+                    // finissait l'un et commençait l'autre. L'un sur l'autre,
+                    // c'est une étiquette et sa valeur, comme partout ailleurs.
                     Text {
                         id: argName
-                        anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
+                        anchors { left: parent.left; leftMargin: 8; top: parent.top; topMargin: 4 }
                         text: arg.modelData.name
-                        color: arg.set ? Theme.inkDim : Theme.inkFaint
+                        color: Theme.code.argument
                         font.family: Theme.mono
-                        font.pixelSize: 11
+                        font.pixelSize: 10
+                    }
+
+                    Rectangle {
+                        id: hair
+                        anchors { left: parent.left; right: parent.right; top: argName.bottom; topMargin: 3 }
+                        height: 1
+                        color: argEntry.activeFocus ? Qt.alpha(root.fxHue, 0.5) : Theme.edgeSoft
                     }
 
                     Item {
                         id: argValue
-                        anchors { left: argName.right; leftMargin: 6; verticalCenter: parent.verticalCenter }
+                        anchors { left: parent.left; leftMargin: 8; top: hair.bottom; topMargin: 3 }
                         width: Math.max(argEntry.implicitWidth + 4, 26)
                         height: 16
 
@@ -1395,8 +1655,10 @@ Item {
                             verticalAlignment: TextInput.AlignVCenter
                             // What the source says, or the signature's default
                             // shown for what it is: a value nobody chose.
-                            text: arg.set ? arg.current : arg.modelData.value
-                            color: arg.set ? Theme.ink : Theme.inkFaint
+                            text: root.shortValue(arg.modelData, arg.set ? arg.current : arg.modelData.value)
+                            // Écrite dans la couleur du code ; un défaut que personne
+                            // n'a choisi garde la même teinte, plus pâle.
+                            color: Qt.alpha(arg.hue, arg.set ? 1 : 0.6)
                             font.family: Theme.mono
                             font.pixelSize: 11
                             selectByMouse: true
@@ -1407,21 +1669,45 @@ Item {
                             // re-runs on each character would run on `1.`, on
                             // `1.5` and on everything in between.
                             onAccepted: arg.commit()
-                            onActiveFocusChanged: if (!activeFocus) arg.commit()
+                            onActiveFocusChanged: {
+                                if (activeFocus) {
+                                    root.editing = arg.modelData;
+                                    root.editingAt = arg.mapToItem(card, 0, 0).x;
+                                } else {
+                                    arg.commit();
+                                    // Par NOM, pas par identité : `arguments`
+                                    // est une liaison qui refabrique ses objets
+                                    // à chaque relecture, et l'objet qu'on avait
+                                    // retenu n'est déjà plus le même — la fiche
+                                    // restait ouverte sur un champ parti.
+                                    if (root.editing !== null && root.editing.name === arg.modelData.name)
+                                        root.editing = null;
+                                }
+                            }
                             Keys.onEscapePressed: {
-                                argEntry.text = arg.set ? arg.current : arg.modelData.value;
+                                argEntry.text = root.shortValue(arg.modelData, arg.set ? arg.current : arg.modelData.value);
                                 root.forceActiveFocus();
                             }
                         }
                     }
 
+                    // Ce qui était là avant qu'on tape — ce que la ligne écrit,
+                    // ou le défaut de la signature quand elle n'écrit rien.
+                    readonly property string before: root.shortValue(arg.modelData, arg.set ? arg.current : arg.modelData.value)
+
                     function commit() {
                         const value = argEntry.text.trim();
-                        if (!root.writable || value === arg.current)
+                        if (value === arg.before)
                             return;
-                        if (value.length === 0 || value === arg.modelData.value)
+                        // Rien qui tienne : le champ revient à ce qu'il disait.
+                        // Une valeur qu'on abandonne ne doit pas rester à l'écran
+                        // comme si elle comptait.
+                        if (!root.writable || !root.fits(arg.modelData, value)
+                            || (!arg.set && value === arg.modelData.value)) {
+                            argEntry.text = arg.before;
                             return;
-                        root.argumentWritten(root.element, root.cls, arg.modelData.name, value);
+                        }
+                        root.argumentWritten(root.element, root.cls, arg.modelData.name, root.fullValue(arg.modelData, value));
                     }
 
                     MouseArea {
@@ -1437,6 +1723,342 @@ Item {
                     }
                 }
             }
+            }
+        }
+
+        // ── Ce qu'il vaut au départ, et de quoi en ajouter ────────────────
+        // Le + est HORS de la rangée qui défile : un bouton qui s'en va quand on
+        // pousse la liste est un bouton qu'on ne peut pas viser — et dans le
+        // Flickable il n'était même pas atteint par le clic.
+        Rectangle {
+            id: plusChip
+            anchors {
+                left: metaBlock.left; leftMargin: 12
+                top: metaBlock.top; topMargin: 26 + (40 - 22) / 2
+            }
+            width: 22; height: 22
+            radius: 4
+            visible: startRow.visible && root.addable.length > 0
+            color: plus.containsMouse || adder.visible ? Qt.alpha(root.fxHue, 0.14) : Theme.rail
+            border.width: 1
+            border.color: plus.containsMouse || adder.visible ? root.fxHue : Theme.edge
+            z: 20
+
+            Text {
+                anchors.centerIn: parent
+                text: "+"
+                color: plus.containsMouse || adder.visible ? root.fxHue : Theme.inkDim
+                font.family: Theme.ui
+                font.pixelSize: 13
+            }
+
+            MouseArea {
+                id: plus
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: adder.visible = !adder.visible
+            }
+        }
+
+        Flickable {
+            id: startRow
+            anchors {
+                left: plusChip.visible ? plusChip.right : metaBlock.left
+                leftMargin: plusChip.visible ? 6 : 12
+                right: metaBlock.right; rightMargin: 12
+                top: metaBlock.top; topMargin: 26
+            }
+            height: 40
+            visible: root.startShown.length > 0 || root.addable.length > 0
+            clip: true
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            contentWidth: startLine.width
+            contentHeight: height
+
+            WheelHandler {
+                onWheel: (event) => {
+                    startRow.contentX = Math.max(0, Math.min(startRow.contentWidth - startRow.width,
+                                                             startRow.contentX - event.angleDelta.y - event.angleDelta.x));
+                }
+            }
+
+            Row {
+                id: startLine
+                spacing: 6
+
+                Repeater {
+                    model: root.startShown
+
+                    // Le même dessin qu'un argument : le nom, un cheveu, la
+                    // valeur — et les couleurs du code. Le nom est un APPEL
+                    // (`.opacity(0)`), donc il prend la teinte `call` ; la
+                    // pastille prend celle de sa première valeur.
+                    Rectangle {
+                        id: start
+                        required property var modelData
+                        readonly property var fields: start.modelData.fields
+                        readonly property color hue: start.fields.length > 0 && start.fields[0].current.length > 0
+                                                     ? root.valueHue(start.fields[0].current) : Theme.code.variable
+
+                        width: Math.max(startName.implicitWidth, startValues.width) + 18
+                        height: 40
+                        radius: 4
+                        color: Qt.alpha(start.hue, 0.10)
+                        border.width: 1
+                        border.color: Qt.alpha(start.hue, 0.55)
+
+                        Text {
+                            id: startName
+                            anchors { left: parent.left; leftMargin: 8; top: parent.top; topMargin: 4 }
+                            text: start.modelData.n
+                            color: Theme.code.call
+                            font.family: Theme.mono
+                            font.pixelSize: 10
+                        }
+
+                        Rectangle {
+                            id: startHair
+                            anchors { left: parent.left; right: parent.right; top: startName.bottom; topMargin: 3 }
+                            height: 1
+                            color: Theme.edgeSoft
+                        }
+
+                        Row {
+                            id: startValues
+                            anchors { left: parent.left; leftMargin: 8; top: startHair.bottom; topMargin: 3 }
+                            spacing: 8
+
+                            // Un `show()` n'a rien entre ses parenthèses, et un
+                            // tiret le dit mieux qu'une case vide.
+                            Text {
+                                visible: start.fields.length === 0
+                                height: 16
+                                verticalAlignment: Text.AlignVCenter
+                                text: "—"
+                                color: Theme.inkFaint
+                                font.family: Theme.mono
+                                font.pixelSize: 11
+                            }
+
+                            Repeater {
+                                model: start.fields
+
+                                // Un champ d'argument, en plus petit : ce que la
+                                // ligne écrit, ou le défaut en pâle. Entrée ou un
+                                // clic ailleurs l'écrit ; ce qui ne tient pas revient.
+                                Row {
+                                    id: metaField
+                                    required property var modelData
+                                    readonly property string key: start.modelData.n + "." + metaField.modelData.name
+                                    readonly property bool set: metaField.modelData.current.length > 0
+                                    readonly property string before: root.shortValue(metaField.modelData, metaField.set ? metaField.modelData.current : metaField.modelData.value)
+                                    readonly property color hue: root.valueHue(root.fullValue(metaField.modelData, fieldEntry.text))
+                                    spacing: 4
+
+                                    function commit() {
+                                        const value = fieldEntry.text.trim();
+                                        if (value === metaField.before)
+                                            return;
+                                        if (!root.writable || !root.fits(metaField.modelData, value)
+                                            || (!metaField.set && value === metaField.modelData.value)) {
+                                            fieldEntry.text = metaField.before;
+                                            return;
+                                        }
+                                        root.metadataWritten(root.element, start.modelData.n, metaField.modelData.name,
+                                                             metaField.modelData.at, root.fullValue(metaField.modelData, value));
+                                    }
+
+                                    // Seul, le nom répéterait l'appel : `opacity` n'a
+                                    // qu'une valeur. À deux, il dit laquelle est `x`.
+                                    Text {
+                                        visible: start.fields.length > 1
+                                        height: 16
+                                        verticalAlignment: Text.AlignVCenter
+                                        text: metaField.modelData.name
+                                        color: Theme.code.argument
+                                        font.family: Theme.mono
+                                        font.pixelSize: 10
+                                    }
+
+                                    Item {
+                                        width: Math.max(fieldEntry.implicitWidth + 4, 18)
+                                        height: 16
+
+                                        TextInput {
+                                            id: fieldEntry
+                                            anchors.fill: parent
+                                            verticalAlignment: TextInput.AlignVCenter
+                                            text: metaField.before
+                                            color: Qt.alpha(metaField.hue, metaField.set ? 1 : 0.6)
+                                            font.family: Theme.mono
+                                            font.pixelSize: 11
+                                            selectByMouse: true
+                                            selectionColor: Qt.alpha(root.fxHue, 0.4)
+                                            enabled: root.writable
+
+                                            onAccepted: metaField.commit()
+                                            onActiveFocusChanged: {
+                                                if (activeFocus) {
+                                                    root.editing = { name: metaField.key, kind: metaField.modelData.kind, value: metaField.modelData.value,
+                                                                     call: start.modelData.n, param: metaField.modelData.name, at: metaField.modelData.at };
+                                                    root.editingAt = metaField.mapToItem(card, 0, 0).x;
+                                                } else {
+                                                    metaField.commit();
+                                                    if (root.editing !== null && root.editing.name === metaField.key)
+                                                        root.editing = null;
+                                                }
+                                            }
+                                            Keys.onEscapePressed: {
+                                                fieldEntry.text = metaField.before;
+                                                root.forceActiveFocus();
+                                            }
+                                        }
+
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            enabled: !fieldEntry.activeFocus
+                                            cursorShape: root.writable ? Qt.IBeamCursor : Qt.ArrowCursor
+                                            onClicked: {
+                                                if (!root.writable)
+                                                    return;
+                                                fieldEntry.forceActiveFocus();
+                                                fieldEntry.selectAll();
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Ce que ce champ accepte ───────────────────────────────────────
+        // Un nom, une valeur, et rien qui dise ce qu'une valeur peut ÊTRE. Le
+        // type est écrit dans la signature ; quand il est fermé — `UVMapping`,
+        // `Align` — c'est une liste, et une liste se choisit au lieu de se
+        // retenir. Le reste garde son champ : c'est le cas normal.
+        Rectangle {
+            id: argSheet
+            visible: root.editing !== null
+            x: Math.min(Math.max(card.pad, root.editingAt), card.width - width - card.pad)
+            anchors { top: root.editing !== null && root.editing.call !== undefined ? startRow.bottom : argRow.bottom; topMargin: 4 }
+            width: Math.max(160, sheetKind.implicitWidth + 24)
+            height: sheetBody.implicitHeight + 12
+            radius: 4
+            color: Theme.panel
+            border.width: 1
+            border.color: root.fxHue
+            z: 40
+
+            Column {
+                id: sheetBody
+                anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 6 }
+                spacing: 2
+
+                Text {
+                    id: sheetKind
+                    anchors { left: parent.left; leftMargin: 10 }
+                    // Le type seul : le nom est écrit sur la pastille juste
+                    // au-dessus, le répéter ici faisait lire deux fois la même
+                    // chose avant d'arriver à ce qu'on venait chercher.
+                    text: root.editing !== null
+                          ? (root.editing.kind.length > 0 ? root.editing.kind : "any")
+                          : ""
+                    color: Theme.inkFaint
+                    font.family: Theme.mono
+                    font.pixelSize: 10
+                }
+
+                Repeater {
+                    model: root.editingValues
+
+                    Rectangle {
+                        id: value
+                        required property string modelData
+                        width: sheetBody.width
+                        height: 20
+                        color: take.containsMouse ? Qt.alpha(root.fxHue, 0.14) : "transparent"
+
+                        Text {
+                            anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
+                            text: root.shortValue(root.editing, value.modelData)
+                            color: take.containsMouse ? Theme.ink : Theme.inkDim
+                            font.family: Theme.mono
+                            font.pixelSize: 11
+                        }
+
+                        MouseArea {
+                            id: take
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (root.editing.call !== undefined)
+                                    root.metadataWritten(root.element, root.editing.call, root.editing.param, root.editing.at, value.modelData);
+                                else
+                                    root.argumentWritten(root.element, root.cls, root.editing.name, value.modelData);
+                                root.editing = null;
+                            }
+                        }
+                    }
+                }
+
+            }
+        }
+
+        // La liste de ce qui manque, ouverte par le +. Hors du Flickable : une
+        // liste qui défile avec la rangée qui l'a ouverte se promène toute seule.
+        Rectangle {
+            id: adder
+            visible: false
+            anchors { left: plusChip.left; top: plusChip.bottom; topMargin: 4 }
+            width: 132
+            height: addList.implicitHeight + 8
+            radius: 4
+            color: Theme.pop !== undefined ? Theme.pop : Theme.panel
+            border.width: 1
+            border.color: Theme.edge
+            z: 30
+
+            Column {
+                id: addList
+                anchors { left: parent.left; right: parent.right; top: parent.top; topMargin: 4 }
+
+                Repeater {
+                    model: root.addable
+
+                    Rectangle {
+                        id: choice
+                        required property var modelData
+                        width: parent.width
+                        height: 22
+                        color: pick.containsMouse ? Qt.alpha(root.fxHue, 0.14) : "transparent"
+
+                        Text {
+                            anchors { left: parent.left; leftMargin: 10; verticalCenter: parent.verticalCenter }
+                            text: choice.modelData.name
+                            color: pick.containsMouse ? Theme.ink : Theme.inkDim
+                            font.family: Theme.mono
+                            font.pixelSize: 11
+                        }
+
+                        MouseArea {
+                            id: pick
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                adder.visible = false;
+                                root.metadataAdded(root.element, choice.modelData.write);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // ── Les mêmes arguments, à l'image du curseur ─────────────────────
@@ -1445,7 +2067,7 @@ Item {
         // personne n'anime `side` — et c'est voulu : ce qui a bougé est alors
         // la seule chose qui diffère entre les deux rangées, et se voit sans
         // qu'on ait à lire.
-        Flow {
+        Flickable {
             id: liveRow
             // Sous la barre, pas dedans. Le rectangle vert EST le clip : ce qui
             // y est écrit est ce qui le fabrique. Une lecture n'est pas le clip,
@@ -1454,10 +2076,27 @@ Item {
             // d'un clip.
             anchors {
                 left: bar.left; right: bar.right
-                top: bar.bottom; topMargin: 10
+                top: metaBlock.visible ? metaBlock.bottom
+                     : (argBlock.visible ? argBlock.bottom : bar.bottom); topMargin: 10
             }
-            spacing: 6
+            height: 22
             visible: root.argsNow.length > 0
+            clip: true
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            contentWidth: liveLine.width
+            contentHeight: height
+
+            WheelHandler {
+                onWheel: (event) => {
+                    liveRow.contentX = Math.max(0, Math.min(liveRow.contentWidth - liveRow.width,
+                                                            liveRow.contentX - event.angleDelta.y - event.angleDelta.x));
+                }
+            }
+
+            Row {
+            id: liveLine
+            spacing: 6
 
             Repeater {
                 model: root.argsNow
@@ -1480,6 +2119,7 @@ Item {
                         elide: Text.ElideRight
                     }
                 }
+            }
             }
         }
 

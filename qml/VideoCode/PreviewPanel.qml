@@ -34,7 +34,6 @@ Item {
     signal togglePlay()
 
     // The button in the transport bar: make a file of this.
-    signal exportAsked()
     signal seek(real seconds)
 
     // Clicking the picture is working in the picture: the caret leaves the code
@@ -113,13 +112,16 @@ Item {
             spacing: 2
 
             TransportButton { glyph: "⏮"; onTriggered: { root.forceActiveFocus(); root.seek(0); } }
-            TransportButton { glyph: "◀"; onTriggered: root.seek(root.playhead - 1 / root.framerate) }
+            // Deux chevrons, pas un : un triangle seul est le triangle de LECTURE
+            // à l'envers, et les deux se confondaient de loin. Doublé, il dit
+            // « image par image » comme sur tous les transports.
+            TransportButton { glyph: "◀◀"; onTriggered: root.seek(root.playhead - 1 / root.framerate) }
             TransportButton {
                 glyph: root.playing ? "❙❙" : "▶"
                 active: root.playing
                 onTriggered: { root.forceActiveFocus(); root.togglePlay(); }
             }
-            TransportButton { glyph: "▶"; onTriggered: root.seek(root.playhead + 1 / root.framerate) }
+            TransportButton { glyph: "▶▶"; onTriggered: root.seek(root.playhead + 1 / root.framerate) }
         }
 
         // Timecode counts frames, because a video editor's smallest unit is a
@@ -139,40 +141,9 @@ Item {
             }
         }
 
-        // Beside the size and the frame rate, because that is what the button
-        // makes a file of — and it is the one thing the editor could not do at
-        // all until now.
-        Rectangle {
-            id: exportButton
-            anchors { verticalCenter: parent.verticalCenter; right: parent.right; rightMargin: 10 }
-            width: exportWord.implicitWidth + 18
-            height: 22
-            radius: Theme.radiusSmall
-            color: exportHit.containsMouse ? Theme.rail : "transparent"
-            border.width: 1
-            border.color: exportHit.containsMouse ? Theme.edge : Theme.edgeSoft
-
-            Text {
-                id: exportWord
-                anchors.centerIn: parent
-                text: "Export"
-                color: Theme.inkDim
-                font.family: Theme.ui
-                font.pixelSize: 10
-            }
-
-            MouseArea {
-                id: exportHit
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: root.exportAsked()
-            }
-        }
-
         Text {
             anchors.verticalCenter: parent.verticalCenter
-            anchors.right: exportButton.left
+            anchors.right: parent.right
             anchors.rightMargin: 12
             text: root.frameWidth + "×" + root.frameHeight + "  ·  " + root.framerate + " fps"
             color: Theme.inkFaint

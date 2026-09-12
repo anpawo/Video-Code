@@ -195,11 +195,8 @@ Item {
     // gutter never could: they were pinned to the edges, and reading a clip
     // that starts at the border means reading it in the corner of your eye.
     //
-    // It replaces a centring rule that put a short scene in the middle of the
-    // pane. That looked tidy and opened you onto nothing: half a pane of empty
-    // ground before a scene reads as time that is missing rather than time that
-    // does not exist. The runway is there to be scrolled INTO, not looked at —
-    // see `parked` below, which is what opens the pane on the first frame.
+    // The runway is there to be scrolled INTO, not looked at — see `parked`
+    // below, which is what decides where the pane opens.
     readonly property real pad: Math.max(gutter, width * 0.5)
 
     // How many rows up a wait's label has to sit so it does not land on the one
@@ -237,8 +234,14 @@ Item {
     }
 
     // Opening on the runway would be opening on nothing. Once — and only once,
-    // or the pane would snap back to the start every time it is resized — time
-    // zero is put a gutter in from the left edge.
+    // or the pane would snap back to the start every time it is resized — the
+    // scene is put where it can be read.
+    //
+    // Two cases, and they are the same question asked of the width: a scene
+    // drawn WIDER than the pane opens on its first frame, a gutter in from the
+    // left, because that is where it starts and the rest is scrolled to. One
+    // drawn NARROWER than the pane is centred: it fits whole either way, and
+    // pinned left it sits in the corner with the emptiness all on one side.
     property bool parked: false
 
     // On the NEXT turn, never in the same one: the runway widens the flickable's
@@ -246,12 +249,19 @@ Item {
     // clamped straight back to zero by a Flickable that does not yet know it has
     // anywhere to go.
     onPadChanged: if (!root.parked && root.pad > root.gutter) Qt.callLater(root.park)
+    // The panel is built before the first run, so the first park can happen
+    // with no scene and decide on a ten-second ruler that a 90-second scene
+    // then contradicts. The scene arriving is a new object here, which is the
+    // moment to ask the width again — and `parked` only latches once there is
+    // something to have parked.
+    onSceneChanged: if (!root.parked) Qt.callLater(root.park)
 
     function park() {
-        if (root.parked || root.pad <= root.gutter)
+        if (root.parked || root.pad <= root.gutter || flick.width <= 0)
             return;
-        flick.contentX = root.pad - root.gutter;
-        root.parked = true;
+        const slack = flick.width - root.contentWidth;
+        flick.contentX = slack > 0 ? root.pad - slack / 2 : root.pad - root.gutter;
+        root.parked = root.scene.duration > 0;
     }
 
     // Lent to the tab strip of whichever slot is showing this panel. A zoom

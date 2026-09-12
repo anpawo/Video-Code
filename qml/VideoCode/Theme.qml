@@ -212,6 +212,8 @@ QtObject {
 
     // A tenth of a second is the coarsest thing the timeline ever snaps to; the
     // real quantum is the frame, filled in by the scene's framerate.
-    // 20 px per second: the zoom the timeline opens at, asked for on 7 Sept.
-    readonly property real pxPerSecond: 25
+    // The zoom the timeline opens at: 20 px per second on 7 Sept, 50 on the
+    // 9th. The slider's floor stays at 25, so this opens mid-travel and there
+    // is somewhere to go in both directions.
+    readonly property real pxPerSecond: 50
 }

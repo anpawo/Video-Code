@@ -849,14 +849,38 @@ def inputSignature(className: str) -> list[dict]:
 
     import videocode
 
+    # `Video.position` answers for the setter: a value set on the element's line
+    # is typed by the same signature a person calls to set it.
+    className, _, method = className.partition(".")
     target = getattr(videocode, className, None)
     if target is None or not inspect.isclass(target):
         return []
 
     try:
-        return [p for p in _effectParameters(target.__init__) if p["name"] != "self"]
-    except (TypeError, ValueError):
+        fn = getattr(target, method) if method else target.__init__
+        return [p for p in _effectParameters(fn) if p["name"] != "self"]
+    except (AttributeError, TypeError, ValueError):
         return []
+
+
+def enumValues(name: str) -> list[str]:
+    """
+    What an argument of this type accepts, spelled the way a scene writes it.
+
+    The editor shows a field with a name and a value and no way to know what a
+    value may BE. For anything the library states as an enum — `UVMapping`,
+    `Align` — the answer is a closed list, and a closed list is a thing to pick
+    from rather than to remember. Anything else answers nothing, and the field
+    stays what it was: a place to type.
+    """
+    import enum
+
+    import videocode
+
+    target = getattr(videocode, name, None)
+    if isinstance(target, type) and issubclass(target, enum.Enum):
+        return [f"{name}.{member.name}" for member in target]
+    return []
 
 
 def _namedEasing(value) -> str:
@@ -907,6 +931,7 @@ def _effectParameters(fn) -> list[dict]:
     by typing a number.
     """
     import inspect
+    from enum import Enum
 
     out: list[dict] = []
     try:
@@ -927,7 +952,18 @@ def _effectParameters(fn) -> list[dict]:
             written = "True" if default else "False"
         elif isinstance(default, (int, float)):
             written = repr(default)
+        elif isinstance(default, Enum):
+            # A StrEnum IS a str, so this has to come first: `repr()` on one
+            # gives `<UVMapping.STRETCH: 'stretch'>`, which is the member, its
+            # value and its address all at once. `UVMapping.STRETCH` is what a
+            # person writes, and what the field can hand back to the line.
+            written = f"{type(default).__name__}.{default.name}"
         elif isinstance(default, str):
+            written = repr(default)
+        elif isinstance(default, (list, tuple, dict)):
+            # Un défaut vide se lit comme un défaut, pas comme un trou : `cuts`
+            # sans rien dessous laissait croire à un argument obligatoire. `[]`
+            # est ce que la signature dit, et ce qu'on retaperait.
             written = repr(default)
         else:
             # An easing is written in a scene as `Easing.Out`, and that spelling

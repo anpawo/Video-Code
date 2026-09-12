@@ -1919,6 +1919,8 @@ ApplicationWindow {
         // everywhere. Writing goes through the shell so the scene re-runs, which
         // is what makes the gesture visible.
         onArgumentWritten: (element, call, name, value) => app.writeArgument(element, call, name, value)
+        onMetadataAdded: (element, write) => app.addMetadata(element, write)
+        onMetadataWritten: (element, call, name, at, value) => app.writeMetadata(element, call, name, at, value)
         buffer: source.text
         onJumpRequested: (element) => app.revealLine(element.line)
         // An effect row answers for the call that wrote it: the ✕ deletes that
@@ -1967,6 +1969,7 @@ ApplicationWindow {
         id: shortcuts
         anchors.fill: parent
         z: 320
+        docks: app.panelKeys.map((key) => ({ id: key, label: app.panelTitles[key] }))
     }
 
     ColorsPanel {
@@ -2790,6 +2793,60 @@ ApplicationWindow {
     //
     // Which is also why the card can still show it. It is not in the timeline —
     // nothing ran — so it is found by reading the buffer, not the scene.
+    // A value the line does not carry yet — `.opacity(255)` at the end of the
+    // chain, at its factory setting. Written rather than asked about: the card
+    // shows it the moment the scene re-runs, and typing over it is the same
+    // gesture as changing any other argument.
+    function addMetadata(element, write) {
+        if (element === null || element.line === undefined || !app.ownsLine(element.file))
+            return;
+
+        const lines = source.text.split("\n");
+        if (element.line < 1 || element.line > lines.length)
+            return;
+
+        let offset = 0;
+        for (let i = 0; i < element.line - 1; i++)
+            offset += lines[i].length + 1;
+
+        // At the end of what the line says, never after a trailing comment: the
+        // call would land inside it and the scene would stop running.
+        const text = lines[element.line - 1];
+        const code = text.replace(/\s+#.*$/, "");
+        const next = code.trimEnd() + "." + write + text.slice(code.length);
+        if (!source.replaceRange(offset, offset + text.length, next))
+            return;
+        app.executeScene();
+        source.say(write.split("(")[0] + " added");
+    }
+
+    // A value set on the line is rewritten where the line writes it. `.opacity(0)`
+    // names nothing, and an `o=` added beside it would give `o` twice — so what
+    // stands without a name is replaced in place. What the line does not write
+    // yet is added by name, which is valid wherever it lands.
+    function writeMetadata(element, call, name, at, value) {
+        if (element === null || element.line === undefined)
+            return false;
+        const line = element.line;
+        if (Shell.readArgument(source.text, line, call, name).length > 0
+            || Shell.readPositional(source.text, line, call, at).length === 0)
+            return app.writeOn(line, call, name, value, element.file);
+        if (!app.ownsLine(element.file))
+            return false;
+
+        const span = Shell.positionalSpan(source.text, line, call, at, value);
+        if (!span.ok) {
+            if (!app.offerConstant(line, call, at, value))
+                source.say(span.message.length > 0 ? span.message : "could not write " + name);
+            return false;
+        }
+        if (!source.replaceRange(span.start, span.end, span.text))
+            return false;
+
+        app.executeScene();
+        return true;
+    }
+
     function toggleLine(line, off, file) {
         if (!app.ownsLine(file))
             return;
@@ -3377,8 +3434,12 @@ ApplicationWindow {
             // parked on the last frame looking unfinished: play advanced one
             // tick, hit the end, and stopped again on the frame it started on.
             const spent = until - 1 / execFps + 1e-6;
+            // `seekTo`, pas une affectation : le haut-parleur doit repartir de
+            // là aussi. Posé à la main, le son restait garé à la fin, et le
+            // premier battement d'horloge lisait SA position — celle de la fin —
+            // et arrêtait la lecture sur l'image d'où elle venait de partir.
             if (playhead >= spent || playhead < from - 1e-6)
-                playhead = from;
+                seekTo(from);
         }
         playing = !playing;
     }
@@ -3400,7 +3461,13 @@ ApplicationWindow {
         running: app.playing && app.shownScene.duration > 0
         onTriggered: {
             const heard = Shell.hasAudio ? Shell.audioPosition() - Shell.audioLatency : -1;
-            const next = heard >= 0 ? Math.max(app.playhead, heard) : app.playhead + 1 / app.execFps;
+            // Le son mène TANT QU'IL AVANCE. Quand il est fini — un mix plus
+            // court que le film, ce qui arrive dès qu'un clip s'arrête avant la
+            // dernière image — sa position cesse de bouger, et `max(tête, son)`
+            // rendait la tête elle-même : la lecture restait allumée sur place,
+            // sans jamais atteindre la fin ni s'arrêter, et rejouer ne faisait
+            // rien puisqu'on n'était jamais arrivé au bout.
+            const next = heard > app.playhead ? heard : app.playhead + 1 / app.execFps;
             const until = app.ranged ? app.markOut : app.shownScene.duration;
             if (next >= until) {
                 app.playhead = until;
@@ -3521,7 +3588,6 @@ ApplicationWindow {
         revision: app.execRevision
         ready: app.execRevision > 0
         onTogglePlay: app.togglePlay()
-        onExportAsked: app.beginExport()
         onSeek: (seconds) => app.seekTo(seconds)
     }
 
@@ -3768,6 +3834,12 @@ ApplicationWindow {
                 exporting.stop();
             else if (colors.visible)
                 colors.visible = false;
+            // La planche pendant qu'elle attend une touche : Escape annule
+            // l'attente, pas la planche. C'est ce que son en-tête promet — « esc
+            // to cancel » — et cette échelle-ci la fermait par-dessus, parce
+            // qu'un raccourci de la coquille voit la touche avant le panneau.
+            else if (shortcuts.visible && shortcuts.capturing.length > 0)
+                shortcuts.stopCapturing();
             else if (shortcuts.visible)
                 shortcuts.visible = false;
             else if (settings.visible)

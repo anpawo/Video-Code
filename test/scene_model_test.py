@@ -435,13 +435,13 @@ if needsRenderer("--inspect is a flag of the renderer"):
     nothing = {"line": 0, "effects": []}
     square, circle = byClass.get("Square", nothing), byClass.get("Circle", nothing)
     check("the elements scene.py makes, by the class it named them with",
-          set(byClass) == {"Square", "Circle"})
-    check("each on the line that made it", square["line"] == 11 and circle["line"] == 12)
+          set(byClass) == {"Square", "Circle", "Video"})
+    check("each on the line that made it", square["line"] == 8 and circle["line"] == 9)
     check("with the calls the scene wrote on it", {"fadeIn", "moveBy"} <= set(called(square)))
     check("each call saying which file it is in",
           len(square["effects"]) > 0
           and all(effect["file"].endswith("scene.py") for effect in square["effects"]))
-    check("and the waits", len(shown.get("waits", [])) == 2)
+    check("and the waits", len(shown.get("waits", [])) == 3)
 
     # A scene being written is broken most of the time, and a stack trace on
     # stdout would be read as the model. It fails, it says where, and stdout
@@ -496,9 +496,13 @@ if needsRenderer("the brief is built by the chrome"):
               clean.startswith("<editor>\n") and clean.endswith("</editor>\n\n"))
         check("the file, and the caret in it", "/scene.py · caret on line 1\n" in clean)
         check("nothing selected is said, not left out", "\nselected: nothing\n" in clean)
-        check("the playhead against the length", "\nplayhead: 0.00 s of 4.57 s\n" in clean)
-        check("what the last run said, line and message",
-              "\nlast run: ok, 1 warning\n  line 40: moveBy() and moveBy() (line 39)" in clean)
+        check("the playhead against the length", "\nplayhead: 0.00 s of 8.47 s\n" in clean)
+        # The base scene's two competing `moveBy` lines are commented out, so
+        # what this proves now is the CLEAN wording. Nothing anywhere exercises
+        # the other branch — "1 warning" and the line it names — since the day
+        # those lines were commented; uncommenting them is what would bring it
+        # back, and it belongs to whoever wants the warning demonstrated.
+        check("what the last run said", "\nlast run: ok, no warnings\n" in clean)
         check("a clean buffer says nothing about itself",
               "unsaved" not in clean and "stale" not in clean)
         # A few lines, never the buffer: the child can Read the file and run
@@ -507,7 +511,7 @@ if needsRenderer("the brief is built by the chrome"):
         check("short enough to read before the question", len(elsewhere.splitlines()) <= 12)
 
         check("the selected element, by class and line, with its effects",
-              "\nselected: Square at line 11 — fadeIn (line 19, 0.00–0.40 s)," in picked)
+              "\nselected: Square at line 8 — fadeIn (line 11, 0.00–0.40 s)," in picked)
         check("an element of the open file says nothing about which file",
               "not the open file" not in picked)
 
