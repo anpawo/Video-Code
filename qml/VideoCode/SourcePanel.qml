@@ -394,8 +394,8 @@ Item {
 
     // The word being typed, which is both what the list filters on and what an
     // accepted completion replaces. Anything a Python identifier can hold.
-    function wordStart() {
-        let at = editor.cursorPosition;
+    function wordStart(from) {
+        let at = from === undefined ? editor.cursorPosition : from;
         while (at > 0 && /[A-Za-z0-9_]/.test(editor.text.charAt(at - 1)))
             --at;
         return at;
@@ -579,12 +579,42 @@ Item {
         id: tip
         visible: false
         z: 10
+        // Where the word is, in the pane's coordinates. What follows is bound to
+        // it rather than assigned in show(): the bubble's height comes from a
+        // Column that lays out on the NEXT tick, so a placement computed inside
+        // show() is computed against the size of the bubble before it — measured,
+        // 16 px, which reads as "it fits under the line" every time and then hangs
+        // the text off the bottom of the pane.
+        property real atX: 0
+        property real atY: 0
+
+        readonly property real wanted: bubble.implicitHeight + 16
+        readonly property real roomBelow: root.height - 8 - (tip.atY + 4)
+        readonly property real roomAbove: tip.atY - gutter.lineHeight - 12
+        // Under the line when the whole bubble fits there — that is where the eye
+        // already is — and on the roomier side when it does not.
+        readonly property bool under: tip.roomBelow >= Math.min(tip.wanted, root.height * 0.5)
+                                      || tip.roomBelow >= tip.roomAbove
+
         width: Math.min(Math.max(signature.implicitWidth, body.implicitWidth) + 18, root.width - 24)
         // Half the pane at most. A docstring is as long as its author felt
         // like, and an uncapped bubble grew past the pane, flipped itself
         // above the line because it no longer fitted below, and then hung off
         // the top with the first paragraph — the part you wanted — cut away.
-        height: Math.min(bubble.implicitHeight + 16, root.height * 0.5)
+        //
+        // And never taller than the side it sits on: what does not fit scrolls
+        // INSIDE the bubble, where there is a scrollbar to say so, rather than
+        // being cut off by the edge of the pane, where nothing does.
+        height: Math.min(tip.wanted, root.height * 0.5,
+                         Math.max(tip.under ? tip.roomBelow : tip.roomAbove, 40))
+        // Kept inside the pane on both axes: a bubble half off the right edge is
+        // worse than one that does not line up with the word. Four pixels from
+        // the line, near enough to walk the pointer into — leaving the word is
+        // what closes the bubble, so a wider gap is a bubble that shuts on the
+        // way to it.
+        x: Math.max(8, Math.min(tip.atX, root.width - tip.width - 8))
+        y: tip.under ? tip.atY + 4
+                     : Math.max(8, tip.atY - gutter.lineHeight - tip.height - 4)
         // The bubble belongs to the CODE, not to the chrome: VS Code paints its
         // hovers on their own surface, a step up from the editor's ground, and a
         // panel-blue box over a black buffer reads as a different application.
@@ -606,20 +636,8 @@ Item {
             body.text = what.prose;
             tip.forY = cy - gutter.lineHeight;
             const at = editor.mapToItem(root, cx, cy);
-            // Kept inside the pane on both axes: a bubble half off the right
-            // edge is worse than one that does not line up with the word.
-            tip.x = Math.max(8, Math.min(at.x, root.width - tip.width - 8));
-
-            // Four pixels under the line, or four above it when there is no
-            // room below — near enough to walk the pointer into. Leaving the
-            // word is what closes the bubble, so any gap wider than the step
-            // that carries you across it is a bubble you cannot reach: it
-            // shuts on the way. Never off the top either; a bubble whose head
-            // is above the pane is one whose first line is gone.
-            const below = at.y + 4;
-            tip.y = below + tip.height <= root.height - 8
-                    ? below
-                    : Math.max(8, at.y - gutter.lineHeight - tip.height - 4);
+            tip.atX = at.x;
+            tip.atY = at.y;
             scroll.contentY = 0;
             tip.visible = true;
         }
@@ -697,6 +715,56 @@ Item {
     // Above rather than at the caret: a dropped file lands while you are in the
     // middle of a line as often as not, and splitting `Square(sid` in half is a
     // worse answer than a line you can move.
+    // ── Monter, descendre, effacer un mot ─────────────────────────────────
+    // Trois gestes d'éditeur, écrits ici parce que c'est ici qu'est le tampon.
+    // Tous passent par `replaceRange`, donc chacun est UNE entrée d'annulation
+    // et le coloriseur, le serveur de langage et la scène les voient comme une
+    // frappe de plus.
+
+    // La ligne et sa voisine échangent leur place. Le curseur suit la ligne,
+    // pas le numéro : c'est la ligne qu'on déplace, on veut continuer à taper
+    // dedans.
+    function moveLine(delta) {
+        const text = editor.text;
+        const lines = text.split("\n");
+        const at = root.locationAt(editor.cursorPosition).line;
+        const to = at + delta;
+        if (to < 0 || to >= lines.length)
+            return false;
+
+        const column = editor.cursorPosition - root.offsetOf(at, 0);
+        const first = Math.min(at, to);
+        const start = root.offsetOf(first, 0);
+        const both = [lines[first], lines[first + 1]];
+        const swapped = both[1] + "\n" + both[0];
+        if (!root.replaceRange(start, start + both[0].length + 1 + both[1].length, swapped))
+            return false;
+        editor.cursorPosition = root.offsetOf(to, 0) + Math.min(column, lines[at].length);
+        return true;
+    }
+
+    // Le mot à droite. `⌥⌫` fait déjà celui de gauche — c'est macOS qui le
+    // donne — et rien ne faisait celui-ci.
+    function deleteWordRight() {
+        const text = editor.text;
+        let end = editor.cursorPosition;
+        while (end < text.length && /\s/.test(text[end]) && text[end] !== "\n")
+            ++end;
+        if (end < text.length && /[A-Za-z0-9_]/.test(text[end]))
+            while (end < text.length && /[A-Za-z0-9_]/.test(text[end]))
+                ++end;
+        else if (end < text.length && text[end] !== "\n")
+            ++end;                                  // un signe seul se mange seul
+        else if (end < text.length)
+            ++end;                                  // sinon la fin de ligne
+        return end > editor.cursorPosition
+               && root.replaceRange(editor.cursorPosition, end, "");
+    }
+
+    function redo() {
+        editor.redo();
+    }
+
     function insertLine(statement) {
         // Nobody has placed the caret yet — position 0 is where it starts — so
         // "add this to my scene" means the end, not above the shebang. Once the
@@ -915,6 +983,15 @@ Item {
     // switch beside the field is a state to be in by accident next time.
     function openFind() { finding.open(); }
 
+    // ⌘H : la même bande, la deuxième ligne montrée, et le curseur dedans quand
+    // il y a déjà quelque chose à chercher.
+    function openReplace() {
+        finding.replacing = true;
+        finding.open();
+        if (query.text.length > 0)
+            into.forceActiveFocus();
+    }
+
     // Where the strip stands, as the strip itself prints it. A selection cannot
     // be read from outside the pane, so without this a scripted run has no way
     // to tell a search that landed from one that quietly found nothing.
@@ -927,7 +1004,9 @@ Item {
         z: 15
         anchors { right: parent.right; rightMargin: 12; top: parent.top; topMargin: 10 }
         width: 320
-        height: 28
+        // Deux lignes quand on remplace, une quand on cherche : la deuxième
+        // n'existe que si on a demandé de quoi la remplir.
+        height: finding.replacing ? 56 : 28
         radius: Theme.radiusSmall
         color: Theme.panel
         border.width: 1
@@ -950,6 +1029,15 @@ Item {
         // Circle in the file. A search starts where you were standing, and
         // stays anchored there until you ask for the next one.
         property int anchor: 0
+        // Chercher, ou chercher POUR remplacer. Le même parcours de résultats,
+        // la même bande ; une ligne de plus.
+        property bool replacing: false
+
+        Item {
+            id: firstRow
+            anchors { left: parent.left; right: parent.right; top: parent.top }
+            height: 28
+        }
 
         function open() {
             finding.anchor = editor.selectionStart;
@@ -963,7 +1051,37 @@ Item {
 
         function shut() {
             finding.visible = false;
+            finding.replacing = false;
             editor.forceActiveFocus();
+        }
+
+        // Celui-ci, puis le suivant. `recount` d'abord : les positions d'après
+        // ont bougé de ce que le remplacement a changé en longueur.
+        function replaceOne() {
+            if (query.text.length === 0 || finding.hits.length === 0)
+                return;
+            if (finding.at < 0) {
+                finding.step(1);
+                return;
+            }
+            const from = finding.hits[finding.at];
+            if (!root.replaceRange(from, from + query.text.length, into.text))
+                return;
+            finding.recount();
+            finding.step(1);
+        }
+
+        // Tous, de la fin vers le début : remplacer d'abord le dernier laisse
+        // les positions des précédents valables.
+        function replaceAll() {
+            if (query.text.length === 0 || finding.hits.length === 0)
+                return;
+            const places = finding.hits.slice().sort(function (a, b) { return b - a; });
+            for (const from of places)
+                root.replaceRange(from, from + query.text.length, into.text);
+            const many = places.length;
+            finding.recount();
+            root.say(many + (many === 1 ? " replaced" : " replaced"));
         }
 
         function recount() {
@@ -1022,7 +1140,7 @@ Item {
             anchors {
                 left: parent.left; leftMargin: 8
                 right: tally.left; rightMargin: 6
-                verticalCenter: parent.verticalCenter
+                verticalCenter: firstRow.verticalCenter
             }
             height: parent.height - 6
             placeholderText: "find"
@@ -1047,9 +1165,46 @@ Item {
             }
         }
 
+        // La deuxième ligne. ⏎ remplace celui-ci et passe au suivant, ⇧⏎ les
+        // remplace tous — les deux gestes que fait n'importe quel éditeur, et
+        // rien à cliquer pour les obtenir.
+        TextField {
+            id: into
+            visible: finding.replacing
+            anchors {
+                left: parent.left; leftMargin: 8
+                right: parent.right; rightMargin: 8
+                top: firstRow.bottom
+            }
+            height: 24
+            placeholderText: "replace with"
+            color: Theme.ink
+            font.family: Theme.mono
+            font.pixelSize: root.codeSize
+            background: Rectangle {
+                anchors { fill: parent; topMargin: 2; bottomMargin: 2 }
+                color: "transparent"
+                border.width: 1
+                border.color: into.activeFocus ? Theme.live : Theme.edgeSoft
+                radius: Theme.radiusSmall
+            }
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    if (event.modifiers & Qt.ShiftModifier)
+                        finding.replaceAll();
+                    else
+                        finding.replaceOne();
+                    event.accepted = true;
+                } else if (event.key === Qt.Key_Escape) {
+                    finding.shut();
+                    event.accepted = true;
+                }
+            }
+        }
+
         Text {
             id: tally
-            anchors { right: prev.left; rightMargin: 6; verticalCenter: parent.verticalCenter }
+            anchors { right: prev.left; rightMargin: 6; verticalCenter: firstRow.verticalCenter }
             text: query.text.length === 0
                   ? ""
                   : (finding.hits.length === 0
@@ -1438,6 +1593,15 @@ Item {
             const from = root.wordStart();
             editor.remove(from, editor.cursorPosition);
             editor.insert(from, insert);
+
+            // « Auto-import » n'était qu'une étiquette : le serveur joint la
+            // ligne d'import à écrire (`additionalTextEdits`) et personne ne
+            // l'écrivait — on acceptait un nom que le fichier n'avait pas, et
+            // la ligne devenait rouge. Appliquée APRÈS le mot : l'import est
+            // au-dessus du curseur, donc ses positions ne bougent pas.
+            if (item.additionalTextEdits !== undefined && item.additionalTextEdits.length > 0)
+                root.applyEdit({ changes: { ["file://" + root.path]: item.additionalTextEdits } });
+
             suggestions.visible = false;
         }
 
@@ -1457,21 +1621,14 @@ Item {
                 height: 20
                 color: row.index === list.currentIndex ? Theme.rail : "transparent"
 
-                Text {
-                    id: glyph
-                    anchors { left: parent.left; leftMargin: 7; verticalCenter: parent.verticalCenter }
-                    width: 10
-                    text: root.kindMark(row.modelData.kind)
-                    color: root.kindColor(row.modelData.kind)
-                    font.family: Theme.mono
-                    font.pixelSize: root.codeSize - 2
-                }
-
+                // Le nom porte sa propre couleur : c'est la même information que
+                // la lettre à gauche, sans la colonne qu'elle coûtait — et une
+                // couleur se lit sans être déchiffrée.
                 Text {
                     id: label
-                    anchors { left: glyph.right; leftMargin: 6; verticalCenter: parent.verticalCenter }
+                    anchors { left: parent.left; leftMargin: 9; verticalCenter: parent.verticalCenter }
                     text: row.modelData.label
-                    color: Theme.codeSkin.ink
+                    color: root.kindColor(row.modelData.kind)
                     font.family: Theme.mono
                     font.pixelSize: root.codeSize
                 }
@@ -1584,7 +1741,7 @@ Item {
                     required property var modelData
                     z: -1
                     x: 0
-                    y: touched.index * gutter.lineHeight
+                    y: editor.topPadding + touched.index * gutter.lineHeight
                     width: Math.max(view.width, editor.contentWidth)
                     height: gutter.lineHeight
                     visible: touched.modelData.kind !== "same"
@@ -1770,10 +1927,16 @@ Item {
                 // holding the wrong number, and drop itself.
                 property int token: 0
 
+                // Where the word the bubble is about starts. A line holds several:
+                // `position` and `cornerRadius` sit on one, and the rule below kept
+                // the first one's answer while the pointer walked onto the second.
+                property int forWord: -1
+
                 function dismiss() {
                     probe.token++;
                     dwell.stop();
                     tip.forY = -1;
+                    probe.forWord = -1;
                     tip.hide();
                 }
 
@@ -1790,7 +1953,8 @@ Item {
                     // walk onto a hover to read it, and this is the same rule with
                     // the line included.
                     if (tip.visible) {
-                        if (mouse.y >= tip.forY && mouse.y <= tip.forY + gutter.lineHeight)
+                        if (mouse.y >= tip.forY && mouse.y <= tip.forY + gutter.lineHeight
+                            && root.wordStart(editor.positionAt(mouse.x, mouse.y)) === probe.forWord)
                             return;
                         const at = editor.mapToItem(root, mouse.x, mouse.y);
                         if (at.x >= tip.x - 4 && at.x <= tip.x + tip.width + 4
@@ -1812,6 +1976,7 @@ Item {
                         if (root.path.length === 0)
                             return;
                         const offset = editor.positionAt(probe.lastX, probe.lastY);
+                        probe.forWord = root.wordStart(offset);
                         const at = root.locationAt(offset);
                         const anchor = editor.positionToRectangle(offset);
                         const mine = ++probe.token;
@@ -1893,7 +2058,11 @@ Item {
                 // else — the arrows, the two ways of accepting, and escape.
                 // Everything else falls through and keeps typing, which is what
                 // narrows the list.
-                if (suggestions.visible) {
+                // Les flèches NUES, pas celles qui portent un modificateur :
+                // ⌘↓ déplace la ligne, et une liste qui l'avalait rendait le
+                // geste impossible tant qu'elle était ouverte — sans qu'on
+                // comprenne pourquoi, puisqu'elle se referme au premier clic.
+                if (suggestions.visible && (event.modifiers & (Qt.ControlModifier | Qt.MetaModifier | Qt.AltModifier)) === 0) {
                     if (event.key === Qt.Key_Down) {
                         list.incrementCurrentIndex();
                         event.accepted = true;
@@ -1977,6 +2146,36 @@ Item {
                 // round silently binds nothing.
                 if (Keymap.matches(event, "find")) {
                     finding.open();
+                    event.accepted = true;
+                    return;
+                }
+                if (Keymap.matches(event, "replace")) {
+                    root.openReplace();
+                    event.accepted = true;
+                    return;
+                }
+
+                // Ici, et pas dans un `Shortcut` de la coquille : un TextEdit
+                // réclame ces touches par ShortcutOverride avant qu'un raccourci
+                // ne tire. ⌘↑ et ⌘↓ sont le début et la fin du document pour
+                // macOS, et c'est ça qui répondait — la ligne ne bougeait pas.
+                if (Keymap.matches(event, "moveUp")) {
+                    root.moveLine(-1);
+                    event.accepted = true;
+                    return;
+                }
+                if (Keymap.matches(event, "moveDown")) {
+                    root.moveLine(1);
+                    event.accepted = true;
+                    return;
+                }
+                if (Keymap.matches(event, "deleteWord")) {
+                    root.deleteWordRight();
+                    event.accepted = true;
+                    return;
+                }
+                if (Keymap.matches(event, "redo")) {
+                    root.redo();
                     event.accepted = true;
                     return;
                 }
