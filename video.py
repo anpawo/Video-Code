@@ -254,6 +254,3 @@ def main() -> None:
 
 
 main()
-
-s = Square()
-s.ease(s.ref.fillColor, RED)
