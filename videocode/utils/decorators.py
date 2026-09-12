@@ -71,8 +71,14 @@ def inputCreation(f: Callable[Concatenate[_T, _P], None]) -> Callable[Concatenat
 
         # If created mid-timeline (after a flush), hide until the current offset
         if Context.waitOffset > 0:
+            before = len(Context.statements)
             self.apply(hide(), start=0, offset=0)
-            self.waitTo(Context.waitOffset).show()
+            # Bookkeeping, not a call on the person's line: listed as that line's
+            # effect it had no name, started at 0, and "play from this line"
+            # played the film from the top.
+            for statement in Context.statements[before:]:
+                statement["placement"] = True
+            self._clockTo(Context.waitOffset).show()
 
     return wrapper
 

@@ -150,4 +150,46 @@ if needsRenderer("a failed scene still reaching the encoder is a renderer questi
         if os.path.exists(out.name):
             os.remove(out.name)
 
+section("time only runs forwards")
+
+# Found by Marius on 9 Sept: `wait(-1)` was taken. Nothing drops the sign — the
+# cursor simply steps BACK over frames already written, and everything after it
+# is scheduled in the past without a word.
+for call, wanted in (
+    ("wait(-1)", "-1"),
+    ("Square(side=1).wait(-0.5)", "-0.5"),
+):
+    try:
+        eval(call)
+        check(f"{call} is refused", False)
+    except ValueError as e:
+        check(f"{call} is refused, naming the value", wanted in str(e))
+
+try:
+    Square(side=1).waitTo(-3)
+    check("waitTo(-3) is refused", False)
+except ValueError as e:
+    check("waitTo(-3) is refused, naming the value", "-3" in str(e))
+
+behind = Square(side=1)
+behind.wait(1)
+clock = behind.meta.lastAffectedFrame
+try:
+    behind.waitTo(2)
+    check("waitTo() behind the element's own clock is refused", False)
+except ValueError as e:
+    check("waitTo() behind the element's own clock is refused, naming both frames",
+          "waitTo(2)" in str(e) and str(clock) in str(e))
+
+check("waiting for no time at all is still allowed", wait(0) is None)
+
+# `waitFor` chooses rather than refuses: waiting for something already over is a
+# legitimate line, and it leaves the clock where it stands.
+early, late = Square(side=1), Square(side=1)
+late.wait(2)
+mark = late.meta.lastAffectedFrame
+late.waitFor(early)
+check("waitFor() on something already finished does not walk the clock back",
+      late.meta.lastAffectedFrame == mark)
+
 summary()

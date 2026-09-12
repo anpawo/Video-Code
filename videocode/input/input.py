@@ -119,17 +119,41 @@ class Input(ABC):
         return self
 
     def waitTo(self, n: frame) -> Self:
+        if n < 0:
+            raise ValueError(f"waitTo({n}) — there is no frame before the first one.")
+        if n < self.meta.lastAffectedFrame:
+            raise ValueError(
+                f"waitTo({n}) is behind this element's clock (frame {self.meta.lastAffectedFrame}) — "
+                f"waiting moves it forward or leaves it where it stands, never back."
+            )
+        return self._clockTo(n)
+
+    # What the ENGINE means by waiting an element to a frame: put its clock
+    # THERE, forwards or back. Catching up a global `wait()` before an effect,
+    # carrying a group's members, laying out the letters of a text — every one of
+    # them sets the clock, and the shape of an animation's frames depends on it
+    # (measured: routing them through the refusal above stretched a 0.4 s ease
+    # from frames 1–11 to 1, then 4–13). A person who writes `waitTo` means the
+    # other thing, so that one refuses; this is the one the library calls.
+    def _clockTo(self, n: frame) -> Self:
         self.meta.lastAffectedFrame = n
         return self.flush()
 
     def wait(self, n: sec) -> Self:
+        if n < 0:
+            raise ValueError(
+                f"wait({n}) — a wait is a gap, and a gap cannot be negative: this element's "
+                f"clock would step back over what it has already done."
+            )
         self.meta.lastAffectedFrame += int(n * FRAMERATE)
         return self.flush()
 
     def waitFor(self, i: Input) -> Self:
         frames: list[frame] = []
         i.broadcast(lambda m: frames.append(m.meta.lastAffectedFrame))
-        return self.waitTo(max(frames))
+        # "Until that one is done" — an element already past it has nothing left
+        # to wait for, and walking its clock back is what wrote in the past.
+        return self._clockTo(max(max(frames), self.meta.lastAffectedFrame))
 
     def apply(self, *shaders: IShader | Effect | GroupEffect, start: sec = 0, duration: sec = SINGLE_FRAME, offset: maybe[frame] = None, at: maybe[sec] = None) -> Self:
         """
@@ -179,7 +203,7 @@ class Input(ABC):
 
         # If a `wait()` happens, any input should be flushed before applying any new effect.
         if Context.waitOffset >= self.meta.transformationOffset:
-            self.waitTo(Context.waitOffset)
+            self._clockTo(Context.waitOffset)
 
         touched: dict[str, list[int]] = {}
 

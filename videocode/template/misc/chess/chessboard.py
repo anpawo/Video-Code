@@ -137,7 +137,7 @@ class ChessBoard:
             mover = self.pieces[(sx, sy)][0]
             mover.moveTo(self.ox + dx * self.tileSize, self.oy + dy * self.tileSize, easing=Easing.Linear, duration=duration).flush()
             if (dx, dy) in self.pieces:
-                self.pieces[(dx, dy)][0].waitTo(mover.meta.transformationOffset).hide().flush()
+                self.pieces[(dx, dy)][0]._clockTo(mover.meta.transformationOffset).hide().flush()
             wait(duration - SF)
             self.pieces[(dx, dy)] = self.pieces[(sx, sy)]
             del self.pieces[(sx, sy)]
@@ -154,7 +154,7 @@ class ChessBoard:
                 )
                 if target > promoted.meta.transformationOffset:
                     promoted.hide()
-                    promoted.waitTo(target)
+                    promoted._clockTo(target)
                     promoted.show().flush()
                 mover.hide().flush()
                 self.pieces[(dx, dy)] = (promoted, (color, piece))

@@ -219,7 +219,7 @@ class Text(Group[Letter], _hasFillStroke):
                 newLetter = Letter(chars[l + i], *self.config())
                 if target > newLetter.meta.transformationOffset:
                     newLetter.hide()
-                    newLetter.waitTo(target)
+                    newLetter._clockTo(target)
                     newLetter.show()
                 self.inputs.append(newLetter)
 

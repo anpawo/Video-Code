@@ -841,6 +841,16 @@ def wait(n: sec = 0, stop: Clock | Iterable[Clock] | None = None) -> None:
     state (positions, colors, visibility) always simply holds — there is
     nothing to stop.
     """
+    # A gap cannot be negative, and the arithmetic below would not say so: the
+    # conversion drops the sign nowhere, the cursor simply steps BACK over
+    # frames already written, and everything after that is scheduled in the
+    # past without a word.
+    if n < 0:
+        raise ValueError(
+            f"wait({n}) — a wait is a gap, and a gap cannot be negative: the scene's "
+            f"clock would step back over frames that are already written."
+        )
+
     n = int(n * FRAMERATE)
 
     if stop is None:

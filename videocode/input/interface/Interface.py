@@ -24,7 +24,9 @@ class Interface(Input):
         return self
 
     def waitTo(self, n: frame) -> Self:
-        self.broadcast(lambda i: i.waitTo(n))
+        if n < 0:
+            raise ValueError(f"waitTo({n}) — there is no frame before the first one.")
+        self.broadcast(lambda i: i._clockTo(n))
         return self
 
     def wait(self, n: float) -> Self:
@@ -34,5 +36,5 @@ class Interface(Input):
     def waitFor(self, i: Input) -> Self:
         frames: list[frame] = []
         i.broadcast(lambda m: frames.append(m.meta.lastAffectedFrame))
-        self.broadcast(lambda m: m.waitTo(max(frames)))
+        self.broadcast(lambda m: m._clockTo(max(frames)))
         return self
