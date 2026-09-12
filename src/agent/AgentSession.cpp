@@ -205,7 +205,10 @@ void VC::AgentSession::ensureStarted()
             "You can see what you made: `%1 --file <scene> --generate look.png --from 2.5 --width 480 --height 270` "
             "renders the frame at 2.5 s (or at a timestamp() name) in milliseconds, "
             "`--sheet 4 --from 0 --to 6` lays four labelled moments side by side in the one PNG, "
-            "and you can read the PNG back to check your edit before you finish. "
+            "and you can read the PNG back — but only when the author asks for a picture, or "
+            "when the request is one you cannot answer from the code alone. Rendering to check "
+            "yourself turns a turn that takes a second into one that takes a minute, and the author "
+            "is already looking at the preview. "
             "For the whole scene as the timeline sees it, run `%1 --inspect --file <scene>`: "
             "JSON, one entry per element with its class, line, on-screen frames and effects. "
             "The editor the author is looking at answers you too: `%1 tell state` prints where they are "
@@ -213,8 +216,8 @@ void VC::AgentSession::ensureStarted()
             "(or at=<marker name>) moves the playhead so they see the moment you changed, "
             "`%1 tell select line=12` selects an element, `%1 tell run` re-runs the scene after your edit, "
             "`%1 tell reveal line=12` puts their caret there, `%1 tell say text=...` shows a short note, "
-            "`%1 tell export out=film.mp4` renders the file. After an edit, `tell run` then `tell seek` "
-            "to what you changed is the courteous ending."
+            "`%1 tell export out=film.mp4` renders the file. Do not run the scene for them: ⌘R is "
+            "theirs, and running it IS how they accept your edit."
         )
             .arg(QCoreApplication::applicationFilePath()),
     };
