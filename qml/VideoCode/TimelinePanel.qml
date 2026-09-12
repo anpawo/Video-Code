@@ -175,9 +175,9 @@ Item {
     readonly property real contentWidth: span * pxPerSecond
     // Half of what it was. A lane is a row in a map, and the map is the whole
     // point: twice as many elements on screen without scrolling is worth more
-    // than the waveform the extra height was carrying — a drawn pseudo-waveform
-    // says "this has sound", which one glyph beside the name says as well and in
-    // a fifth of the room.
+    // than the waveform the extra height was carrying: it was never read for its
+    // shape — a deterministic squiggle, not the file's own — only for the fact
+    // that it was there.
     readonly property int laneHeight: 24
     // Blank strip kept to the left of time zero. Wide enough for the playhead's
     // handle to sit at 0 without touching the panel's edge — and, since every
@@ -583,20 +583,6 @@ Item {
                                     font.pixelSize: 11
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
-                                }
-
-                                // This clip carries sound. It stands where the
-                                // waveform used to run, and says the same thing:
-                                // the waveform was never read for its shape —
-                                // it is a deterministic squiggle, not the file's
-                                // own — only for the fact that it was there.
-                                KindGlyph {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    visible: lane.modelData.kind === "video"
-                                             || lane.modelData.kind === "sound"
-                                    kind: "volume"
-                                    size: 9
-                                    tint: Qt.rgba(0.04, 0.06, 0.09, 0.62)
                                 }
 
                                 // How many things one line made. A loop, or a
