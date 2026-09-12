@@ -43,7 +43,7 @@ X4 et X5 sont des heures et ne bloquent rien. X2, X3 et X6 sont la
 condition d'autres features (X6 porte D1, D2, D6).
 
 ---
-| **X10** | **Un `wait()` négatif n'est pas refusé.** `wait(-1)` comme `carre.wait(-1)` passent : `n = int(n * FRAMERATE)` ne garde pas le signe, et `lastAffectedFrame += -30` fait RECULER le curseur. `waitTo()` accepte de même une image derrière la position courante. C'est écrire dans le passé — exactement ce que S1 vient de rendre lisible, sauf qu'ici c'est délibéré, silencieux, et qu'aucun avertissement ne le voit puisque rien n'est backdaté au sens de `backdatedWrites()`. Attendu : un refus qui nomme la valeur, comme les autres gardes du moteur. Vérifié en lisant `context.py:821` et `input.py:125`, pas encore reproduit à l'exécution | À la première faute de frappe | 1 h | — |
+| **X10** | **Fait, pas encore commité.** `wait(-1)`, `carre.wait(-1)` et `waitTo(-3)` sont refusés en nommant la valeur. `waitTo()` a deux sens et ils sont maintenant séparés : celui de l'auteur — « attends jusque-là » — refuse une image derrière l'horloge de l'élément ; celui du moteur, `_clockTo()`, POSE l'horloge, en avant comme en arrière. Les huit appels internes passent par lui : rattrapage d'une attente globale avant un effet, mise en place d'un élément créé après un `wait()`, membres d'un groupe, lettres d'un texte, plateau d'échecs. Séparation nécessaire et mesurée : router ces appels par le refus étirait une animation de 0,4 s des images 1–11 à 1, puis 4–13. `waitFor()` n'écrit plus dans le passé non plus — attendre un élément déjà fini laisse l'horloge où elle est. 6 vérifications dans `error_behaviour_test.py`, empreinte 52 scènes inchangée | À la première faute de frappe | 1 h | — |
 
 ## 2. Le verrou structurel
 
