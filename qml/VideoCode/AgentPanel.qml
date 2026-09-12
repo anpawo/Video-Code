@@ -5,9 +5,8 @@
 // and the code is the scene. So it gets a permanent column, and what used to live
 // on the right (Properties, Effects) moves to the element you click.
 //
-// Every reply shows its work: the tool it ran, the output it read, what it found.
-// An agent that edits your scene without showing the call it made is an agent you
-// cannot check.
+// Only what it says is shown, not the tools it runs: the check on its work is the
+// diff it leaves in the code pane.
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -23,33 +22,53 @@ Item {
     // the pane needs from them is exactly what a ListView reads off an array.
     property var log: []
 
+    // The answer being written, as an index into `log`, or -1 between turns.
+    // Every sentence of one turn lands in that entry, so a question gets one
+    // block back however many times the agent speaks.
+    property int turn: -1
+
+    // What the running counter reads. It only moves while the agent works, so
+    // a finished answer keeps the time it took.
+    property double now: 0
+
     function append(entry) {
         const grown = root.log.slice();
         grown.push(entry);
         root.log = grown;
     }
 
-    // A tool answering lands on the row that ASKED — found by id, never by
-    // being the most recent open one. Calls go out in parallel and come back in
-    // whichever order they finish: measured, two `Read`s returned with the
-    // failing one first, which would have pinned the error to the wrong file.
-    function close(id, out, failed) {
+    function edit(index, changes) {
         const grown = root.log.slice();
-        for (let i = grown.length - 1; i >= 0; i--) {
-            const body = grown[i].body;
-            for (let j = 0; j < body.length; j++) {
-                if (body[j].kind !== "tool" || body[j].id !== id)
-                    continue;
-                const rebuilt = body.slice();
-                rebuilt[j] = {
-                    kind: "tool", id: id, call: body[j].call,
-                    out: out, failed: failed, findings: []
-                };
-                grown[i] = { who: grown[i].who, body: rebuilt };
-                root.log = grown;
-                return;
-            }
-        }
+        grown[index] = Object.assign({}, grown[index], changes);
+        root.log = grown;
+    }
+
+    function say(text) {
+        const line = { kind: "text", text: text };
+        if (root.turn < 0)
+            root.append({ who: "agent", body: [line], started: 0, ended: 0 });
+        else
+            root.edit(root.turn, { body: root.log[root.turn].body.concat([line]) });
+    }
+
+    function finish() {
+        if (root.turn < 0)
+            return;
+        root.edit(root.turn, { ended: Date.now() });
+        root.turn = -1;
+    }
+
+    function elapsed(entry) {
+        const until = entry.ended > 0 ? entry.ended : root.now;
+        const s = Math.max(0, Math.round((until - entry.started) / 1000));
+        return s < 60 ? s + "s" : Math.floor(s / 60) + "m " + (s % 60) + "s";
+    }
+
+    Timer {
+        interval: 1000
+        repeat: true
+        running: Agent.busy
+        onTriggered: root.now = Date.now()
     }
 
     // Everything the agent says arrives as a signal, in the order it happened.
@@ -57,21 +76,18 @@ Item {
     Connections {
         target: Agent
 
-        function onSaid(text) { root.append({ who: "agent", body: [{ kind: "text", text: text }] }); }
-
-        function onToolStarted(id, name, summary) {
-            root.append({ who: "agent",
-                          body: [{ kind: "tool", id: id, call: name + "(" + summary + ")" }] });
-        }
-
-        function onToolEnded(id, name, output, failed) { root.close(id, output, failed); }
+        function onSaid(text) { root.say(text); }
 
         function onTurnEnded(cost, error) {
             if (error.length > 0)
-                root.append({ who: "agent", body: [{ kind: "text", text: "— " + error }] });
+                root.say("— " + error);
+            root.finish();
         }
 
-        function onFailed(why) { root.append({ who: "agent", body: [{ kind: "text", text: why }] }); }
+        function onFailed(why) {
+            root.say(why);
+            root.finish();
+        }
     }
 
     ScrollView {
@@ -86,155 +102,115 @@ Item {
             Repeater {
                 model: root.log
 
-                Row {
+                // The question and the answer in two soft tints: down a long
+                // column, where one exchange ends and the next begins is what the
+                // eye looks for first.
+                Rectangle {
                     id: msg
                     required property var modelData
+                    readonly property color tint: msg.modelData.who === "me" ? Theme.inkDim : Theme.ai
                     width: root.width - 24
-                    spacing: 9
+                    height: row.implicitHeight + 20
+                    radius: Theme.radius
+                    color: Qt.alpha(msg.tint, 0.08)
+                    border.width: 1
+                    border.color: Qt.alpha(msg.tint, 0.22)
 
-                    Rectangle {
-                        width: 21; height: 21
-                        radius: 4
-                        color: msg.modelData.who === "me" ? Theme.rail : Qt.rgba(0.416, 0.651, 0.878, 0.133)
-                        border.width: 1
-                        border.color: msg.modelData.who === "me" ? Theme.edge : Qt.rgba(0.416, 0.651, 0.878, 0.333)
+                    Row {
+                        id: row
+                        x: 10
+                        y: 10
+                        width: parent.width - 20
+                        spacing: 9
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: msg.modelData.who === "me" ? "MR" : "AI"
-                            color: msg.modelData.who === "me" ? Theme.inkDim : Theme.ai
-                            font.family: Theme.mono
-                            font.pixelSize: 9
-                            font.weight: Font.Bold
+                        Rectangle {
+                            width: 21; height: 21
+                            radius: 4
+                            color: msg.modelData.who === "me" ? Theme.rail : Qt.rgba(0.416, 0.651, 0.878, 0.133)
+                            border.width: 1
+                            border.color: msg.modelData.who === "me" ? Theme.edge : Qt.rgba(0.416, 0.651, 0.878, 0.333)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: msg.modelData.who === "me" ? "ME" : "AI"
+                                color: msg.modelData.who === "me" ? Theme.inkDim : Theme.ai
+                                font.family: Theme.mono
+                                font.pixelSize: 9
+                                font.weight: Font.Bold
+                            }
                         }
-                    }
 
-                    Column {
-                        width: parent.width - 30
-                        spacing: 6
+                        Column {
+                            id: lines
+                            width: parent.width - 30
+                            // Level with the badge on one line; a taller answer runs down from its top.
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 6
 
-                        Text {
-                            text: msg.modelData.who === "me" ? "ME" : "AGENT"
-                            color: Theme.inkFaint
-                            font.family: Theme.ui
-                            font.pixelSize: 10
-                            font.letterSpacing: 0.8
-                        }
+                            Row {
+                                visible: msg.modelData.started > 0
+                                spacing: 8
 
-                        Repeater {
-                            model: msg.modelData.body
+                                // A Canvas, not QtQuick.Shapes: see KeyGlyph.qml.
+                                Canvas {
+                                    id: spinner
+                                    width: 10
+                                    height: 10
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    antialiasing: true
+                                    visible: msg.modelData.started > 0 && msg.modelData.ended === 0
+                                    onPaint: {
+                                        const ctx = getContext("2d");
+                                        ctx.reset();
+                                        ctx.strokeStyle = Theme.ai;
+                                        ctx.lineWidth = 1.5;
+                                        ctx.lineCap = "round";
+                                        ctx.beginPath();
+                                        ctx.arc(5, 5, 3.75, 0, Math.PI * 1.5);
+                                        ctx.stroke();
+                                    }
 
-                            Column {
-                                id: block
-                                required property var modelData
-                                width: parent.width
-                                spacing: 0
-
-                                Text {
-                                    visible: block.modelData.kind === "text"
-                                    width: parent.width
-                                    text: block.modelData.kind === "text" ? block.modelData.text : ""
-                                    color: Theme.ink
-                                    font.family: Theme.ui
-                                    font.pixelSize: 12
-                                    lineHeight: 1.4
-                                    wrapMode: Text.WordWrap
+                                    RotationAnimator on rotation {
+                                        from: 0
+                                        to: 360
+                                        duration: 900
+                                        loops: Animation.Infinite
+                                        running: spinner.visible && !Theme.reducedMotion
+                                    }
                                 }
 
-                                // The call, its output, and what it found — the
-                                // three things you need to trust the answer.
-                                Rectangle {
-                                    visible: block.modelData.kind === "tool"
-                                    width: parent.width
-                                    height: visible ? toolBody.implicitHeight + 2 : 0
-                                    radius: Theme.radius
-                                    color: Theme.sunk
-                                    border.color: Theme.edge
-                                    border.width: 1
+                                // Blue while the agent works, faint once it is done.
+                                Text {
+                                    text: msg.modelData.started > 0 ? root.elapsed(msg.modelData) : ""
+                                    color: msg.modelData.ended > 0 ? Theme.inkFaint : Theme.ai
+                                    font.family: Theme.mono
+                                    font.pixelSize: 10
+                                }
+                            }
 
-                                    Column {
-                                        id: toolBody
-                                        width: parent.width - 2
-                                        x: 1
-                                        y: 1
+                            Repeater {
+                                model: msg.modelData.body
 
-                                        Rectangle {
-                                            width: parent.width
-                                            height: 24
-                                            color: Theme.rail
-                                            topLeftRadius: Theme.radius - 1
-                                            topRightRadius: Theme.radius - 1
+                                Column {
+                                    id: block
+                                    required property var modelData
+                                    // Not `parent.width`: a delegate has no parent yet
+                                    // when its bindings first run.
+                                    width: lines.width
+                                    spacing: 0
 
-                                            Row {
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                anchors.left: parent.left
-                                                anchors.leftMargin: 9
-                                                spacing: 7
-
-                                                Text {
-                                                    text: "✓"
-                                                    color: Theme.ok
-                                                    font.pixelSize: 11
-                                                }
-
-                                                Text {
-                                                    text: block.modelData.kind === "tool" ? block.modelData.call : ""
-                                                    color: Theme.inkDim
-                                                    font.family: Theme.mono
-                                                    font.pixelSize: 11
-                                                }
-                                            }
-
-                                            Rectangle {
-                                                anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-                                                height: 1
-                                                color: Theme.edge
-                                            }
-                                        }
-
-                                        Text {
-                                            width: parent.width
-                                            leftPadding: 9; rightPadding: 9
-                                            topPadding: 6; bottomPadding: 6
-                                            text: block.modelData.kind === "tool" ? block.modelData.out : ""
-                                            color: Theme.inkDim
-                                            font.family: Theme.mono
-                                            font.pixelSize: 11
-                                            wrapMode: Text.Wrap
-                                        }
-
-                                        Repeater {
-                                            model: block.modelData.kind === "tool" ? block.modelData.findings : []
-
-                                            Item {
-                                                id: finding
-                                                required property var modelData
-                                                width: toolBody.width
-                                                height: 20
-
-                                                Text {
-                                                    anchors.left: parent.left
-                                                    anchors.leftMargin: 9
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                    text: finding.modelData.range
-                                                    color: Theme.live
-                                                    font.family: Theme.mono
-                                                    font.pixelSize: 10
-                                                }
-
-                                                Text {
-                                                    anchors.right: parent.right
-                                                    anchors.rightMargin: 9
-                                                    anchors.verticalCenter: parent.verticalCenter
-                                                    text: finding.modelData.dur
-                                                    color: Theme.inkFaint
-                                                    font.family: Theme.mono
-                                                    font.pixelSize: 10
-                                                }
-                                            }
-                                        }
-
-                                        Item { width: 1; height: 4 }
+                                    // The agent answers in Markdown; what the author
+                                    // typed is shown as typed.
+                                    Text {
+                                        visible: block.modelData.kind === "text"
+                                        width: parent.width
+                                        text: block.modelData.kind === "text" ? block.modelData.text : ""
+                                        textFormat: msg.modelData.who === "agent" ? Text.MarkdownText : Text.PlainText
+                                        color: Theme.ink
+                                        font.family: Theme.ui
+                                        font.pixelSize: 12
+                                        lineHeight: 1.4
+                                        wrapMode: Text.WordWrap
                                     }
                                 }
                             }
@@ -242,6 +218,25 @@ Item {
                     }
                 }
             }
+        }
+    }
+
+    // Clicking anywhere in the column means "I want to talk": the caret lands
+    // in the field without aiming at the field.
+    //
+    // Over the content and declining the press it just saw — the same shape as
+    // Panel.qml's `floor`, and for the same reason. A TapHandler here was tried
+    // first and never fired over the empty transcript: the pane's own floor
+    // takes the press, and the ScrollView's Flickable takes the grab, so no tap
+    // is ever recognised. Declining the press instead leaves the scroll, the
+    // links and the field itself working exactly as before.
+    MouseArea {
+        anchors.fill: parent
+        z: 50
+        acceptedButtons: Qt.LeftButton
+        onPressed: (mouse) => {
+            input.forceActiveFocus();
+            mouse.accepted = false;
         }
     }
 
@@ -274,6 +269,11 @@ Item {
                 if (text.length === 0)
                     return;
                 root.append({ who: "me", body: [{ kind: "text", text: text }] });
+                // The answer's block opens before a word of it: with the tools
+                // hidden, its counter is what says the agent is working.
+                root.now = Date.now();
+                root.append({ who: "agent", body: [], started: root.now, ended: 0 });
+                root.turn = root.log.length - 1;
                 // The shell asks, not the pane: it prefixes what the author is
                 // looking at, and only it knows.
                 root.sent(text);
