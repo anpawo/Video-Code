@@ -203,7 +203,11 @@ void VC::Editor::buildMenuBar()
     // A panel dragged somewhere silly or closed by accident has to be
     // recoverable from a place that does not depend on finding that panel again
     // — which the dock's own ⋯ menu does.
-    QMenu* view = _menuBar->addMenu(QStringLiteral("Dock display"));
+    // Sous System, et pas à côté : où sont les volets et comment ils sont
+    // rangés est un réglage de la fenêtre, comme le thème du code juste
+    // au-dessus. Une barre de menus qui met chaque réglage à un étage différent
+    // fait chercher deux fois.
+    QMenu* view = system->addMenu(QStringLiteral("Dock display"));
 
     // Layout first: which arrangement you are in decides where everything else
     // is, so it reads before the list of what is in it.
@@ -827,11 +831,21 @@ QImage VC::Editor::renderFrame(int index, int width, int height)
         }
         _renderWidth = width;
         _renderHeight = height;
-        _scene->uploadTextures(
-            [this](const cv::Mat& mat) { return _renderer->uploadTexture(mat); },
-            [this](VkDescriptorSet desc, const cv::Mat& mat) { _renderer->updateTexturePixels(desc, mat); }
-        );
     }
+
+    // Every frame, not only when the renderer is built.
+    //
+    // `executeStack` queues each freshly-constructed Image/Video for an upload
+    // and clears the queue on the next rebuild; the only thing that ever
+    // emptied it was the branch above, which runs once. So a clip built while
+    // the renderer was already up — every hot reload that changes the set of
+    // inputs rebuilds them all — kept a null descriptor and drew nothing, for
+    // the rest of the session, with nothing said. Costs an empty loop when
+    // there is nothing waiting, which is almost always.
+    _scene->uploadTextures(
+        [this](const cv::Mat& mat) { return _renderer->uploadTexture(mat); },
+        [this](VkDescriptorSet desc, const cv::Mat& mat) { _renderer->updateTexturePixels(desc, mat); }
+    );
 
     _scene->_index = static_cast<size_t>(std::max(0, index));
     _renderer->setMeshes(_scene->generateMeshes());
@@ -1168,6 +1182,19 @@ QStringList VC::Editor::callsOnLine(const QString& source, int line)
         const py::module       edit = py::module::import("videocode.edit");
         for (const auto& name : edit.attr("findCalls")(source.toStdString(), line).cast<py::list>())
             found.append(QString::fromStdString(name.cast<std::string>()));
+    } catch (const py::error_already_set&) {
+    }
+    return found;
+}
+
+QStringList VC::Editor::enumValues(const QString& name)
+{
+    QStringList found;
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       serialize = py::module::import("videocode.serialize");
+        for (const auto& value : serialize.attr("enumValues")(name.toStdString()).cast<py::list>())
+            found.append(QString::fromStdString(value.cast<std::string>()));
     } catch (const py::error_already_set&) {
     }
     return found;

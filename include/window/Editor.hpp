@@ -367,6 +367,11 @@ namespace VC
         // say which link it means.
         Q_INVOKABLE QStringList callsOnLine(const QString& source, int line);
 
+        // enumValues() — what an argument of this type accepts, when the type
+        // is one the library closes. Empty for everything else: a field with no
+        // list is a field you type into, which is the normal case.
+        Q_INVOKABLE QStringList enumValues(const QString& name);
+
         // inputParams() — what the call that makes an input takes, by class
         // name. A `Video` answers with `startFrame`, `endFrame`, `cuts`… which is
         // how the card offers the right fields per kind without knowing what a
