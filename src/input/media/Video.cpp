@@ -84,6 +84,10 @@ Video::Video(json::object_t&& args)
     // lets mapToSourceIndex do a simple ordered scan.
     std::sort(_speedRamps.begin(), _speedRamps.end(), [](const SpeedRamp& a, const SpeedRamp& b) { return a.playbackStart < b.playbackStart; });
 
+    if (_baseArgs.contains("originFrame")) {
+        _origin = _baseArgs.at("originFrame").get<size_t>();
+    }
+
     _lastIndex = mapToSourceIndex(0);
     _currentFrame = getFrameAt(_lastIndex);
 }
@@ -189,7 +193,11 @@ cv::Mat Video::getFrameAt(size_t index)
 
 Mesh Video::getMesh(const Metadata& meta, const Config& config)
 {
-    size_t playbackIndex = meta.frameIndex;
+    // Playback starts where the script put the clip. Before that frame there
+    // is nothing to show but the first one — the element is not on screen yet
+    // anyway — and after it the count is the clip's own, which is what `cuts`
+    // and `speedRamps` have always been written in.
+    size_t playbackIndex = meta.frameIndex > _origin ? meta.frameIndex - _origin : 0;
 
     if (playbackIndex >= _playbackLength) {
         playbackIndex = _playbackLength - 1;

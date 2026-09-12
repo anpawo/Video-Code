@@ -110,8 +110,8 @@ void VC::Core::rebuildFromContext()
         // A Video may outlast the stack's own range.
         for (const auto& inputPtr : _inputs) {
             if (const Video* vid = dynamic_cast<const Video*>(inputPtr.get())) {
-                if (vid->_playbackLength > _nbFrame)
-                    _nbFrame = vid->_playbackLength;
+                if (vid->_origin + vid->_playbackLength > _nbFrame)
+                    _nbFrame = vid->_origin + vid->_playbackLength;
             }
         }
 
@@ -161,8 +161,8 @@ void VC::Core::reloadSourceFile()
         // Extend _nbFrame to cover any Video inputs whose duration exceeds the stack's range.
         for (const auto& inputPtr : _inputs) {
             if (const Video* vid = dynamic_cast<const Video*>(inputPtr.get())) {
-                if (vid->_playbackLength > _nbFrame)
-                    _nbFrame = vid->_playbackLength;
+                if (vid->_origin + vid->_playbackLength > _nbFrame)
+                    _nbFrame = vid->_origin + vid->_playbackLength;
             }
         }
 

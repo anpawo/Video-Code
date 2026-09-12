@@ -40,6 +40,7 @@ public:
 
     size_t _nbFrame{0};
     size_t _playbackLength{0}; // _nbFrame minus all cut ranges — what Core sees as this Video's contribution to the timeline
+    size_t _origin{0};         // the film frame the script put this clip on: playback counts from there, not from frame 0
 
 protected:
 

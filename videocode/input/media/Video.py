@@ -6,6 +6,7 @@ import subprocess
 
 from videocode.input.shape.Polygon import *
 from videocode.constants import WORLD_TO_SCREEN_RATIO
+from videocode.context import Context
 from videocode.input.media.Image import _fitToRatio
 from videocode.input.media.TrackedPath import TrackedPath
 
@@ -39,7 +40,7 @@ def _pixelToWorld(
 
 class Video(Polygon):
     cppName = "Video"
-    cppAttrs = Polygon.cppAttrs | {"filepath", "cuts", "speedRamps", "uvMapping", "uvAngle"}
+    cppAttrs = Polygon.cppAttrs | {"filepath", "cuts", "speedRamps", "uvMapping", "uvAngle", "originFrame"}
 
     def __init__(
         self,
@@ -113,14 +114,14 @@ class Video(Polygon):
         self.filepath = filepath
         self.uvMapping = uvMapping
         self.uvAngle = uvAngle
-        cuts = [c if isinstance(c, tuple) else (c, c + 1) for c in cuts]
+        spans: list[tuple[frame, frame]] = [c if isinstance(c, tuple) else (c, c + 1) for c in cuts]
         if startFrame:
-            cuts.append((0, startFrame))
+            spans.append((0, startFrame))
         if endFrame is not None:
             # the C++ side clamps `end` to the source's actual frame count,
             # so an over-large sentinel cuts everything past `endFrame`.
-            cuts.append((endFrame, 2**31 - 1))
-        self.cuts = cuts
+            spans.append((endFrame, 2**31 - 1))
+        self.cuts = spans
 
         speedRamps = sorted(speedRamps, key=lambda ramp: ramp[0])
         for (aStart, aEnd, _), (bStart, bEnd, _) in zip(speedRamps, speedRamps[1:]):
@@ -147,6 +148,18 @@ class Video(Polygon):
         self.width = width
         self.height = height
 
+        # Where the script put the clip, in film frames. Playback counts from
+        # HERE, not from the film's frame 0 — a clip written after four seconds
+        # of animation used to arrive with four seconds already played, which
+        # for anything shorter than that meant its last frame, frozen, and no
+        # way to say otherwise. Read off the wait cursor exactly like `Sound`'s
+        # `delay`, so the two agree about when a clip "is".
+        #
+        # A clip built at the top and revealed later still plays from the top:
+        # that is the same rule, not an exception to it — creating it early is
+        # how you say "this has been running".
+        self.originFrame = Context.waitOffset
+
         super().__init__(
             vertices=self.generateVertices(),
             fillColor=TRANSPARENT,
@@ -154,6 +167,28 @@ class Video(Polygon):
             strokeWidth=strokeWidth,
             cornerRadius=cornerRadius,
         )
+
+        # A clip claims its own frames, the way a fade claims the frames it
+        # runs over: without this the film ended where the last EFFECT on the
+        # clip ended, and a 3.5 s clip with a 0.6 s pop on it was cut at 0.6 s
+        # unless the author wrote the difference as a `wait()` by hand. Same
+        # playback count as the renderer's — the source's frames minus the cut
+        # ranges — read off ffprobe; an unreadable count claims nothing rather
+        # than raising, like `Sound.length()`.
+        if self.placed:
+            said = subprocess.run(
+                ["ffprobe", "-v", "error", "-select_streams", "v:0",
+                 "-show_entries", "stream=nb_frames", "-of", "csv=p=0", filepath],
+                capture_output=True, text=True, check=True,
+            ).stdout.strip()
+            frames = int(said) if said.isdigit() else 0
+            cut, seen = 0, 0
+            for a, b in sorted((min(a, frames), min(b, frames)) for a, b in self.cuts):
+                a = max(a, seen)
+                if b > a:
+                    cut, seen = cut + b - a, b
+            if frames > cut:
+                Context.lastEverAffectedFrame = max(Context.lastEverAffectedFrame, self.originFrame + frames - cut)
 
     def generateVertices(self) -> list[point]:
         if self.width is None or self.height is None:

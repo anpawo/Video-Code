@@ -24,10 +24,11 @@ namespace VC::Audio
         return any;
     }
 
-    // A Video's own track. Its picture runs on the scene clock from output
-    // frame 0 — playback index = output index — so the sound needs no delay:
-    // keeping the audio between the cut ranges and butting the pieces together
-    // is what leaves it under the frames that are actually shown. atrim over
+    // A Video's own track. Its picture starts where the script put the clip,
+    // so the sound is delayed to meet it — the same `adelay` a Sound carries,
+    // written after the retime so the milliseconds are output time. Keeping
+    // the audio between the cut ranges and butting the pieces together is what
+    // leaves it under the frames that are actually shown. atrim over
     // asplit rather than one aselect expression, because aselect on audio
     // drops nothing at all in ffmpeg 8.0.1 (measured: `gte(t,1)` kept 2.005 s
     // of 2.005). The picture is nearest-frame at one source frame per scene
@@ -37,8 +38,13 @@ namespace VC::Audio
     // neither speed ramps nor a paused VIDEOS clock (freeze) reach the sound.
     std::string videoAudioChain(const Video& v, size_t ffmpegInput, size_t track)
     {
-        double fps = v.sourceFps() > 0.0 ? v.sourceFps() : Config::SCENE_FRAMERATE;
-        auto   tempo = fps != Config::SCENE_FRAMERATE ? std::format(",atempo={}", Config::SCENE_FRAMERATE / fps) : "";
+        double      fps = v.sourceFps() > 0.0 ? v.sourceFps() : Config::SCENE_FRAMERATE;
+        std::string tempo = fps != Config::SCENE_FRAMERATE ? std::format(",atempo={}", Config::SCENE_FRAMERATE / fps) : "";
+
+        if (v._origin > 0) {
+            long long ms = std::llround(static_cast<double>(v._origin) * 1000.0 / Config::SCENE_FRAMERATE);
+            tempo += std::format(",adelay={0}|{0}", ms);
+        }
 
         if (v.cuts().empty())
             return std::format("[{}:a]anull{}[a{}];", ffmpegInput, tempo, track);

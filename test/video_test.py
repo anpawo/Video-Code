@@ -113,5 +113,29 @@ v = Video("video.py", cuts=[(20, 25)], startFrame=10, endFrame=50, speedRamps=[(
 check("cuts translation unaffected by speedRamps", v.cuts == [(20, 25), (0, 10), (50, 2**31 - 1)])
 check("speedRamps stored independently", v.speedRamps == [(0, 5, -1.0)])
 
+# ── a clip claims its own frames on the timeline ────────────────────────────
+# The film ends at the last frame anything claims, and a clip's frames are a
+# claim: written after two seconds, a 106-frame clip ends the film at 60 + 106,
+# not where the last effect on it stopped. Cuts come off the count.
+section("Video — claims its own frames, minus the cuts, from where it was written")
+from videocode import wait
+from videocode.context import Context
+from videocode.serialize import _resetContext
+
+def answer(cmd, **_):
+    said = "106\n" if "stream=nb_frames" in cmd else "320,180\n"
+    return subprocess.CompletedProcess(cmd, 0, stdout=said, stderr="")
+
+_probe.stop()
+with patch.object(VideoModule.subprocess, "run", side_effect=answer):
+    _resetContext()
+    wait(2)
+    Video("video.py")
+    check("film ends where the clip does", Context.lastEverAffectedFrame == 60 + 106)
+    _resetContext()
+    wait(2)
+    Video("video.py", startFrame=6, cuts=[(3, 9), (100, 200)])
+    check("cut frames are not claimed", Context.lastEverAffectedFrame == 60 + 106 - 9 - 6)
+
 # ── summary ──────────────────────────────────────────────────────────────────
 summary()
