@@ -61,6 +61,7 @@ jobs:
           target: desktop
           arch: linux_gcc_64
           cache: true
+          setup-python: false  # v4.4.0's own setup-python puts a 3.14 ahead of the 3.12 above
 
       - name: Configure CMake
         env:
@@ -150,6 +151,7 @@ jobs:
           target: desktop
           arch: clang_64
           cache: true
+          setup-python: false  # v4.4.0's own setup-python puts a 3.14 ahead of the 3.12 above
 
       - name: Configure CMake
         env:

@@ -162,6 +162,7 @@ jobs:
           arch: linux_gcc_64
           modules: qtshadertools
           cache: true
+          setup-python: false  # v4.4.0's own setup-python puts a 3.14 ahead of the 3.12 above
 
       - name: qmllint
         run: qmllint -I qml $(find qml -name '*.qml')
@@ -226,6 +227,7 @@ jobs:
           target: desktop
           arch: clang_64
           cache: true
+          setup-python: false  # v4.4.0's own setup-python puts a 3.14 ahead of the 3.12 above
 
       # Required as a variable, never read: same reason as the Linux lane.
       - name: Configure CMake
@@ -295,6 +297,7 @@ jobs:
           target: desktop
           arch: linux_gcc_64
           cache: true
+          setup-python: false  # v4.4.0's own setup-python puts a 3.14 ahead of the 3.12 above
 
       # CMakeLists.txt hard-fails without VCPKG_ROOT even though CI_BUILD=ON
       # never reads a vcpkg package on Linux — the path is required to exist as
