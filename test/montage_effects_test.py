@@ -19,6 +19,7 @@ from helpers import check, section, summary
 
 from videocode import *
 from videocode.template.effect.framing import framePosition, mediaBox
+from videocode.template.effect.ramp import dipAndReturn
 from videocode.template.effect.other.camera import punchIn, snapZoom, travelling, zoomTo
 from videocode.template.effect.other.desaturate import desaturate
 from videocode.template.effect.other.glitchBurst import glitchBurst
@@ -171,6 +172,34 @@ sh.apply(spotlightOn(x=0.5, y=0.5, radius=0.2, duration=1.2, fade=0.3))
 lit = sorted(framesWith(sh.meta.index, "Spotlight"))
 check("spotlightOn n'a pas de trou", lit == list(range(min(lit), max(lit) + 1)))
 check("spotlightOn couvre bien sa duree", len(lit) >= round(1.2 * FRAMERATE) - 1)
+
+# ... et le trou ne vient pas que d'un palier emis une seule fois. Un `fade`
+# qui ne tombe pas sur un nombre entier de frames decalait le palier d'une
+# demi-frame, et `round()` (moitie vers le pair) envoyait les emissions sur
+# 10, 12, 12, 14, 14... : deux shaders sur une frame, AUCUN sur la suivante.
+# Le defaut de spotlightOn, fade=0.35, fait exactement 10,5 frames a 30 fps —
+# les assertions ci-dessus passaient parce qu'elles forcaient fade=0.3.
+# Donc : les valeurs PAR DEFAUT, et un balayage de fades mal tombes.
+sd = Rectangle(width=1, height=1)
+sd.apply(spotlightOn(x=0.5, y=0.5))
+byDefault = sorted(framesWith(sd.meta.index, "Spotlight"))
+check("spotlightOn par defaut n'a pas de trou",
+      byDefault == list(range(min(byDefault), max(byDefault) + 1)))
+
+for awkward in (0.35, 0.25, 0.17, 0.05, 0.383):
+    r = Rectangle(width=1, height=1)
+    r.apply(spotlightOn(x=0.5, y=0.5, duration=2.0, fade=awkward))
+    posed = sorted(framesWith(r.meta.index, "Spotlight"))
+    check(f"un fade de {awkward}s reste sur la grille des frames",
+          posed == list(range(min(posed), max(posed) + 1)))
+
+# Une frame ne doit pas non plus recevoir DEUX shaders : c'est l'autre moitie
+# du meme decalage, et elle gaspille une passe de rendu.
+doubled = [t for _, t in dipAndReturn(peak=1.0, duration=2.0, fade=0.35)]
+poses = [round(t * FRAMERATE) for t in doubled]
+check("dipAndReturn pose un shader par frame, et un seul",
+      len(poses) == len(set(poses)) and poses == list(range(poses[0], poses[0] + len(poses))))
+check("dipAndReturn tient exactement sa duree", len(poses) == round(2.0 * FRAMERATE))
 
 g = Rectangle(width=1, height=1)
 g.apply(glitchBurst(amount=6, slices=16, seed=7, blocks=30, duration=0.6))

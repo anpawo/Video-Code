@@ -52,6 +52,14 @@ def impact(
         up = max(duration * 0.22, SINGLE_FRAME * 2)
         down = max(duration - up, SINGLE_FRAME * 2)
 
+        # The rumble is a decaying sine on `position`, which is what `shake`
+        # already is — but `shake` cannot be composed in here: it writes
+        # position as an offset from where the input STANDS, and the two
+        # would fight over the one channel (last writer wins). `impact`'s
+        # rumble has to ride on a base that is itself moving toward the
+        # point, so the sine is folded into that base below rather than
+        # posed separately. Same maths, different anchor.
+        #
         # --- attack: snap up, rumbling ---
         n = max(int(up * FRAMERATE), 2)
         for s, i in Easing.Exponential.rangeIdx(srcScale, peakScale, up):

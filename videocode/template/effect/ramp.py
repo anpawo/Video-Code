@@ -34,18 +34,35 @@ def dipAndReturn(
     `fade` is clamped to half of `duration`, so `fade >= duration / 2` gives a
     straight dip with no plateau.
 
+    The three phases are laid out in FRAMES, one emission per frame, counted
+    end to end — never by anchoring a phase to its time in seconds. Seconds
+    are the wrong ruler here: `apply()` lands a shader on `round(start *
+    FRAMERATE)`, and a `fade` that is not a whole number of frames puts the
+    hold half a frame off the grid, where round-half-to-even sends
+    consecutive emissions to 10, 12, 12, 14, 14... — two shaders on one
+    frame and NOTHING on the next. `spotlightOn`'s default `fade=0.35` is
+    exactly that case at 30 fps (10.5 frames), and it strobed one frame in
+    two.
+
         for v, t in dipAndReturn(peak=0.8, duration=2.0, fade=0.35):
             yield vignette(v).at(start=t)
     """
     f = min(fade, duration / 2)
 
-    for v, i in rise.rangeIdx(0.0, float(peak), f):
-        yield v, start + i * SINGLE_FRAME
+    # The count `rangeIdx` will actually emit — read it from the same formula
+    # rather than deriving a second one that could disagree.
+    edge = max(1, int(f * FRAMERATE))
+    hold = max(0, round(duration * FRAMERATE) - 2 * edge)
 
-    hold = duration - 2 * f
-    if hold > 0:
-        for i in range(round(hold * FRAMERATE)):
-            yield float(peak), start + f + i * SINGLE_FRAME
+    at = 0
+    for v, _ in rise.rangeIdx(0.0, float(peak), f):
+        yield v, start + at * SINGLE_FRAME
+        at += 1
 
-    for v, i in fall.rangeIdx(float(peak), 0.0, f):
-        yield v, start + duration - f + i * SINGLE_FRAME
+    for _ in range(hold):
+        yield float(peak), start + at * SINGLE_FRAME
+        at += 1
+
+    for v, _ in fall.rangeIdx(float(peak), 0.0, f):
+        yield v, start + at * SINGLE_FRAME
+        at += 1

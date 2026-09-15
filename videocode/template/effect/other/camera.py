@@ -29,6 +29,12 @@ def punchIn(
 
     `zoom < 1` pulls out instead.
 
+    Not `zoomPunch`, which is the other half of this idea: that one snaps up
+    and comes straight back with a Back overshoot — a beat. This one is a
+    one-way push that STAYS where it arrives, and runs over seconds, not
+    frames. Reach for `zoomPunch` on an accent, for `punchIn` under a whole
+    shot.
+
         clip.apply(punchIn())
         clip.apply(punchIn(zoom=1.35, duration=6, easing=Easing.Linear))
     """
@@ -96,6 +102,12 @@ def snapZoom(
     there, then fall back to the original framing over `release`. The
     reaction-video emphasis, and the only camera move here that leaves the
     input exactly as it found it.
+
+    `zoomPunch` already does the up-and-back on `scale` alone. What it cannot
+    do is aim: it grows the frame around its centre, while `snapZoom` also
+    writes `position` so the zoom lands ON a point, and holds there. Give it
+    no `x`/`y` and the centre is the point — then `zoomPunch` is the lighter
+    call, and the better one.
 
         clip.apply(snapZoom(x=0.42, y=0.61))
         clip.apply(snapZoom(x=0.8, y=0.2, zoom=3, hold=1.2))
