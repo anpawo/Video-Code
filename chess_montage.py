@@ -172,9 +172,14 @@ def title(name: str, description: str, at: sec) -> None:
             drawn.show(at=at + 0.15)
         # at= est l'horloge du FILM ; start= serait l'horloge de l'element,
         # donc cumulatif — c'est exactement le piege qui empilait les plans.
-        # Une frame apres le show : on ne peut pas faire monter l'opacite d'un
-        # input encore cache.
-        part.fadeIn(at=at + 0.15 + SINGLE_FRAME, duration=0.3)
+        #
+        # MEME frame que le show, surtout pas la suivante : un `show` ne fixe
+        # aucune opacite, il rend visible a l'opacite courante, c'est-a-dire
+        # PLEINE. Lancer le fadeIn une frame plus tard laissait donc la plaque
+        # apparaitre d'un coup, retomber a zero, puis remonter — un clignotement
+        # avant chaque fondu. Sur la meme frame, `show` et le premier pas du
+        # fondu (opacite 0) sont poses ensemble et l'entree part bien de rien.
+        part.fadeIn(at=at + 0.15, duration=0.3)
         # fadeOut ne relaie pas at= jusqu'a apply() : on avance la montre de
         # l'element a la main, puis on sort en start=0 (= "maintenant").
         part.waitTo(round((at + SHOT - TAIL) * FRAMERATE))
@@ -302,6 +307,29 @@ clip = Video(
 )
 # zIndex(0) : le plan est le fond, les plaques de titre passeront au-dessus.
 clip.position(0, 0).zIndex(0)
+
+# La source est une capture d'ecran de region : macOS a incruste sa marquise
+# (le rectangle en pointilles et ses poignees rondes) sur les quatre bords.
+# Mesure sur une image fixe : la bande va du bord jusqu'a ~23 px, et le vrai
+# contenu ne commence qu'a ~27 px — 26 px de retrait l'enlevent sans mordre
+# dessus. En POURCENTAGE de la boite du media, donc les deux axes n'ont pas la
+# meme valeur, et le recadrage suit les zooms au lieu de rester colle a l'ecran.
+#
+# Une seule pose suffit : contrairement a un shader qui change de valeur d'une
+# image a l'autre, celui-ci est constant, et `duration` couvre toute la bobine.
+# Les pixels retires deviennent transparents, donc c'est le fond noir qui
+# apparait dessous — la bordure se fond dans les bandes noires.
+BORDER = 26  # pixels de marquise a retirer sur chaque bord
+clip.apply(
+    crop(
+        left=100 * BORDER / sourceWidth,
+        right=100 * BORDER / sourceWidth,
+        top=100 * BORDER / sourceHeight,
+        bottom=100 * BORDER / sourceHeight,
+    ),
+    start=0,
+    duration=REEL,
+)
 
 
 def reframe(at: sec) -> None:
