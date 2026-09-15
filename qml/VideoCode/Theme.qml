@@ -135,10 +135,10 @@ QtObject {
     // never learn that a value was overridden.
     readonly property var shipped: ({
         // One hue per media kind.
-        "polygon": "#5aa06a",
-        "image":   "#a06fc0",
-        "video":   "#4a86c5",
-        "sound":   "#46a3a0",
+        "polygon": "#c48ad8",
+        "image":   "#9b7fd6",
+        "video":   "#6d6ad0",
+        "sound":   "#3fa39a",
         // Subtitles are derived text, so they borrow the neutral rather than
         // spending a fifth hue on themselves.
         "subs":    "#5d6577",

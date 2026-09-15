@@ -59,6 +59,25 @@ Item {
 
     signal elementPicked(int index)
 
+    // hh:mm:ss:ff, the way an NLE writes a moment; `full` keeps the hours.
+    function timecode(seconds, full) {
+        const fps = root.scene.fps !== undefined ? root.scene.fps : 30;
+        const whole = Math.floor(seconds);
+        const f = Math.floor((seconds - whole) * fps + 1e-6);
+        const two = (n) => String(n).padStart(2, "0");
+        const core = two(Math.floor(whole / 60) % 60) + ":" + two(whole % 60) + ":" + two(f);
+        return full ? two(Math.floor(whole / 3600)) + ":" + core : core;
+    }
+
+    // V1, V2… for what is seen, A1, A2… for what is only heard, top down.
+    function trackName(index) {
+        const all = root.scene.elements;
+        let seen = 0, heard = 0;
+        for (let i = 0; i <= index; ++i)
+            all[i].kind === "sound" ? ++heard : ++seen;
+        return all[index].kind === "sound" ? "A" + heard : "V" + seen;
+    }
+
     // A clip was opened, and this is where it sits on screen. The rect is the
     // whole point: whatever opens it can start there.
     signal elementOpened(var element, rect where)
@@ -179,7 +198,7 @@ Item {
     // than the waveform the extra height was carrying: it was never read for its
     // shape — a deterministic squiggle, not the file's own — only for the fact
     // that it was there.
-    readonly property int laneHeight: 24
+    readonly property int laneHeight: 32
     // Blank strip kept to the left of time zero. Wide enough for the playhead's
     // handle to sit at 0 without touching the panel's edge — and, since every
     // ruler stamp is centred on the line it names, wide enough for the FIRST one
@@ -386,11 +405,67 @@ Item {
         onPressed: root.forceActiveFocus()
     }
 
+    // The track heads, the way Premiere Pro keeps them: a fixed column the
+    // clips scroll under, the playhead's timecode in its corner.
+    Rectangle {
+        id: heads
+        visible: flick.visible
+        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+        width: 86
+        z: 7
+        color: Theme.rail
+        clip: true
+
+        Text {
+            x: 8
+            height: ruler.height
+            verticalAlignment: Text.AlignVCenter
+            text: root.timecode(root.playhead, true)
+            color: Theme.ai
+            font.family: Theme.mono
+            font.pixelSize: 11
+        }
+
+        Repeater {
+            model: root.scene.elements
+
+            Item {
+                id: head
+                required property int index
+                y: ruler.height - flick.contentY + index * root.laneHeight
+                width: heads.width
+                height: root.laneHeight
+
+                Text {
+                    x: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.trackName(head.index)
+                    color: root.selectedIndex === head.index ? Theme.ink : Theme.inkDim
+                    font.family: Theme.mono
+                    font.pixelSize: 10
+                }
+
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    width: parent.width
+                    height: 1
+                    color: Theme.edgeSoft
+                }
+            }
+        }
+
+        Rectangle {
+            anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+            width: 1
+            color: Theme.edge
+        }
+    }
+
     Flickable {
         id: flick
         visible: root.scene.elements.length > 0
         anchors {
-            left: parent.left; right: parent.right
+            left: heads.right; right: parent.right
             top: parent.top; bottom: parent.bottom
         }
         // Time zero needs room to be a time and not a border — flush against the
@@ -447,6 +522,13 @@ Item {
                         }
                     }
 
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        width: parent.width
+                        height: 1
+                        color: Theme.edgeSoft
+                    }
+
                     // Lit while something that needs an element is carried over
                     // it: the drop has a target, and the target says so.
                     Rectangle {
@@ -475,12 +557,13 @@ Item {
                         readonly property bool lit: root.litIndex === lane.index
 
                         color: away ? "transparent"
-                                    : Qt.alpha(Theme.kind[lane.modelData.kind], bar.lit ? 0.52 : 0.30)
-                        border.width: root.selectedIndex === lane.index ? 2 : 1
+                                    : Qt.alpha(Theme.kind[lane.modelData.kind],
+                                               root.selectedIndex === lane.index ? 0.70 : bar.lit ? 0.60 : 0.45)
+                        border.width: 1
                         border.color: away
                                       ? Qt.rgba(1, 1, 1, 0.10)
                                       : (root.selectedIndex === lane.index
-                                         ? Theme.live
+                                         ? "#ffffff"
                                          : (bar.lit
                                             ? Qt.alpha(Theme.live, 0.55)
                                             : Qt.rgba(1.000, 1.000, 1.000, 0.149)))
@@ -527,7 +610,8 @@ Item {
                         Rectangle {
                             id: label
                             visible: !bar.away
-                            anchors { fill: parent; margins: 1 }
+                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 1 }
+                            height: 13
                             topLeftRadius: 3
                             topRightRadius: 3
                             color: Qt.alpha(Theme.kind[lane.modelData.kind], 0.92)
@@ -579,7 +663,7 @@ Item {
                                     // white on every hue this palette uses.
                                     color: Qt.rgba(0.04, 0.06, 0.09, 0.92)
                                     font.family: Theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: 10
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
                                 }
@@ -775,14 +859,12 @@ Item {
                            ? Math.max(-stamp.implicitWidth / 2, -root.pad + 2)
                            : -stamp.implicitWidth / 2
                         anchors { bottom: parent.bottom; bottomMargin: 7 }
-                        text: {
-                            const m = Math.floor(parent.index / 60);
-                            const s = parent.index % 60;
-                            return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
-                        }
+                        text: root.pxPerSecond * 2 >= 64
+                              ? root.timecode(parent.index, false)
+                              : root.timecode(parent.index, false).slice(0, 5)
                         color: Theme.inkFaint
                         font.family: Theme.mono
-                        font.pixelSize: 11
+                        font.pixelSize: 10
                     }
                 }
             }
@@ -1015,7 +1097,7 @@ Item {
                 // front had to be fainter. The guess was wrong twice over: this
                 // far up it has to read as something LAID OVER the clips, and
                 // under a third of red they are still perfectly legible.
-                color: Qt.rgba(0.878, 0.376, 0.361, 0.325)
+                color: Qt.alpha(Theme.inkDim, 0.10)
             }
         }
 
@@ -1036,7 +1118,7 @@ Item {
                 Rectangle {
                     width: 1
                     height: parent.height
-                    color: Qt.rgba(0.878, 0.376, 0.361, 0.55)
+                    color: Qt.alpha(Theme.inkDim, 0.45)
                 }
 
                 // And where it is written, so the line is a thing you can go to
@@ -1078,8 +1160,8 @@ Item {
                            : Qt.alpha(Theme.sunk, 0.92)
                     border.width: 1
                     border.color: editing
-                                  ? Qt.rgba(0.878, 0.376, 0.361, 0.8)
-                                  : Qt.rgba(0.878, 0.376, 0.361, 0.22)
+                                  ? Qt.alpha(Theme.inkDim, 0.8)
+                                  : Qt.alpha(Theme.inkDim, 0.22)
                     readonly property bool editing: root.editingWait === join.modelData.line
 
                     Text {
@@ -1087,7 +1169,7 @@ Item {
                         anchors.centerIn: parent
                         visible: !gapStamp.editing
                         text: "wait " + join.modelData.says.toFixed(1) + "s"
-                        color: Qt.rgba(0.945, 0.541, 0.525, 1)
+                        color: Theme.inkDim
                         font.family: Theme.mono
                         font.pixelSize: 10
                     }
@@ -1097,7 +1179,7 @@ Item {
                         anchors { fill: parent; leftMargin: 6; rightMargin: 6 }
                         verticalAlignment: TextInput.AlignVCenter
                         visible: gapStamp.editing
-                        color: Qt.rgba(0.945, 0.541, 0.525, 1)
+                        color: Theme.inkDim
                         font.family: Theme.mono
                         font.pixelSize: 10
                         selectByMouse: true
@@ -1142,7 +1224,7 @@ Item {
 
             Rectangle {
                 anchors.fill: parent
-                color: Theme.live
+                color: Theme.ai
             }
 
             // The grab handle, which is also what makes the line findable when it
@@ -1153,7 +1235,7 @@ Item {
                 onPaint: {
                     const ctx = getContext("2d");
                     ctx.reset();
-                    ctx.fillStyle = Theme.live;
+                    ctx.fillStyle = Theme.ai;
                     ctx.beginPath();
                     ctx.moveTo(0, 0);
                     ctx.lineTo(width, 0);
