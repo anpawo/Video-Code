@@ -190,6 +190,14 @@ def title(name: str, description: str, at: sec) -> None:
 # --- la bobine --------------------------------------------------------------
 # (nom, description d'une ligne, l'effet, faut-il recadrer apres le plan)
 
+# Le dernier plan ferme les bandes cinema, les tient, puis les rouvre. Les
+# trois durees doivent s'emboiter EXACTEMENT : un shader ne vaut que pour la
+# frame ou il est pose, donc le moindre trou entre la fermeture et l'ouverture
+# reaffiche l'image pleine puis reclaque les bandes. C'est ce qui clignotait.
+SCOPE_MOVE = 0.6        # fermeture des bandes
+SCOPE_TO_OPEN = 0.8     # delai avant la reouverture, mesure depuis le meme instant
+SCOPE_HOLD = SCOPE_TO_OPEN - SCOPE_MOVE   # ce que les bandes doivent tenir entre les deux
+
 shots: list[tuple[str, str, Effect, bool]] = [
     # zoom lent et continu : ne touche QUE scale, donc il se combinerait avec
     # un panoramique sans se marcher dessus.
@@ -232,13 +240,33 @@ shots: list[tuple[str, str, Effect, bool]] = [
     ("vignetteBeat", "les coins se ferment et se rouvrent",
      vignetteBeat(intensity=0.75, duration=EFFECT), False),
     ("scope", "bandes cinema, 2.39:1",
-     scope(ratio=2.39, duration=0.6), False),
+     scope(ratio=2.39, duration=SCOPE_MOVE, hold=SCOPE_HOLD), False),
 ]
 
 REEL = len(shots) * SHOT  # duree totale visee, en secondes de film
 
 sourceWidth, sourceHeight, sourceFps = probeSource()
-clipWidth, clipHeight = containSize(sourceWidth, sourceHeight)
+# La source est une capture d'ecran de region : macOS a incruste sa marquise
+# (le rectangle en pointilles et ses poignees rondes) sur les quatre bords.
+# Mesure sur une image fixe : la bande va du bord jusqu'a ~23 px, et le vrai
+# contenu ne commence qu'a ~27 px — 26 px par bord l'enlevent sans mordre
+# dessus.
+#
+# On l'enleve en poussant le media HORS du cadre, pas avec le shader `crop`.
+# Un `crop` aurait marche, mais il n'y a qu'un seul recadrage par image et par
+# input : `scope` en pose un aussi, et le dernier ecrit gagne — les barres
+# cinema auraient efface le detourage du bord, et la marquise serait revenue
+# pendant tout ce plan. Ici c'est la GEOMETRIE qui fait le travail, donc le
+# canal `crop` reste libre, et la marge suit les zooms sans qu'on s'en occupe.
+#
+# La zone utile est celle qu'on fait TENIR dans le cadre ; le media entier est
+# plus grand dans la meme proportion, et sa bordure deborde juste dehors.
+BORDER = 26  # pixels de marquise sur chaque bord de la source
+usableWidth = sourceWidth - 2 * BORDER
+usableHeight = sourceHeight - 2 * BORDER
+keepWidth, keepHeight = containSize(usableWidth, usableHeight)
+clipWidth = keepWidth * sourceWidth / usableWidth
+clipHeight = keepHeight * sourceHeight / usableHeight
 
 # Les bandes. En "contain", ce qui n'est pas couvert par le plan reste
 # transparent : on pose un fond noir plein cadre dessous pour que ce soit des
@@ -308,28 +336,6 @@ clip = Video(
 # zIndex(0) : le plan est le fond, les plaques de titre passeront au-dessus.
 clip.position(0, 0).zIndex(0)
 
-# La source est une capture d'ecran de region : macOS a incruste sa marquise
-# (le rectangle en pointilles et ses poignees rondes) sur les quatre bords.
-# Mesure sur une image fixe : la bande va du bord jusqu'a ~23 px, et le vrai
-# contenu ne commence qu'a ~27 px — 26 px de retrait l'enlevent sans mordre
-# dessus. En POURCENTAGE de la boite du media, donc les deux axes n'ont pas la
-# meme valeur, et le recadrage suit les zooms au lieu de rester colle a l'ecran.
-#
-# Une seule pose suffit : contrairement a un shader qui change de valeur d'une
-# image a l'autre, celui-ci est constant, et `duration` couvre toute la bobine.
-# Les pixels retires deviennent transparents, donc c'est le fond noir qui
-# apparait dessous — la bordure se fond dans les bandes noires.
-BORDER = 26  # pixels de marquise a retirer sur chaque bord
-clip.apply(
-    crop(
-        left=100 * BORDER / sourceWidth,
-        right=100 * BORDER / sourceWidth,
-        top=100 * BORDER / sourceHeight,
-        bottom=100 * BORDER / sourceHeight,
-    ),
-    start=0,
-    duration=REEL,
-)
 
 
 def reframe(at: sec) -> None:
@@ -359,7 +365,10 @@ for index, (name, description, effect, needsReframe) in enumerate(shots):
 # scope est le seul look qui doit etre defait a la main : les bandes restent.
 # On le defait apres la fin de scope, sinon les deux ecritures se disputent le
 # canal Crop sur les memes frames (le moteur le signale, et la derniere gagne).
-clip.apply(unscope(ratio=2.39, duration=0.5), at=(len(shots) - 1) * SHOT + LEAD + 0.8)
+# Depuis le MEME instant que le `scope` du dernier plan (son `at=`), decale de
+# SCOPE_TO_OPEN — c'est ce qui garantit que le hold ci-dessus tombe juste.
+clip.apply(unscope(ratio=2.39, duration=0.5),
+           at=(len(shots) - 1) * SHOT + LEAD + SCOPE_TO_OPEN)
 
 # --- retiming ---------------------------------------------------------------
 # ralenti / accelere / freezeFrame / rewind ne sont PAS des effets : ils

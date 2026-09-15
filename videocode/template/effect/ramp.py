@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Generator
 
 from videocode.constants import *
+from videocode.shader.ishader import IShader
 from videocode.utils.bezier import *
 
 
@@ -66,3 +67,47 @@ def dipAndReturn(
     for v, _ in fall.rangeIdx(float(peak), 0.0, f):
         yield v, start + at * SINGLE_FRAME
         at += 1
+
+
+# A shader posed on a frame stops applying on the next one unless it carries a
+# `duration`. So an effect that SETTLES — bars, a vignette, a grade meant to
+# stay — has to say how long it stays, and there is no "forever" to default to:
+# `Input.apply` grows the film to cover every shader's end
+# (`Context.lastEverAffectedFrame`, input.py:250), so a template that held its
+# look for an hour would render an hour. Measured, not guessed: a 3600 s hold
+# turned a 33.8 s reel into 217980 frames. The author knows when the look ends;
+# the template cannot, so it asks.
+HOLD_NONE: sec = 0
+
+
+def holdAfter(
+    shader: IShader,
+    start: sec,
+    duration: sec,
+    hold: sec,
+) -> Generator[IShader, Any, None]:
+    """
+    Pose `shader` ONCE, for `hold` seconds, on the frame right after an
+    animation of `duration` that began at `start` — the "and it stays there"
+    half of an effect that settles instead of returning. `hold=0` yields
+    nothing, which is the same as not calling it.
+
+    Pick `hold` to reach whatever undoes the look — the next `unscope`, the
+    end of the shot. It lengthens the film if it runs past everything else,
+    so it is not free: see the module comment above.
+
+    The landing frame is counted in FRAMES, from the same formula
+    `rangeIdx` uses, never from `start + duration` in seconds: a duration
+    that is not a whole number of frames would put the hold half a frame off
+    the grid, where rounding drops it onto the animation's own last frame and
+    one of the two is lost.
+
+    A later shader of the same kind on the same input takes over while the
+    hold is running, and the hold applies again once that one ends.
+
+        yield from holdAfter(crop(top=b, bottom=b), start, duration, hold)
+    """
+    if hold <= 0:
+        return
+    landing = max(1, int(duration * FRAMERATE))
+    yield shader.at(start=start + landing * SINGLE_FRAME, duration=hold)

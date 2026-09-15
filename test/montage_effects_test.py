@@ -230,6 +230,50 @@ us.apply(unscope(ratio=2.39, duration=0.5))
 openBars = [e["args"]["top"] for _, e in sorted(framesWith(us.meta.index, "Crop").items())]
 check("unscope opens back to zero", abs(openBars[-1]) < 1e-6 and abs(openBars[0] - expected) < 1e-6)
 
+# Un "look" doit TENIR apres son mouvement. Un shader pose sur une frame avec
+# la duree par defaut d'une frame cesse de s'appliquer a la suivante : les
+# barres se rouvraient donc a la seconde ou le mouvement finissait. Dans la
+# bobine, les 0,2 s entre la fin de `scope` et le debut de `unscope` laissaient
+# reapparaitre l'image pleine, puis les barres claquaient a nouveau — un
+# clignotement bien visible. Les assertions precedentes ne pouvaient pas le
+# voir : elles ne regardaient que les VALEURS emises, jamais leur duree.
+sh = Rectangle(width=1, height=1)
+sh.apply(scope(ratio=2.39, duration=0.6, hold=1.5))
+posed = {f: e["args"] for f, e in sorted(framesWith(sh.meta.index, "Crop").items())}
+landing = max(posed)
+check("scope tient ses barres apres le mouvement", posed[landing]["duration"] > 1)
+check("scope atterrit sur la frame juste apres l'animation",
+      landing == int(0.6 * FRAMERATE) and sorted(posed) == list(range(0, landing + 1)))
+check("scope tient a la bonne valeur", abs(posed[landing]["top"] - expected) < 1e-6)
+
+uh = Rectangle(width=1, height=1)
+uh.apply(unscope(ratio=2.39, duration=0.6, hold=1.5))
+openPosed = {f: e["args"] for f, e in sorted(framesWith(uh.meta.index, "Crop").items())}
+check("unscope tient le cadre ouvert", openPosed[max(openPosed)]["duration"] > 1
+      and abs(openPosed[max(openPosed)]["top"]) < 1e-6)
+
+vh = Rectangle(width=1, height=1)
+vh.apply(vignetteIn(intensity=0.5, duration=0.6, hold=1.5))
+vPosed = {f: e["args"] for f, e in sorted(framesWith(vh.meta.index, "Vignette").items())}
+check("vignetteIn tient quand on le lui demande",
+      vPosed[max(vPosed)]["duration"] > 1 and abs(vPosed[max(vPosed)]["intensity"] - 0.5) < 1e-6)
+
+# Et la tenue coute de la longueur de film : `apply` fait grandir le film pour
+# couvrir la fin de chaque shader. Une tenue "pour toujours" rendrait donc un
+# film de cette longueur — mesure : un hold d'une heure a transforme une bobine
+# de 33,8 s en 217980 images. D'ou le defaut a zero.
+hf = Rectangle(width=1, height=1)
+before = Context.lastEverAffectedFrame
+hf.apply(scope(ratio=2.39, duration=0.6, hold=4))
+check("la tenue rallonge le film d'exactement ce qu'on a demande",
+      Context.lastEverAffectedFrame == int(0.6 * FRAMERATE) + round(4 * FRAMERATE))
+
+
+nh = Rectangle(width=1, height=1)
+nh.apply(scope(ratio=2.39, duration=0.6))
+check("par defaut, aucune tenue : le film n'est pas rallonge a l'insu de l'auteur",
+      all(e["args"]["duration"] == 1 for e in framesWith(nh.meta.index, "Crop").values()))
+
 # ---------------------------------------------------------------------------
 section("retime — speedRamp builders, in seconds")
 
