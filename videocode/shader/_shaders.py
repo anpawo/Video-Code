@@ -21,6 +21,7 @@ from videocode.shader.fragmentShader.sharpen import *
 from videocode.shader.fragmentShader.crop import *
 from videocode.shader.fragmentShader.lightSweep import *
 from videocode.shader.fragmentShader.vignette import *
+from videocode.shader.fragmentShader.spotlight import *
 from videocode.shader.fragmentShader.pixelate import *
 from videocode.shader.fragmentShader.glitch import *
 from videocode.shader.fragmentShader.duotone import *

@@ -39,6 +39,7 @@ using json = nlohmann::json;
     X(HueRotate)   \
     X(Halftone)    \
     X(ChromaKey)   \
+    X(Spotlight)   \
     X(Lut)
 
 // Object-relative shaders — resolveEffectParams() prepends the mesh's own
