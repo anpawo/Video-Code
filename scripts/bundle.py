@@ -132,6 +132,9 @@ def relocate(bundle: Path, lib_dir: Path) -> None:
                 shutil.copy2(src, target)
                 os.chmod(target, 0o755)
                 sh("install_name_tool", "-id", f"@rpath/{name}", str(target))
+                # A copy whose own deps are all system ones is never `changed`
+                # below, and would keep the signature the -id just broke.
+                sh("codesign", "-f", "-s", "-", str(target))
                 origin[target] = src
                 queue.append(target)
             rel = os.path.relpath(target, macho.parent)
