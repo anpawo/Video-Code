@@ -76,15 +76,15 @@ jobs:
       # --no-smoke: the smoke test that means anything is the container below,
       # not a run on the machine that owns every library already.
       - name: Bundle
-        run: python3 scripts/bundle_linux.py --zip --no-smoke
+        run: python3 scripts/bundle_linux.py --archive --no-smoke
 
       # A machine that never built it, with only what the README asks for.
       - name: It runs on a machine that never built it
         run: |
           docker run --rm -v "$PWD/dist:/dist:ro" ubuntu:24.04 bash -eux -c '
             apt-get update -qq
-            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq unzip ffmpeg mesa-vulkan-drivers libvulkan1 > /dev/null
-            cd /tmp && unzip -q /dist/video-code-linux-x86_64.zip && cd video-code-linux-x86_64
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq xz-utils ffmpeg mesa-vulkan-drivers libvulkan1 > /dev/null
+            cd /tmp && tar -xJf /dist/video-code-linux-x86_64.tar.xz && cd video-code-linux-x86_64
             # What the folder asks of the machine, listed rather than guessed
             # one CI round at a time. The README.txt line has to install these.
             echo "— missing with ffmpeg and Vulkan alone:"
@@ -105,7 +105,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: video-code-linux-x86_64
-          path: dist/video-code-linux-x86_64.zip
+          path: dist/video-code-linux-x86_64.tar.xz
           retention-days: 14
 
       - name: Replace it on the release
@@ -115,8 +115,8 @@ jobs:
         run: |
           tag="${{ inputs.tag }}"
           [ -n "$tag" ] || tag=$(gh release view --json tagName -q .tagName)
-          gh release upload "$tag" dist/video-code-linux-x86_64.zip --clobber
-          echo "linux zip → $tag ($(git rev-parse --short HEAD))" >> "$GITHUB_STEP_SUMMARY"
+          gh release upload "$tag" dist/video-code-linux-x86_64.tar.xz --clobber
+          echo "linux tar.xz → $tag ($(git rev-parse --short HEAD))" >> "$GITHUB_STEP_SUMMARY"
 
   macos:
     name: macOS 14 · Apple Silicon
@@ -177,7 +177,7 @@ jobs:
       # with the Qt that travelled beside it. Rendering is the same code the
       # local build runs all day; being findable is what changes in a zip.
       - name: Bundle
-        run: python3 scripts/bundle.py --zip --no-smoke
+        run: python3 scripts/bundle.py --archive --no-smoke
 
       - name: The copy runs where nothing was built
         run: |
@@ -190,7 +190,7 @@ jobs:
         if: ${{ !cancelled() }}
         with:
           name: video-code-macos-arm64
-          path: dist/video-code-macos-arm64.zip
+          path: dist/video-code-macos-arm64.tar.xz
           retention-days: 14
 
       - name: Replace it on the release
@@ -200,5 +200,5 @@ jobs:
         run: |
           tag="${{ inputs.tag }}"
           [ -n "$tag" ] || tag=$(gh release view --json tagName -q .tagName)
-          gh release upload "$tag" dist/video-code-macos-arm64.zip --clobber
-          echo "macos zip → $tag ($(git rev-parse --short HEAD))" >> "$GITHUB_STEP_SUMMARY"
+          gh release upload "$tag" dist/video-code-macos-arm64.tar.xz --clobber
+          echo "macos tar.xz → $tag ($(git rev-parse --short HEAD))" >> "$GITHUB_STEP_SUMMARY"
