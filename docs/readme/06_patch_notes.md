@@ -14,7 +14,8 @@
 - `circle`
 - `rectangle`
 - `square`
-- `line`
+- `horizontalLine`
+- `verticalLine`
 
 <br>
 

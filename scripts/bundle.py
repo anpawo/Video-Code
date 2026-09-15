@@ -78,14 +78,36 @@ def copy_tree(src: Path, dst: Path, skip: set[str] | frozenset[str] = frozenset(
     shutil.copytree(src, dst, ignore=ignore, symlinks=False)
 
 
+def rpaths(macho: Path, origin: Path) -> list[Path]:
+    """The file's LC_RPATH entries, @loader_path read where the file was built to live."""
+    out = sh("otool", "-l", str(macho)).splitlines()
+    paths = [line.split()[1] for i, line in enumerate(out) if line.strip().startswith("path ") and "LC_RPATH" in out[i - 2]]
+    return [Path(p.replace("@loader_path", str(origin.parent)).replace("@executable_path", str(origin.parent))) for p in paths]
+
+
+def resolve(dep: str, macho: Path, origin: Path) -> Path | None:
+    """Where dyld would find `dep` for this file on this machine, or None."""
+    if dep.startswith("@rpath/"):
+        return next((c for rp in rpaths(macho, origin) if (c := rp / dep[len("@rpath/"):]).exists()), None)
+    return Path(dep) if dep.startswith(FOREIGN) and Path(dep).exists() else None
+
+
 def relocate(bundle: Path, lib_dir: Path) -> None:
     """
     Every Mach-O in the bundle: copy each foreign dylib it names into lib_dir
     and point the reference at it, relative to the file. Repeats until the
     copies themselves name nothing foreign.
+
+    Foreign is an absolute path under this machine, or an @rpath/ name — Qt's
+    frameworks, Homebrew's OpenCV and VTK name each other that way and lean on
+    LC_RPATH, which on the runner reached /opt/homebrew and on a tester's Mac
+    reached nothing: v0.1.0's zip died on libvtkCommonComputationalGeometry.
     """
     seen: set[Path] = set()
+    origin: dict[Path, Path] = {}  # a copy in lib_dir → the file it was copied from
+    exe = bundle / "video-code"
     queue = [p for p in bundle.rglob("*") if p.is_file() and is_macho(p)]
+    queue.sort(key=lambda p: p == exe)  # popped first: what it names is what a Qt plugin names too
     while queue:
         macho = queue.pop()
         if macho in seen:
@@ -99,16 +121,18 @@ def relocate(bundle: Path, lib_dir: Path) -> None:
             sh("install_name_tool", "-id", f"@rpath/{macho.name}", str(macho))
             changed = True
         for dep in deps(macho):
-            if not dep.startswith(FOREIGN):
+            if not dep.startswith(FOREIGN) and not dep.startswith("@rpath/"):
                 continue
             name = Path(dep).name
             target = lib_dir / name
             if not target.exists():
-                if not Path(dep).exists():
+                src = resolve(dep, macho, origin.get(macho, macho)) or resolve(dep, exe, exe)
+                if src is None:
                     sys.exit(f"{macho} names {dep}, which is not on this machine")
-                shutil.copy2(dep, target)
+                shutil.copy2(src, target)
                 os.chmod(target, 0o755)
                 sh("install_name_tool", "-id", f"@rpath/{name}", str(target))
+                origin[target] = src
                 queue.append(target)
             rel = os.path.relpath(target, macho.parent)
             sh("install_name_tool", "-change", dep, f"@loader_path/{rel}", str(macho))
@@ -120,16 +144,23 @@ def relocate(bundle: Path, lib_dir: Path) -> None:
 
 
 def check_clean(bundle: Path) -> None:
+    """Nothing names this machine, and everything named is in the folder."""
     dirty = []
     for macho in (p for p in bundle.rglob("*") if p.is_file() and is_macho(p)):
-        for dep in deps(macho) + [own_id(macho)]:
-            if dep.startswith(FOREIGN):
+        if own_id(macho).startswith(FOREIGN):
+            dirty.append(f"{macho.relative_to(bundle)} → {own_id(macho)}")
+        for dep in deps(macho):
+            if dep.startswith(FOREIGN) or dep.startswith("@rpath/"):
                 dirty.append(f"{macho.relative_to(bundle)} → {dep}")
+            elif dep.startswith("@loader_path/") and not (macho.parent / dep[len("@loader_path/"):]).exists():
+                dirty.append(f"{macho.relative_to(bundle)} → {dep} (not in the folder)")
+            elif dep.startswith("@executable_path/") and not (bundle / dep[len("@executable_path/"):]).exists():
+                dirty.append(f"{macho.relative_to(bundle)} → {dep} (not in the folder)")
     if dirty:
         sys.exit("still pointing at this machine:\n  " + "\n  ".join(dirty))
 
 
-def copy_qt(loaded: list[str], dist: Path, plugins: list[str], qml_skip: set[str]) -> None:
+def copy_qt(loaded: list[str | Path], dist: Path, plugins: list[str], qml_skip: set[str]) -> None:
     """
     Qt, when it is a library rather than something linked in.
 
@@ -144,8 +175,8 @@ def copy_qt(loaded: list[str], dist: Path, plugins: list[str], qml_skip: set[str
     # …/6.8.1/macos/lib/QtCore.framework/Versions/A/QtCore on one platform,
     # …/6.8.1/gcc_64/lib/libQt6Core.so.6 on the other: the prefix is what comes
     # before /lib/ in both.
-    prefix = next((Path(dep.split("/lib/")[0]) for dep in loaded
-                   if ("QtCore" in dep or "Qt6Core" in dep) and "/lib/" in dep), None)
+    prefix = next((Path(str(dep).split("/lib/")[0]) for dep in loaded
+                   if ("QtCore" in str(dep) or "Qt6Core" in str(dep)) and "/lib/" in str(dep)), None)
     if prefix is None:
         return
 
@@ -255,7 +286,7 @@ def main() -> None:
 
     # The Controls styles this application never asks for stay behind; the
     # macOS one is the one it draws with.
-    copy_qt(deps(binary), DIST, ["platforms", "styles", "imageformats", "iconengines", "tls"],
+    copy_qt([resolve(dep, binary, binary) or dep for dep in deps(binary)], DIST, ["platforms", "styles", "imageformats", "iconengines", "tls"],
             {"Imagine", "Material", "Universal", "iOS", "Windows", "Fusion"})
 
     # The executable's own references first, by name, so the rewrite is exact.
