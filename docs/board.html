@@ -166,7 +166,7 @@
     <h1>Chantier Video-Code</h1>
     <span class="branch">main</span>
     <span class="chips">
-      <span class="chip"><b>68</b> livrés</span>
+      <span class="chip"><b>69</b> livrés</span>
       <span class="chip"><b>6</b> à faire</span>
       <span class="chip"><b>69</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
@@ -216,10 +216,8 @@
       </div>
 
       <div class="card doing">
-        <h2>In progress <em>le CI construit, je mesure</em> <span class="n">1</span></h2>
-        <ul class="rows">
-          <li data-b="Mesuré sur le dossier macOS local : 45,6 Mo en zip, 30,8 Mo en tar.xz, un tiers de moins.¦bsdtar lit xz seul sur macOS, GNU tar appelle xz sur Linux : xz-utils dans le conteneur de test, un contrôle dans l'installeur. Le drapeau des bundlers s'appelle --archive.¦Attendu sur la release : macOS ≈ 78 Mo, Linux ≈ 58 Mo. Les anciens .zip seront retirés de la release une fois les tar.xz posés."><span class="id">C13</span><span class="lbl">tar.xz à la place du zip</span><span class="meta sha">1f220e4</span></li>
-        </ul>
+        <h2>In progress <em>rien — les sessions attendent ton go</em> <span class="n">0</span></h2>
+        <ul class="rows"></ul>
       </div>
 
       <div class="card no">
@@ -259,8 +257,9 @@
 
     <div class="col">
       <div class="card">
-        <h2>Shipped <em>last 3 days</em> <span class="n">4</span></h2>
+        <h2>Shipped <em>last 3 days</em> <span class="n">5</span></h2>
         <ul class="rows">
+          <li class="hot" data-b="macOS 114 → 72 Mo, Linux 86 → 57 Mo, sur la release. Depuis ce matin : 220 → 72 et 188 → 57.¦Le même dossier en xz au lieu de zip : bsdtar le lit seul sur macOS, GNU tar appelle xz sur Linux (xz-utils dans le conteneur de test, contrôle dans l'installeur). Le drapeau des bundlers s'appelle --archive.¦Les anciens .zip sont retirés de la release ; l'installeur en une ligne prend le tar.xz."><span class="id">C13</span><span class="lbl">tar.xz à la place du zip</span><span class="meta sha">1f220e4</span></li>
           <li class="hot" data-b="macOS 220 → 114 Mo, Linux 188 → 86 Mo, mesuré sur les zips que le CI vient de poser sur la release, et les deux jobs sont verts.¦macOS : 56 Mo de .dSYM Qt sautés, et OpenCV demandé par ses quatre modules au lieu des 57 de Homebrew — VTK, OpenVINO, Tesseract, Ceres partis. Linux : OpenCV et son GDAL, ffmpeg et ses codecs pris chez apt, deux paquets de plus sur la ligne du README et de l'installeur.¦Ce qui reste : Python 25–34 Mo, Qt 30 Mo, l'ICU de Qt 12 Mo sur Linux, openblas 7 Mo sur macOS. Si c'est encore trop : tar.xz à la place du zip, ~30 % de moins."><span class="id">C13</span><span class="lbl">Des zips deux fois plus légers</span><span class="meta sha">fe3c444</span></li>
           <li data-b="Le zip macOS de v0.1.0 mourait chez un testeur : dyld ne trouvait pas libvtkCommonComputationalGeometry, et aucun Qt n'était embarqué. Le bundler ne suivait que les dépendances en chemin absolu, pas les @rpath/ que le runner résolvait par LC_RPATH.¦Résolution des @rpath via LC_RPATH, check_clean strict, chaque dylib copiée signée dès que son id est réécrit — sinon « code signature invalid » sur QtCore.¦Vérifié de bout en bout par l'autre session : zip reconstruit téléchargé, 42 images rendues, lib/qt et qt.conf présents. Release v0.1.0 retitrée, notes refaites."><span class="id">—</span><span class="lbl">Le zip macOS tourne chez un testeur</span><span class="meta sha">f8e6252</span></li>
           <li data-b="curl -fsSL …/scripts/install.sh | sh : choisit le zip de la plateforme, dézippe, lève la quarantaine, rend first_rectangle.py.¦README et docs/readme/06_installation.md ont une section Installation.¦Workflow release.yaml vert sur les deux plateformes (run 34961174319)."><span class="id">—</span><span class="lbl">Un installeur en une ligne</span><span class="meta sha">442f7f2</span></li>
