@@ -12,11 +12,11 @@
 #
 #   # ouvrir dans l'UI (dock, timeline, proprietes) :
 #   MONTAGE_SOURCE=~/Desktop/Projets/Evolvia/first_test.mov \
-#   ./video-code --editor --file examples/chess_montage.py
+#   ./video-code --editor --file chess_montage.py
 #
 #   # sortir le fichier :
 #   MONTAGE_SOURCE=~/Desktop/Projets/Evolvia/first_test.mov \
-#   ./video-code --file examples/chess_montage.py --generate reel.mp4 \
+#   ./video-code --file chess_montage.py --generate reel.mp4 \
 #                --width 936 --height 1080
 #
 # --width/--height doivent coller au ratio de la source : le plan est mis a

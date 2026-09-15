@@ -949,7 +949,7 @@ plateau emitted once left the middle of the window with no shader at all, and
 a 2 s `spotlightOn` was visible for 0.35 s, gone for 1.3 s, then visible
 again. `spotlightOn`, `zoneFocus` and `desaturate` all go through it.
 
-**Example**: `examples/chess_montage.py` (the named reel),
+**Example**: `chess_montage.py` (the named reel),
 `test/visual/scenes/montage_camera.py`, `montage_grade.py`.
 
 **Transitions** (`transitions.py`) — plain functions animating TWO inputs at
