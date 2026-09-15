@@ -104,7 +104,7 @@ if(CI_BUILD)
     set(MINIAUDIO_INCLUDE_DIR ${miniaudio_SOURCE_DIR} CACHE PATH "miniaudio, fetched")
 endif()
 
-find_package(OpenCV CONFIG REQUIRED)
+find_package(OpenCV CONFIG REQUIRED COMPONENTS core imgproc imgcodecs videoio)
 find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
 # pybind11 is pip-installed, not in any system CMake registry.
 # Ask it directly where its CMake config lives, then point find_package at that path.

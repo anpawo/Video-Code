@@ -73,7 +73,8 @@ def is_macho(path: Path) -> bool:
 
 def copy_tree(src: Path, dst: Path, skip: set[str] | frozenset[str] = frozenset()) -> None:
     def ignore(_directory: str, names: list[str]) -> set[str]:
-        return {n for n in names if n in skip or n.endswith(".pyc")}
+        # Qt's macOS plugins each carry a .dSYM beside them: 56 of v0.1.0's 220 MB.
+        return {n for n in names if n in skip or n.endswith((".pyc", ".dSYM"))}
 
     shutil.copytree(src, dst, ignore=ignore, symlinks=False)
 

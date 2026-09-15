@@ -14,7 +14,7 @@ command -v unzip >/dev/null || { echo "unzip is missing (sudo apt install unzip)
 command -v ffmpeg >/dev/null || {
     echo "ffmpeg is missing." >&2
     echo "  macOS:  brew install ffmpeg" >&2
-    echo "  Ubuntu: sudo apt install ffmpeg mesa-vulkan-drivers libvulkan1 libopengl0 libegl1 libglx0 libxkbcommon0" >&2
+    echo "  Ubuntu: sudo apt install ffmpeg mesa-vulkan-drivers libvulkan1 libopengl0 libegl1 libglx0 libxkbcommon0 libopencv-imgcodecs406t64 libopencv-videoio406t64" >&2
     exit 1
 }
 

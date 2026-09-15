@@ -48,6 +48,9 @@ SYSTEM = (
     "libz.so", "liblzma", "libbz2", "libexpat", "libffi", "libuuid",
     "libssl", "libcrypto", "libasound", "libpulse", "libnss_", "libmount",
     "libblkid",
+    # Ubuntu's OpenCV: its imgcodecs names GDAL and its videoio names ffmpeg,
+    # and the two trees were 110 of v0.1.0's 188 MB. apt has them in seconds.
+    "libopencv_",
 )
 # Three names are deliberately NOT in that list, and each cost a run to learn:
 #   glib          — its package is `libglib2.0-0t64` on 24.04 and was
@@ -311,7 +314,8 @@ README = """Video-Code — a folder that runs
 Needs: Ubuntu 24.04 or newer (x86_64), and this line from apt:
 
     sudo apt install ffmpeg mesa-vulkan-drivers libvulkan1 \
-                     libopengl0 libegl1 libglx0 libxkbcommon0
+                     libopengl0 libegl1 libglx0 libxkbcommon0 \
+                     libopencv-imgcodecs406t64 libopencv-videoio406t64
 
 Nothing else: Python, its packages and Qt are inside. A desktop Ubuntu already
 has everything after the first two. The renderer draws with Vulkan —

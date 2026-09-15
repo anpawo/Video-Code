@@ -89,7 +89,7 @@ jobs:
             # one CI round at a time. The README.txt line has to install these.
             echo "— missing with ffmpeg and Vulkan alone:"
             ldd ./video-code lib/qt/plugins/platforms/*.so | awk "/not found/ {print \$1}" | sort -u
-            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libopengl0 libegl1 libglx0 libxkbcommon0 > /dev/null
+            DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libopengl0 libegl1 libglx0 libxkbcommon0 libopencv-imgcodecs406t64 libopencv-videoio406t64 > /dev/null
             echo "— still missing after the README.txt line:"
             ldd ./video-code lib/qt/plugins/platforms/*.so | awk "/not found/ {print \$1}" | sort -u
             printf "import shapely, PIL, freetype, uharfbuzz, pygments, svgelements\nfrom videocode import *\nSquare(side=1)\n" > /tmp/probe.py
