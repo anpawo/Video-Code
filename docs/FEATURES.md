@@ -688,6 +688,7 @@ rendered pixels:
 | `sepia()` / `invert(amount)` / `posterize(...)` / `hueRotate(...)` | | CSS-style color filters |
 | `halftone(...)` | `halftone.py` | 45° print-style dot grid |
 | `chromaKey(color, tolerance, softness)` | `chromaKey.py` | Green-screen keying — see [Compositing & Grading](#compositing--grading) |
+| `spotlight(x, y, width, height, corner, softness, darkness)` | `spotlight.py` | Darkens everything outside a rounded box — FRAME coordinates, not object-relative |
 | `glow(radius, intensity)` | `glow.py` | Additive bloom halo — see [Compositing & Grading](#compositing--grading) |
 | `lut(filepath, intensity)` | `lut.py` | `.cube` LUT color grade — see [Compositing & Grading](#compositing--grading) |
 
@@ -898,6 +899,58 @@ Standalone generator functions that build shader sequences. Call via `input.appl
 | `pulse(scale, times, ...)` | `pulse.py` | There-and-back scale pulse (beat-sync's partner) |
 | `zoomPunch(...)` / `flash(...)` / `jelly(...)` / `swing(...)` / `tada(...)` / `stamp(...)` | | Emphasis effects (Animate.css-style) |
 | `kenBurns(...)` | `kenBurns.py` | Slow pan+zoom for stills |
+
+### Montage (`effect/other/camera.py`, `impact.py`, `whipPan.py`, `spotlightOn.py`, `desaturate.py`, `vignetteIn.py`, `scope.py`, `glitchBurst.py`, `retime.py`)
+
+Editing grammar for footage: a camera that never sits still, plus the beats
+and grades that go with it. Coordinates are **generic** — a fraction of a box,
+never a domain notion; turning "the third square of the fifth rank" into
+`(x, y)` is the caller's job, videocode stays subject-agnostic.
+
+Two coordinate spaces, on purpose, and they are NOT interchangeable:
+- **camera moves** take fractions of the input's OWN box, (0,0) top-left —
+  they move the mesh, so they must speak its geometry (`framing.py`);
+- **light/grade shaders** take frame UV, (0,0) top-left of the FRAME — they
+  run on rendered pixels and know nothing of the mesh.
+
+| Name | File | What it is |
+|---|---|---|
+| `punchIn(zoom, start, duration, easing)` | `camera.py` | Slow continuous zoom; claims `scale` only, so it composes with a pan |
+| `zoomTo(x, y, zoom, ...)` | `camera.py` | Zooms AND reframes so `(x, y)` lands at the frame centre |
+| `snapZoom(x, y, zoom, hold, attack, release)` | `camera.py` | Violent in, hold, ease back — returns exactly to the origin |
+| `travelling(fromX, fromY, toX, toY, zoom, ...)` | `camera.py` | Zoom set once, then a pan from one point to another |
+| `impact(x, y, zoom, amplitude, frequency, ...)` | `impact.py` | Punch + decaying rumble as ONE effect (two effects would fight over `position`) |
+| `whipPan(toX, toY, zoom, blur, ...)` | `whipPan.py` | Fast throw with a blur envelope — **degraded**: the blur is isotropic, there is no directional motion-blur shader |
+| `spotlightOn(x, y, radius, softness, darkness, ...)` | `spotlightOn.py` | Round pool of light on a frame point, everything else dimmed |
+| `zoneFocus(x, y, width, height, corner, ...)` | `spotlightOn.py` | Same, rectangular — for framing a region rather than a point |
+| `desaturate(amount, ...)` / `vignetteIn(...)` / `vignetteBeat(...)` | `desaturate.py`, `vignetteIn.py` | Grades: drain the color, or close the corners (`Beat` = there-and-back) |
+| `scope(ratio)` / `unscope(ratio)` | `scope.py` | Animate cinemascope bars in/out via `crop` |
+| `glitchBurst(amount, slices, seed, blocks, ...)` | `glitchBurst.py` | One `glitch` + optional `pixelate` ramp — cannot ramp `amount`, `glitch` is time-driven and re-issuing it restarts its clock |
+
+**Retiming** (`retime.py`) — `speedRamp`, `ralenti`, `accelere`,
+`freezeFrame`, `rewind` are **not** `Effect`s: retiming changes which SOURCE
+frame is decoded, which `Video` decides once at construction. They build
+`speedRamps=` triples:
+
+```python
+Video("game.mov", speedRamps=[*accelere(at=0, duration=20, rate=4.0),
+                              *ralenti(at=24, duration=2, rate=0.4)])
+```
+
+Sampling is nearest-frame with no blending at any rate, so `ralenti` is a
+slow motion, not an interpolated one — there is no optical-flow retiming in
+the engine.
+
+**Shared ramp** (`effect/ramp.py`) — `dipAndReturn(peak, start, duration,
+fade)` yields the `(value, time)` pairs a grade follows: rise over `fade`,
+hold, fall back over `fade`. It emits one pair **per frame through the hold**,
+because a fragment shader posed on a frame only applies to that frame: a
+plateau emitted once left the middle of the window with no shader at all, and
+a 2 s `spotlightOn` was visible for 0.35 s, gone for 1.3 s, then visible
+again. `spotlightOn`, `zoneFocus` and `desaturate` all go through it.
+
+**Example**: `examples/chess_montage.py` (the named reel),
+`test/visual/scenes/montage_camera.py`, `montage_grade.py`.
 
 **Transitions** (`transitions.py`) — plain functions animating TWO inputs at
 once (not `.apply()` effects):
