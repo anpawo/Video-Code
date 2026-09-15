@@ -14,14 +14,20 @@
 #   MONTAGE_SOURCE=~/Desktop/Projets/Evolvia/first_test.mov \
 #   ./video-code --editor --file chess_montage.py
 #
-#   # sortir le fichier :
+#   # sortir le fichier, a la taille et au fps de la source :
 #   MONTAGE_SOURCE=~/Desktop/Projets/Evolvia/first_test.mov \
 #   ./video-code --file chess_montage.py --generate reel.mp4 \
-#                --width 936 --height 1080
+#                --width 1322 --height 1526 --framerate 60
 #
-# --width/--height doivent coller au ratio de la source : le plan est mis a
-# l'echelle pour REMPLIR le cadre, donc un ratio different recadre (il ne
-# deforme pas).
+# --width/--height sont LIBRES : le plan est mis a l'echelle pour TENIR dans le
+# cadre (jamais deforme, jamais recadre), et ce qui reste est noir. Les donner
+# a la taille native de la source evite un reechantillonnage inutile.
+#
+# --framerate ne fait que le fichier de sortie : une scene est TOUJOURS ecrite
+# a 30 fps (Config::SCENE_FRAMERATE, en dur dans le C++), et le compilateur
+# duplique ou jette des images pour atteindre le fps demande. Un rendu a 60
+# donne donc un fichier a 60 fps, avec 30 images distinctes par seconde. La
+# vitesse de LECTURE de la source, elle, est reglee par la rampe plus bas.
 #
 # Toutes les coordonnees sont des FRACTIONS, jamais des pixels et jamais quoi
 # que ce soit qui sache ce qui est filme :
@@ -83,11 +89,16 @@ def probeSource() -> tuple[float, float, float]:
     return float(width), float(height), float(num) / float(den or 1)
 
 
-def coverSize(sourceWidth: float, sourceHeight: float) -> tuple[float, float]:
-    """Taille du media, en unites monde, qui remplit le cadre sans deformer."""
-    # max() = "cover" (ca deborde puis on recadre) ; min() ferait "contain" et
-    # laisserait des bandes noires.
-    factor = max(WORLD_WIDTH / sourceWidth, WORLD_HEIGHT / sourceHeight)
+def containSize(sourceWidth: float, sourceHeight: float) -> tuple[float, float]:
+    """
+    Taille du media, en unites monde, qui TIENT dans le cadre sans deformer.
+
+    min() = "contain" : l'image entiere est visible, et s'il reste de la place
+    sur un cote elle est noire (voir `backdrop`). max() ferait "cover", qui
+    remplit le cadre mais RECADRE — on perdait des bouts du plateau des que le
+    ratio de sortie ne collait pas exactement a celui de la source.
+    """
+    factor = min(WORLD_WIDTH / sourceWidth, WORLD_HEIGHT / sourceHeight)
     return sourceWidth * factor, sourceHeight * factor
 
 
@@ -222,19 +233,70 @@ shots: list[tuple[str, str, Effect, bool]] = [
 REEL = len(shots) * SHOT  # duree totale visee, en secondes de film
 
 sourceWidth, sourceHeight, sourceFps = probeSource()
-clipWidth, clipHeight = coverSize(sourceWidth, sourceHeight)
+clipWidth, clipHeight = containSize(sourceWidth, sourceHeight)
 
-# startFrame / endFrame sont en frames SOURCE (au fps de la source), et le
-# moteur consomme UNE frame source par frame de sortie. Une source a 60 fps
-# rendue a 30 fps joue donc a demi-vitesse : la fenetre ci-dessous couvre
-# REEL/2 secondes de jeu reel, etalees sur REEL secondes de film. C'est voulu
-# pour une bobine de demo — on voit mieux les effets — mais c'est a savoir.
-# Sans endFrame, le clip reclamerait toute sa duree (ici 10 min de rendu).
+# Les bandes. En "contain", ce qui n'est pas couvert par le plan reste
+# transparent : on pose un fond noir plein cadre dessous pour que ce soit des
+# BANDES NOIRES et pas un trou. zIndex(-1) : sous tout le reste.
+backdrop = Rectangle(
+    width=WORLD_WIDTH, height=WORLD_HEIGHT,
+    fillColor=BLACK, strokeColor=TRANSPARENT,
+)
+backdrop.position(0, 0).zIndex(-1)
+
+# LA VITESSE DE LECTURE — le piege le moins evident de ce moteur.
+#
+# Le moteur consomme UNE frame source par frame de SCENE, et une scene est
+# toujours ecrite a 30 fps (`Config::SCENE_FRAMERATE`, en dur cote C++ ;
+# --framerate ne change que le fichier de sortie, en dupliquant des images).
+# Une source a 60 fps jouait donc a DEMI-VITESSE : tout etait au ralenti.
+#
+# On ne peut pas corriger ca avec `speedRamps` : une rampe change bien quelle
+# frame source est decodee, mais la longueur que le clip revendique reste
+# `endFrame - startFrame`, sans tenir compte du taux — la bobine sortait deux
+# fois trop longue, avec une queue muette apres le dernier plan. Seuls les
+# `cuts` reduisent cette longueur.
+#
+# Ce qui tombe bien, parce que passer de 60 a 30 fps, c'est litteralement
+# jeter une image sur deux. `decimate` le fait, pour un rapport quelconque.
+
+
+def decimate(first: int, frames: int, ratio: float) -> list[tuple[int, int]]:
+    """
+    Les `cuts` qui ne gardent qu'une frame source sur `ratio`.
+
+    `frames` est le nombre de frames de SCENE voulues ; la frame de scene i
+    prend la frame source `first + round(i * ratio)`, et tout le reste de la
+    fenetre est coupe. Avec ratio=2.0 c'est une image sur deux ; avec 1.0 la
+    liste est vide et rien n'est coupe.
+    """
+    kept = {first + round(i * ratio) for i in range(frames)}
+    spans: list[tuple[int, int]] = []
+    f = first
+    last = first + round((frames - 1) * ratio) + 1
+    while f < last:
+        if f in kept:
+            f += 1
+            continue
+        gap = f
+        while f < last and f not in kept:
+            f += 1
+        spans.append((gap, f))
+    return spans
+
+
+# startFrame / endFrame sont en frames SOURCE, au fps de la source. La fenetre
+# doit donc couvrir REEL secondes de SOURCE, que la decimation ramene ensuite a
+# REEL secondes de scene. Sans endFrame, le clip reclamerait toute sa duree
+# (ici 10 min de rendu).
+sceneFrames = round(REEL * FRAMERATE)
+ratio = sourceFps / FRAMERATE          # 2.0 pour une source a 60 fps, 1.0 a 30
 firstFrame = int(START_AT * sourceFps)
 clip = Video(
     SOURCE,
     startFrame=firstFrame,
-    endFrame=firstFrame + int(REEL * FRAMERATE),
+    endFrame=firstFrame + round((sceneFrames - 1) * ratio) + 1,
+    cuts=decimate(firstFrame, sceneFrames, ratio),
     width=clipWidth,
     height=clipHeight,
 )
