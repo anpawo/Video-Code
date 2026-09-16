@@ -214,6 +214,7 @@ namespace
         {"effect-shaders3", "test/visual/scenes/effect_shaders3.py", {0}},
         {"effect-templates3", "test/visual/scenes/effect_templates3.py", {0, 7, 15, 29}},
         {"effect-shaders4", "test/visual/scenes/effect_shaders4.py", {0}},
+        {"effect-shaders5", "test/visual/scenes/effect_shaders5.py", {0}},
         {"transitions", "test/visual/scenes/transitions.py", {0, 8, 15}},
         {"blend-modes", "test/visual/scenes/blend_modes.py", {0}},
         {"glow", "test/visual/scenes/glow.py", {0}},
