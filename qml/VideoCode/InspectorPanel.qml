@@ -141,8 +141,10 @@ Item {
         return Shell.stateAt(root.element.index, Math.round(root.playhead * 30));
     }
 
-    readonly property var argRows: root.arguments.map((one) => {
-        const asWritten = root.written(one.name);
+    readonly property var argRows: root.arguments.map((one, i) => {
+        // Named on the line, or given by position — `Video("clip.mov")`.
+        const named = root.written(one.name);
+        const asWritten = named.length > 0 ? named : root.positionalOf(root.cls, i);
         const live = root.meta["Args:" + one.name];
         const shown = asWritten.length > 0 ? asWritten : one.value;
         const now = live !== undefined ? root.readable(live) : "";
