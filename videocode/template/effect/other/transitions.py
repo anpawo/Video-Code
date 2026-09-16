@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 from videocode.constants import *
+from videocode.shader.fragmentShader.brightness import brightness as _brightness
 from videocode.shader.fragmentShader.crop import crop as _crop
 from videocode.shader.vertexShader.hide import hide as _hide
 from videocode.shader.vertexShader.opacity import opacity as _opacity
@@ -96,3 +97,33 @@ def wipeBetween(
     for p, i in easing.rangeIdx(100.0, 0.0, duration):
         incoming.apply(_crop(**{side: p}), start=start + i * SINGLE_FRAME)
     outgoing.apply(_hide(), start=start + duration)
+
+
+def dipToBlack(
+    outgoing: Input,
+    incoming: Input,
+    *,
+    start: sec = 0,
+    duration: sec = 0.6,
+    easing: easing = Easing.InOut,
+) -> None:
+    """
+    Dip to black: `outgoing` darkens to black over the first half of
+    `duration`, then `incoming` rises back up from black over the second
+    half — the default transition of every NLE after the straight cut and
+    the cross-dissolve.
+
+    Goes through `brightness`, an additive filter, so it can only ever dip
+    through black — there is no cheap way to dip through an arbitrary color
+    with the shaders this project has.
+
+        dipToBlack(sceneA, sceneB, duration=0.8)
+    """
+    half = duration / 2
+    for b, i in easing.rangeIdx(0.0, -255.0, half):
+        outgoing.apply(_brightness(int(b)), start=start + i * SINGLE_FRAME)
+    outgoing.apply(_hide(), start=start + half)
+
+    incoming.apply(_show(), start=start + half).apply(_brightness(-255), start=start + half)
+    for b, i in easing.rangeIdx(-255.0, 0.0, half):
+        incoming.apply(_brightness(int(b)), start=start + half + i * SINGLE_FRAME)
