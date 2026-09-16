@@ -165,7 +165,7 @@ Item {
         font.pixelSize: 12
     }
 
-    // ── One row: a label, a field ─────────────────────────────────────────
+    // ── One row: a label, a value — a field only when the pointer is on it ──
     component FieldRow: Item {
         id: row
         property string label: ""
@@ -175,18 +175,21 @@ Item {
         // What the playhead reads, when an effect has moved it off the line.
         property string now: ""
         property bool editable: true
+        property bool last: false
         signal committed(string text)
 
         width: parent !== null ? parent.width : 0
-        height: 30
+        height: 34
+
+        HoverHandler { id: over }
 
         Text {
             anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
-            width: Math.max(40, parent.width - box.width - nowText.width - 34)
+            width: Math.max(40, parent.width - box.width - nowText.width - 36)
             text: row.label
-            color: Theme.inkDim
+            color: Theme.ink
             font.family: Theme.ui
-            font.pixelSize: 11
+            font.pixelSize: 12
             elide: Text.ElideRight
         }
 
@@ -201,15 +204,18 @@ Item {
             font.pixelSize: 10
         }
 
+        // The value reads as text; the field around it only shows itself when
+        // the pointer is there, the way a Settings row keeps its calm.
         Rectangle {
             id: box
-            anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
+            anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
             width: Math.min(150, Math.max(64, row.width * 0.42))
-            height: 22
-            radius: 4
-            color: Theme.sunk
+            height: 24
+            radius: 6
+            readonly property bool lit: row.editable && (over.hovered || field.activeFocus)
+            color: lit ? Theme.sunk : "transparent"
             border.width: 1
-            border.color: field.activeFocus ? Theme.live : Theme.edge
+            border.color: field.activeFocus ? Theme.live : lit ? Theme.edge : "transparent"
 
             TextInput {
                 id: field
@@ -217,7 +223,7 @@ Item {
                 verticalAlignment: TextInput.AlignVCenter
                 horizontalAlignment: TextInput.AlignRight
                 text: row.value
-                color: row.faint && !activeFocus ? Theme.inkFaint : Theme.ink
+                color: row.faint && !activeFocus ? Theme.inkDim : Theme.ink
                 font.family: Theme.mono
                 font.pixelSize: 11
                 selectByMouse: true
@@ -232,9 +238,16 @@ Item {
                 onActiveFocusChanged: if (!activeFocus) text = Qt.binding(() => row.value)
             }
         }
+
+        Rectangle {
+            anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 14 }
+            height: 1
+            visible: !row.last
+            color: Theme.edgeSoft
+        }
     }
 
-    // ── A section: a chevron, a name, and its rows folded under it ────────
+    // ── A section: a small title, then its rows in one rounded group ──────
     component Section: Column {
         id: section
         property string title: ""
@@ -242,48 +255,59 @@ Item {
         property bool open: true
         default property alias rows: body.data
         width: parent !== null ? parent.width : 0
+        spacing: 6
+        topPadding: 14
 
         Item {
             width: parent.width
-            height: 30
+            height: 16
+
+            Text {
+                anchors { left: parent.left; leftMargin: 22; verticalCenter: parent.verticalCenter }
+                text: section.title
+                color: Theme.inkDim
+                font.family: Theme.ui
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+            }
 
             Row {
-                anchors { left: parent.left; leftMargin: 12; verticalCenter: parent.verticalCenter }
-                spacing: 6
+                anchors { right: parent.right; rightMargin: 22; verticalCenter: parent.verticalCenter }
+                spacing: 8
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: section.aside
+                    color: Theme.inkFaint
+                    font.family: Theme.mono
+                    font.pixelSize: 10
+                }
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     text: section.open ? "▾" : "▸"
                     color: Theme.inkFaint
                     font.pixelSize: 10
                 }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: section.title
-                    color: Theme.ink
-                    font.family: Theme.ui
-                    font.pixelSize: 12
-                    font.weight: Font.DemiBold
-                }
-            }
-
-            Text {
-                anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                text: section.aside
-                color: Theme.inkFaint
-                font.family: Theme.mono
-                font.pixelSize: 10
             }
 
             TapHandler { onTapped: section.open = !section.open }
         }
 
-        Column {
-            id: body
-            width: parent.width
+        Rectangle {
+            x: 12
+            width: parent.width - 24
+            height: body.height
             visible: section.open
-        }
+            radius: 10
+            color: Theme.rail
+            border.width: 1
+            border.color: Theme.edgeSoft
+            clip: true
 
-        Rectangle { width: parent.width; height: 1; color: Theme.edgeSoft }
+            Column {
+                id: body
+                width: parent.width
+            }
+        }
     }
 
     ScrollView {
@@ -293,61 +317,65 @@ Item {
 
         Column {
             width: root.width
+            bottomPadding: 16
 
-            // ── The title strip ───────────────────────────────────────────
+            // ── The header card: what it is ───────────────────────────────
             Item {
                 width: parent.width
-                height: 44
+                height: 76
 
                 Rectangle {
-                    id: dot
-                    anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
-                    width: 10; height: 10; radius: 3
-                    color: root.hue
-                }
+                    x: 12; y: 12
+                    width: parent.width - 24
+                    height: 56
+                    radius: 10
+                    color: Theme.rail
+                    border.width: 1
+                    border.color: Theme.edgeSoft
 
-                Text {
-                    id: nameText
-                    anchors { left: dot.right; leftMargin: 8; verticalCenter: parent.verticalCenter }
-                    width: Math.min(implicitWidth, parent.width - 150)
-                    text: root.element !== null && root.element.n !== undefined ? root.element.n : ""
-                    color: Theme.ink
-                    font.family: Theme.ui
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
-                    TapHandler { onTapped: if (root.element !== null) root.renameRequested(root.element) }
-                }
+                    Rectangle {
+                        id: dot
+                        anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
+                        width: 26; height: 26; radius: 7
+                        color: Qt.alpha(root.hue, 0.25)
+                        border.width: 1
+                        border.color: Qt.alpha(root.hue, 0.6)
+                        Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 3; color: root.hue }
+                    }
 
-                Text {
-                    anchors { left: nameText.right; leftMargin: 8; verticalCenter: parent.verticalCenter }
-                    text: root.cls
-                    color: Theme.inkFaint
-                    font.family: Theme.mono
-                    font.pixelSize: 10
-                }
-
-                Row {
-                    anchors { right: parent.right; rightMargin: 12; verticalCenter: parent.verticalCenter }
-                    spacing: 10
                     Text {
-                        text: root.element !== null && root.element.line > 0 ? "line " + root.element.line : ""
-                        color: jump.hovered ? Theme.live : Theme.inkFaint
-                        font.family: Theme.mono
-                        font.pixelSize: 10
+                        id: nameText
+                        anchors { left: dot.right; leftMargin: 10; top: parent.top; topMargin: 10 }
+                        width: Math.min(implicitWidth, parent.width - 130)
+                        text: root.element !== null && root.element.n !== undefined ? root.element.n : ""
+                        color: Theme.ink
+                        font.family: Theme.ui
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        // A click renames: the box opens in the code, on the line that declares it.
+                        TapHandler { onTapped: if (root.element !== null) root.renameRequested(root.element) }
+                    }
+
+                    Text {
+                        anchors { left: dot.right; leftMargin: 10; top: nameText.bottom; topMargin: 2 }
+                        text: root.cls + (root.element !== null && root.element.d > 0 ? "  ·  " + root.element.d.toFixed(1) + "s" : "")
+                        color: Theme.inkFaint
+                        font.family: Theme.ui
+                        font.pixelSize: 11
+                    }
+
+                    Text {
+                        anchors { right: parent.right; rightMargin: 14; verticalCenter: parent.verticalCenter }
+                        text: root.element !== null && root.element.line > 0 ? "line " + root.element.line + "  ›" : ""
+                        color: jump.hovered ? Theme.live : Theme.inkDim
+                        font.family: Theme.ui
+                        font.pixelSize: 11
                         HoverHandler { id: jump; cursorShape: Qt.PointingHandCursor }
                         TapHandler { onTapped: root.jumpRequested(root.element) }
                     }
-                    Text {
-                        text: root.element !== null && root.element.d > 0 ? root.element.d.toFixed(1) + "s" : ""
-                        color: Theme.inkDim
-                        font.family: Theme.mono
-                        font.pixelSize: 10
-                    }
                 }
-
-                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Theme.edge }
             }
 
             Section {
@@ -358,6 +386,8 @@ Item {
                     model: root.argRows
                     FieldRow {
                         required property var modelData
+                        required property int index
+                        last: index === root.argRows.length - 1
                         label: modelData.label
                         value: modelData.value
                         faint: modelData.isDefault
@@ -377,6 +407,8 @@ Item {
                     model: root.metaRows
                     FieldRow {
                         required property var modelData
+                        required property int index
+                        last: index === root.metaRows.length - 1 && root.addable.length === 0
                         label: modelData.label
                         value: modelData.value
                         onCommitted: (text) => root.metadataWritten(root.element, modelData.call, modelData.name,
@@ -386,12 +418,12 @@ Item {
 
                 // What the line does not set yet, one chip each: Palmier's "Add".
                 Flow {
-                    width: parent.width - 26
+                    width: parent.width - 28
                     x: 14
                     spacing: 6
                     visible: root.addable.length > 0
+                    topPadding: 8
                     bottomPadding: 8
-                    topPadding: root.metaRows.length > 0 ? 2 : 0
 
                     Repeater {
                         model: root.addable
@@ -427,6 +459,8 @@ Item {
                     model: root.nowRows
                     FieldRow {
                         required property var modelData
+                        required property int index
+                        last: index === root.nowRows.length - 1
                         label: modelData.label
                         value: modelData.value
                         editable: false
