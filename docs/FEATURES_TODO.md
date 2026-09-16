@@ -170,6 +170,20 @@ disparaître plus tard · **13** `.opacity(0)` avant un fondu d'entrée.
 
 ---
 
+### F — Vu ailleurs, noté le 17 sept.
+
+Ce que Premiere, Final Cut et Palmier Pro ont et que nous n'avons pas, trié par ce que ça rapporte à une vidéo d'explication. Numéros du tableau.
+
+| # | Idée | Vu chez | Pourquoi |
+|---|---|---|---|
+| 47 | Vignettes dans les clips vidéo | Premiere, Palmier | Une image du clip tous les 120 px, rendue par le moteur, comme Premiere et Palmier : un clip vidéo se reconnaît sans lire son nom. |
+| 48 | Œil et haut-parleur par piste | Premiere, Palmier | Dans la tête de piste : l'œil écrit .opacity(0) sur la ligne de l'élément, le haut-parleur coupe son son ; deux gestes qui écrivent du code, pas des boutons décoratifs. |
+| 49 | Choisir plusieurs clips, les déplacer ensemble | Premiere | ⇧clic sur plusieurs clips, un glisser déplace leurs wait d'un bloc ; ⌫ les retire. Premiere le fait avec la sélection, chez nous ce sont des lignes. |
+| 50 | Dupliquer un clip, ⌘D | Premiere, Final Cut | Copie la ligne sous l'original avec un nom suffixé, et le clip apparaît sur sa voie. Premiere et Final Cut l'ont tous deux sur ⌘D. |
+| 51 | Zoom « tout voir », ⇧Z | Premiere, Final Cut | Le curseur revient à 100 % d'une touche, la scène entière tient dans le volet. Shift+Z dans Premiere et Final Cut. |
+| 52 | Marqueurs en couleur, et leur liste | Premiere | timestamp("nom", color=…) colore le drapeau ; un volet liste les marqueurs, un clic y va. Le panneau Markers de Premiere. |
+| 53 | Image figée : freeze(at, duration) | Premiere, Final Cut | Un verbe sur Video qui tient une image n secondes, le film reprend après. Frame Hold de Premiere, Hold Frame de Final Cut ; utile pour poser une explication sur un plan. |
+
 ## 4. Trois routes
 
 Chacune est un travail cohérent, pas une liste de courses.
