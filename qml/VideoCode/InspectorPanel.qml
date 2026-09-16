@@ -22,6 +22,45 @@ Item {
     property var element: null
     property string buffer: ""
     property real playhead: 0
+    // The folder the scene lives in: a picked file is written relative to it.
+    property string baseDir: ""
+
+    // ── What a type is called to a person ─────────────────────────────────
+    readonly property var kindNames: ({
+        "int": "number", "float": "number", "number": "number",
+        "uint": "number ≥ 0", "ufloat": "number ≥ 0", "unumber": "number ≥ 0",
+        "int8": "0–255", "uint8": "0–255",
+        "wint": "units", "wfloat": "units", "wnumber": "units",
+        "wuint": "units ≥ 0", "wufloat": "units ≥ 0", "wunumber": "units ≥ 0",
+        "sec": "seconds", "frame": "frames", "degree": "degrees", "percent": "%",
+        "index": "index", "url": "path", "point": "x, y", "v2": "x, y",
+        "rgba": "color", "paint": "paint", "easing": "easing",
+        "str": "text", "bool": "on/off", "attrName": "attribute"
+    })
+    function kindLabel(kind) {
+        const inner = String(kind).match(/^maybe\[(.*)\]$/);
+        if (inner !== null)
+            return kindLabel(inner[1]) + " · optional";
+        if (/^list\[/.test(kind))
+            return "list";
+        return kindNames[kind] !== undefined ? kindNames[kind] : kind;
+    }
+
+    // The values a closed type allows, for a menu; [] when it is open.
+    function choicesFor(kind) {
+        const bare = String(kind).replace(/^maybe\[(.*)\]$/, "$1");
+        if (bare === "bool")
+            return ["True", "False"];
+        if (bare === "easing" && typeof Shell.easingCurves === "function")
+            return Object.keys(Shell.easingCurves());
+        if (typeof Shell.enumValues !== "function")
+            return [];
+        const found = Shell.enumValues(bare);
+        return found.length > 0 ? found : Shell.enumValues(bare.charAt(0).toUpperCase() + bare.slice(1));
+    }
+    function isPathKind(name, kind) {
+        return kind === "url" || (kind === "str" && /path|file|url|src/i.test(name));
+    }
 
     signal argumentWritten(var element, string call, string name, string value)
     signal metadataAdded(var element, string write)
@@ -118,7 +157,8 @@ Item {
         }
         return { label: one.name, param: one, value: shown, isDefault: asWritten.length === 0,
                  now: now !== shown && !isColor ? now : "", kind: one.kind,
-                 swatch: isColor && hex.length > 0 ? hex.substring(0, 7) : "" };
+                 swatch: isColor && hex.length > 0 ? hex.substring(0, 7) : "",
+                 choices: root.choicesFor(one.kind), isPath: root.isPathKind(one.name, one.kind) };
     })
 
     // The metadata calls on the line: `.position(x=0, y=0)` is two rows.
@@ -230,6 +270,10 @@ Item {
         property string kind: ""
         // A colour's own colour, as a swatch that opens the picker; "" for none.
         property string swatch: ""
+        // A closed type's values: the field becomes a menu.
+        property var choices: []
+        // A file: a button beside the value opens the system chooser.
+        property bool isPath: false
         signal committed(string text)
         function beginEdit() { field.forceActiveFocus(); field.selectAll(); }
 
@@ -249,6 +293,19 @@ Item {
             cursorShape: row.editable ? Qt.PointingHandCursor : Qt.ArrowCursor
             onPressed: (mouse) => {
                 if (!row.editable) { mouse.accepted = false; return; }
+                if (row.isPath && mouse.x >= browse.x - 4 && mouse.x <= browse.x + browse.width + 4) {
+                    const picked = typeof Shell.pickFile === "function" ? Shell.pickFile(root.baseDir) : "";
+                    if (picked.length > 0) {
+                        const rel = root.baseDir.length > 0 && picked.startsWith(root.baseDir + "/")
+                                    ? picked.substring(root.baseDir.length + 1) : picked;
+                        row.committed("\"" + rel + "\"");
+                    }
+                    return;
+                }
+                if (row.choices.length > 0) {
+                    menu.open();
+                    return;
+                }
                 row.beginEdit();
             }
             readonly property bool hovered: containsMouse
@@ -268,10 +325,57 @@ Item {
         Text {
             anchors { left: labelText.right; leftMargin: 8; verticalCenter: parent.verticalCenter }
             visible: over.containsMouse && row.kind.length > 0
-            text: row.kind
+            text: root.kindLabel(row.kind)
             color: Theme.inkFaint
             font.family: Theme.mono
             font.pixelSize: 10
+        }
+
+        // "…", the way a Mac asks for a file.
+        Rectangle {
+            id: browse
+            anchors { right: box.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
+            visible: row.isPath && row.editable
+            width: 24; height: 20; radius: 5
+            color: Theme.rail
+            border.width: 1
+            border.color: Theme.edge
+            Text { anchors.centerIn: parent; text: "…"; color: Theme.inkDim; font.pixelSize: 12 }
+        }
+
+        // A closed type's menu, under the field.
+        Popup {
+            id: menu
+            x: box.x + box.width - width
+            y: box.y + box.height + 4
+            width: Math.max(box.width, 140)
+            padding: 4
+            background: Rectangle { color: Theme.panel; radius: 8; border.width: 1; border.color: Theme.edge }
+            contentItem: Column {
+                Repeater {
+                    model: row.choices
+                    Rectangle {
+                        required property string modelData
+                        width: menu.width - 8
+                        height: 26
+                        radius: 5
+                        color: pick.containsMouse ? Qt.alpha(Theme.live, 0.15) : "transparent"
+                        Text {
+                            anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
+                            text: parent.modelData.split(".").pop()
+                            color: parent.modelData === row.value || parent.modelData.split(".").pop() === row.value ? Theme.live : Theme.ink
+                            font.family: Theme.mono
+                            font.pixelSize: 11
+                        }
+                        MouseArea {
+                            id: pick
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onClicked: { row.committed(parent.modelData); menu.close(); }
+                        }
+                    }
+                }
+            }
         }
 
         Rectangle {
@@ -316,9 +420,15 @@ Item {
                 horizontalAlignment: Text.AlignRight
                 visible: !field.activeFocus
                 opacity: row.faint ? 0.6 : 1
-                textFormat: Text.RichText
-                text: root.painted(row.value)
-                      + (row.kind === "percent" ? "<span style=\"color:" + Theme.inkFaint + "\">%</span>" : "")
+                // Rich text cannot elide: a long value — a path — is drawn plain,
+                // its head cut, since the end is the part that names the file.
+                readonly property bool long: row.value.length > 20
+                textFormat: long ? Text.PlainText : Text.RichText
+                text: long ? row.value
+                           : root.painted(row.value)
+                             + (row.kind === "percent" ? "<span style=\"color:" + Theme.inkFaint + "\">%</span>" : "")
+                             + (row.choices.length > 0 ? "<span style=\"color:" + Theme.inkFaint + "\"> ▾</span>" : "")
+                color: /^["']/.test(row.value) ? Theme.code.string : Theme.ink
                 font.family: Theme.mono
                 font.pixelSize: 11
                 elide: Text.ElideLeft
@@ -544,6 +654,8 @@ Item {
                         now: modelData.now
                         kind: modelData.kind
                         swatch: modelData.swatch
+                        choices: modelData.choices
+                        isPath: modelData.isPath
                         editable: root.writable
                         onCommitted: (text) => root.argumentWritten(root.element, root.cls, modelData.label,
                                                                     root.fullValue(modelData.param, text))
@@ -564,6 +676,7 @@ Item {
                         label: modelData.label
                         value: modelData.value
                         kind: modelData.param.kind
+                        choices: root.choicesFor(modelData.param.kind)
                         onCommitted: (text) => root.metadataWritten(root.element, modelData.call, modelData.name,
                                                                     modelData.at, root.fullValue(modelData.param, text))
                     }

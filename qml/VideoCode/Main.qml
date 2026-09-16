@@ -3707,6 +3707,7 @@ ApplicationWindow {
         visible: false
         playhead: app.playhead
         buffer: source.text
+        baseDir: source.path.length > 0 ? source.path.substring(0, source.path.lastIndexOf("/")) : ""
         onArgumentWritten: (element, call, name, value) => app.writeArgument(element, call, name, value)
         onMetadataAdded: (element, write) => app.addMetadata(element, write)
         onMetadataWritten: (element, call, name, at, value) => app.writeMetadata(element, call, name, at, value)

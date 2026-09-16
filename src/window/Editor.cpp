@@ -1200,6 +1200,13 @@ QStringList VC::Editor::enumValues(const QString& name)
     return found;
 }
 
+QString VC::Editor::pickFile(const QString& near)
+{
+    const QFileInfo at(near);
+    const QString   start = at.isDir() ? near : at.absolutePath();
+    return QFileDialog::getOpenFileName(nullptr, QStringLiteral("Choose a file"), start);
+}
+
 QString VC::Editor::evalText(const QString& expression)
 {
     try {

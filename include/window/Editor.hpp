@@ -380,6 +380,9 @@ namespace VC
         // What a scene expression is worth, as text — `BLUE_C` → "(105, 165, 241, 255)".
         // "" when it does not evaluate.
         Q_INVOKABLE QString evalText(const QString& expression);
+        // The system's own file chooser, started in `near` (a file or a folder);
+        // the path picked, or "" when none was.
+        Q_INVOKABLE QString pickFile(const QString& near);
 
         // easingCurves() — the `Easing` presets that ARE curves, as the four
         // control points behind each, keyed by the spelling a scene uses. The
