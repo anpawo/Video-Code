@@ -88,7 +88,8 @@ QtObject {
         { id: "markIn",      label: "Mark in",            where: "Transport", only: "outside the code pane",
           says: ["An export with a range renders only that stretch."] },
         { id: "markOut",     label: "Mark out",           where: "Transport", only: "outside the code pane" },
-        { id: "clearMarks",  label: "Clear the range",    where: "Transport", only: "outside the code pane" }
+        { id: "clearMarks",  label: "Clear the range",    where: "Transport", only: "outside the code pane" },
+        { id: "zoomFit",     label: "Zoom to fit",        where: "Timeline",  only: "outside the code pane" }
     ]
 
     // What the system owns. Listed so the board is honest about which keys are
@@ -129,6 +130,7 @@ QtObject {
         "markIn":     "I",
         "markOut":    "O",
         "clearMarks": "Shift+X",
+        "zoomFit":    "Shift+Z",
         "redo":       "Cmd+Y",
         "moveUp":     "Cmd+↑",
         "moveDown":   "Cmd+↓",

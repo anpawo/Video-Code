@@ -77,6 +77,12 @@ Item {
                                       ? root.order
                                       : Array.from({ length: root.scene.elements.length }, (_, i) => i)
 
+    // 100 %: the scene's whole span in the pane.
+    function zoomToFit() {
+        if (root.fitZoom > 0)
+            zoom.value = Math.max(zoom.from, Math.min(zoom.to, root.fitZoom));
+    }
+
     function moveLane(from, to) {
         const next = root.lanesOrder.slice();
         to = Math.max(0, Math.min(next.length - 1, to));

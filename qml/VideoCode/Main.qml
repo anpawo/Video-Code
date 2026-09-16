@@ -3914,6 +3914,12 @@ ApplicationWindow {
         enabled: app.keyFree("clearMarks")
         onActivated: app.clearMarks()
     }
+    // ⇧Z: the whole scene in the pane, 100 % — Premiere's and Final Cut's key.
+    Shortcut {
+        sequence: Keymap.sequence("zoomFit")
+        enabled: app.keyFree("zoomFit")
+        onActivated: timeline.zoomToFit()
+    }
     Shortcut {
         sequence: "Escape"
         onActivated: {
