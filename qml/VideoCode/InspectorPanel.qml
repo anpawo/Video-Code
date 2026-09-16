@@ -1,7 +1,7 @@
 // The clip you clicked, as rows in the dock.
 //
 // The shape is the one Palmier Pro and Final Cut share: a title strip, then
-// sections that fold — a chevron and a name — and inside each, one row per
+// sections — a name, then a group — and inside each, one row per
 // value, its label on the left and its value in a field on the right. Nothing
 // travels and nothing is drawn against a ruler: what a clip DOES over time is
 // the flying card's business (a double-click); what it IS, and what its line
@@ -58,6 +58,18 @@ Item {
         const found = Shell.enumValues(bare);
         return found.length > 0 ? found : Shell.enumValues(bare.charAt(0).toUpperCase() + bare.slice(1));
     }
+    // Every name the buffer assigns — RATIO, square, marius — offered while a
+    // field is typed in: a value here is Python, and its names are the file's.
+    readonly property var namesInBuffer: {
+        const seen = {};
+        const out = [];
+        const re = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=[^=]/gm;
+        let m;
+        while ((m = re.exec(root.buffer)) !== null)
+            if (!seen[m[1]]) { seen[m[1]] = true; out.push(m[1]); }
+        return out;
+    }
+
     function isPathKind(name, kind) {
         return kind === "url" || (kind === "str" && /path|file|url|src/i.test(name));
     }
@@ -285,6 +297,10 @@ Item {
         // A MouseArea, not a TapHandler: under the slot's floor a handler never
         // sees the press (AgentPanel.qml says why). Pressing puts the caret in
         // the field with the value selected, ready to be overwritten.
+        // The hand: a HoverHandler, since the slot's floor sits above every
+        // MouseArea and would keep the arrow.
+        HoverHandler { cursorShape: row.editable ? Qt.PointingHandCursor : Qt.ArrowCursor }
+
         MouseArea {
             id: over
             anchors.fill: parent
@@ -292,7 +308,6 @@ Item {
             // on its way through the Flickable; taken here, it lands.
             z: 2
             hoverEnabled: true
-            cursorShape: row.editable ? Qt.PointingHandCursor : Qt.ArrowCursor
             onPressed: (mouse) => {
                 if (!row.editable) { mouse.accepted = false; return; }
                 if (row.isPath && mouse.x >= browse.x - 4 && mouse.x <= browse.x + browse.width + 4) {
@@ -382,7 +397,7 @@ Item {
 
         Rectangle {
             id: dab
-            anchors { right: box.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
+            anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
             visible: row.swatch.length > 0
             width: 14; height: 14; radius: 4
             color: row.swatch.length > 0 ? row.swatch : "transparent"
@@ -392,7 +407,7 @@ Item {
 
         Text {
             id: nowText
-            anchors { right: dab.visible ? dab.left : box.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
+            anchors { right: box.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
             visible: row.now.length > 0
             width: visible ? implicitWidth : 0
             text: row.now
@@ -405,7 +420,7 @@ Item {
         // the pointer is there, the way a Settings row keeps its calm.
         Rectangle {
             id: box
-            anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
+            anchors { right: parent.right; rightMargin: row.swatch.length > 0 ? 32 : 10; verticalCenter: parent.verticalCenter }
             width: Math.min(150, Math.max(64, row.width * 0.42))
             height: 24
             radius: 6
@@ -456,6 +471,58 @@ Item {
                 }
                 // Left without Enter: back to what the file says.
                 onActiveFocusChanged: if (!activeFocus) text = Qt.binding(() => row.value)
+
+                // The word under the caret, and the file's names that start with it.
+                readonly property string word: {
+                    const head = text.substring(0, cursorPosition);
+                    const m = head.match(/[A-Za-z_][A-Za-z0-9_]*$/);
+                    return m !== null ? m[0] : "";
+                }
+                readonly property var matches: word.length > 0 && row.choices.length === 0
+                    ? root.namesInBuffer.filter((n) => n !== word && n.toLowerCase().startsWith(word.toLowerCase())).slice(0, 8)
+                    : []
+                function take(name) {
+                    const at = cursorPosition;
+                    const before = text.substring(0, at - word.length);
+                    text = before + name + text.substring(at);
+                    cursorPosition = before.length + name.length;
+                }
+            }
+        }
+
+        Popup {
+            id: hints
+            visible: field.activeFocus && field.matches.length > 0
+            closePolicy: Popup.NoAutoClose
+            x: box.x + box.width - width
+            y: box.y + box.height + 4
+            width: Math.max(box.width, 140)
+            padding: 4
+            background: Rectangle { color: Theme.panel; radius: 8; border.width: 1; border.color: Theme.edge }
+            contentItem: Column {
+                Repeater {
+                    model: field.matches
+                    Rectangle {
+                        required property string modelData
+                        width: hints.width - 8
+                        height: 24
+                        radius: 5
+                        color: hintHover.containsMouse ? Qt.alpha(Theme.live, 0.15) : "transparent"
+                        Text {
+                            anchors { left: parent.left; leftMargin: 8; verticalCenter: parent.verticalCenter }
+                            text: parent.modelData
+                            color: /^[A-Z0-9_]+$/.test(parent.modelData) ? Theme.code.caps : Theme.code.variable
+                            font.family: Theme.mono
+                            font.pixelSize: 11
+                        }
+                        MouseArea {
+                            id: hintHover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            onPressed: { field.take(parent.modelData); field.forceActiveFocus(); }
+                        }
+                    }
+                }
             }
         }
 
@@ -472,7 +539,6 @@ Item {
         id: section
         property string title: ""
         property string aside: ""
-        property bool open: true
         default property alias rows: body.data
         width: parent !== null ? parent.width : 0
         spacing: 6
@@ -501,22 +567,13 @@ Item {
                     font.family: Theme.mono
                     font.pixelSize: 10
                 }
-                Text {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: section.open ? "▾" : "▸"
-                    color: Theme.inkFaint
-                    font.pixelSize: 10
-                }
             }
-
-            MouseArea { anchors.fill: parent; onClicked: section.open = !section.open }
         }
 
         Rectangle {
             x: 12
             width: parent.width - 24
             height: body.height
-            visible: section.open
             radius: 10
             color: Theme.rail
             border.width: 1
@@ -581,12 +638,12 @@ Item {
                         color: lit ? Theme.sunk : "transparent"
                         border.width: 1
                         border.color: nameField.activeFocus ? Theme.live : lit ? Theme.edge : "transparent"
+                        HoverHandler { cursorShape: Qt.IBeamCursor }
                         MouseArea {
                             id: nameOver
                             anchors.fill: parent
                             z: 2
                             hoverEnabled: true
-                            cursorShape: Qt.IBeamCursor
                             onPressed: { nameField.forceActiveFocus(); nameField.selectAll(); }
                             readonly property bool hovered: containsMouse
                         }

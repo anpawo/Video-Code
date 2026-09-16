@@ -553,7 +553,13 @@ class Input(ABC):
             y = factor
         return self.apply(scale(x, y))
 
-    def opacity(self, o: number) -> Self:
+    def opacity(self, o: uint8) -> Self:
+        """
+        Set how opaque this `Input` is, 0 (invisible) to 255 (solid):
+
+            square.opacity(0)      # placed, but not yet seen
+            square.opacity(128)    # half-transparent
+        """
         return self.apply(opacity(o))
 
     def zIndex(self, z: int, offset: maybe[frame] = None) -> Self:
