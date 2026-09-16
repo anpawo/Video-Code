@@ -721,11 +721,23 @@ Item {
         }
 
         // ── What it is ────────────────────────────────────────────────────
+        Text {
+            anchors.centerIn: parent
+            visible: root.docked && root.element === null
+            text: "click a clip"
+            color: Theme.inkFaint
+            font.family: Theme.ui
+            font.pixelSize: 12
+        }
+
         Item {
             id: head
             anchors { left: parent.left; right: parent.right; top: parent.top }
             anchors.margins: card.pad
-            height: 12
+            height: root.docked ? 30 : 12
+
+            Item { id: nameLine; width: 1; height: 12; y: 0 }
+            Item { id: lineLine; width: 1; height: 12; y: root.docked ? 18 : 0 }
 
             // Its name, at the left end of the same row as the line it was
             // written on. On the clip it was a label ON the picture, fighting
@@ -733,14 +745,14 @@ Item {
             // this card is about — and the row already carries the other two
             // facts about it.
             Text {
-                anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                anchors { left: parent.left; verticalCenter: nameLine.verticalCenter }
                 text: root.element !== null && root.element.n !== undefined ? root.element.n : ""
                 color: Theme.ink
                 font.family: Theme.ui
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
-                width: Math.min(implicitWidth, head.width / 3)
+                width: Math.min(implicitWidth, root.docked ? head.width - 56 : head.width / 3)
 
                 HoverHandler { cursorShape: Qt.PointingHandCursor }
 
@@ -757,6 +769,7 @@ Item {
             Row {
                 anchors.centerIn: parent
                 spacing: 8
+                visible: !root.docked
 
                 Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
@@ -781,7 +794,10 @@ Item {
             // to say it, and clicking it puts the caret there.
             Text {
                 id: where
-                anchors { right: dur.left; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                anchors.right: root.docked ? undefined : dur.left
+                anchors.rightMargin: 12
+                anchors.left: root.docked ? parent.left : undefined
+                anchors.verticalCenter: root.docked ? lineLine.verticalCenter : parent.verticalCenter
                 text: root.element !== null && root.element.line > 0
                       ? "line " + root.element.line : ""
                 color: jump.containsMouse ? Theme.live : Theme.inkFaint
@@ -799,7 +815,9 @@ Item {
 
             Text {
                 id: dur
-                anchors { right: closer.left; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                anchors.right: root.docked ? parent.right : closer.left
+                anchors.rightMargin: root.docked ? 0 : 10
+                anchors.verticalCenter: nameLine.verticalCenter
                 text: root.span.toFixed(1) + "s"
                 color: Theme.inkDim
                 font.family: Theme.mono

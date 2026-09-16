@@ -3680,8 +3680,23 @@ ApplicationWindow {
     // beside the Agent when the layout has never held one.
     function inspect(element) {
         inspector.open(element, Qt.rect(0, 0, 0, 0));
-        if (slotHolding("inspector") === -1)
-            openPanel("inspector", slotHolding("agent"));
+        if (slotHolding("inspector") === -1) {
+            const stage = slotHolding("preview");
+            if (stage === -1) {
+                openPanel("inspector", slotHolding("agent"));
+            } else {
+                // Beside the preview, five sevenths as wide: the proportion
+                // asked for on 16 Sept.
+                dockTab("inspector", stage, "right");
+                const next = copy(tree);
+                const hit = findNode(next, slotHolding("inspector"));
+                if (hit && hit.parent && hit.parent.nodes.length === 2) {
+                    hit.parent.nodes[1 - hit.index].size = 7 / 12;
+                    hit.node.size = 5 / 12;
+                    settle(next);
+                }
+            }
+        }
         showPanel("inspector");
     }
 

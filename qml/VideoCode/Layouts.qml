@@ -90,8 +90,14 @@ QtObject {
                         // Not invented: the proportions this arrangement was
                         // dragged to in use, and then kept.
                         t: "x", id: "c-top", dir: "h", size: 0.63, nodes: [
-                            { t: "s", id: "c-code", keys: ["code", "inspector", "agent"], current: 0, size: 0.456 },
-                            { t: "s", id: "c-stage", keys: ["preview"], current: 0, size: 0.544 }
+                            { t: "s", id: "c-code", keys: ["code", "agent"], current: 0, size: 0.456 },
+                            {
+                                // The inspector beside the preview, five sevenths as wide.
+                                t: "x", id: "c-stage", dir: "h", size: 0.544, nodes: [
+                                    { t: "s", id: "c-view", keys: ["preview"], current: 0, size: 7 / 12 },
+                                    { t: "s", id: "c-look", keys: ["inspector"], current: 0, size: 5 / 12 }
+                                ]
+                            }
                         ]
                     },
                     { t: "s", id: "c-time", keys: ["timeline", "media"], current: 0, size: 0.37 }
