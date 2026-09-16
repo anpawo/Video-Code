@@ -505,6 +505,21 @@ class Input(ABC):
     @abstractmethod
     def height(self) -> wnumber: ...
 
+    def _pivot(self) -> v2:
+        """
+        Where the centre of what is drawn sits, relative to `meta.position`.
+
+        `align` says which point of the box sits AT the position — (0.5, 0.5)
+        by default, so zero for nearly everything. A `Letter` is aligned
+        (0, 0): its position is the pen, its ink lies right of it and above.
+        `_MemberBase` and `Group._anchorOf` read this the way they read a
+        group's pivot, so a Text is measured, pivoted and placed on its ink
+        rather than on its pens — `Text("LEFT").rotation(180)` used to land
+        0.27 right and 0.40 below where it started.
+        """
+        ax, ay = self.meta.align
+        return v2((0.5 - (0.5 if ax is None else ax)) * (self.width or 0), (0.5 - (0.5 if ay is None else ay)) * (self.height or 0))
+
     def animateIn(self) -> Self:
         return self
 

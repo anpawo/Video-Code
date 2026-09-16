@@ -106,6 +106,9 @@ class _MemberBase:
         self.ownFrames = sorted(self.ownTrack)
         pivotOf = getattr(member, "_pivot", None)
         self.parentInverse = cast(v2, pivotOf()) if callable(pivotOf) else v2(0.0, 0.0)
+        #: A leaf spins and scales about its aligned point, not about its ink,
+        #: so its correction turns with it — see `_emitRigid`.
+        self.leaf = not isinstance(member, Group)
         self.position = self.parentInverse + v2(*meta.position)
         self.rotation = meta.rotation
         self.scale = v2(*meta.scale)
@@ -370,9 +373,19 @@ class Group(Interface, Generic[_GROUP_T]):
                 wx = rx * cos_r - ry * sin_r + C.x + gx
                 wy = rx * sin_r + ry * cos_r + C.y + gy
                 # A member group reads a position as a displacement from its own
-                # pivot; a leaf reads it as a location, and its correction is
-                # zero — see `_MemberBase.parentInverse`.
-                shaders.append(position(wx - base.parentInverse.x, wy - base.parentInverse.y))
+                # pivot; a leaf reads it as a location — see
+                # `_MemberBase.parentInverse`. A leaf whose ink is off its
+                # aligned point (a letter: align (0, 0), the pen at the corner)
+                # then spins and scales about that point, so the correction
+                # handed back is the offset AS IT WILL STAND after the leaf's
+                # own turn, or the ink ends up a glyph away from the orbit.
+                px, py = base.parentInverse.x, base.parentInverse.y
+                if base.leaf and (px or py):
+                    px *= (base.scale.x + gscale.x - 1) / base.scale.x if base.scale.x else 1
+                    py *= (base.scale.y + gscale.y - 1) / base.scale.y if base.scale.y else 1
+                    lrad = math.radians(-(base.rotation + grot_deg))
+                    px, py = px * math.cos(lrad) - py * math.sin(lrad), px * math.sin(lrad) + py * math.cos(lrad)
+                shaders.append(position(wx - px, wy - py))
 
             if rot:
                 shaders.append(rotation(base.rotation + grot_deg))
