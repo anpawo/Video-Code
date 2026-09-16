@@ -158,7 +158,7 @@ Item {
     // diff.
     function showAgentEdit(body) {
         editor.ready = false;
-        editor.text = body;
+        root.replaceWhole(body);
         editor.pristine = body;
         root.modified = false;
         editor.ready = true;
@@ -322,9 +322,7 @@ Item {
 
             const next = lines.join("\n");
             if (open) {
-                const caret = editor.cursorPosition;
-                editor.text = next;
-                editor.cursorPosition = Math.min(caret, next.length);
+                root.replaceWhole(next);
             } else if (!Shell.writeTextFile(where, next)) {
                 continue;
             }
@@ -366,7 +364,7 @@ Item {
 
     // The same rename, given its answer up front: no box, no caret moved, the
     // Inspector's field already asked. Every occurrence, every file, as ever.
-    function renameTo(line, name, wanted) {
+    function renameTo(line, name, wanted, then) {
         const rows = editor.text.split("\n");
         if (line < 1 || line > rows.length || wanted.length === 0 || wanted === name)
             return false;
@@ -381,9 +379,38 @@ Item {
                        : "renamed in " + touched + (touched === 1 ? " file" : " files"));
             if (touched > 0 && root.path.length > 0)
                 Lsp.changeDocument(root.path, editor.text);
+            if (then !== undefined)
+                then(touched);
         });
         return true;
     }
+
+    // The whole buffer, as ONE thing to undo: only the span that differs is
+    // replaced, through the document, so a rename, an agent's turn or a file
+    // put back are each a single ⌘Z — and the caret stays put. Assigning
+    // `editor.text` would wipe the undo stack instead.
+    function replaceWhole(next) {
+        const cur = editor.text;
+        if (cur === next)
+            return true;
+        if (cur.length === 0) {
+            editor.text = next;
+            return true;
+        }
+        const most = Math.min(cur.length, next.length);
+        let head = 0;
+        while (head < most && cur.charCodeAt(head) === next.charCodeAt(head))
+            ++head;
+        let tail = 0;
+        while (tail < most - head
+               && cur.charCodeAt(cur.length - 1 - tail) === next.charCodeAt(next.length - 1 - tail))
+            ++tail;
+        return root.replaceRange(head, cur.length - tail, next.substring(head, next.length - tail));
+    }
+
+    // The editor's own undo, for a ⌘Z pressed from another pane.
+    readonly property bool editorHasFocus: editor.activeFocus
+    function undo() { editor.undo(); }
 
     function locationAt(offset) {
         const before = editor.text.substring(0, offset).split("\n");

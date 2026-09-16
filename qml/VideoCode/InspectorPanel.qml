@@ -33,12 +33,19 @@ Item {
     // The same two entry points as the card, so the shell talks to both alike.
     function open(what, where) { element = what; }
 
+    // The name just given, so the element is found again under it once the
+    // scene has run: matched by index AND name, a renamed one would be lost.
+    property string renamedTo: ""
+    function follow(name) { renamedTo = name; }
+
     function rebind(elements) {
         if (element === null || element.index === undefined)
             return;
+        const named = (one) => one.n === element.n || (renamedTo.length > 0 && one.n === renamedTo);
         for (const one of elements) {
-            if (one.index === element.index && one.n === element.n) {
+            if (one.index === element.index && named(one)) {
                 element = one;
+                renamedTo = "";
                 return;
             }
             for (const member of (one.members !== undefined ? one.members : [])) {
@@ -100,8 +107,11 @@ Item {
         const live = root.meta["Args:" + one.name];
         const shown = asWritten.length > 0 ? asWritten : one.value;
         const now = live !== undefined ? root.readable(live) : "";
+        const isColor = /color/i.test(one.kind);
+        const hex = now.startsWith("#") ? now : (/^"?#[0-9a-fA-F]{6}/.test(shown) ? shown.replace(/"/g, "") : "");
         return { label: one.name, param: one, value: shown, isDefault: asWritten.length === 0,
-                 now: now !== shown ? now : "" };
+                 now: now !== shown && !isColor ? now : "", kind: one.kind,
+                 swatch: isColor && hex.length > 0 ? hex.substring(0, 7) : "" };
     })
 
     // The metadata calls on the line: `.position(x=0, y=0)` is two rows.
@@ -172,11 +182,21 @@ Item {
             else if (/^\d/.test(t))
                 out += span(t, tok.number);
             else if (/^[A-Za-z_]/.test(t))
-                out += span(t, /^[A-Z0-9_.]+$/.test(t.split(".").pop()) ? tok.caps : tok.variable);
+                // A name is code: it wears the code pane's colour on a faint
+                // pill, so it never reads as prose.
+                out += "<span style=\"color:" + (/^[A-Z0-9_.]+$/.test(t.split(".").pop()) ? tok.caps : tok.variable)
+                       + ";background-color:" + Theme.edge + "\">&nbsp;" + esc(t) + "&nbsp;</span>";
             else
                 out += span(t, Theme.inkDim);
         }
         return out;
+    }
+
+    // Where a colour swatch sends its click: the chrome has no system picker
+    // (this Qt ships without QtQuick.Dialogs), so the field takes the hex.
+    QtObject {
+        id: picker
+        function ask(row, hex) { row.beginEdit(); }
     }
 
     Text {
@@ -199,7 +219,12 @@ Item {
         property string now: ""
         property bool editable: true
         property bool last: false
+        // The type the line expects, shown while the pointer is on the row.
+        property string kind: ""
+        // A colour's own colour, as a swatch that opens the picker; "" for none.
+        property string swatch: ""
         signal committed(string text)
+        function beginEdit() { field.forceActiveFocus(); field.selectAll(); }
 
         width: parent !== null ? parent.width : 0
         height: 34
@@ -214,18 +239,18 @@ Item {
             // on its way through the Flickable; taken here, it lands.
             z: 2
             hoverEnabled: true
-            cursorShape: row.editable ? Qt.IBeamCursor : Qt.ArrowCursor
+            cursorShape: row.editable ? Qt.PointingHandCursor : Qt.ArrowCursor
             onPressed: (mouse) => {
                 if (!row.editable) { mouse.accepted = false; return; }
-                field.forceActiveFocus();
-                field.selectAll();
+                row.beginEdit();
             }
             readonly property bool hovered: containsMouse
         }
 
         Text {
+            id: labelText
             anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
-            width: Math.max(40, parent.width - box.width - nowText.width - 36)
+            width: Math.min(implicitWidth, Math.max(40, parent.width - box.width - nowText.width - 36))
             text: row.label
             color: Theme.ink
             font.family: Theme.ui
@@ -234,8 +259,27 @@ Item {
         }
 
         Text {
-            id: nowText
+            anchors { left: labelText.right; leftMargin: 8; verticalCenter: parent.verticalCenter }
+            visible: over.containsMouse && row.kind.length > 0
+            text: row.kind
+            color: Theme.inkFaint
+            font.family: Theme.mono
+            font.pixelSize: 10
+        }
+
+        Rectangle {
+            id: dab
             anchors { right: box.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
+            visible: row.swatch.length > 0
+            width: 14; height: 14; radius: 4
+            color: row.swatch.length > 0 ? row.swatch : "transparent"
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.25)
+        }
+
+        Text {
+            id: nowText
+            anchors { right: dab.visible ? dab.left : box.left; rightMargin: 8; verticalCenter: parent.verticalCenter }
             visible: row.now.length > 0
             width: visible ? implicitWidth : 0
             text: row.now
@@ -267,6 +311,7 @@ Item {
                 opacity: row.faint ? 0.6 : 1
                 textFormat: Text.RichText
                 text: root.painted(row.value)
+                      + (row.kind === "percent" ? "<span style=\"color:" + Theme.inkFaint + "\">%</span>" : "")
                 font.family: Theme.mono
                 font.pixelSize: 11
                 elide: Text.ElideLeft
@@ -490,6 +535,8 @@ Item {
                         value: modelData.value
                         faint: modelData.isDefault
                         now: modelData.now
+                        kind: modelData.kind
+                        swatch: modelData.swatch
                         editable: root.writable
                         onCommitted: (text) => root.argumentWritten(root.element, root.cls, modelData.label,
                                                                     root.fullValue(modelData.param, text))
@@ -509,6 +556,7 @@ Item {
                         last: index === root.metaRows.length - 1 && root.addable.length === 0
                         label: modelData.label
                         value: modelData.value
+                        kind: modelData.param.kind
                         onCommitted: (text) => root.metadataWritten(root.element, modelData.call, modelData.name,
                                                                     modelData.at, root.fullValue(modelData.param, text))
                     }

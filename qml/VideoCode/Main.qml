@@ -2890,7 +2890,16 @@ ApplicationWindow {
         // Named already — from the Inspector's field — the rename happens
         // where you are; otherwise the box opens in the code.
         if (wanted !== undefined) {
-            if (!source.renameTo(one.line, one.n, wanted))
+            // Renamed, the Inspector follows the element under its new name and
+            // the scene runs again — nothing should move, and the timeline says
+            // the new name.
+            const ok = source.renameTo(one.line, one.n, wanted, (touched) => {
+                if (touched > 0) {
+                    inspector.follow(wanted);
+                    app.executeScene();
+                }
+            });
+            if (!ok)
                 source.say("no name to rename on line " + one.line);
             return;
         }
@@ -3439,6 +3448,32 @@ ApplicationWindow {
         sequences: [StandardKey.Undo]
         enabled: Agent.revertable && !shortcuts.visible
         onActivated: app.undoAgentEdit()
+    }
+    // ⌘Z from any other pane undoes the code: whatever wrote the file — the
+    // Inspector, a gesture on the timeline, a rename — went through the
+    // document, so the editor's stack holds it. A field being typed in keeps
+    // its own undo. With the caret in the editor, the editor already answers.
+    Shortcut {
+        sequences: [StandardKey.Undo]
+        enabled: !Agent.revertable && !shortcuts.visible && !source.editorHasFocus
+        onActivated: {
+            const it = activeFocusItem;
+            if (it && typeof it.undo === "function" && it.canUndo)
+                it.undo();
+            else
+                source.undo();
+        }
+    }
+    Shortcut {
+        sequences: [StandardKey.Redo]
+        enabled: !shortcuts.visible && !source.editorHasFocus
+        onActivated: {
+            const it = activeFocusItem;
+            if (it && typeof it.redo === "function" && it.canRedo)
+                it.redo();
+            else
+                source.redo();
+        }
     }
 
     // Play, pause, or start over.
