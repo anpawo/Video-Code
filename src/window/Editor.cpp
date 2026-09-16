@@ -1475,6 +1475,10 @@ static QString findFfmpeg()
 void VC::Editor::bakeAudio()
 {
     if (_bake != nullptr) {
+        // Unhooked before it is killed: its `finished` would otherwise fire
+        // from inside the destructor, into a slot that reads `_bake` — by then
+        // null, or the NEXT process.
+        disconnect(_bake, nullptr, this, nullptr);
         _bake->kill();
         _bake->deleteLater();
         _bake = nullptr;
@@ -1524,9 +1528,11 @@ void VC::Editor::bakeAudio()
 
     _bake = new QProcess(this);
     _bake->setProcessChannelMode(QProcess::SeparateChannels);
-    connect(_bake, &QProcess::finished, this, [this, wav](int code, QProcess::ExitStatus status) {
-        const QString said = QString::fromUtf8(_bake->readAllStandardError()).trimmed().section('\n', -1);
-        _bake->deleteLater();
+    connect(_bake, &QProcess::finished, this, [this, wav, bake = _bake](int code, QProcess::ExitStatus status) {
+        if (bake != _bake)
+            return;
+        const QString said = QString::fromUtf8(bake->readAllStandardError()).trimmed().section('\n', -1);
+        bake->deleteLater();
         _bake = nullptr;
         if (status != QProcess::NormalExit || code != 0) {
             QFile::remove(wav);
