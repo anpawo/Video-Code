@@ -2882,9 +2882,16 @@ ApplicationWindow {
     // servent. Un élément dont les lignes sont dans un autre document est refusé
     // pour la raison qui refuse déjà tous les gestes sur lui : le numéro de ligne
     // n'est pas celui de ce document.
-    function renameElement(one) {
+    function renameElement(one, wanted) {
         if (one === null || one === undefined || !fromOpenFile(one.file)) {
             source.say("those lines are in another file");
+            return;
+        }
+        // Named already — from the Inspector's field — the rename happens
+        // where you are; otherwise the box opens in the code.
+        if (wanted !== undefined) {
+            if (!source.renameTo(one.line, one.n, wanted))
+                source.say("no name to rename on line " + one.line);
             return;
         }
         showPanel("code");
@@ -3669,7 +3676,7 @@ ApplicationWindow {
         onMetadataAdded: (element, write) => app.addMetadata(element, write)
         onMetadataWritten: (element, call, name, at, value) => app.writeMetadata(element, call, name, at, value)
         onJumpRequested: (element) => app.revealLine(element.line)
-        onRenameRequested: (element) => app.renameElement(element)
+        onRenamed: (element, name) => app.renameElement(element, name)
         onSays: (sentence) => source.say(sentence)
     }
 

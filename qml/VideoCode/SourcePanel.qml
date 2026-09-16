@@ -364,6 +364,27 @@ Item {
         return true;
     }
 
+    // The same rename, given its answer up front: no box, no caret moved, the
+    // Inspector's field already asked. Every occurrence, every file, as ever.
+    function renameTo(line, name, wanted) {
+        const rows = editor.text.split("\n");
+        if (line < 1 || line > rows.length || wanted.length === 0 || wanted === name)
+            return false;
+        const column = rows[line - 1].indexOf(name);
+        if (column < 0)
+            return false;
+        const at = { line: line - 1, character: column };
+        Lsp.rename(root.path, at.line, at.character, wanted, function (edit) {
+            const touched = root.applyEdit(edit);
+            notice.say(touched === 0
+                       ? "nothing to rename"
+                       : "renamed in " + touched + (touched === 1 ? " file" : " files"));
+            if (touched > 0 && root.path.length > 0)
+                Lsp.changeDocument(root.path, editor.text);
+        });
+        return true;
+    }
+
     function locationAt(offset) {
         const before = editor.text.substring(0, offset).split("\n");
         return { line: before.length - 1, character: before[before.length - 1].length };

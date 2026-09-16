@@ -27,7 +27,7 @@ Item {
     signal metadataAdded(var element, string write)
     signal metadataWritten(var element, string call, string name, int at, string value)
     signal jumpRequested(var element)
-    signal renameRequested(var element)
+    signal renamed(var element, string name)
     signal says(string sentence)
 
     // The same two entry points as the card, so the shell talks to both alike.
@@ -156,6 +156,29 @@ Item {
         return out;
     }
 
+    // A value wears the colours the code pane gives it: a number, a string, a
+    // NAME in capitals, a variable — so the Inspector and the buffer read alike.
+    function painted(value) {
+        const tok = Theme.code;
+        const esc = (t) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const span = (t, c) => "<span style=\"color:" + c + "\">" + esc(t) + "</span>";
+        let out = "";
+        const re = /("[^"]*"|'[^']*'|\d+(?:\.\d+)?|[A-Za-z_][A-Za-z0-9_.]*|\s+|.)/g;
+        let m;
+        while ((m = re.exec(String(value))) !== null) {
+            const t = m[0];
+            if (/^["']/.test(t))
+                out += span(t, tok.string);
+            else if (/^\d/.test(t))
+                out += span(t, tok.number);
+            else if (/^[A-Za-z_]/.test(t))
+                out += span(t, /^[A-Z0-9_.]+$/.test(t.split(".").pop()) ? tok.caps : tok.variable);
+            else
+                out += span(t, Theme.inkDim);
+        }
+        return out;
+    }
+
     Text {
         anchors.centerIn: parent
         visible: root.element === null
@@ -181,7 +204,24 @@ Item {
         width: parent !== null ? parent.width : 0
         height: 34
 
-        HoverHandler { id: over }
+        // A MouseArea, not a TapHandler: under the slot's floor a handler never
+        // sees the press (AgentPanel.qml says why). Pressing puts the caret in
+        // the field with the value selected, ready to be overwritten.
+        MouseArea {
+            id: over
+            anchors.fill: parent
+            // Above the field: a press that reaches the TextInput first is lost
+            // on its way through the Flickable; taken here, it lands.
+            z: 2
+            hoverEnabled: true
+            cursorShape: row.editable ? Qt.IBeamCursor : Qt.ArrowCursor
+            onPressed: (mouse) => {
+                if (!row.editable) { mouse.accepted = false; return; }
+                field.forceActiveFocus();
+                field.selectAll();
+            }
+            readonly property bool hovered: containsMouse
+        }
 
         Text {
             anchors { left: parent.left; leftMargin: 14; verticalCenter: parent.verticalCenter }
@@ -217,13 +257,29 @@ Item {
             border.width: 1
             border.color: field.activeFocus ? Theme.live : lit ? Theme.edge : "transparent"
 
+            // The coloured reading, under a field that only shows its own text
+            // while it is being written in.
+            Text {
+                anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignRight
+                visible: !field.activeFocus
+                opacity: row.faint ? 0.6 : 1
+                textFormat: Text.RichText
+                text: root.painted(row.value)
+                font.family: Theme.mono
+                font.pixelSize: 11
+                elide: Text.ElideLeft
+            }
+
             TextInput {
                 id: field
+                z: 1
                 anchors { fill: parent; leftMargin: 8; rightMargin: 8 }
                 verticalAlignment: TextInput.AlignVCenter
                 horizontalAlignment: TextInput.AlignRight
                 text: row.value
-                color: row.faint && !activeFocus ? Theme.inkDim : Theme.ink
+                color: activeFocus ? Theme.ink : "transparent"
                 font.family: Theme.mono
                 font.pixelSize: 11
                 selectByMouse: true
@@ -289,7 +345,7 @@ Item {
                 }
             }
 
-            TapHandler { onTapped: section.open = !section.open }
+            MouseArea { anchors.fill: parent; onClicked: section.open = !section.open }
         }
 
         Rectangle {
@@ -310,12 +366,19 @@ Item {
         }
     }
 
-    ScrollView {
+    // A bare Flickable, as the timeline has: inside a Controls ScrollView the
+    // rows never received a press under the slot's floor.
+    Flickable {
         anchors.fill: parent
         visible: root.element !== null
         clip: true
+        contentWidth: width
+        contentHeight: sheet.height
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar {}
 
         Column {
+            id: sheet
             width: root.width
             bottomPadding: 16
 
@@ -343,23 +406,51 @@ Item {
                         Rectangle { anchors.centerIn: parent; width: 10; height: 10; radius: 3; color: root.hue }
                     }
 
-                    Text {
+                    // The name is a field: Enter renames it everywhere, here.
+                    Rectangle {
                         id: nameText
-                        anchors { left: dot.right; leftMargin: 10; top: parent.top; topMargin: 10 }
-                        width: Math.min(implicitWidth, parent.width - 130)
-                        text: root.element !== null && root.element.n !== undefined ? root.element.n : ""
-                        color: Theme.ink
-                        font.family: Theme.ui
-                        font.pixelSize: 13
-                        font.weight: Font.DemiBold
-                        elide: Text.ElideRight
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
-                        // A click renames: the box opens in the code, on the line that declares it.
-                        TapHandler { onTapped: if (root.element !== null) root.renameRequested(root.element) }
+                        anchors { left: dot.right; leftMargin: 6; top: parent.top; topMargin: 7 }
+                        width: Math.min(nameField.implicitWidth + 16, parent.width - 130)
+                        height: 22
+                        radius: 5
+                        readonly property bool lit: nameOver.hovered || nameField.activeFocus
+                        color: lit ? Theme.sunk : "transparent"
+                        border.width: 1
+                        border.color: nameField.activeFocus ? Theme.live : lit ? Theme.edge : "transparent"
+                        MouseArea {
+                            id: nameOver
+                            anchors.fill: parent
+                            z: 2
+                            hoverEnabled: true
+                            cursorShape: Qt.IBeamCursor
+                            onPressed: { nameField.forceActiveFocus(); nameField.selectAll(); }
+                            readonly property bool hovered: containsMouse
+                        }
+
+                        TextInput {
+                            id: nameField
+                            z: 1
+                            anchors { fill: parent; leftMargin: 4; rightMargin: 4 }
+                            verticalAlignment: TextInput.AlignVCenter
+                            text: root.element !== null && root.element.n !== undefined ? root.element.n : ""
+                            color: Theme.ink
+                            font.family: Theme.ui
+                            font.pixelSize: 13
+                            font.weight: Font.DemiBold
+                            selectByMouse: true
+                            clip: true
+                            validator: RegularExpressionValidator { regularExpression: /[A-Za-z_][A-Za-z0-9_]*/ }
+                            onAccepted: {
+                                if (root.element !== null && text !== root.element.n)
+                                    root.renamed(root.element, text);
+                                focus = false;
+                            }
+                            onActiveFocusChanged: if (!activeFocus) text = Qt.binding(() => root.element !== null && root.element.n !== undefined ? root.element.n : "")
+                        }
                     }
 
                     Text {
-                        anchors { left: dot.right; leftMargin: 10; top: nameText.bottom; topMargin: 2 }
+                        anchors { left: dot.right; leftMargin: 10; top: nameText.bottom; topMargin: 1 }
                         text: root.cls + (root.element !== null && root.element.d > 0 ? "  ·  " + root.element.d.toFixed(1) + "s" : "")
                         color: Theme.inkFaint
                         font.family: Theme.ui
@@ -372,8 +463,15 @@ Item {
                         color: jump.hovered ? Theme.live : Theme.inkDim
                         font.family: Theme.ui
                         font.pixelSize: 11
-                        HoverHandler { id: jump; cursorShape: Qt.PointingHandCursor }
-                        TapHandler { onTapped: root.jumpRequested(root.element) }
+                        MouseArea {
+                            id: jump
+                            anchors.fill: parent
+                            anchors.margins: -6
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.jumpRequested(root.element)
+                            readonly property bool hovered: containsMouse
+                        }
                     }
                 }
             }
@@ -443,8 +541,14 @@ Item {
                                 font.family: Theme.mono
                                 font.pixelSize: 10
                             }
-                            HoverHandler { id: addHover; cursorShape: Qt.PointingHandCursor }
-                            TapHandler { onTapped: root.metadataAdded(root.element, parent.modelData.write) }
+                            MouseArea {
+                                id: addHover
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.metadataAdded(root.element, parent.modelData.write)
+                                readonly property bool hovered: containsMouse
+                            }
                         }
                     }
                 }
