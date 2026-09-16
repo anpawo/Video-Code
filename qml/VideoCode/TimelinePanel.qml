@@ -106,6 +106,7 @@ Item {
     // A clip was opened, and this is where it sits on screen. The rect is the
     // whole point: whatever opens it can start there.
     signal elementOpened(var element, rect where)
+    signal elementInspected(var element)
     signal renameRequested(var element)
     signal scrubbed(real seconds)
 
@@ -597,20 +598,6 @@ Item {
 
                     height: root.laneHeight
 
-                    // A second's worth of grid, so a clip's edge can be read
-                    // against the ruler without dragging the eye up to it.
-                    Repeater {
-                        model: Math.floor(root.span) + 1
-
-                        Rectangle {
-                            required property int index
-                            x: index * root.pxPerSecond
-                            width: 1
-                            height: lane.height
-                            color: Theme.edgeSoft
-                        }
-                    }
-
                     Rectangle {
                         anchors.bottom: parent.bottom
                         width: parent.width
@@ -868,7 +855,8 @@ Item {
                             }
                         }
 
-                        // A tap opens the element — somewhere else.
+                        // A tap picks the clip and fills the Inspector; a double
+                        // tap opens the clip's own timeline — somewhere else.
                         //
                         // What is inside a clip does not belong on the timeline:
                         // rows that grow push everything below them down, and a
@@ -880,16 +868,17 @@ Item {
                         TapHandler {
                             onTapped: {
                                 root.forceActiveFocus();
+                                root.elementPicked(lane.elementIndex);
+                                root.elementInspected(lane.modelData);
+                            }
+
+                            onDoubleTapped: {
                                 const at = bar.mapToItem(null, 0, 0);
                                 root.elementOpened(
                                     lane.modelData,
                                     Qt.rect(at.x, at.y, bar.width, bar.height)
                                 );
                             }
-
-                            // Un nom, ici, est la variable que la scène déclare :
-                            // le renommer est celui du volet de code.
-                            onDoubleTapped: root.renameRequested(lane.modelData)
                         }
                     }
                 }
@@ -916,27 +905,29 @@ Item {
             color: Theme.rail
 
             Repeater {
-                model: Math.floor(root.span) + 1
+                model: Math.floor(root.span / (root.rulerStep / 10)) + 1
 
                 Item {
                     required property int index
-                    x: index * root.pxPerSecond
-                    width: root.pxPerSecond
+                    readonly property real seconds: index * root.rulerStep / 10
+                    x: seconds * root.pxPerSecond
+                    width: root.rulerStep / 10 * root.pxPerSecond
                     height: ruler.height
 
-                    readonly property bool major: index % root.rulerStep === 0
+                    readonly property bool major: index % 10 === 0
+                    readonly property bool middle: index % 5 === 0
 
                     Rectangle {
                         width: 1
-                        height: parent.major ? 8 : 4
-                        color: parent.major ? Theme.inkFaint : Theme.edge
+                        height: parent.major ? 10 : parent.middle ? 6 : 4
+                        color: parent.major ? Theme.inkDim : Theme.edge
                     }
 
                     Text {
                         visible: parent.major
                         x: 6
                         y: 12
-                        text: root.timecode(parent.index, true)
+                        text: root.timecode(parent.seconds, true)
                         color: Theme.inkDim
                         font.family: Theme.mono
                         font.pixelSize: 11

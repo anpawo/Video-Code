@@ -36,6 +36,9 @@ Item {
     visible: element !== null
 
     property var element: null
+    // In the dock rather than over the window: no journey, no backdrop, no
+    // effects timeline — what it is, what its line says, what it is worth now.
+    property bool docked: false
     property var effectNames: []
 
     // Where the clip is on screen, so the card can start from it.
@@ -393,6 +396,10 @@ Item {
         from = where;
         library = false;
         curving = null;
+        if (docked) {
+            travel = 1;
+            return;
+        }
         travel = 0;
         // One frame at zero before it is told to go: setting both in the same
         // tick means no journey to animate.
@@ -426,6 +433,8 @@ Item {
     }
 
     function close() {
+        if (docked)
+            return;
         // And the other way round, for a card shut inside the frame it opened on.
         launch.stop();
 
@@ -639,6 +648,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
+        visible: !root.docked
         color: Qt.rgba(0.02, 0.027, 0.039, 0.88)
         opacity: root.travel
 
@@ -671,20 +681,20 @@ Item {
         // place from the first frame, and simply arrives: everything in it has
         // nowhere to come from, and a box that grows behind a moving bar is a
         // second thing to watch.
-        x: (root.width - wide) / 2
-        y: Math.min(Math.max(24, root.height * 0.12), Math.max(24, root.height - tall - 24))
-        width: wide
-        height: tall
+        x: root.docked ? 0 : (root.width - wide) / 2
+        y: root.docked ? 0 : Math.min(Math.max(24, root.height * 0.12), Math.max(24, root.height - tall - 24))
+        width: root.docked ? root.width : wide
+        height: root.docked ? root.height : tall
 
         // Behind the bar until the bar is nearly home. The delay is what makes
         // the eye follow one moving thing: the chrome shows up around a bar that
         // has already stopped.
-        opacity: Math.max(0, (root.travel - 0.55) / 0.45)
+        opacity: root.docked ? 1 : Math.max(0, (root.travel - 0.55) / 0.45)
 
         clip: true
         color: Theme.panel
-        radius: Theme.radius
-        border.width: 1
+        radius: root.docked ? 0 : Theme.radius
+        border.width: root.docked ? 0 : 1
         border.color: Theme.edge
 
         MouseArea { anchors.fill: parent }
@@ -798,6 +808,7 @@ Item {
 
             CloseButton {
                 id: closer
+                visible: !root.docked
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                 onTriggered: root.dismiss()
             }
@@ -809,7 +820,7 @@ Item {
         // would be one too many. The swap happens at rest, where nothing moves.
         Rectangle {
             id: bar
-            visible: root.travel >= 1
+            visible: !root.docked && root.travel >= 1
             anchors {
                 left: parent.left; right: parent.right
                 leftMargin: card.pad; rightMargin: card.pad
@@ -818,7 +829,7 @@ Item {
             // Le clip, et rien d'autre : le nom est monté dans l'en-tête et les
             // arguments sont descendus dans leur propre cadre, donc la barre
             // n'a plus à loger que ce qu'elle montre — la forme d'onde.
-            height: 76
+            height: root.docked ? 0 : 76
             radius: 6
             color: root.hue
             border.width: 1
@@ -917,7 +928,7 @@ Item {
                 top: bar.bottom; topMargin: 10
             }
             height: 26 + argRow.height + 10
-            visible: argRow.visible
+            visible: root.docked && argRow.visible
             radius: 6
             color: Theme.sunk
             border.width: 1
@@ -961,6 +972,7 @@ Item {
         // ── The element's own duration, laid out under it ─────────────────
         Item {
             id: scale
+            visible: !root.docked
             anchors {
                 left: bar.left; right: bar.right
                 // Sous la DERNIÈRE rangée visible, quelle qu'elle soit. Accrochée
@@ -1052,6 +1064,7 @@ Item {
         // ── What animates it, on the element's own axis ───────────────────
         Item {
             id: applied
+            visible: !root.docked
             // Jusqu'à la phrase du bas, pas jusqu'aux pastilles : celles-ci sont
             // remontées DANS la barre, donc au-dessus d'ici, et le bloc a eu une
             // hauteur négative — les effets ont disparu sans un mot.
@@ -1585,7 +1598,7 @@ Item {
                 leftMargin: 12; rightMargin: 12
             }
             height: 40
-            visible: root.arguments.length > 0
+            visible: root.docked && root.arguments.length > 0
             clip: true
             flickableDirection: Flickable.HorizontalFlick
             boundsBehavior: Flickable.StopAtBounds
@@ -1777,7 +1790,7 @@ Item {
                 top: metaBlock.top; topMargin: 26
             }
             height: 40
-            visible: root.startShown.length > 0 || root.addable.length > 0
+            visible: root.docked && (root.startShown.length > 0 || root.addable.length > 0)
             clip: true
             flickableDirection: Flickable.HorizontalFlick
             boundsBehavior: Flickable.StopAtBounds
@@ -2087,7 +2100,7 @@ Item {
                      : (argBlock.visible ? argBlock.bottom : bar.bottom); topMargin: 10
             }
             height: 22
-            visible: root.argsNow.length > 0
+            visible: root.docked && root.argsNow.length > 0
             clip: true
             flickableDirection: Flickable.HorizontalFlick
             boundsBehavior: Flickable.StopAtBounds
@@ -2161,7 +2174,7 @@ Item {
                 top: rule.visible ? rule.bottom : liveRow.bottom; topMargin: 7
             }
             spacing: 6
-            visible: root.metaShown.length > 0
+            visible: root.docked && root.metaShown.length > 0
 
             Text {
                 height: 22
@@ -2201,6 +2214,7 @@ Item {
         // ── How to get out, and how to add one ────────────────────────────
         Item {
             id: hint
+            visible: !root.docked
             anchors {
                 left: bar.left; right: bar.right
                 bottom: parent.bottom; bottomMargin: card.pad
@@ -2847,7 +2861,7 @@ Item {
     }
 
     Keys.onPressed: (event) => {
-        if (event.key === Qt.Key_E && root.members.length === 0) {
+        if (event.key === Qt.Key_E && root.members.length === 0 && !root.docked) {
             // A group has no `apply` of its own: offering the library there
             // would write a line naming something the scene does not have.
             root.library = !root.library;

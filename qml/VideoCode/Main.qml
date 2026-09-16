@@ -207,6 +207,7 @@ ApplicationWindow {
         "preview": preview,
         "timeline": timeline,
         "agent": agent,
+        "inspector": inspector,
         "code": source
     })
 
@@ -221,6 +222,7 @@ ApplicationWindow {
         "preview": "Preview",
         "timeline": "Timeline",
         "agent": "Agent",
+        "inspector": "Inspector",
         "code": "Code"
     })
 
@@ -246,7 +248,7 @@ ApplicationWindow {
         codeShown = shown.indexOf("code") >= 0;
     }
 
-    readonly property var panelKeys: ["media", "library", "preview", "timeline", "agent", "code"]
+    readonly property var panelKeys: ["media", "library", "preview", "timeline", "agent", "inspector", "code"]
 
     property var tree: defaultTree()
 
@@ -3046,6 +3048,7 @@ ApplicationWindow {
             liveScene = buildLiveScene(JSON.parse(answer.scene), flaws);
             // Anything looking at the scene has to be looking at THIS one.
             elementCard.rebind(liveScene.elements);
+            inspector.rebind(liveScene.elements);
             execInputs = parseInt(answer.inputs);
             execFrames = parseInt(answer.frames);
             execFps = answer.fps !== undefined ? parseInt(answer.fps) : execFps;
@@ -3617,6 +3620,7 @@ ApplicationWindow {
         openedName: elementCard.element !== null && elementCard.element.n !== undefined
                     ? elementCard.element.n : ""
         onElementOpened: (element, where) => elementCard.open(element, where)
+        onElementInspected: (element) => app.inspect(element)
         onRenameRequested: (element) => app.renameElement(element)
         // Scrubbing stops playback: the two are the same control, and a playhead
         // that keeps running away from where you put it is not a scrub.
@@ -3652,6 +3656,33 @@ ApplicationWindow {
         markOut: app.markOut
         snapPoints: app.snapPoints
         onElementPicked: (index) => app.selectedIndex = index
+    }
+
+    // The clip you clicked, as a tab in the dock — Palmier Pro's Inspector:
+    // what it is, what its line says, what it is worth at the playhead. The
+    // same card as the one that flies, told to stay put and keep the fields.
+    ElementCard {
+        id: inspector
+        visible: false
+        docked: true
+        effectNames: app.effectNames
+        playhead: app.playhead
+        buffer: source.text
+        onArgumentWritten: (element, call, name, value) => app.writeArgument(element, call, name, value)
+        onMetadataAdded: (element, write) => app.addMetadata(element, write)
+        onMetadataWritten: (element, call, name, at, value) => app.writeMetadata(element, call, name, at, value)
+        onJumpRequested: (element) => app.revealLine(element.line)
+        onRenameRequested: (element) => app.renameElement(element)
+        onSays: (sentence) => source.say(sentence)
+    }
+
+    // One click on a clip fills the Inspector and brings its tab forward —
+    // beside the Agent when the layout has never held one.
+    function inspect(element) {
+        inspector.open(element, Qt.rect(0, 0, 0, 0));
+        if (slotHolding("inspector") === -1)
+            openPanel("inspector", slotHolding("agent"));
+        showPanel("inspector");
     }
 
     AgentPanel {

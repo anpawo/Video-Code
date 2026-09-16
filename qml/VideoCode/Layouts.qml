@@ -69,7 +69,7 @@ QtObject {
             return {
                 t: "x", id: "a-root", dir: "h", size: 1, nodes: [
                     { t: "s", id: "a-stage", keys: ["preview"], current: 0, size: 0.63 },
-                    { t: "s", id: "a-chat", keys: ["agent", "code", "media", "timeline"], current: 0, size: 0.37 }
+                    { t: "s", id: "a-chat", keys: ["agent", "inspector", "code", "media", "timeline"], current: 0, size: 0.37 }
                 ]
             };
 
@@ -90,7 +90,7 @@ QtObject {
                         // Not invented: the proportions this arrangement was
                         // dragged to in use, and then kept.
                         t: "x", id: "c-top", dir: "h", size: 0.63, nodes: [
-                            { t: "s", id: "c-code", keys: ["code", "agent"], current: 0, size: 0.456 },
+                            { t: "s", id: "c-code", keys: ["code", "inspector", "agent"], current: 0, size: 0.456 },
                             { t: "s", id: "c-stage", keys: ["preview"], current: 0, size: 0.544 }
                         ]
                     },
@@ -128,7 +128,7 @@ QtObject {
             t: "x", id: "e-root", dir: "v", size: 1, nodes: [
                 {
                     t: "x", id: "e-top", dir: "h", size: 0.63, nodes: [
-                        { t: "s", id: "e-media", keys: ["media", "agent"], current: 0, size: 0.22 },
+                        { t: "s", id: "e-media", keys: ["media", "inspector", "agent"], current: 0, size: 0.22 },
                         { t: "s", id: "e-stage", keys: ["preview"], current: 0, size: 0.78 }
                     ]
                 },
