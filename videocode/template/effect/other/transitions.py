@@ -160,3 +160,30 @@ def zoomThrough(
         outgoing.apply(_opacity(o), start=start + i * SINGLE_FRAME)
     for s, i in easing.rangeIdx(inSrc, inDst, duration):
         incoming.apply(_scale(s.x, s.y), start=start + i * SINGLE_FRAME)
+
+
+def slideOver(
+    outgoing: Input,
+    incoming: Input,
+    *,
+    direction: Direction = Direction.LEFT,
+    distance: wnumber = 2.0,
+    start: sec = 0,
+    duration: sec = 0.5,
+    easing: easing = Easing.InOut,
+) -> None:
+    """
+    Slide-over transition: `incoming` slides in from `direction` to cover
+    `outgoing`, which stays put — unlike `push`, only one input moves.
+    `incoming`'s CURRENT position is the destination; position it ABOVE
+    `outgoing` (zIndex) so it actually covers it as it arrives.
+
+        slideOver(sceneA, sceneB, direction=Direction.RIGHT, duration=0.4)
+    """
+    dx, dy = direction.vector
+    dst = v2(*incoming.meta.position)
+    src = v2(dst.x + dx * distance, dst.y + dy * distance)
+
+    incoming.apply(_show()).apply(_position(src.x, src.y), start=start)
+    for p, i in easing.rangeIdx(src, dst, duration):
+        incoming.apply(_position(p.x, p.y), start=start + i * SINGLE_FRAME)

@@ -13,7 +13,7 @@ sys.path.insert(0, "test")
 from helpers import check, section, summary
 
 from videocode import *
-from videocode.template.effect.other.transitions import dipToBlack, zoomThrough
+from videocode.template.effect.other.transitions import dipToBlack, slideOver, zoomThrough
 
 
 def framesWith(index: int, key: str) -> dict[int, dict]:
@@ -58,6 +58,20 @@ outOVals = [e["args"]["opacity"] for _, e in sorted(outOps.items())]
 check("outgoing fades out", outOVals[-1] == 0.0 and all(x >= y for x, y in zip(outOVals, outOVals[1:])))
 incShows = framesWith(inc.meta.index, "Show")
 check("incoming is shown", len(incShows) == 1)
+
+# ---------------------------------------------------------------------------
+section("slideOver — incoming slides in, outgoing untouched")
+
+o2 = Rectangle(width=1, height=1).position(0.0, 0.0)
+i2 = Rectangle(width=1, height=1).position(0.0, 0.0).hide()
+slideOver(o2, i2, direction=Direction.RIGHT, distance=2.0, duration=0.4)
+
+check("outgoing has no position shader at all", len(framesWith(o2.meta.index, "Position")) == 0)
+i2Pos = framesWith(i2.meta.index, "Position")
+i2Xs = [e["args"]["x"] for _, e in sorted(i2Pos.items())]
+check("incoming enters from the right, lands at 0", i2Xs[0] > 0.0 and abs(i2Xs[-1]) < 1e-6)
+i2Shows = framesWith(i2.meta.index, "Show")
+check("incoming is shown", len(i2Shows) == 1)
 
 # ---------------------------------------------------------------------------
 summary()
