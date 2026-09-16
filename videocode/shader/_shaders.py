@@ -42,6 +42,8 @@ from videocode.shader.fragmentShader.roundCorners import *
 from videocode.shader.fragmentShader.feather import *
 from videocode.shader.fragmentShader.saturation import *
 from videocode.shader.fragmentShader.temperature import *
+from videocode.shader.fragmentShader.chromaticAberration import *
+from videocode.shader.fragmentShader.letterbox import *
 
 # Transformations
 from videocode.shader.vertexShader.align import *

@@ -694,6 +694,8 @@ rendered pixels:
 | `feather(softness)` | `feather.py` | Fade a clip to transparent towards its own edges (object-relative) |
 | `saturation(amount)` | `saturation.py` | Luma-based (Rec. 709) saturation, 0=gray .. 2=doubled |
 | `temperature(warmth)` | `temperature.py` | White-balance-style warm/cool push, luma-preserving |
+| `chromaticAberration(amount)` | `chromaticAberration.py` | RGB split radiating from the frame centre |
+| `letterbox(ratio)` | `letterbox.py` | Black bars to a target aspect ratio (frame-relative) |
 
 **Examples**: `test/visual/scenes/crop.py`, `lightsweep.py`,
 `lightsweep_group.py`, `effect_shaders*.py`.
