@@ -13,7 +13,7 @@ sys.path.insert(0, "test")
 from helpers import check, section, summary
 
 from videocode import *
-from videocode.template.effect.other.transitions import dipToBlack
+from videocode.template.effect.other.transitions import dipToBlack, zoomThrough
 
 
 def framesWith(index: int, key: str) -> dict[int, dict]:
@@ -38,6 +38,26 @@ aHides = framesWith(a.meta.index, "Hide")
 check("outgoing hidden at the midpoint (both sides are black there)", len(aHides) == 1)
 bShows = framesWith(b.meta.index, "Show")
 check("incoming is shown", len(bShows) == 1)
+
+# ---------------------------------------------------------------------------
+section("zoomThrough — outgoing zooms up and out, incoming settles down from a zoom-in")
+
+out = Rectangle(width=1, height=1)
+inc = Rectangle(width=1, height=1).hide()
+zoomThrough(out, inc, zoom=1.5, duration=0.4)
+
+outScale = framesWith(out.meta.index, "Scale")
+incScale = framesWith(inc.meta.index, "Scale")
+outXs = [e["args"]["x"] for _, e in sorted(outScale.items())]
+incXs = [e["args"]["x"] for _, e in sorted(incScale.items())]
+check("outgoing scales up", outXs[-1] > outXs[0])
+check("outgoing ends at 1.5x", abs(outXs[-1] - 1.5) < 1e-6)
+check("incoming starts scaled up and settles to its resting scale", incXs[0] > incXs[-1] and abs(incXs[-1] - 1.0) < 1e-6)
+outOps = framesWith(out.meta.index, "Opacity")
+outOVals = [e["args"]["opacity"] for _, e in sorted(outOps.items())]
+check("outgoing fades out", outOVals[-1] == 0.0 and all(x >= y for x, y in zip(outOVals, outOVals[1:])))
+incShows = framesWith(inc.meta.index, "Show")
+check("incoming is shown", len(incShows) == 1)
 
 # ---------------------------------------------------------------------------
 summary()

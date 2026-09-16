@@ -450,13 +450,13 @@
   "shape": "4e847007eddb7b39"
  },
  "test/visual/scenes/transitions2.py": {
-  "applyCalls": 20,
-  "entries": 20,
+  "applyCalls": 65,
+  "entries": 68,
   "events": 0,
-  "frameSlots": 15,
-  "inputs": 2,
+  "frameSlots": 46,
+  "inputs": 4,
   "lastFrame": 15,
-  "shape": "88e1c3ad9050b8d0"
+  "shape": "906a5e2c4ca0963f"
  },
  "test/visual/scenes/uv_mapping.py": {
   "applyCalls": 2,

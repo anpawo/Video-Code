@@ -9,6 +9,7 @@ from videocode.shader.fragmentShader.crop import crop as _crop
 from videocode.shader.vertexShader.hide import hide as _hide
 from videocode.shader.vertexShader.opacity import opacity as _opacity
 from videocode.shader.vertexShader.position import position as _position
+from videocode.shader.vertexShader.scale import scale as _scale
 from videocode.shader.vertexShader.show import show as _show
 from videocode.utils.bezier import *
 
@@ -127,3 +128,35 @@ def dipToBlack(
     incoming.apply(_show(), start=start + half).apply(_brightness(-255), start=start + half)
     for b, i in easing.rangeIdx(-255.0, 0.0, half):
         incoming.apply(_brightness(int(b)), start=start + half + i * SINGLE_FRAME)
+
+
+def zoomThrough(
+    outgoing: Input,
+    incoming: Input,
+    *,
+    zoom: number = 1.4,
+    start: sec = 0,
+    duration: sec = 0.5,
+    easing: easing = Easing.InOut,
+) -> None:
+    """
+    Zoom transition: `outgoing` scales up by `zoom`x while fading out;
+    `incoming` starts scaled up by `zoom`x and settles back to its resting
+    scale underneath it — the "zoom transition" preset of CapCut/Premiere.
+    Both inputs' CURRENT scale is the resting scale; position `incoming`
+    behind `outgoing` (zIndex) so nothing shows through early.
+
+        zoomThrough(clipA, clipB, zoom=1.6, duration=0.4)
+    """
+    outSrc = v2(*outgoing.meta.scale)
+    outDst = outSrc * zoom
+    inDst = v2(*incoming.meta.scale)
+    inSrc = inDst * zoom
+
+    incoming.apply(_show()).apply(_scale(inSrc.x, inSrc.y), start=start)
+    for s, i in easing.rangeIdx(outSrc, outDst, duration):
+        outgoing.apply(_scale(s.x, s.y), start=start + i * SINGLE_FRAME)
+    for o, i in easing.rangeIdx(255.0, 0.0, duration):
+        outgoing.apply(_opacity(o), start=start + i * SINGLE_FRAME)
+    for s, i in easing.rangeIdx(inSrc, inDst, duration):
+        incoming.apply(_scale(s.x, s.y), start=start + i * SINGLE_FRAME)
