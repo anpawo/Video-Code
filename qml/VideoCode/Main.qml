@@ -3658,14 +3658,11 @@ ApplicationWindow {
         onElementPicked: (index) => app.selectedIndex = index
     }
 
-    // The clip you clicked, as a tab in the dock — Palmier Pro's Inspector:
-    // what it is, what its line says, what it is worth at the playhead. The
-    // same card as the one that flies, told to stay put and keep the fields.
-    ElementCard {
+    // The clip you clicked, as rows in the dock — the Inspector of Palmier Pro
+    // and Final Cut: what it is, what its line says, what it is worth now.
+    InspectorPanel {
         id: inspector
         visible: false
-        docked: true
-        effectNames: app.effectNames
         playhead: app.playhead
         buffer: source.text
         onArgumentWritten: (element, call, name, value) => app.writeArgument(element, call, name, value)
