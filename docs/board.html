@@ -82,7 +82,7 @@
   .chip { font-family: var(--mono); font-size: 11px; color: var(--ink-dim); font-variant-numeric: tabular-nums; }
   .chip b { color: var(--ink); font-weight: 600; }
 
-  .board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 14px; align-items: start; }
+  .board { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 14px; margin-top: 14px; align-items: start; }
   .col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 
   .card { background: var(--panel); border: 1px solid var(--edge-soft); border-radius: 6px; overflow: hidden; }
@@ -114,6 +114,13 @@
   .sha { color: var(--ai); }
   .dim { color: var(--ink-dim); }
   code { font-family: var(--mono); font-size: .93em; }
+
+  /* Deux colonnes coulées en multicol : un groupe reste d'un seul tenant,
+     et la seconde colonne reprend là où la première s'arrête. */
+  .card.act ul.rows { column-count: 2; column-gap: 0; column-rule: 1px solid var(--edge-soft); }
+  .card.act li { break-inside: avoid; }
+  li.grp { display: block; padding: 8px 11px 3px; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); font-weight: 600; break-after: avoid; }
+  li.grp + li { border-top: 0; }
 
   li.hot .lbl { color: var(--live); font-weight: 500; }
   li.gone .lbl, li.gone .id { color: var(--ink-faint); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--ink-faint) 55%, transparent); }
@@ -156,8 +163,7 @@
   #grab.show { display: block; }
 
   @media (prefers-reduced-motion: reduce) { #flash { transition: none; } }
-  @media (max-width: 1180px) { .board { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 640px) { .board { grid-template-columns: 1fr; } }
+  @media (max-width: 1180px) { .board { grid-template-columns: 1fr; } .card.act ul.rows { column-count: 1; } }
 </style>
 
 <div class="wrap">
@@ -171,7 +177,7 @@
       <span class="chip"><b>69</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">16 sept. · 17 h</span>
+    <span class="stamp">16 sept. · 18 h</span>
   </header>
 
   <div class="board">
@@ -180,74 +186,65 @@
       <div class="card act">
         <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">34</span></h2>
         <ul class="rows">
+          <li class="grp">Timeline & clips</li>
           <li class="hot" data-b="Un clic sur un clip le choisit et ouvre l'onglet Inspector à côté d'Agent : ce qu'il est, ses arguments, sa metadata, ce qu'il vaut au curseur. Un double-clic ouvre la fiche volante, réduite à sa timeline interne.¦Renommer par double-clic s'en va, le nom de la fiche le fait. Vérifié sans fenêtre sur square. Relance l'app, ta souris."><span class="id">—</span><span class="lbl">L'Inspector : un clic, la fiche dans le dock</span><span class="meta lock">f6c220b · ta souris</span></li>
           <li class="hot" data-b="Têtes V1 V2 avec bande de couleur et grip qui déplace la voie, timecode complet sur la règle, clips en bloc plein au nom blanc, tête de lecture rouge, zoom − + en pourcentage, teintes calmées.¦L'ordre des voies vit dans le volet, pas dans le code. Avant/après dans temp/timeline_before.png et _after.png, tout dans temp/compare_all.png. Relance l'app, ton œil."><span class="id">—</span><span class="lbl">La timeline dessinée comme Palmier Pro</span><span class="meta lock">cd392b1 · ton œil</span></li>
-          <li class="hot" data-b="Pilule grise à droite pour toi, texte nu à gauche pour lui, trois points tant qu'il travaille, bouton rond pour envoyer ou couper.¦Lu dans les sources de Palmier Pro. Captures sans fenêtre dans temp/agent_palmier_*.png. Relance l'app, ton œil."><span class="id">—</span><span class="lbl">L'agent dessiné comme Palmier Pro</span><span class="meta lock">0fdaecb · ton œil</span></li>
-          <li class="hot" data-b="Plus de rendu d&#x27;image avant de répondre, ⌘R reste à toi.¦Pose une demande simple, regarde le compteur."><span class="id">—</span><span class="lbl">L'agent répond sans se relire</span><span class="meta">claude requis</span></li>
-          <li class="hot" data-b="degree, easing, duration en orange comme dans le code.¦Bulles seulement, jamais le buffer."><span class="id">—</span><span class="lbl">Paramètres en orange dans les bulles</span><span class="meta">ton œil</span></li>
           <li class="hot" data-b="Double-clic sur un clip ou clic sur le nom de la fiche.¦Renommage LSP, toutes les occurrences. Ta souris."><span class="id">—</span><span class="lbl">Renommer depuis le clip ou la fiche</span><span class="meta">ta souris</span></li>
           <li data-b="La flèche à gauche du nom d&#x27;un clip est retirée."><span class="id">—</span><span class="lbl">Clip sans flèche</span><span class="meta">ton œil</span></li>
-          <li data-b="wait(-1), waitTo(-3) : refus qui nomme la valeur.¦Dis juste si le message te va."><span class="id">X10</span><span class="lbl"><code>wait()</code> négatif refusé</span><span class="meta">ton go</span></li>
-          <li data-b="Placée à sa vraie taille, du côté le plus large, défile dedans.¦Invisible sans fenêtre. Ta souris."><span class="id">—</span><span class="lbl">Bulle de survol bien placée</span><span class="meta">ta souris</span></li>
           <li data-b="L&#x27;icône son sur les clips vidéo et audio est retirée."><span class="id">—</span><span class="lbl">Clip sans haut-parleur</span><span class="meta">ton œil</span></li>
-          <li data-b="Deux appels vers des fonctions inexistantes supprimés.¦Détache un volet, regarde la console."><span class="id">—</span><span class="lbl">Détacher un volet sans erreur</span><span class="meta">ta souris</span></li>
-          <li class="hot" data-b="Deux volets différents peuvent tenir la même touche. Tab libéré.¦Transport global mais listé sous timeline : à trancher."><span class="id">—</span><span class="lbl">Une touche par volet</span><span class="meta">ton œil</span></li>
-          <li data-b="La piste marius durait 0,35 s pour un clip de 3,53 s : le film s'arrête à la dernière image revendiquée, et un <code>Video</code> ne revendiquait que ses effets — le <code>popIn</code>.¦Un <code>Video</code> posé pousse maintenant la fin du film à ses propres trames, coupes déduites ; le filet C++ de Core comparait <code>_playbackLength</code> sans ajouter <code>_origin</code>, il datait d'avant originFrame.¦Film 4,17 → 7,10 s, le son était déjà à 7,12. Empreinte 52 scènes inchangée. Relance l'app pour le C++."><span class="id">X11</span><span class="lbl">Une vidéo revendique ses images</span><span class="meta">ton œil</span></li>
-          <li data-b="Chaque pastille de metadata a un champ par argument de son setter, typé par la signature de la bibliothèque : <code>position</code> donne x et y, <code>opacity</code> sa seule valeur.¦Une valeur écrite sans nom est remplacée là où elle est (<code>.opacity(0)</code>) ; une qui manque est ajoutée par son nom (<code>.position(3, y=4)</code>).¦Relance l'app avant d'essayer : les signatures se lisent côté Python."><span class="id">B4b</span><span class="lbl">Metadata de départ éditable</span><span class="meta">ta souris</span></li>
-          <li data-b="Ce que la ligne écrit, puis les mêmes arguments à l&#x27;image du curseur.¦Moitié lecture de B4. Ton œil sur la mise en page."><span class="id">B4a</span><span class="lbl">La fiche lit l'élément au curseur</span><span class="meta sha">f5d5810</span></li>
+          <li data-b="Placée à sa vraie taille, du côté le plus large, défile dedans.¦Invisible sans fenêtre. Ta souris."><span class="id">—</span><span class="lbl">Bulle de survol bien placée</span><span class="meta">ta souris</span></li>
           <li data-b="Moitié du volet max, défile, posée à 4 px de la ligne.¦Ta souris."><span class="id">B13</span><span class="lbl">Bulle de survol bornée</span><span class="meta">ta souris</span></li>
-          <li data-b="youtube, tiktok, square en une commande, rejoués à chaque taille.¦Ouvre le tiktok et le carré du fil."><span class="id">C3</span><span class="lbl">Une scène, tous les formats</span><span class="meta lock">un mot</span></li>
+          <li data-b="Ce que la ligne écrit, puis les mêmes arguments à l&#x27;image du curseur.¦Moitié lecture de B4. Ton œil sur la mise en page."><span class="id">B4a</span><span class="lbl">La fiche lit l'élément au curseur</span><span class="meta sha">f5d5810</span></li>
+          <li data-b="Chaque pastille de metadata a un champ par argument de son setter, typé par la signature de la bibliothèque : <code>position</code> donne x et y, <code>opacity</code> sa seule valeur.¦Une valeur écrite sans nom est remplacée là où elle est (<code>.opacity(0)</code>) ; une qui manque est ajoutée par son nom (<code>.position(3, y=4)</code>).¦Relance l'app avant d'essayer : les signatures se lisent côté Python."><span class="id">B4b</span><span class="lbl">Metadata de départ éditable</span><span class="meta">ta souris</span></li>
           <li data-b="Tirer un wait(CONSTANTE) : refus qui nomme la constante et propose de la changer."><span class="id">B7</span><span class="lbl">Gestes refusés et proposés</span><span class="meta">ta souris</span></li>
+          <li class="grp">Moteur</li>
+          <li data-b="La piste marius durait 0,35 s pour un clip de 3,53 s : le film s'arrête à la dernière image revendiquée, et un <code>Video</code> ne revendiquait que ses effets — le <code>popIn</code>.¦Un <code>Video</code> posé pousse maintenant la fin du film à ses propres trames, coupes déduites ; le filet C++ de Core comparait <code>_playbackLength</code> sans ajouter <code>_origin</code>, il datait d'avant originFrame.¦Film 4,17 → 7,10 s, le son était déjà à 7,12. Empreinte 52 scènes inchangée. Relance l'app pour le C++."><span class="id">X11</span><span class="lbl">Une vidéo revendique ses images</span><span class="meta">ton œil</span></li>
+          <li data-b="wait(-1), waitTo(-3) : refus qui nomme la valeur.¦Dis juste si le message te va."><span class="id">X10</span><span class="lbl"><code>wait()</code> négatif refusé</span><span class="meta">ton go</span></li>
+          <li class="hot" data-b="Rends pivot_ink.py dans le worktree next-to : un mot tourné reste centré.¦Un mot et je fusionne."><span class="id">X9</span><span class="lbl">Un texte tourne autour de son encre</span><span class="meta lock">ton mot</span></li>
+          <li class="grp">Scènes & export</li>
+          <li data-b="youtube, tiktok, square en une commande, rejoués à chaque taille.¦Ouvre le tiktok et le carré du fil."><span class="id">C3</span><span class="lbl">Une scène, tous les formats</span><span class="meta lock">un mot</span></li>
           <li data-b="⌘E exporte avec le binaire du terminal. Coupe un export, exporte une scène cassée."><span class="id">C4</span><span class="lbl">Export depuis l'éditeur</span><span class="meta">ta souris</span></li>
           <li data-b="Un fichier cassé dans templates/ apparaît en rouge avec la raison."><span class="id">C5</span><span class="lbl">Tes propres modèles</span><span class="meta">une minute</span></li>
-          <li data-b="« décale ça vers la gauche » sans préciser : il sait de quoi tu parles.¦Il regarde son image, peut piloter l&#x27;éditeur."><span class="id">C1</span><span class="lbl">L'agent sait où tu es</span><span class="meta">claude requis</span></li>
-          <li data-b="Plus d&#x27;outils affichés, seulement ses phrases. La preuve, c&#x27;est le diff.¦Relance l&#x27;app, pose une question."><span class="id">—</span><span class="lbl">L'agent ne montre que ses phrases</span><span class="meta">claude requis</span></li>
+          <li class="grp">Agent</li>
+          <li class="hot" data-b="Pilule grise à droite pour toi, texte nu à gauche pour lui, trois points tant qu'il travaille, bouton rond pour envoyer ou couper.¦Lu dans les sources de Palmier Pro. Captures sans fenêtre dans temp/agent_palmier_*.png. Relance l'app, ton œil."><span class="id">—</span><span class="lbl">L'agent dessiné comme Palmier Pro</span><span class="meta lock">0fdaecb · ton œil</span></li>
           <li data-b="Question en gris, réponse en bleu, compteur qui tourne puis se fige.¦Relance l&#x27;app, pose une question."><span class="id">—</span><span class="lbl">Agent : blocs et compteur</span><span class="meta">ton œil</span></li>
           <li data-b="Gras, listes, code en ligne dans les réponses. Ton texte reste brut."><span class="id">—</span><span class="lbl">Agent : Markdown formaté</span><span class="meta">ton œil</span></li>
+          <li data-b="Arc bleu à gauche des secondes tant qu&#x27;il répond. Le mouvement se juge à l&#x27;œil."><span class="id">—</span><span class="lbl">Agent : indicateur qui tourne</span><span class="meta">ton œil</span></li>
+          <li data-b="ME au lieu de MR, libellés retirés, contenu centré sur le badge."><span class="id">—</span><span class="lbl">Agent : badge ME, texte centré</span><span class="meta">ton œil</span></li>
+          <li class="hot" data-b="degree, easing, duration en orange comme dans le code.¦Bulles seulement, jamais le buffer."><span class="id">—</span><span class="lbl">Paramètres en orange dans les bulles</span><span class="meta">ton œil</span></li>
+          <li data-b="Plus d&#x27;outils affichés, seulement ses phrases. La preuve, c&#x27;est le diff.¦Relance l&#x27;app, pose une question."><span class="id">—</span><span class="lbl">L'agent ne montre que ses phrases</span><span class="meta">claude requis</span></li>
+          <li class="hot" data-b="Plus de rendu d&#x27;image avant de répondre, ⌘R reste à toi.¦Pose une demande simple, regarde le compteur."><span class="id">—</span><span class="lbl">L'agent répond sans se relire</span><span class="meta">claude requis</span></li>
+          <li data-b="Une fois l&#x27;édition écrite, la réponse entière est « Fait. ».¦Pose-lui une question pour juger."><span class="id">—</span><span class="lbl">Agent : répond « Fait. »</span><span class="meta">claude requis</span></li>
+          <li data-b="Il effaçait le commentaire qui répétait la demande. Prompt corrigé.¦Refais la même demande pour juger."><span class="id">—</span><span class="lbl">Agent : garde les commentaires</span><span class="meta">claude requis</span></li>
+          <li data-b="« décale ça vers la gauche » sans préciser : il sait de quoi tu parles.¦Il regarde son image, peut piloter l&#x27;éditeur."><span class="id">C1</span><span class="lbl">L'agent sait où tu es</span><span class="meta">claude requis</span></li>
           <li data-b="Marge de 6 px ajoutée. À voir sur la prochaine modification de l&#x27;agent."><span class="id">—</span><span class="lbl">Diff : bandes alignées</span><span class="meta">ton œil</span></li>
+          <li data-b="Raccourci de fenêtre comme ⌘F, le volet garde la main si le curseur y est.¦Ta touche."><span class="id">—</span><span class="lbl">⌘⏎ après une réponse de l'agent</span><span class="meta">ta touche</span></li>
+          <li class="grp">Clavier & volets</li>
+          <li class="hot" data-b="Deux volets différents peuvent tenir la même touche. Tab libéré.¦Transport global mais listé sous timeline : à trancher."><span class="id">—</span><span class="lbl">Une touche par volet</span><span class="meta">ton œil</span></li>
+          <li data-b="Deux appels vers des fonctions inexistantes supprimés.¦Détache un volet, regarde la console."><span class="id">—</span><span class="lbl">Détacher un volet sans erreur</span><span class="meta">ta souris</span></li>
           <li data-b="Dans ⌘/, frapper ⌘ passe en orange toutes les actions qui l&#x27;utilisent.¦⌘ seul ne se simule pas. Ta touche."><span class="id">—</span><span class="lbl">Une touche allume ses actions</span><span class="meta">ta touche</span></li>
           <li data-b="« Press any key » retiré. Orange seulement tant que la touche est tenue."><span class="id">—</span><span class="lbl">Clavier sans carte</span><span class="meta">ta touche</span></li>
           <li data-b="Le masquage initial n&#x27;est plus listé comme effet : ligne 30 part de 4,93 s.¦Vérifié sans fenêtre."><span class="id">—</span><span class="lbl">⌘⏎ part du bon moment après wait()</span><span class="meta">ta touche</span></li>
-          <li data-b="Raccourci de fenêtre comme ⌘F, le volet garde la main si le curseur y est.¦Ta touche."><span class="id">—</span><span class="lbl">⌘⏎ après une réponse de l'agent</span><span class="meta">ta touche</span></li>
-          <li data-b="Arc bleu à gauche des secondes tant qu&#x27;il répond. Le mouvement se juge à l&#x27;œil."><span class="id">—</span><span class="lbl">Agent : indicateur qui tourne</span><span class="meta">ton œil</span></li>
-          <li data-b="ME au lieu de MR, libellés retirés, contenu centré sur le badge."><span class="id">—</span><span class="lbl">Agent : badge ME, texte centré</span><span class="meta">ton œil</span></li>
-          <li data-b="Une fois l&#x27;édition écrite, la réponse entière est « Fait. ».¦Pose-lui une question pour juger."><span class="id">—</span><span class="lbl">Agent : répond « Fait. »</span><span class="meta">claude requis</span></li>
-          <li data-b="Il effaçait le commentaire qui répétait la demande. Prompt corrigé.¦Refais la même demande pour juger."><span class="id">—</span><span class="lbl">Agent : garde les commentaires</span><span class="meta">claude requis</span></li>
-          <li class="hot" data-b="Rends pivot_ink.py dans le worktree next-to : un mot tourné reste centré.¦Un mot et je fusionne."><span class="id">X9</span><span class="lbl">Un texte tourne autour de son encre</span><span class="meta lock">ton mot</span></li>
         </ul>
       </div>
+    </div>
 
+    <div class="col">
       <div class="card doing">
         <h2>In progress <em>rien — les sessions attendent ton go</em> <span class="n">0</span></h2>
         <ul class="rows"></ul>
       </div>
 
-      <div class="card no">
-        <h2>Won't do <em>et pourquoi</em> <span class="n">6</span></h2>
-        <ul class="rows">
-          <li class="gone" data-b="Rien entre deux images : ce serait un maquillage. Manim n&#x27;en a pas non plus."><span class="id">A4</span><span class="lbl">Flou de mouvement</span><span class="meta">pas de sous-image</span></li>
-          <li class="gone" data-b="Il faudrait transcription, éditeur de mots, refonte image/son.¦<code>cuts=</code> existe déjà sur une vidéo.¦C'est un autre produit."><span class="id">C7</span><span class="lbl">Montage par transcription</span><span class="meta">autre produit</span></li>
-          <li class="gone" data-b="Une semaine pour un geste limité aux littéraux. B4 couvre l&#x27;intention."><span class="id">B2</span><span class="lbl">Glisser les nombres du code</span><span class="meta">B4 le couvre</span></li>
-          <li class="gone" data-b="Un thème, ici, c'est un fichier de constantes et un import.¦Le construire ajouterait une couche sans capacité nouvelle.¦Les 89 <code>strokeColor=TRANSPARENT</code> se règlent par les défauts."><span class="id">D4</span><span class="lbl"><code>theme()</code></span><span class="meta">c'est un import</span></li>
-          <li class="gone" data-b="Une passe de rendu par image. Une matrice sur les sommets fait pareil."><span class="id">—</span><span class="lbl">Caméra en composite</span><span class="meta">trop cher</span></li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="col">
       <div class="card todo">
         <h2>To do · quick <em>rien ne les bloque</em> <span class="n">5</span></h2>
-        <ul class="rows">          <li data-b="Tape une valeur à l&#x27;instant du curseur, la ligne s&#x27;écrit. Le chrono d&#x27;After Effects."><span class="id">B4</span><span class="lbl">Fiche chronomètre</span><span class="meta">ton œil</span></li>
+        <ul class="rows">
+          <li data-b="Tape une valeur à l&#x27;instant du curseur, la ligne s&#x27;écrit. Le chrono d&#x27;After Effects."><span class="id">B4</span><span class="lbl">Fiche chronomètre</span><span class="meta">ton œil</span></li>
           <li data-b="Un nombre qui évolue, et des objets qui le lisent.¦L'écriture existe (<code>attachTo</code>), il manque le verbe général.¦Lit une source pas encore tournée : d'où S1."><span class="id">A3</span><span class="lbl">Valeur suivie + liaison</span><span class="meta">ton œil</span></li>
           <li data-b="Tirer un clip écrit son <code>.wait()</code> ; tirer une bande écrit le <code>wait()</code> global.¦Les deux outils de Premiere, en deux mots du langage.¦Vers la gauche demande S1."><span class="id">B3</span><span class="lbl">Glisser un clip, tirer une bande</span><span class="meta">ton œil</span></li>
           <li class="hot" data-b="Coins 10 px, onglet capsule, champs gélule. Aucune couleur touchée.¦Branche feat/apple-shapes, avant/après dans le fil."><span class="id">B8</span><span class="lbl">Formes plus proches du système</span><span class="meta lock">prêt, ton œil</span></li>
           <li data-b="La fenêtre sans écran reçoit le focus, la photo attend les touches.¦Reste : <code>window.active</code> est faux sans fenêtre plateforme.¦Piste restante <code>QWindow::create()</code>, non tentée : elle pourrait afficher."><span class="id">H1</span><span class="lbl">Raccourcis de fenêtre en headless</span><span class="meta">ton avis</span></li>
-</ul>
+        </ul>
       </div>
-
-    </div>
-
-    <div class="col">
 
       <div class="card todo">
         <h2>To do · the rest <em>gros morceaux, rien ne les bloque</em> <span class="n">1</span></h2>
@@ -255,19 +252,16 @@
           <li data-b="La scène sort comme un projet qu&#x27;on rouvre là-bas, pas seulement un MP4.¦À décider : FCPXML, EDL, OTIO ou plug-in, et lequel en premier."><span class="id">C12</span><span class="lbl">Intégration CapCut / Premiere / AE</span><span class="meta">ton choix</span></li>
         </ul>
       </div>
-    </div>
 
-    <div class="col">
-      <div class="card">
-        <h2>Shipped <em>last 3 days</em> <span class="n">6</span></h2>
+      <div class="card no">
+        <h2>Won't do <em>et pourquoi</em> <span class="n">5</span></h2>
         <ul class="rows">
-          <li class="hot" data-b="Deux mixages ffmpeg qui se chevauchaient : le premier était détruit en cours, son signal de fin lisait un pointeur déjà remplacé. SIGSEGV à la fermeture.¦Déconnecté avant d'être tué ; la lambda ne parle qu'à son propre processus. Binaire recompilé, build plafonné à 5 jobs."><span class="id">—</span><span class="lbl">Plus de plantage à la fermeture</span><span class="meta sha">1e552f8</span></li>
-          <li class="hot" data-b="macOS 114 → 72 Mo, Linux 86 → 57 Mo. Depuis ce matin : 220 → 72, 188 → 57.¦Drapeau --archive, anciens zips retirés."><span class="id">C13</span><span class="lbl">tar.xz à la place du zip</span><span class="meta sha">1f220e4</span></li>
-          <li class="hot" data-b="macOS 220 → 114 Mo, Linux 188 → 86 Mo.¦dSYM Qt sautés, OpenCV réduit à 4 modules, GDAL et ffmpeg via apt."><span class="id">C13</span><span class="lbl">Zips deux fois plus légers</span><span class="meta sha">fe3c444</span></li>
-          <li data-b="dyld ne trouvait pas VTK, aucun Qt embarqué : @rpath suivis, dylibs signées.¦Vérifié de bout en bout, release v0.1.0 refaite."><span class="id">—</span><span class="lbl">Le zip macOS tourne chez un testeur</span><span class="meta sha">f8e6252</span></li>
-          <li data-b="curl … install.sh | sh : choisit l&#x27;archive, lève la quarantaine, rend une scène."><span class="id">—</span><span class="lbl">Installeur en une ligne</span><span class="meta sha">442f7f2</span></li>
-          <li data-b="Le volet retiré n&#x27;était jamais caché. Validé à la souris le 12 sept.¦Reste : glisser un onglet entre emplacements."><span class="id">—</span><span class="lbl">Onglet fermé ne peint plus le voisin</span><span class="meta sha">8564e2f</span></li>
-</ul>
+          <li class="gone" data-b="Rien entre deux images : ce serait un maquillage. Manim n&#x27;en a pas non plus."><span class="id">A4</span><span class="lbl">Flou de mouvement</span><span class="meta">pas de sous-image</span></li>
+          <li class="gone" data-b="Il faudrait transcription, éditeur de mots, refonte image/son.¦<code>cuts=</code> existe déjà sur une vidéo.¦C'est un autre produit."><span class="id">C7</span><span class="lbl">Montage par transcription</span><span class="meta">autre produit</span></li>
+          <li class="gone" data-b="Une semaine pour un geste limité aux littéraux. B4 couvre l&#x27;intention."><span class="id">B2</span><span class="lbl">Glisser les nombres du code</span><span class="meta">B4 le couvre</span></li>
+          <li class="gone" data-b="Un thème, ici, c'est un fichier de constantes et un import.¦Le construire ajouterait une couche sans capacité nouvelle.¦Les 89 <code>strokeColor=TRANSPARENT</code> se règlent par les défauts."><span class="id">D4</span><span class="lbl"><code>theme()</code></span><span class="meta">c'est un import</span></li>
+          <li class="gone" data-b="Une passe de rendu par image. Une matrice sur les sommets fait pareil."><span class="id">—</span><span class="lbl">Caméra en composite</span><span class="meta">trop cher</span></li>
+        </ul>
       </div>
     </div>
 
