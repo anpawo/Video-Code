@@ -68,6 +68,19 @@ Key facts:
   they share — and a run prints a line naming both call sites when it happens.
   Two effects on different channels compose, whatever their windows. If your
   effect needs both axes it should claim both; if it needs one, claim one.
+- **`Input.apply(shader, start=X)`'s `X` is relative to `meta.transformationOffset`
+  (the input's own clock), not the scene's absolute time** — and `apply()`'s
+  own default is `start=0`, i.e. "right now, at this input's offset". A
+  two-input orchestrator (`transitions.py`) that calls `incoming.apply(_show())`
+  with no `start=` makes it visible IMMEDIATELY, not when its OWN animation
+  loop later starts at `start=start+half` — the classic case being a delayed
+  reveal (`dipToBlack`'s incoming shouldn't show until the midpoint). Two
+  chained calls must carry the SAME explicit `start=` value, or the first one
+  fires at the wrong time and shows whatever state the input already had
+  (its raw, unfiltered fill color, in `dipToBlack`'s case) until the second
+  catches up. `transformationOffset` itself only moves on `.flush()`/`.wait()`,
+  so a loop of many `.apply()` calls at increasing `start=` values does NOT
+  drift — every call in the loop is relative to the same fixed offset.
 
 ## B. Fragment shader
 

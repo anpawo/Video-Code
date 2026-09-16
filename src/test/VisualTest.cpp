@@ -216,6 +216,7 @@ namespace
         {"effect-shaders4", "test/visual/scenes/effect_shaders4.py", {0}},
         {"effect-shaders5", "test/visual/scenes/effect_shaders5.py", {0}},
         {"transitions", "test/visual/scenes/transitions.py", {0, 8, 15}},
+        {"transitions2", "test/visual/scenes/transitions2.py", {0, 8, 15}},
         {"blend-modes", "test/visual/scenes/blend_modes.py", {0}},
         {"glow", "test/visual/scenes/glow.py", {0}},
         // Three frames: the middle one is the point. A group's trajectory was

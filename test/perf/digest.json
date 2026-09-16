@@ -458,6 +458,15 @@
   "lastFrame": 16,
   "shape": "4e847007eddb7b39"
  },
+ "test/visual/scenes/transitions2.py": {
+  "applyCalls": 84,
+  "entries": 89,
+  "events": 0,
+  "frameSlots": 64,
+  "inputs": 6,
+  "lastFrame": 15,
+  "shape": "e9c104ac2c93bdcd"
+ },
  "test/visual/scenes/uv_mapping.py": {
   "applyCalls": 2,
   "entries": 8,

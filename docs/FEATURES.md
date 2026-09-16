@@ -912,10 +912,15 @@ once (not `.apply()` effects):
 crossfade(sceneA, sceneB, duration=0.8)
 push(cardA, cardB, direction=Direction.LEFT, distance=4)
 wipeBetween(shotA, shotB, direction=Direction.RIGHT)
+dipToBlack(sceneA, sceneB, duration=0.6)
+zoomThrough(clipA, clipB, zoom=1.6)
+slideOver(sceneA, sceneB, direction=Direction.RIGHT)
 ```
 
 How: call after positioning both inputs at their resting spots; the incoming
-input should sit behind the outgoing one (`zIndex`) so nothing flashes early.
+input should sit behind the outgoing one (`zIndex`) so nothing flashes early —
+`slideOver` is the exception, its `incoming` covers `outgoing` so it must sit
+ABOVE it, and `outgoing` itself is never touched.
 
 Easing curves (`videocode/utils/bezier.py`):
 - CSS-style cubic-beziers (`CubicBezier`): `Easing.Linear`, `Easing.In`,
