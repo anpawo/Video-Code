@@ -39,7 +39,9 @@ using json = nlohmann::json;
     X(HueRotate)   \
     X(Halftone)    \
     X(ChromaKey)   \
-    X(Lut)
+    X(Lut)         \
+    X(Saturation)  \
+    X(Temperature)
 
 // Object-relative shaders — resolveEffectParams() prepends the mesh's own
 // screen-space bounding box, so their GLSL reads p[0..3] = (uMin, vMin,

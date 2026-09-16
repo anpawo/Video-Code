@@ -692,6 +692,8 @@ rendered pixels:
 | `lut(filepath, intensity)` | `lut.py` | `.cube` LUT color grade — see [Compositing & Grading](#compositing--grading) |
 | `roundCorners(radius)` | `roundCorners.py` | Round a clip's own corners (object-relative) |
 | `feather(softness)` | `feather.py` | Fade a clip to transparent towards its own edges (object-relative) |
+| `saturation(amount)` | `saturation.py` | Luma-based (Rec. 709) saturation, 0=gray .. 2=doubled |
+| `temperature(warmth)` | `temperature.py` | White-balance-style warm/cool push, luma-preserving |
 
 **Examples**: `test/visual/scenes/crop.py`, `lightsweep.py`,
 `lightsweep_group.py`, `effect_shaders*.py`.

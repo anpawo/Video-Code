@@ -40,6 +40,8 @@ from videocode.shader.fragmentShader.fire import *
 from videocode.shader.fragmentShader.starNest import *
 from videocode.shader.fragmentShader.roundCorners import *
 from videocode.shader.fragmentShader.feather import *
+from videocode.shader.fragmentShader.saturation import *
+from videocode.shader.fragmentShader.temperature import *
 
 # Transformations
 from videocode.shader.vertexShader.align import *

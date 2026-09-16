@@ -2,7 +2,8 @@
 
 """
 Assertion-based tests for effects batch 6 (everyday explainer-video filters):
-- roundCorners / feather fragment-shader Python bindings
+- roundCorners / feather / saturation / temperature fragment-shader Python
+  bindings
 Run directly: `python3 test/effects6_test.py`
 """
 
@@ -24,12 +25,16 @@ section("fragment shader bindings")
 
 check("roundCorners args", roundCorners(0.3).radius == 0.3)
 check("feather args", feather(0.2).softness == 0.2)
+check("saturation args", saturation(0.5).amount == 0.5)
+check("temperature args", temperature(-0.4).warmth == -0.4)
 
 r = Rectangle(width=1, height=1)
 r.apply(roundCorners(), duration=0.1)
 r.apply(feather(), start=0.2, duration=0.1)
+r.apply(saturation(), start=0.4, duration=0.1)
+r.apply(temperature(), start=0.6, duration=0.1)
 names = {k for fr, e in Context.stack[r.meta.index].items() if fr != -1 for k in e}
-for n in ("RoundCorners", "Feather"):
+for n in ("RoundCorners", "Feather", "Saturation", "Temperature"):
     check(f"{n} lands in the stack", n in names)
 
 # ---------------------------------------------------------------------------
