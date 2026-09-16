@@ -38,6 +38,8 @@ from videocode.shader.fragmentShader.evilEye import *
 from videocode.shader.fragmentShader.silk import *
 from videocode.shader.fragmentShader.fire import *
 from videocode.shader.fragmentShader.starNest import *
+from videocode.shader.fragmentShader.roundCorners import *
+from videocode.shader.fragmentShader.feather import *
 
 # Transformations
 from videocode.shader.vertexShader.align import *

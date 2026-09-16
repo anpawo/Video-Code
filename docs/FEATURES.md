@@ -690,6 +690,8 @@ rendered pixels:
 | `chromaKey(color, tolerance, softness)` | `chromaKey.py` | Green-screen keying — see [Compositing & Grading](#compositing--grading) |
 | `glow(radius, intensity)` | `glow.py` | Additive bloom halo — see [Compositing & Grading](#compositing--grading) |
 | `lut(filepath, intensity)` | `lut.py` | `.cube` LUT color grade — see [Compositing & Grading](#compositing--grading) |
+| `roundCorners(radius)` | `roundCorners.py` | Round a clip's own corners (object-relative) |
+| `feather(softness)` | `feather.py` | Fade a clip to transparent towards its own edges (object-relative) |
 
 **Examples**: `test/visual/scenes/crop.py`, `lightsweep.py`,
 `lightsweep_group.py`, `effect_shaders*.py`.

@@ -47,7 +47,9 @@ using json = nlohmann::json;
 #define BBOX_SHADERS(X) \
     X(Crop)             \
     X(Vignette)         \
-    X(ZoomBlur)
+    X(ZoomBlur)         \
+    X(RoundCorners)     \
+    X(Feather)
 
 // -------------------------------------------------------------------------
 // Generated class for each registered shader
