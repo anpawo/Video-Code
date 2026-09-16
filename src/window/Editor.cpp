@@ -1200,6 +1200,18 @@ QStringList VC::Editor::enumValues(const QString& name)
     return found;
 }
 
+QString VC::Editor::evalText(const QString& expression)
+{
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       scope = py::module::import("videocode");
+        const py::object       value = py::eval(expression.toStdString(), scope.attr("__dict__"));
+        return QString::fromStdString(py::str(value).cast<std::string>());
+    } catch (const py::error_already_set&) {
+        return {};
+    }
+}
+
 QVariantList VC::Editor::inputParams(const QString& className)
 {
     QVariantList found;

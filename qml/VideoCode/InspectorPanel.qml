@@ -107,8 +107,15 @@ Item {
         const live = root.meta["Args:" + one.name];
         const shown = asWritten.length > 0 ? asWritten : one.value;
         const now = live !== undefined ? root.readable(live) : "";
-        const isColor = /color/i.test(one.kind);
-        const hex = now.startsWith("#") ? now : (/^"?#[0-9a-fA-F]{6}/.test(shown) ? shown.replace(/"/g, "") : "");
+        const isColor = /color|paint|rgba/i.test(one.kind);
+        // A named colour is asked of the scene itself: `BLUE_C` evaluates to
+        // its tuple, which reads back as hex.
+        let hex = now.startsWith("#") ? now : (/^"?#[0-9a-fA-F]{6}/.test(shown) ? shown.replace(/"/g, "") : "");
+        if (isColor && hex.length === 0 && typeof Shell.evalText === "function") {
+            const said = root.readable(Shell.evalText(shown));
+            if (said.startsWith("#"))
+                hex = said;
+        }
         return { label: one.name, param: one, value: shown, isDefault: asWritten.length === 0,
                  now: now !== shown && !isColor ? now : "", kind: one.kind,
                  swatch: isColor && hex.length > 0 ? hex.substring(0, 7) : "" };

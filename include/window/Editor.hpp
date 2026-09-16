@@ -377,6 +377,9 @@ namespace VC
         // how the card offers the right fields per kind without knowing what a
         // video is.
         Q_INVOKABLE QVariantList inputParams(const QString& className);
+        // What a scene expression is worth, as text — `BLUE_C` → "(105, 165, 241, 255)".
+        // "" when it does not evaluate.
+        Q_INVOKABLE QString evalText(const QString& expression);
 
         // easingCurves() — the `Easing` presets that ARE curves, as the four
         // control points behind each, keyed by the spelling a scene uses. The
