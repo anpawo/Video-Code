@@ -14,6 +14,7 @@
 #include <pybind11/embed.h>
 #include <unistd.h>
 
+#include <QColorDialog>
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -1198,6 +1199,12 @@ QStringList VC::Editor::enumValues(const QString& name)
     } catch (const py::error_already_set&) {
     }
     return found;
+}
+
+QString VC::Editor::pickColor(const QString& hex)
+{
+    const QColor picked = QColorDialog::getColor(QColor(hex), nullptr, QStringLiteral("Choose a colour"));
+    return picked.isValid() ? picked.name() : QString();
 }
 
 QString VC::Editor::pickFile(const QString& near)

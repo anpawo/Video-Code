@@ -253,13 +253,6 @@ Item {
         return out;
     }
 
-    // Where a colour swatch sends its click: the chrome has no system picker
-    // (this Qt ships without QtQuick.Dialogs), so the field takes the hex.
-    QtObject {
-        id: picker
-        function ask(row, hex) { row.beginEdit(); }
-    }
-
     Text {
         anchors.centerIn: parent
         visible: root.element === null
@@ -395,14 +388,29 @@ Item {
             }
         }
 
+        // The colour, as a button: the system picker opens on it, and what is
+        // chosen is written as rgba("#rrggbb"), which the scene reads back.
         Rectangle {
             id: dab
             anchors { right: parent.right; rightMargin: 10; verticalCenter: parent.verticalCenter }
             visible: row.swatch.length > 0
-            width: 14; height: 14; radius: 4
+            z: 3
+            width: 16; height: 16; radius: 5
             color: row.swatch.length > 0 ? row.swatch : "transparent"
             border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.25)
+            border.color: dabHover.hovered ? Theme.live : Qt.rgba(1, 1, 1, 0.35)
+            HoverHandler { id: dabHover; cursorShape: Qt.PointingHandCursor }
+            MouseArea {
+                anchors.fill: parent
+                anchors.margins: -4
+                onPressed: {
+                    if (typeof Shell.pickColor !== "function")
+                        return;
+                    const hex = Shell.pickColor(row.swatch);
+                    if (hex.length > 0)
+                        row.committed("rgba(\"" + hex + "\")");
+                }
+            }
         }
 
         Text {

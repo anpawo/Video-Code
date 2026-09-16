@@ -383,6 +383,8 @@ namespace VC
         // The system's own file chooser, started in `near` (a file or a folder);
         // the path picked, or "" when none was.
         Q_INVOKABLE QString pickFile(const QString& near);
+        // The system colour picker, opened on `hex`; "#rrggbb" picked, or "".
+        Q_INVOKABLE QString pickColor(const QString& hex);
 
         // easingCurves() — the `Easing` presets that ARE curves, as the four
         // control points behind each, keyed by the spelling a scene uses. The
