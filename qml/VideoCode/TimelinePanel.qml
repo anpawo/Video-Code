@@ -69,13 +69,38 @@ Item {
         return full ? two(Math.floor(whole / 3600)) + ":" + core : core;
     }
 
+    // The lanes' order, as element indices. The scene's own order until the
+    // grip in the head column moves a lane; forgotten when the scene changes
+    // shape, since the indices would then name other elements.
+    property var order: []
+    readonly property var lanesOrder: root.order.length === root.scene.elements.length
+                                      ? root.order
+                                      : Array.from({ length: root.scene.elements.length }, (_, i) => i)
+
+    function moveLane(from, to) {
+        const next = root.lanesOrder.slice();
+        to = Math.max(0, Math.min(next.length - 1, to));
+        if (from === to)
+            return;
+        const [one] = next.splice(from, 1);
+        next.splice(to, 0, one);
+        root.order = next;
+    }
+
     // V1, V2… for what is seen, A1, A2… for what is only heard, top down.
-    function trackName(index) {
+    function trackName(row) {
         const all = root.scene.elements;
         let seen = 0, heard = 0;
-        for (let i = 0; i <= index; ++i)
-            all[i].kind === "sound" ? ++heard : ++seen;
-        return all[index].kind === "sound" ? "A" + heard : "V" + seen;
+        for (let i = 0; i <= row; ++i)
+            all[root.lanesOrder[i]].kind === "sound" ? ++heard : ++seen;
+        return all[root.lanesOrder[row]].kind === "sound" ? "A" + heard : "V" + seen;
+    }
+
+    // The ruler writes a timecode every `rulerStep` seconds: the first step
+    // that keeps two stamps at least 120 px apart.
+    readonly property int rulerStep: {
+        const fit = [1, 2, 5, 10, 15, 30, 60].find(step => step * root.pxPerSecond >= 120);
+        return fit === undefined ? 60 : fit;
     }
 
     // A clip was opened, and this is where it sits on screen. The rect is the
@@ -112,7 +137,7 @@ Item {
         const row = Math.floor(at.y / root.laneHeight);
         if (row < 0 || row >= root.scene.elements.length)
             return null;
-        return root.scene.elements[row];
+        return root.scene.elements[root.lanesOrder[row]];
     }
 
     // Which lane the pointer is over while something is carried, by index, so
@@ -318,10 +343,12 @@ Item {
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: Math.round(root.pxPerSecond) + " px/s"
-                color: Theme.inkFaint
-                font.family: Theme.mono
-                font.pixelSize: 9
+                text: "−"
+                color: lessHover.hovered ? Theme.ink : Theme.inkDim
+                font.family: Theme.ui
+                font.pixelSize: 13
+                HoverHandler { id: lessHover }
+                TapHandler { onTapped: zoom.value = Math.max(zoom.from, zoom.value / 1.25) }
             }
 
             Slider {
@@ -372,6 +399,26 @@ Item {
                     border.width: 1
                 }
             }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "+"
+                color: moreHover.hovered ? Theme.ink : Theme.inkDim
+                font.family: Theme.ui
+                font.pixelSize: 13
+                HoverHandler { id: moreHover }
+                TapHandler { onTapped: zoom.value = Math.min(zoom.to, zoom.value * 1.25) }
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 36
+                horizontalAlignment: Text.AlignRight
+                text: root.fitZoom > 0 ? Math.round(root.pxPerSecond / root.fitZoom * 100) + "%" : ""
+                color: Theme.inkFaint
+                font.family: Theme.mono
+                font.pixelSize: 9
+            }
         }
     }
 
@@ -417,32 +464,73 @@ Item {
         clip: true
 
         Text {
-            x: 8
+            x: 10
             height: ruler.height
             verticalAlignment: Text.AlignVCenter
             text: root.timecode(root.playhead, true)
-            color: Theme.ai
+            color: Theme.live
             font.family: Theme.mono
             font.pixelSize: 11
         }
 
         Repeater {
-            model: root.scene.elements
+            model: root.lanesOrder
 
             Item {
                 id: head
                 required property int index
+                required property int modelData
+                readonly property var element: root.scene.elements[head.modelData]
                 y: ruler.height - flick.contentY + index * root.laneHeight
                 width: heads.width
                 height: root.laneHeight
 
+                Rectangle {
+                    anchors.fill: parent
+                    visible: gripArea.pressed
+                    color: Qt.alpha(Theme.ink, 0.06)
+                }
+
+                // The lane's colour, as a strip along the edge.
+                Rectangle {
+                    width: 3
+                    height: parent.height
+                    color: Theme.kind[head.element.kind]
+                }
+
+                // The grip: three lines, dragged up or down to move the lane.
+                Column {
+                    x: 11
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
+                    Repeater {
+                        model: 3
+                        Rectangle { width: 10; height: 1.5; radius: 1; color: Theme.inkFaint }
+                    }
+                }
+
+                MouseArea {
+                    id: gripArea
+                    width: 30
+                    height: parent.height
+                    cursorShape: Qt.SizeVerCursor
+                    property real startY: 0
+                    onPressed: (mouse) => { startY = mouse.y; root.forceActiveFocus(); }
+                    onReleased: (mouse) => {
+                        const rows = Math.round((mouse.y - startY) / root.laneHeight);
+                        if (rows !== 0)
+                            root.moveLane(head.index, head.index + rows);
+                    }
+                }
+
                 Text {
-                    x: 8
+                    x: 30
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.trackName(head.index)
-                    color: root.selectedIndex === head.index ? Theme.ink : Theme.inkDim
-                    font.family: Theme.mono
-                    font.pixelSize: 10
+                    color: root.selectedIndex === head.modelData ? Theme.ink : Theme.inkDim
+                    font.family: Theme.ui
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
                 }
 
                 Rectangle {
@@ -498,12 +586,13 @@ Item {
             spacing: 0
 
             Repeater {
-                model: root.scene.elements
+                model: root.lanesOrder.map(i => root.scene.elements[i])
 
                 Item {
                     id: lane
                     required property int index
                     required property var modelData
+                    readonly property int elementIndex: root.lanesOrder[lane.index]
                     width: root.contentWidth
 
                     height: root.laneHeight
@@ -533,7 +622,7 @@ Item {
                     // it: the drop has a target, and the target says so.
                     Rectangle {
                         anchors.fill: parent
-                        visible: root.hoverLane === lane.index
+                        visible: root.hoverLane === lane.elementIndex
                         color: Qt.alpha(Theme.live, 0.10)
                         border.width: 1
                         border.color: Qt.alpha(Theme.live, 0.55)
@@ -542,31 +631,33 @@ Item {
                     Rectangle {
                         id: bar
                         x: (lane.modelData.l + bar.heldIn) * root.pxPerSecond
-                        y: 3
+                        y: 2
                         width: Math.max(
                             (lane.modelData.d - bar.heldIn + bar.heldOut) * root.pxPerSecond - 2, 8)
                         // The LANE grows when it opens; the bar does not. It is
                         // still one clip, and a clip that swells to hold its own
                         // contents stops reading as a clip.
-                        height: root.laneHeight - 6
-                        radius: 4
+                        height: root.laneHeight - 4
+                        radius: 6
 
                         readonly property bool away: root.openedName.length > 0
                                                      && root.openedName === lane.modelData.n
 
-                        readonly property bool lit: root.litIndex === lane.index
+                        readonly property bool lit: root.litIndex === lane.elementIndex
 
+                        readonly property color hue: Theme.kind[lane.modelData.kind]
                         color: away ? "transparent"
-                                    : Qt.alpha(Theme.kind[lane.modelData.kind],
-                                               root.selectedIndex === lane.index ? 0.70 : bar.lit ? 0.60 : 0.45)
+                                    : root.selectedIndex === lane.elementIndex ? Qt.lighter(bar.hue, 1.25)
+                                    : bar.lit ? Qt.lighter(bar.hue, 1.12)
+                                    : bar.hue
                         border.width: 1
                         border.color: away
                                       ? Qt.rgba(1, 1, 1, 0.10)
-                                      : (root.selectedIndex === lane.index
+                                      : (root.selectedIndex === lane.elementIndex
                                          ? "#ffffff"
                                          : (bar.lit
                                             ? Qt.alpha(Theme.live, 0.55)
-                                            : Qt.rgba(1.000, 1.000, 1.000, 0.149)))
+                                            : Qt.darker(bar.hue, 1.35)))
 
                         // ── A fault the run found on this element ────────
                         // Hazard hatching, the mark every editing tool uses for
@@ -611,10 +702,8 @@ Item {
                             id: label
                             visible: !bar.away
                             anchors { left: parent.left; right: parent.right; top: parent.top; margins: 1 }
-                            height: 13
-                            topLeftRadius: 3
-                            topRightRadius: 3
-                            color: Qt.alpha(Theme.kind[lane.modelData.kind], 0.92)
+                            height: 18
+                            color: "transparent"
                             clip: true
 
                             Row {
@@ -661,9 +750,9 @@ Item {
                                     text: lane.modelData.n
                                     // Near-black on a saturated band, which beats
                                     // white on every hue this palette uses.
-                                    color: Qt.rgba(0.04, 0.06, 0.09, 0.92)
+                                    color: "#ffffff"
                                     font.family: Theme.ui
-                                    font.pixelSize: 10
+                                    font.pixelSize: 11
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
                                 }
@@ -681,7 +770,7 @@ Item {
                                     visible: count > 0
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: "×" + count
-                                    color: Qt.rgba(0.04, 0.06, 0.09, 0.55)
+                                    color: Qt.rgba(1, 1, 1, 0.6)
                                     font.family: Theme.mono
                                     font.pixelSize: 10
                                 }
@@ -772,7 +861,7 @@ Item {
                                     }
                                     width: 3
                                     radius: 1.5
-                                    color: Theme.kind[lane.modelData.kind]
+                                    color: Qt.rgba(1, 1, 1, 0.30)
                                     opacity: parent.containsMouse || parent.pressed ? 0.95 : 0
                                     Behavior on opacity { NumberAnimation { duration: Theme.motion(90) } }
                                 }
@@ -822,7 +911,7 @@ Item {
             // the panel whose height IS its usefulness, and twelve pixels off
             // every lane forever, to hold a row that is empty, is twelve pixels
             // taken from the thing the panel is for.
-            height: root.scene.markers !== undefined && root.scene.markers.length > 0 ? 40 : 28
+            height: root.scene.markers !== undefined && root.scene.markers.length > 0 ? 56 : 44
             z: 5
             color: Theme.rail
 
@@ -835,36 +924,22 @@ Item {
                     width: root.pxPerSecond
                     height: ruler.height
 
-                    // The tick stops short of its own number. Now that the
-                    // figure sits ON the line, a full-height tick would run up
-                    // through the digits and read as a strikethrough; it only has
-                    // to reach far enough down to meet the lanes below.
+                    readonly property bool major: index % root.rulerStep === 0
+
                     Rectangle {
-                        anchors.bottom: parent.bottom
                         width: 1
-                        height: 6
-                        color: parent.index % 2 ? Theme.edgeSoft : Theme.edge
+                        height: parent.major ? 8 : 4
+                        color: parent.major ? Theme.inkFaint : Theme.edge
                     }
 
                     Text {
-                        id: stamp
-                        visible: parent.index % 2 === 0
-                        // Centred on the line it names, not parked beside it: a
-                        // number to the right of its tick reads as belonging to
-                        // the space AFTER that second, and the colon of "00:00"
-                        // sits over time zero. The clamp is the guard for a
-                        // gutter too narrow to hold half a stamp — it should not
-                        // bite at the shipped one.
-                        x: parent.index === 0
-                           ? Math.max(-stamp.implicitWidth / 2, -root.pad + 2)
-                           : -stamp.implicitWidth / 2
-                        anchors { bottom: parent.bottom; bottomMargin: 7 }
-                        text: root.pxPerSecond * 2 >= 64
-                              ? root.timecode(parent.index, false)
-                              : root.timecode(parent.index, false).slice(0, 5)
-                        color: Theme.inkFaint
+                        visible: parent.major
+                        x: 6
+                        y: 12
+                        text: root.timecode(parent.index, true)
+                        color: Theme.inkDim
                         font.family: Theme.mono
-                        font.pixelSize: 10
+                        font.pixelSize: 11
                     }
                 }
             }
@@ -908,7 +983,7 @@ Item {
                     }
 
                     Canvas {
-                        x: 1; y: 2
+                        x: 1; y: ruler.height - 13
                         width: 6; height: 7
                         onPaint: {
                             const ctx = getContext("2d");
@@ -925,7 +1000,7 @@ Item {
 
                     Text {
                         x: 10
-                        y: 1
+                        y: ruler.height - 15
                         width: Math.max(0, Math.min(implicitWidth, flag.room))
                         visible: flag.room > 12
                         elide: Text.ElideRight
@@ -1224,7 +1299,7 @@ Item {
 
             Rectangle {
                 anchors.fill: parent
-                color: Theme.ai
+                color: Theme.bad
             }
 
             // The grab handle, which is also what makes the line findable when it
@@ -1235,7 +1310,7 @@ Item {
                 onPaint: {
                     const ctx = getContext("2d");
                     ctx.reset();
-                    ctx.fillStyle = Theme.ai;
+                    ctx.fillStyle = Theme.bad;
                     ctx.beginPath();
                     ctx.moveTo(0, 0);
                     ctx.lineTo(width, 0);
