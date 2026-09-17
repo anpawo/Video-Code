@@ -177,14 +177,14 @@
       <span class="chip"><b>69</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">17 sept. · 11 h</span>
+    <span class="stamp">17 sept. · 12 h</span>
   </header>
 
   <div class="board">
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">18</span></h2>
+        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">19</span></h2>
         <ul class="rows">
           <li class="grp">Timeline & clips</li>
           <li class="hot" data-b="opacity(300), Square(cornerRadius=200) : le volet Code souligne la ligne en rouge et la barre est hachurée, dès le run. Dans l'Inspector, Entrée refuse et dit la borne en rouge. Transform montre position, scale, rotation, opacity, align avec leurs défauts en gris ; taper dans une rangée absente ajoute l'appel.¦Testé : test/bad_values_test.py. Relance l'app, ta souris."><span class="id">57</span><span class="lbl">Valeurs hors bornes refusées, soulignées</span><span class="meta lock">7997dfd · ta souris</span></li>
@@ -192,6 +192,7 @@
           <li data-b="Chaque pastille de metadata a un champ par argument de son setter, typé par la signature de la bibliothèque : <code>position</code> donne x et y, <code>opacity</code> sa seule valeur.¦Une valeur écrite sans nom est remplacée là où elle est (<code>.opacity(0)</code>) ; une qui manque est ajoutée par son nom (<code>.position(3, y=4)</code>).¦Relance l'app avant d'essayer : les signatures se lisent côté Python."><span class="id">9</span><span class="lbl">Metadata de départ éditable</span><span class="meta">ta souris</span></li>
           <li data-b="Tirer un wait(CONSTANTE) : refus qui nomme la constante et propose de la changer."><span class="id">10</span><span class="lbl">Gestes refusés et proposés</span><span class="meta">ta souris</span></li>
           <li class="grp">Moteur</li>
+          <li class="hot" data-b="merci.waitFor(marius).fadeIn() partait à la fin du popIn, pas à la fin du clip. Chaque élément répond d'une fin, la vidéo l'étend à sa dernière image, waitFor attend cette fin-là.¦Testé sur marius.mov : test/wait_for_video_test.py. Ton go, ou ton œil sur ta scène."><span class="id">58</span><span class="lbl">waitFor(video) attend la fin du clip</span><span class="meta lock">154b3ef · ton go</span></li>
           <li class="grp">Scènes & export</li>
           <li class="hot" data-b="roundCorners, feather (Edge Rounding et Softness de Palmier), saturation, temperature, chromaticAberration, letterbox. Un shader chacun, testés, golden lu, sur main en d073aa7 ; l'empreinte gagne une scène, les 52 autres inchangées.¦À ton œil : test/visual/golden/effect-shaders5_frame0.png, et marius.apply(roundCorners(0.2)) dans ta scène. Relance l'app, le binaire a changé."><span class="id">54</span><span class="lbl">Six effets d'image</span><span class="meta lock">d073aa7 · ton œil</span></li>
           <li class="hot" data-b="dipToBlack, zoomThrough, slideOver, en Python à côté de crossfade et push, testés, golden lu, sur main en fd1e193. Manim n'a pas d'équivalent : ses animations vivent dans une seule scène, pas entre deux plans.¦À ton œil : test/visual/golden/transitions2_frame8.png. dipToBlack passe par le shader brightness, donc noir seulement, pas de couleur au choix."><span class="id">55</span><span class="lbl">Trois transitions</span><span class="meta lock">fd1e193 · ton œil</span></li>

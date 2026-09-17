@@ -669,14 +669,14 @@ class Group(Interface, Generic[_GROUP_T]):
         return super().waitFor(i)
 
     def waitForOthers(self) -> Self:
-        """Advance this group to the latest `lastAffectedFrame` among all members."""
+        """Advance this group to the latest end — `endFrame()` — among all members."""
         frames: list[int] = []
 
         def collect(i: Input) -> None:
             if isinstance(i, Interface):
                 i.broadcast(collect)
             else:
-                frames.append(i.meta.lastAffectedFrame)
+                frames.append(i.endFrame())
 
         self.broadcast(collect)
         if not frames:

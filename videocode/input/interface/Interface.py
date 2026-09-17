@@ -35,6 +35,6 @@ class Interface(Input):
 
     def waitFor(self, i: Input) -> Self:
         frames: list[frame] = []
-        i.broadcast(lambda m: frames.append(m.meta.lastAffectedFrame))
+        i.broadcast(lambda m: frames.append(m.endFrame()))
         self.broadcast(lambda m: m._clockTo(max(frames)))
         return self

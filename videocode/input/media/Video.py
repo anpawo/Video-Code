@@ -175,6 +175,9 @@ class Video(Polygon):
         # playback count as the renderer's — the source's frames minus the cut
         # ranges — read off ffprobe; an unreadable count claims nothing rather
         # than raising, like `Sound.length()`.
+        # The clip's own last image, for whoever waits for it: an effect on the
+        # clip ends long before the clip does, and `waitFor` asks `endFrame()`.
+        self._ownEnd: frame = 0
         if self.placed:
             said = subprocess.run(
                 ["ffprobe", "-v", "error", "-select_streams", "v:0",
@@ -188,7 +191,15 @@ class Video(Polygon):
                 if b > a:
                     cut, seen = cut + b - a, b
             if frames > cut:
-                Context.lastEverAffectedFrame = max(Context.lastEverAffectedFrame, self.originFrame + frames - cut)
+                self._ownEnd = self.originFrame + frames - cut
+                Context.lastEverAffectedFrame = max(Context.lastEverAffectedFrame, self._ownEnd)
+
+    def endFrame(self) -> frame:
+        """
+        The clip's last image when it comes after its last effect, so that
+        `merci.waitFor(clip)` starts once the clip has played out.
+        """
+        return max(super().endFrame(), self._ownEnd)
 
     def generateVertices(self) -> list[point]:
         if self.width is None or self.height is None:
