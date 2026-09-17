@@ -741,8 +741,27 @@ class Input(ABC):
         return self.apply(*moveBy(self, x=x, y=y, easing=easing, start=start, duration=duration), at=at)
 
     @_rebasing
-    def fadeIn(self, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, from0: maybe[bool] = True) -> Self:
+    def fadeIn(self, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, from0: maybe[bool] = True, hidden: maybe[bool] = None) -> Self:
+        """
+        Fade this element in over `duration` seconds.
+
+        `hidden` keeps it invisible for the whole time BEFORE the fade, so the
+        `.opacity(0)` every scene used to open with is no longer needed:
+
+            title = Text("Hello")
+            title.fadeIn(start=1)        # nothing on screen until second 1
+
+        Left to `None`, it hides only when nothing has written the opacity yet —
+        an element the author dimmed, or that faded out earlier, keeps what it
+        had. `True` and `False` decide outright.
+        """
+        if hidden is True or (hidden is None and not self._opacityWritten()):
+            self.apply(opacity(0))
         return self.apply(*fadeTo(self, src=0 if from0 else None, dst=255, easing=easing, start=start, duration=duration), at=at)
+
+    def _opacityWritten(self) -> bool:
+        return self.meta.index is not None and any(
+            st["input"] == self.meta.index and "Opacity" in st["keys"] for st in Context.statements)
 
     @_rebasing
     def fadeOut(self, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, hide=False, from255: maybe[bool] = True) -> Self:

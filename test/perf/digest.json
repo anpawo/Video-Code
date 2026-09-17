@@ -33,7 +33,7 @@
   "frameSlots": 62,
   "inputs": 2,
   "lastFrame": 36,
-  "shape": "4a69c3e80e772128"
+  "shape": "7fed55299c842393"
  },
  "test/visual/scenes/aspect_portrait.py": {
   "applyCalls": 5,
@@ -321,7 +321,7 @@
   "frameSlots": 35,
   "inputs": 2,
   "lastFrame": 18,
-  "shape": "51585a4c85277b64"
+  "shape": "e7ab320f592808b2"
  },
  "test/visual/scenes/reload_b.py": {
   "applyCalls": 46,
@@ -330,7 +330,7 @@
   "frameSlots": 47,
   "inputs": 2,
   "lastFrame": 39,
-  "shape": "12249cffe289c96e"
+  "shape": "1ec0dabb146e16b3"
  },
  "test/visual/scenes/resize.py": {
   "applyCalls": 62,
