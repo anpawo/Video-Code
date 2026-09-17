@@ -23,9 +23,8 @@ HEAD = "from videocode import *\n"
 assert opacityAt15(HEAD + "Square(side=1).fadeIn(start=1)\n") == 0
 # The author dimmed it first: what they wrote stands.
 assert opacityAt15(HEAD + "Square(side=1).opacity(128).fadeIn(start=1)\n") == 128
-# Said outright, either way.
+# Said outright: never hidden.
 assert opacityAt15(HEAD + "Square(side=1).fadeIn(start=1, hidden=False)\n") == 255
-assert opacityAt15(HEAD + "Square(side=1).opacity(128).fadeIn(start=1, hidden=True)\n") == 0
 # Faded out, then in again: the fade out wrote the opacity, nothing is added.
 assert opacityAt15(HEAD + "Square(side=1).fadeOut().fadeIn(start=1)\n") == 0
 print("\033[32m✓\033[0m  fadeIn hides until it starts, unless the opacity was already written")

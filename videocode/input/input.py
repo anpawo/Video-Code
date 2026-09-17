@@ -741,7 +741,7 @@ class Input(ABC):
         return self.apply(*moveBy(self, x=x, y=y, easing=easing, start=start, duration=duration), at=at)
 
     @_rebasing
-    def fadeIn(self, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, from0: maybe[bool] = True, hidden: maybe[bool] = None) -> Self:
+    def fadeIn(self, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, from0: maybe[bool] = True, hidden: bool = True) -> Self:
         """
         Fade this element in over `duration` seconds.
 
@@ -751,11 +751,11 @@ class Input(ABC):
             title = Text("Hello")
             title.fadeIn(start=1)        # nothing on screen until second 1
 
-        Left to `None`, it hides only when nothing has written the opacity yet —
-        an element the author dimmed, or that faded out earlier, keeps what it
-        had. `True` and `False` decide outright.
+        It stands down by itself when the opacity was already written — an
+        element the author dimmed, or that faded out earlier, keeps what it
+        had. `hidden=False` never hides.
         """
-        if hidden is True or (hidden is None and not self._opacityWritten()):
+        if hidden and not self._opacityWritten():
             self.apply(opacity(0))
         return self.apply(*fadeTo(self, src=0 if from0 else None, dst=255, easing=easing, start=start, duration=duration), at=at)
 
