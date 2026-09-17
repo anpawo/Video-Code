@@ -83,6 +83,27 @@ Item {
             zoom.value = Math.max(zoom.from, Math.min(zoom.to, root.fitZoom));
     }
 
+    // A lane on its way: the row being dragged, how far it has gone, and the
+    // row it would land on. The whole lane — head and clips — follows the
+    // pointer, and the rows it passes step aside, so what you see while
+    // dragging is what you get on release.
+    property int dragLane: -1
+    property real dragDy: 0
+    readonly property int dragTarget: dragLane < 0 ? -1
+        : Math.max(0, Math.min(root.lanesOrder.length - 1, dragLane + Math.round(dragDy / root.laneHeight)))
+
+    function laneShift(row) {
+        if (root.dragLane < 0)
+            return 0;
+        if (row === root.dragLane)
+            return root.dragDy;
+        if (root.dragLane < row && row <= root.dragTarget)
+            return -root.laneHeight;
+        if (root.dragTarget <= row && row < root.dragLane)
+            return root.laneHeight;
+        return 0;
+    }
+
     function moveLane(from, to) {
         const next = root.lanesOrder.slice();
         to = Math.max(0, Math.min(next.length - 1, to));
@@ -491,11 +512,21 @@ Item {
                 y: ruler.height - flick.contentY + index * root.laneHeight
                 width: heads.width
                 height: root.laneHeight
+                z: root.dragLane === head.index ? 2 : 0
+                transform: Translate {
+                    y: root.laneShift(head.index)
+                    Behavior on y {
+                        enabled: root.dragLane >= 0 && root.dragLane !== head.index
+                        NumberAnimation { duration: Theme.motion(90) }
+                    }
+                }
 
                 Rectangle {
                     anchors.fill: parent
                     visible: gripArea.pressed
-                    color: Qt.alpha(Theme.ink, 0.06)
+                    color: Theme.rail
+                    border.width: 1
+                    border.color: Theme.edge
                 }
 
                 // The lane's colour, as a strip along the edge.
@@ -521,12 +552,26 @@ Item {
                     width: 30
                     height: parent.height
                     cursorShape: Qt.SizeVerCursor
+                    // Measured in the panel's frame, not the grip's: the grip
+                    // itself moves with the pointer, so its own y never changes.
                     property real startY: 0
-                    onPressed: (mouse) => { startY = mouse.y; root.forceActiveFocus(); }
-                    onReleased: (mouse) => {
-                        const rows = Math.round((mouse.y - startY) / root.laneHeight);
-                        if (rows !== 0)
-                            root.moveLane(head.index, head.index + rows);
+                    onPressed: (mouse) => {
+                        startY = mapToItem(root, mouse.x, mouse.y).y;
+                        root.dragLane = head.index;
+                        root.dragDy = 0;
+                        root.forceActiveFocus();
+                    }
+                    onPositionChanged: (mouse) => {
+                        if (pressed)
+                            root.dragDy = mapToItem(root, mouse.x, mouse.y).y - startY;
+                    }
+                    onReleased: {
+                        const to = root.dragTarget;
+                        const from = root.dragLane;
+                        root.dragLane = -1;
+                        root.dragDy = 0;
+                        if (to !== from)
+                            root.moveLane(from, to);
                     }
                 }
 
@@ -601,6 +646,14 @@ Item {
                     required property var modelData
                     readonly property int elementIndex: root.lanesOrder[lane.index]
                     width: root.contentWidth
+                    z: root.dragLane === lane.index ? 2 : 0
+                    transform: Translate {
+                        y: root.laneShift(lane.index)
+                        Behavior on y {
+                            enabled: root.dragLane >= 0 && root.dragLane !== lane.index
+                            NumberAnimation { duration: Theme.motion(90) }
+                        }
+                    }
 
                     height: root.laneHeight
 
