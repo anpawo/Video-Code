@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 
 from videocode.input.shape.Polygon import *
-from videocode.constants import WORLD_TO_SCREEN_RATIO
+from videocode.constants import FRAMERATE, WORLD_TO_SCREEN_RATIO
 from videocode.context import Context
 from videocode.input.media.Image import _fitToRatio
 from videocode.input.media.TrackedPath import TrackedPath
@@ -175,8 +175,8 @@ class Video(Polygon):
         # playback count as the renderer's — the source's frames minus the cut
         # ranges — read off ffprobe; an unreadable count claims nothing rather
         # than raising, like `Sound.length()`.
-        # The clip's own last image, for whoever waits for it: an effect on the
-        # clip ends long before the clip does, and `waitFor` asks `endFrame()`.
+        # The clip's last image, for whoever waits for it: `waitFor(clip)`
+        # means the clip's last EFFECT, which ends long before the clip does.
         self._ownEnd: frame = 0
         if self.placed:
             said = subprocess.run(
@@ -194,12 +194,15 @@ class Video(Polygon):
                 self._ownEnd = self.originFrame + frames - cut
                 Context.lastEverAffectedFrame = max(Context.lastEverAffectedFrame, self._ownEnd)
 
-    def endFrame(self) -> frame:
+    @property
+    def end(self) -> sec:
         """
-        The clip's last image when it comes after its last effect, so that
-        `merci.waitFor(clip)` starts once the clip has played out.
+        The second of the film at which this clip's last image plays, cuts
+        deducted — what to wait for when the clip itself has to be over:
+
+            merci.waitFor(marius.end).fadeIn()
         """
-        return max(super().endFrame(), self._ownEnd)
+        return self._ownEnd / FRAMERATE
 
     def generateVertices(self) -> list[point]:
         if self.width is None or self.height is None:

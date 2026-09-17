@@ -148,24 +148,18 @@ class Input(ABC):
         self.meta.lastAffectedFrame += int(n * FRAMERATE)
         return self.flush()
 
-    def endFrame(self) -> frame:
+    def waitFor(self, i: Input | sec) -> Self:
         """
-        The frame this element is done at, as far as `waitFor` is concerned:
-        its last effect. A `Video` answers with its own last image instead
-        when that comes later.
-        """
-        return self.meta.lastAffectedFrame
-
-    def waitFor(self, i: Input) -> Self:
-        """
-        Set this element's clock to the moment `i` is done — its last effect,
-        or for a video its last image:
+        Set this element's clock to the moment `i` is done — an element's last
+        effect, or a moment in seconds of the film such as a clip's `end`:
 
             merci = Text("Merci").opacity(0)
-            merci.waitFor(marius).fadeIn()    # once the clip has played out
+            merci.waitFor(marius.end).fadeIn()    # once the clip has played out
         """
+        if isinstance(i, (int, float)):
+            return self._clockTo(max(int(round(i * FRAMERATE)), self.meta.lastAffectedFrame))
         frames: list[frame] = []
-        i.broadcast(lambda m: frames.append(m.endFrame()))
+        i.broadcast(lambda m: frames.append(m.meta.lastAffectedFrame))
         # "Until that one is done" — an element already past it has nothing left
         # to wait for, and walking its clock back is what wrote in the past.
         return self._clockTo(max(max(frames), self.meta.lastAffectedFrame))

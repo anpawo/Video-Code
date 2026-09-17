@@ -7,6 +7,7 @@ from typing import Any, Callable, Self
 from videocode.context import Metadata, frame
 from videocode.input.input import Input
 from videocode.constants import FRAMERATE
+from videocode.ty import sec
 
 
 class Interface(Input):
@@ -33,8 +34,12 @@ class Interface(Input):
         self.broadcast(lambda i: i.wait(n))
         return self
 
-    def waitFor(self, i: Input) -> Self:
+    def waitFor(self, i: Input | sec) -> Self:
+        if isinstance(i, (int, float)):
+            until = int(round(i * FRAMERATE))
+            self.broadcast(lambda m: m._clockTo(max(until, m.meta.lastAffectedFrame)))
+            return self
         frames: list[frame] = []
-        i.broadcast(lambda m: frames.append(m.endFrame()))
+        i.broadcast(lambda m: frames.append(m.meta.lastAffectedFrame))
         self.broadcast(lambda m: m._clockTo(max(frames)))
         return self
