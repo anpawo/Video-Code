@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import re
+import inspect
 import sys
 from abc import abstractmethod
 from contextlib import contextmanager
@@ -175,6 +177,45 @@ class Timestamp(StackAction):
 # `_callSite()` before it was hoisted: 28580 `dirname`, 14288 `abspath` and
 # 14316 `join` calls per bake of the text benchmark, all for one constant.
 _LIBRARY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "videocode") + os.sep
+
+
+# What a type in ty.py promises about a number: the closed ranges the editor
+# can refuse before writing, and the run can refuse after.
+_BOUNDS: dict[str, tuple[float | None, float | None]] = {
+    "uint8": (0, 255), "int8": (-128, 127), "percent": (0, 100),
+    "uint": (0, None), "ufloat": (0, None), "unumber": (0, None),
+    "wuint": (0, None), "wufloat": (0, None), "wunumber": (0, None),
+    "sec": (0, None), "frame": (0, None),
+}
+
+
+def _kindName(annotation: Any) -> str:
+    text = getattr(annotation, "__name__", None) or str(annotation)
+    hit = re.search(r"\b(" + "|".join(_BOUNDS) + r")\b", text)
+    return hit.group(1) if hit else ""
+
+
+def _outOfBounds(cls: type, func: str, given: dict[str, Any]) -> str:
+    method = getattr(cls, func, None) if func else None
+    if method is None:
+        return ""
+    try:
+        params = inspect.signature(method).parameters
+    except (TypeError, ValueError):
+        return ""
+    for name, param in params.items():
+        value = given.get(name)
+        if name == "self" or isinstance(value, bool) or not isinstance(value, (int, float)):
+            continue
+        kind = _kindName(param.annotation)
+        if not kind:
+            continue
+        low, high = _BOUNDS[kind]
+        if (low is not None and value < low) or (high is not None and value > high):
+            said = f"{low}–{high}" if high is not None else f"≥ {low}"
+            who = cls.__name__ if func == "__init__" else func
+            return f"{who}({name}={value}): {kind} is {said}"
+    return ""
 
 
 class Context:
@@ -356,16 +397,31 @@ class Context:
             crossed.append(frame)
             frame = frame.f_back
 
+        Context.lastBad = ""
+        owner = None
         for outer in reversed(crossed):
             owner = outer.f_locals.get("self")
             if owner is not None:
                 cls = type(owner).__name__
+                # The person's own arguments are in this frame: a value a type
+                # forbids is caught here, once, whichever verb it came through.
+                Context.lastBad = _outOfBounds(
+                    type(owner), outer.f_code.co_name if outer.f_code.co_name == "__init__" else func,
+                    outer.f_locals)
                 break
 
         Context.lastCallFunction = func
-        if frame is None:
-            return ("", 0, cls)
-        return (frame.f_code.co_filename, frame.f_lineno, cls)
+        where = ("", 0, cls) if frame is None else (frame.f_code.co_filename, frame.f_lineno, cls)
+        # Recorded here rather than by the statement, since a constructor
+        # records none: `Square(cornerRadius=200)` has to reach the code pane too.
+        if Context.lastBad and where[1] > 0:
+            bad = {"file": where[0], "line": where[1],
+                   "input": getattr(getattr(owner, "meta", None), "index", None), "message": Context.lastBad}
+            if bad["input"] is None:
+                bad["input"] = -1
+            if bad not in Context.badValues:
+                Context.badValues.append(bad)
+        return where
 
     # One entry per apply() that reached the stack: which input, which line of
     # the person's file, which shader keys, and the frames it covers. A SIDE
@@ -375,6 +431,11 @@ class Context:
 
     # Filled by the last `_callSite()`: the library function the person called.
     lastCallFunction: str = ""
+    # Filled by the last `_callSite()`: what its arguments broke, or "".
+    lastBad: str = ""
+    # Every argument a run refused: file, line, input, message. Reported with
+    # the warnings, so the code pane underlines the line and the clip carries it.
+    badValues: list[dict[str, Any]] = []
 
     # The `shot()` blocks open right now, outermost first. Everything made
     # while one is open belongs to it — and to the ones around it, because a

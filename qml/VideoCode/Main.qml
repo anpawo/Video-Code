@@ -3056,7 +3056,7 @@ ApplicationWindow {
                 return {
                     range: { start: { line: w.line, character: 0 },
                              end:   { line: w.line, character: 200 } },
-                    severity: 2,
+                    severity: w.severity !== undefined ? w.severity : 2,
                     source: "execute",
                     message: w.message
                 };

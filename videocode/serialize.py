@@ -17,6 +17,7 @@ from videocode import *
 def _resetContext():
     Context.stack = {}
     Context.events = []
+    Context.badValues = []
     Context.inputCounter = 0
     Context.lastEverAffectedFrame = 0
     Context.cursor = 0
@@ -135,6 +136,17 @@ def _reportContendedKeys() -> list[dict]:
         out.append({"line": b["line"] - 1, "sourceLine": b["line"], "input": hit["input"],
                     "file": b["file"], "message": _oneLine(hit)})
     return out
+
+def _reportBadValues() -> list[dict]:
+    """
+    An argument a type refuses — `opacity(300)` on a uint8 — as a red line in
+    the code and a hazard on the clip. Found by `Context._callSite()`, on the
+    person's own frame, so an expression is judged by what it was worth.
+    """
+    return [{"line": b["line"] - 1, "sourceLine": b["line"], "input": b["input"],
+             "file": b["file"], "message": b["message"], "severity": 1}
+            for b in Context.badValues]
+
 
 def _reportBackdatedWrites() -> list[dict]:
     """
@@ -1019,7 +1031,7 @@ def execSource(source: str, filepath: str) -> dict:
         # video" reached nobody who was editing. `Editor::executeScene` copies
         # every key of this dict through to QML, so returning them is the whole
         # of the wiring.
-        warnings = _reportContendedKeys() + _reportBackdatedWrites()
+        warnings = _reportContendedKeys() + _reportBackdatedWrites() + _reportBadValues()
         warnings = [w for w in warnings if w["file"] == filepath]
     except SyntaxError as error:
         return {

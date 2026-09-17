@@ -70,6 +70,31 @@ Item {
         return out;
     }
 
+    // What a type promises about a number — the same table as context.py —
+    // so a field refuses a value the run would underline.
+    readonly property var bounds: ({
+        "uint8": [0, 255], "int8": [-128, 127], "percent": [0, 100],
+        "uint": [0, null], "ufloat": [0, null], "unumber": [0, null],
+        "wuint": [0, null], "wufloat": [0, null], "wunumber": [0, null],
+        "sec": [0, null], "frame": [0, null]
+    })
+    // Why a value cannot be written, or "". An expression is judged by what
+    // the scene makes of it; a name the scene does not know is left alone.
+    function problem(kind, text) {
+        const bare = String(kind).replace(/^maybe\[(.*)\]$/, "$1");
+        const span = bounds[bare];
+        if (span === undefined)
+            return "";
+        let value = Number(String(text).trim());
+        if (isNaN(value) && typeof Shell.evalText === "function")
+            value = Number(Shell.evalText(String(text)));
+        if (isNaN(value))
+            return "";
+        if ((span[0] !== null && value < span[0]) || (span[1] !== null && value > span[1]))
+            return bare + " is " + (span[1] !== null ? span[0] + "–" + span[1] : "≥ " + span[0]);
+        return "";
+    }
+
     function isPathKind(name, kind) {
         return kind === "url" || (kind === "str" && /path|file|url|src/i.test(name));
     }
@@ -175,42 +200,47 @@ Item {
                  choices: root.choicesFor(one.kind), isPath: root.isPathKind(one.name, one.kind) };
     })
 
-    // The metadata calls on the line: `.position(x=0, y=0)` is two rows.
+    // The transform every element has, written on its line or not: position,
+    // scale, rotation, opacity, align — Palmier's Transform panel, one row per
+    // field. A row the line does not write shows the default, grey; typing in
+    // it adds the call.
+    readonly property var transforms: [
+        { call: "position", fields: ["x", "y"], defaults: { x: "0", y: "0" } },
+        { call: "scale", fields: ["factor"], defaults: { factor: "1" } },
+        { call: "rotation", fields: ["degree"], defaults: { degree: "0" } },
+        { call: "opacity", fields: ["o"], defaults: { o: "255" } },
+        { call: "align", fields: ["x", "y"], defaults: { x: "0.5", y: "0.5" } }
+    ]
     readonly property var metaRows: {
-        if (root.element === null || root.element.effects === undefined)
+        if (root.element === null || root.cls.length === 0)
             return [];
-        const origin = root.element.l;
+        const on = root.writable ? Shell.callsOnLine(root.buffer, root.element.line) : [];
         let out = [];
-        for (const fx of root.element.effects) {
-            if (!(fx.d <= 1 / 30 + 1e-6 && fx.l <= origin + 1e-6))
+        for (const t of root.transforms) {
+            const params = Shell.inputParams(root.cls + "." + t.call);
+            if (params.length === 0)
                 continue;
-            const call = fx.call !== undefined ? fx.call : "";
-            if (call.length === 0)
-                continue;
-            const fields = Shell.inputParams(root.cls + "." + call);
-            fields.forEach((p, i) => {
-                if (p.name === "offset" || p.name === "at")
+            const written = on.indexOf(t.call) >= 0;
+            t.fields.forEach((name) => {
+                const i = params.findIndex((p) => p.name === name);
+                if (i < 0)
                     return;
-                const named = root.argOf(call, p.name);
-                out.push({ label: fields.length > 1 ? call + " · " + p.name : call,
-                           call: call, name: p.name, at: i, param: p,
-                           value: named.length > 0 ? named : root.positionalOf(call, i) });
+                const named = written ? root.argOf(t.call, name) : "";
+                const given = named.length > 0 ? named : (written ? root.positionalOf(t.call, i) : "");
+                out.push({ label: t.fields.length > 1 ? t.call + " · " + name : t.call,
+                           call: t.call, name: name, at: i, param: params[i],
+                           value: given.length > 0 ? given : t.defaults[name],
+                           absent: !written || given.length === 0, spec: t });
             });
         }
         return out;
     }
 
-    readonly property var addable: {
-        if (!root.writable)
-            return [];
-        const calls = [
-            { name: "position", write: "position(x=0, y=0)" },
-            { name: "scale", write: "scale(1)" },
-            { name: "opacity", write: "opacity(255)" },
-            { name: "align", write: "align(x=0.5, y=0.5)" }
-        ];
-        const already = Shell.callsOnLine(root.buffer, root.element.line);
-        return calls.filter((one) => already.indexOf(one.name) < 0);
+    // The call a row adds when its line has none yet: the typed value in its
+    // field, the defaults in the others — `position(x=3, y=0)`.
+    function writeFor(spec, name, text) {
+        const parts = spec.fields.map((f) => (spec.fields.length > 1 ? f + "=" : "") + (f === name ? text : spec.defaults[f]));
+        return spec.call + "(" + parts.join(", ") + ")";
     }
 
     readonly property var nowRows: {
@@ -282,6 +312,8 @@ Item {
         // A file: a button beside the value opens the system chooser.
         property bool isPath: false
         signal committed(string text)
+        // What the last Enter was refused for, until the text changes.
+        property string trouble: ""
         function beginEdit() { field.forceActiveFocus(); field.selectAll(); }
 
         width: parent !== null ? parent.width : 0
@@ -334,9 +366,9 @@ Item {
 
         Text {
             anchors { left: labelText.right; leftMargin: 8; verticalCenter: parent.verticalCenter }
-            visible: over.containsMouse && row.kind.length > 0
-            text: root.kindLabel(row.kind)
-            color: Theme.inkFaint
+            visible: row.trouble.length > 0 || (over.containsMouse && row.kind.length > 0)
+            text: row.trouble.length > 0 ? row.trouble : root.kindLabel(row.kind)
+            color: row.trouble.length > 0 ? Theme.bad : Theme.inkFaint
             font.family: Theme.mono
             font.pixelSize: 10
         }
@@ -435,7 +467,7 @@ Item {
             readonly property bool lit: row.editable && (over.hovered || field.activeFocus)
             color: lit ? Theme.sunk : "transparent"
             border.width: 1
-            border.color: field.activeFocus ? Theme.live : lit ? Theme.edge : "transparent"
+            border.color: row.trouble.length > 0 ? Theme.bad : field.activeFocus ? Theme.live : lit ? Theme.edge : "transparent"
 
             // The coloured reading, under a field that only shows its own text
             // while it is being written in.
@@ -472,7 +504,13 @@ Item {
                 selectByMouse: true
                 readOnly: !row.editable
                 clip: true
+                onTextEdited: row.trouble = ""
                 onAccepted: {
+                    const why = root.problem(row.kind, text);
+                    if (why.length > 0) {
+                        row.trouble = why;
+                        return;
+                    }
                     if (text !== row.value)
                         row.committed(text);
                     focus = false;
@@ -732,61 +770,29 @@ Item {
 
             Section {
                 title: "Transform"
-                visible: root.metaRows.length > 0 || root.addable.length > 0
+                visible: root.metaRows.length > 0
 
                 Repeater {
                     model: root.metaRows
                     FieldRow {
                         required property var modelData
                         required property int index
-                        last: index === root.metaRows.length - 1 && root.addable.length === 0
+                        last: index === root.metaRows.length - 1
                         label: modelData.label
                         value: modelData.value
                         kind: modelData.param.kind
+                        faint: modelData.absent
                         choices: root.choicesFor(modelData.param.kind)
-                        onCommitted: (text) => root.metadataWritten(root.element, modelData.call, modelData.name,
-                                                                    modelData.at, root.fullValue(modelData.param, text))
-                    }
-                }
-
-                // What the line does not set yet, one chip each: Palmier's "Add".
-                Flow {
-                    width: parent.width - 28
-                    x: 14
-                    spacing: 6
-                    visible: root.addable.length > 0
-                    topPadding: 8
-                    bottomPadding: 8
-
-                    Repeater {
-                        model: root.addable
-                        Rectangle {
-                            required property var modelData
-                            width: plus.implicitWidth + 16
-                            height: 20
-                            radius: 4
-                            color: addHover.hovered ? Qt.alpha(Theme.live, 0.15) : Theme.rail
-                            border.width: 1
-                            border.color: addHover.hovered ? Theme.live : Theme.edge
-                            Text {
-                                id: plus
-                                anchors.centerIn: parent
-                                text: "+ " + parent.modelData.name
-                                color: addHover.hovered ? Theme.live : Theme.inkDim
-                                font.family: Theme.mono
-                                font.pixelSize: 10
-                            }
-                            MouseArea {
-                                id: addHover
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: root.metadataAdded(root.element, parent.modelData.write)
-                                readonly property bool hovered: containsMouse
-                            }
+                        onCommitted: (text) => {
+                            if (modelData.absent)
+                                root.metadataAdded(root.element, root.writeFor(modelData.spec, modelData.name, text));
+                            else
+                                root.metadataWritten(root.element, modelData.call, modelData.name,
+                                                     modelData.at, root.fullValue(modelData.param, text));
                         }
                     }
                 }
+
             }
 
             Section {
