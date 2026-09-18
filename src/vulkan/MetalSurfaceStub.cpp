@@ -1,10 +1,9 @@
-// Non-Apple stub for vulkan/MetalSurface.hpp.
+// vulkan/MetalSurface.hpp, off Apple.
 //
-// The real implementations (src/vulkan/MetalSurface.mm) are Objective-C++ and
-// only compiled on Apple (see CMakeLists.txt). On Linux the preview window
-// uses an XCB surface instead (VulkanWidget.cpp guards the Metal calls behind
-// __APPLE__), so these symbols are never called there — these no-op
-// definitions just keep the link satisfied. Windows surfaces are not ported.
+// MetalSurface.mm is Objective-C++ and CMakeLists.txt compiles it on Apple
+// only; Linux presents through XCB and never reaches these two calls
+// (VulkanWidget.cpp keeps them behind __APPLE__). They exist so the link
+// resolves. Nothing is ported to Windows.
 
 #include "vulkan/MetalSurface.hpp"
 

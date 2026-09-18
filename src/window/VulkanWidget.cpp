@@ -15,13 +15,11 @@
     #include <vulkan/vulkan_metal.h>
 
     #include "utils/Paths.hpp"
+    #include "vulkan/MetalSurface.hpp" // the CAMetalLayer the window presents through
 #elif defined(__linux__)
-    // Linux presents through an XCB surface. xcb/xcb.h must come before
-    // vulkan_xcb.h — it provides the xcb_connection_t / xcb_window_t types the
-    // VkXcbSurfaceCreateInfoKHR struct refers to.
     #include <QtGui/qguiapplication_platform.h> // QNativeInterface::QX11Application
     #include <vulkan/vulkan_xcb.h>
-    #include <xcb/xcb.h>
+    #include <xcb/xcb.h> // first: vulkan_xcb.h uses its connection and window types without including it
 
     #include <QGuiApplication>
 #endif
@@ -43,12 +41,9 @@
 #include "utils/Logger.hpp"
 #include "vulkan/EffectResolver.hpp"
 #include "vulkan/LutAtlas.hpp"
-#include "vulkan/VulkanHelpers.hpp"
-#if defined(__APPLE__)
-    #include "vulkan/MetalSurface.hpp" // CAMetalLayer bridge (macOS only)
-#endif
 #include "vulkan/ShaderCompiler.hpp" // Runtime GLSL → SPIR-V via glslang
 #include "vulkan/Vertex.hpp"
+#include "vulkan/VulkanHelpers.hpp"
 
 struct EffectPC
 {
@@ -57,6 +52,41 @@ struct EffectPC
     // 24 — see the twin struct in VulkanHeadlessRenderer.cpp.
     float p[MAX_SHADER_PARAMS];
 };
+
+namespace
+{
+
+// The one instance extension that turns this platform's window into a surface.
+#if defined(__APPLE__)
+    constexpr const char* kPlatformSurfaceExtension = VK_EXT_METAL_SURFACE_EXTENSION_NAME;
+#elif defined(__linux__)
+    constexpr const char* kPlatformSurfaceExtension = VK_KHR_XCB_SURFACE_EXTENSION_NAME;
+
+    // Vulkan draws into the X window Qt made, over the connection Qt's xcb plugin
+    // holds — both come out of Qt's public native interface. The entry point is
+    // looked up at runtime: an extension function is not promised to the linker.
+    // A Wayland session lands here too, through XWayland, because the Qt vcpkg
+    // builds ships the xcb plugin only.
+    VkSurfaceKHR createXcbSurface(VkInstance instance, WId window)
+    {
+        auto* x11 = qGuiApp->nativeInterface<QNativeInterface::QX11Application>();
+        auto  create = reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(vkGetInstanceProcAddr(instance, "vkCreateXcbSurfaceKHR"));
+        if (!x11 || !create) {
+            qWarning("createSurface: %s", x11 ? "the loader has no vkCreateXcbSurfaceKHR" : "Qt is not running on xcb");
+            return VK_NULL_HANDLE;
+        }
+
+        VkXcbSurfaceCreateInfoKHR info{};
+        info.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
+        info.connection = x11->connection();
+        info.window = static_cast<xcb_window_t>(window); // real, because of WA_NativeWindow
+
+        VkSurfaceKHR surface = VK_NULL_HANDLE;
+        return create(instance, &info, nullptr, &surface) == VK_SUCCESS ? surface : VK_NULL_HANDLE;
+    }
+#endif
+
+} // namespace
 
 // The comment above says "still inside the 128 every Vulkan implementation
 // guarantees". Nothing checked it, in 18k lines without a single static_assert.
@@ -478,14 +508,7 @@ bool VC::VulkanWidget::createInstance()
     appInfo.pApplicationName = "video-code";
     appInfo.apiVersion = VK_API_VERSION_1_0;
 
-    std::vector<const char*> extensions = {
-        VK_KHR_SURFACE_EXTENSION_NAME,
-#if defined(__APPLE__)
-        VK_EXT_METAL_SURFACE_EXTENSION_NAME,
-#elif defined(__linux__)
-        VK_KHR_XCB_SURFACE_EXTENSION_NAME,
-#endif
-    };
+    std::vector<const char*> extensions = {VK_KHR_SURFACE_EXTENSION_NAME, kPlatformSurfaceExtension};
 
     VkInstanceCreateInfo ci{};
     ci.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -498,9 +521,8 @@ bool VC::VulkanWidget::createInstance()
 
 // ============================================================================
 // Step 2: createSurface
-//   macOS: delegates to MetalSurface.mm (vkCreateMetalSurfaceEXT over a
-//          CAMetalLayer).
-//   Linux: builds a VkSurfaceKHR from the Qt widget's native XCB window.
+//   The window becomes a VkSurfaceKHR: over a CAMetalLayer on macOS
+//   (MetalSurface.mm), over Qt's XCB connection on Linux.
 // ============================================================================
 
 bool VC::VulkanWidget::createSurface()
@@ -508,30 +530,7 @@ bool VC::VulkanWidget::createSurface()
 #if defined(__APPLE__)
     m_surface = createMetalSurface(m_instance, m_metalLayer);
 #elif defined(__linux__)
-    // Qt's xcb platform plugin owns the X connection; borrow it through the
-    // public native interface. (Under a Wayland session we still land here via
-    // XWayland, because the vcpkg Qt build ships only the xcb platform plugin.)
-    auto* x11 = qApp->nativeInterface<QNativeInterface::QX11Application>();
-    if (!x11) {
-        qWarning("createSurface: XCB native interface unavailable (not on the xcb platform?)");
-        return false;
-    }
-    // vkCreateXcbSurfaceKHR is an extension entry point, not guaranteed to be
-    // exported by the loader at link time — resolve it dynamically (same
-    // approach MetalSurface.mm uses for vkCreateMetalSurfaceEXT).
-    auto createXcbSurface = reinterpret_cast<PFN_vkCreateXcbSurfaceKHR>(
-        vkGetInstanceProcAddr(m_instance, "vkCreateXcbSurfaceKHR")
-    );
-    if (!createXcbSurface) {
-        qWarning("createSurface: vkCreateXcbSurfaceKHR unavailable (loader built without XCB WSI?)");
-        return false;
-    }
-    VkXcbSurfaceCreateInfoKHR ci{};
-    ci.sType = VK_STRUCTURE_TYPE_XCB_SURFACE_CREATE_INFO_KHR;
-    ci.connection = x11->connection();
-    ci.window = static_cast<xcb_window_t>(winId()); // WA_NativeWindow realizes it
-    if (createXcbSurface(m_instance, &ci, nullptr, &m_surface) != VK_SUCCESS)
-        m_surface = VK_NULL_HANDLE;
+    m_surface = createXcbSurface(m_instance, winId());
 #endif
     return m_surface != VK_NULL_HANDLE;
 }
@@ -572,8 +571,6 @@ bool VC::VulkanWidget::pickPhysicalDevice()
 // ============================================================================
 // Step 4: createDevice
 //   Create the logical VkDevice and retrieve the graphics VkQueue.
-//   VK_KHR_portability_subset must be enabled *iff* the device advertises it
-//   (MoltenVK on macOS does; native Linux/Windows drivers don't).
 // ============================================================================
 
 bool VC::VulkanWidget::createDevice()
@@ -586,24 +583,10 @@ bool VC::VulkanWidget::createDevice()
     qci.queueCount = 1;
     qci.pQueuePriorities = &priority;
 
-    std::vector<const char*> extensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-    };
-
-    // Per the Vulkan spec, VK_KHR_portability_subset must be enabled whenever a
-    // physical device exposes it — but requesting it on a device that does not
-    // (every native Linux driver) makes vkCreateDevice fail. So enable it only
-    // when present.
-    uint32_t extCount = 0;
-    vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &extCount, nullptr);
-    std::vector<VkExtensionProperties> available(extCount);
-    vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &extCount, available.data());
-    for (const auto& ext : available) {
-        if (std::strcmp(ext.extensionName, "VK_KHR_portability_subset") == 0) {
-            extensions.push_back("VK_KHR_portability_subset");
-            break;
-        }
-    }
+    constexpr const char*    kPortability = "VK_KHR_portability_subset";
+    std::vector<const char*> extensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    if (deviceHasExtension(m_physicalDevice, kPortability))
+        extensions.emplace_back(kPortability);
 
     VkDeviceCreateInfo ci{};
     ci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -641,26 +624,19 @@ bool VC::VulkanWidget::createSwapchain()
     std::vector<VkSurfaceFormatKHR> formats(fmtCount);
     vkGetPhysicalDeviceSurfaceFormatsKHR(m_physicalDevice, m_surface, &fmtCount, formats.data());
 
-    // Prefer B8G8R8A8_UNORM so the swapchain (and the render-pass attachments
-    // that reuse m_swapFormat) match the rest of the pipeline and the headless
-    // renderer, which render sRGB-encoded colors into UNORM targets. Drivers
-    // differ in ordering — some list an _SRGB format first, and presenting into
-    // it re-applies sRGB encoding, washing the colors out. Fall back to the
-    // driver's first format only if UNORM isn't offered.
-    VkSurfaceFormatKHR chosen = formats[0];
-    for (const auto& f : formats) {
-        if (f.format == VK_FORMAT_B8G8R8A8_UNORM) {
-            chosen = f;
-            break;
-        }
-    }
+    // The format every other attachment and the headless renderer use. The
+    // colours reaching the swapchain are already sRGB-encoded, so a UNORM target
+    // stores them as they are; an _SRGB target — which some drivers list first —
+    // would encode them a second time and wash the picture out.
+    auto                      unorm = std::ranges::find(formats, VK_FORMAT_B8G8R8A8_UNORM, &VkSurfaceFormatKHR::format);
+    const VkSurfaceFormatKHR& chosen = unorm != formats.end() ? *unorm : formats.front();
     m_swapFormat = chosen.format;
 
     VkSwapchainCreateInfoKHR ci{};
     ci.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
     ci.surface = m_surface;
     ci.minImageCount = 2;
-    ci.imageFormat = m_swapFormat;
+    ci.imageFormat = chosen.format;
     ci.imageColorSpace = chosen.colorSpace;
     ci.imageExtent = m_swapExtent;
     ci.imageArrayLayers = 1;

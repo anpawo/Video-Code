@@ -37,6 +37,19 @@ inline void pushCamera(VkCommandBuffer cb, VkPipelineLayout layout, const Camera
     vkCmdPushConstants(cb, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Camera2D), &camera);
 }
 
+// Whether a physical device lists an extension by that name. A device extension
+// is requested only when it is listed: MoltenVK insists on
+// VK_KHR_portability_subset, and a native driver refuses a device created with
+// it — the same call cannot be right for both without asking first.
+inline bool deviceHasExtension(VkPhysicalDevice device, std::string_view name)
+{
+    uint32_t count = 0;
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr);
+    std::vector<VkExtensionProperties> listed(count);
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &count, listed.data());
+    return std::ranges::any_of(listed, [&](const VkExtensionProperties& e) { return e.extensionName == name; });
+}
+
 // Explicit image memory barrier between effect passes.
 // More reliable than subpass external dependencies on MoltenVK / Metal.
 inline void effectBarrier(VkCommandBuffer cb, VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage, VkImage image, VkAccessFlags srcAccess, VkAccessFlags dstAccess, VkImageLayout oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VkImageLayout newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)

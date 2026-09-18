@@ -21,31 +21,24 @@ fi
 
 echo "==> Installing system dependencies (apt)"
 sudo apt-get update
-sudo apt-get install -y \
-    build-essential cmake ninja-build python3-dev python3-pip \
-    ffmpeg libopencv-dev libcurl4-openssl-dev \
-    libvulkan-dev libfreetype6-dev \
-    glslang-dev glslang-tools \
-    g++-13 gcc-13 \
-    mesa-vulkan-drivers \
-    texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm \
-    git curl \
-    autoconf autoconf-archive automake libtool flex bison \
-    libxi-dev libxtst-dev \
-    libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
-    libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev \
-    '^libxcb.*-dev'
-
-# The second block above is build tooling that vcpkg ports need from the
-# system. GitHub's CI runners ship these preinstalled, so they don't show up
-# as failures there — but a fresh machine needs them explicitly:
-#   autoconf-archive, automake, libtool : autotools ports (gperf, libxcrypt, ...)
-#   flex, bison                         : libpq/PostgreSQL parser generation
-#   libxi-dev, libxtst-dev              : at-spi2 accessibility stack (OpenCV GTK)
-#   libgl*/libegl*/libgles*             : Qt 'opengl' + 'egl' features
-#   libx11-xcb-dev, libxkbcommon*, libxcb-*-dev : Qt 'xcb' platform plugin
-# The '^libxcb.*-dev' regex pulls in every libxcb-* dev package (icccm, image,
-# keysyms, randr, render-util, shape, sync, xfixes, cursor, util, ...) at once.
+packages=(
+    # the toolchain, and what the app itself links
+    build-essential cmake ninja-build g++-13 gcc-13 git curl
+    python3-dev python3-pip
+    ffmpeg libopencv-dev libcurl4-openssl-dev libvulkan-dev libfreetype6-dev
+    glslang-dev glslang-tools mesa-vulkan-drivers
+    # MathTex / Tex
+    texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm
+    # what vcpkg's ports expect to find on the system while they build: autotools
+    # for gperf and libxcrypt, flex and bison for libpq, the X and GL headers for
+    # Qt's xcb/opengl/egl features and for the at-spi2 stack behind OpenCV's GTK
+    # window. GitHub's runners have every one of these preinstalled; a fresh
+    # machine has none. The regex is apt's: every libxcb-*-dev in one word.
+    autoconf automake autoconf-archive libtool flex bison
+    libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev
+    libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libxi-dev libxtst-dev '^libxcb.*-dev'
+)
+sudo apt-get install -y "${packages[@]}"
 
 echo "==> Setting up vcpkg"
 if [ -d "$VCPKG_DIR" ]; then
@@ -83,10 +76,10 @@ VCPKG_ROOT=$VCPKG_DIR (added to your shell rc — open a new shell, or run
 Next: build the project — see docs/SETUP_LINUX.md, section "4. Build":
 
   cmake -S . -B build -G Ninja \\
-      -DCMAKE_C_COMPILER=\$(which gcc-13) \\
+      -DCMAKE_C_COMPILER=gcc-13 \\
       -DCMAKE_CXX_COMPILER=\$(which g++-13) \\
       -DCMAKE_TOOLCHAIN_FILE=\$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \\
-      -DVCPKG_OVERLAY_TRIPLETS=\$(pwd)/vcpkg-overlay-triplets \\
+      -DVCPKG_OVERLAY_TRIPLETS=\$PWD/vcpkg-overlay-triplets \\
       -DVCPKG_INSTALLED_DIR=\$(pwd)/vcpkg_installed \\
       -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 

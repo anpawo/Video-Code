@@ -1,41 +1,35 @@
 name: Mirror
 
-on:
-  pull_request:
-    types:
-      - opened
-    branches-ignore:
-      - 'ga-ignore-**'
-  push:
-    branches-ignore:
-      - 'ga-ignore-**'
+# Epitech grades the EIP from its own copy of this repository. Every push here
+# is replayed there, branches and tags alike.
 
-env:
-  MIRROR_URL: "git@github.com:EpitechPromo2027/G-EIP-600-PAR-6-1-eip-marius.rousset.git"
+on:
+  push:
+    branches-ignore: ['ga-ignore-**']
+  pull_request:
+    types: [opened]
+    branches-ignore: ['ga-ignore-**']
 
 jobs:
-  push_to_mirror:
-    name: "Pushing To The Mirror Repository"
+  mirror:
     runs-on: ubuntu-latest
-
-    if: github.event.repository.name != 'G-EIP-600-PAR-6-1-eip-marius.rousset'
+    # Not from the copy itself, where this file also lives.
+    if: github.repository != 'EpitechPromo2027/G-EIP-600-PAR-6-1-eip-marius.rousset'
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # Pinned by SHA, and this is the one pin in the repository that buys
-      # something. This action is the ONLY thing that ever sees
-      # `GIT_SSH_PRIVATE_KEY`, and it is a *Docker* action — GitHub builds and
-      # runs the third party's own Dockerfile with the key in its environment,
-      # so exfiltrating it would be one line of shell in their repo.
-      #
-      # `@v1` was not a version, it was a moving target: the v1 release was cut
-      # 2021-11-22 and the tag now resolves to a commit dated 2022-11-15. The
-      # repo has been dormant since 2024-05-24 — which is exactly the shape of a
-      # project whose tag someone else could one day come to own.
-      #
-      # Nothing here changes, so the pin costs no maintenance.
-      - uses: pixta-dev/repository-mirroring-action@674e65a7d483ca28dafaacba0d07351bdcc8bd75  # v1.1.1
-        with:
-          target_repo_url: ${{ env.MIRROR_URL }}
-          ssh_private_key: ${{ secrets.GIT_SSH_PRIVATE_KEY }}
+
+      # Plain git rather than a third-party action: the deploy key is read by
+      # one shell step on GitHub's own runner, and by nothing else.
+      - name: Push every branch and tag
+        env:
+          KEY: ${{ secrets.GIT_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/mirror
+          chmod 600 ~/.ssh/mirror
+          ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+          export GIT_SSH_COMMAND='ssh -i ~/.ssh/mirror -o IdentitiesOnly=yes'
+          git push --force --prune git@github.com:EpitechPromo2027/G-EIP-600-PAR-6-1-eip-marius.rousset.git \
+            'refs/remotes/origin/*:refs/heads/*' 'refs/tags/*:refs/tags/*'

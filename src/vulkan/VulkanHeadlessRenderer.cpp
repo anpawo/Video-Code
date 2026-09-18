@@ -249,16 +249,9 @@ bool VC::VulkanHeadlessRenderer::createDevice()
     qci.queueCount = 1;
     qci.pQueuePriorities = &priority;
 
-    // Only request VK_KHR_portability_subset if the device exposes it.
-    uint32_t extCount = 0;
-    vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &extCount, nullptr);
-    std::vector<VkExtensionProperties> devExts(extCount);
-    vkEnumerateDeviceExtensionProperties(m_physicalDevice, nullptr, &extCount, devExts.data());
-
     std::vector<const char*> extensions;
-    for (auto& e : devExts)
-        if (strcmp(e.extensionName, "VK_KHR_portability_subset") == 0)
-            extensions.push_back("VK_KHR_portability_subset");
+    if (deviceHasExtension(m_physicalDevice, "VK_KHR_portability_subset"))
+        extensions.push_back("VK_KHR_portability_subset");
 
     VkDeviceCreateInfo ci{};
     ci.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;

@@ -20,26 +20,23 @@ sudo apt-get install -y \
     glslang-dev glslang-tools \
     g++-13 gcc-13 \
     mesa-vulkan-drivers \
-    texlive-latex-base texlive-latex-extra texlive-fonts-recommended dvisvgm \
-    autoconf autoconf-archive automake libtool flex bison \
-    libxi-dev libxtst-dev \
-    libgl1-mesa-dev libglu1-mesa-dev libegl1-mesa-dev libgles2-mesa-dev \
-    libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev \
-    '^libxcb.*-dev'
+    texlive-latex-base texlive-latex-extra \
+    texlive-fonts-recommended dvisvgm \
+    autoconf automake autoconf-archive libtool \
+    flex bison \
+    libgl1-mesa-dev libglu1-mesa-dev \
+    libegl1-mesa-dev libgles2-mesa-dev \
+    libx11-xcb-dev libxkbcommon-dev libxkbcommon-x11-dev libxi-dev libxtst-dev '^libxcb.*-dev'
 ```
 
-- **autotools + flex/bison**: vcpkg builds some dependencies from source with
-  their own build systems — `autoconf-archive`/`automake`/`libtool` are needed
-  by autotools ports (gperf, libxcrypt), and `flex`/`bison` by libpq
-  (PostgreSQL, pulled in via Qt's `sql-psql`).
-- **X11 / OpenGL / XCB `-dev` packages**: needed to build Qt's `xcb` platform
-  plugin and `opengl`/`egl` features, plus the at-spi2 accessibility libs that
-  OpenCV's GTK highgui pulls in. The `'^libxcb.*-dev'` regex installs all the
-  `libxcb-*` dev packages (icccm, image, keysyms, randr, render-util, shape,
-  sync, xfixes, cursor, util, …) in one go. These ship preinstalled on GitHub's
-  CI runners, which is why CI builds green without listing them — a fresh
-  machine needs them explicitly.
-
+- **autotools, flex, bison, and the X / GL / XCB headers** are not for the app:
+  vcpkg builds its ports from source, and several of them reach for these on
+  the system — gperf and libxcrypt want autotools, libpq (behind Qt's
+  `sql-psql`) wants flex and bison, Qt's `xcb`, `opengl` and `egl` features and
+  the at-spi2 stack behind OpenCV's GTK window want the X and GL headers.
+  `'^libxcb.*-dev'` is an apt regex: every `libxcb-*-dev` at once, rather than
+  the dozen names spelled out. GitHub's runners ship all of this preinstalled,
+  which is why CI is green without naming any of it; a fresh machine is not.
 - **g++-13 / gcc-13**: the project requires C++20 and `CMakeLists.txt` hard-fails
   if `CMAKE_CXX_COMPILER_VERSION` isn't > 13. Point CMake at it explicitly
   (step 4) rather than relying on the system default `g++`.
@@ -87,48 +84,44 @@ pip install pybind11 -r requirements.txt
 `requirements.txt` currently includes: `shapely`, `freetype-py`, `uharfbuzz`,
 `Pillow`, `svgelements`, `typing_extensions`.
 
-> **Install into the interpreter the binary *embeds* — not a venv layered on
-> top of it.** `find_package(Python3 ... Development.Embed)` links the *base*
-> `libpython`; a virtualenv has no `libpython` of its own, so at runtime the
-> embedded interpreter reads the **base** interpreter's `site-packages`, never
-> the venv's. A venv therefore satisfies the build (the `python3 -m pybind11`
-> lookup) but at runtime you get `ModuleNotFoundError: No module named 'PIL'`.
-> Install the packages into the actual base interpreter instead.
+> **Install into the interpreter the binary embeds, not into a venv.** The
+> build links the base interpreter's `libpython`
+> (`find_package(Python3 ... Development)`), and a venv has none of its own:
+> at runtime the embedded interpreter imports from the base interpreter's
+> `site-packages`, and a package that only exists in the venv is
+> `ModuleNotFoundError` — the build passed, because `python3 -m pybind11`
+> answered from the venv, and the first run fails on `PIL`.
 
-Two requirements on that interpreter:
+That interpreter has to be **3.12 or newer** (the CMake lookup asks for it) and
+has to be **the `python3` CMake sees at configure time**: first on `PATH`, or
+named with `-DPython3_EXECUTABLE=…` in step 4 — and the one you `pip install`
+into.
 
-1. **Version ≥ 3.12** — `find_package(Python3 3.12 ...)` hard-fails below it.
-2. **It's the one CMake resolves at configure time** — keep it first on `PATH`
-   (or pass `-DPython3_EXECUTABLE=…`) when you run `cmake` in step 4, and
-   install the packages into *that same* interpreter.
-
-With `pyenv`, the clean approach is to use a pyenv-managed ≥ 3.12 version
-directly (pyenv Pythons aren't externally-managed, so `pip` works without a
-venv) and select it for the build:
+With pyenv, pick a 3.12+ version and stay in that shell for the build; pyenv's
+interpreters are not externally managed, so `pip` works without a venv:
 
 ```bash
-pyenv shell 3.13.3            # or any installed >= 3.12
+pyenv shell 3.13.3
 python3 -m pip install pybind11 -r requirements.txt
-# ... then run the step-4 cmake from this same shell
+# and stay in this shell for step 4
 ```
 
-On a distro where the system `python3` is ≥ 3.12 but `pip` is
-externally-managed-blocked (PEP 668), install with
-`pip install --break-system-packages pybind11 -r requirements.txt` rather than a
-venv — again so the packages land where the embedded interpreter looks.
+When the system `python3` is 3.12+ but refuses `pip` (PEP 668, "externally
+managed"), pass `--break-system-packages` instead of making a venv — for the
+same reason: the packages must land where the embedded interpreter looks.
 
-(CMake calls `python3 -m pybind11 --cmakedir` to locate pybind11's CMake
-config — `python3` at configure time must be the interpreter you installed
-into.)
+CMake asks `python3 -m pybind11 --cmakedir` where pybind11's CMake config is,
+so the `python3` it runs at configure time has to be the interpreter that
+received the packages.
 
 ## 4. Build
 
 ```bash
 cmake -S . -B build -G Ninja \
-    -DCMAKE_C_COMPILER=$(which gcc-13) \
+    -DCMAKE_C_COMPILER=gcc-13 \
     -DCMAKE_CXX_COMPILER=$(which g++-13) \
     -DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
-    -DVCPKG_OVERLAY_TRIPLETS=$(pwd)/vcpkg-overlay-triplets \
+    -DVCPKG_OVERLAY_TRIPLETS=$PWD/vcpkg-overlay-triplets \
     -DVCPKG_INSTALLED_DIR=$(pwd)/vcpkg_installed \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
@@ -136,27 +129,26 @@ cmake --build build
 cp build/video-code .
 ```
 
-- **`-DVCPKG_OVERLAY_TRIPLETS=$(pwd)/vcpkg-overlay-triplets`** points vcpkg at
-  the in-repo `x64-linux` overlay triplet, which chainloads
-  `cmake/vcpkg-toolchain-gcc13.cmake` so *dependencies* are built with GCC 13
-  too (not just the app). Without it, vcpkg uses the system default compiler;
-  on distros shipping GCC 15+, several old dependency versions fail to compile.
-  The overlay re-includes vcpkg's stock `linux.cmake`, so `-fPIC` and arch
-  detection still apply.
-- **`-DCMAKE_C_COMPILER=$(which gcc-13)`** — the C counterpart to the C++
-  compiler flag; keeps C and C++ dependency objects on the same toolchain.
-- If you hit a vcpkg dependency build failing with *"another vcpkg may be
-  running"* or permission errors under `vcpkg_installed/`, make sure you never
-  ran the build with `sudo` (that leaves root-owned files); fix with
-  `sudo chown -R "$USER:$USER" vcpkg_installed`.
-- On a tight disk, add
+- **`-DVCPKG_OVERLAY_TRIPLETS`** hands vcpkg the `x64-linux` triplet kept in
+  this repository: the stock one plus a chainload toolchain
+  (`cmake/vcpkg-toolchain-gcc13.cmake`) that builds the *dependencies* with
+  GCC 13 as well, not only the app. Left to the system compiler, a distro on
+  GCC 15 stops on several of the older ports. The chainload re-includes vcpkg's
+  own `linux.cmake`, so `-fPIC` and the architecture detection are unchanged.
+- **`-DCMAKE_C_COMPILER=gcc-13`** keeps the C objects on the same toolchain as
+  the C++ ones.
+- *"another vcpkg may be running"*, or permission errors under
+  `vcpkg_installed/`: a build was once run with `sudo` and left root-owned
+  files behind. `sudo chown -R "$USER:$USER" vcpkg_installed`, and never `sudo`
+  the build.
+- Short on disk:
   `-DVCPKG_INSTALL_OPTIONS="--clean-buildtrees-after-build;--clean-packages-after-build"`
-  so vcpkg deletes each port's intermediates as it goes (the cold build
-  otherwise leaves ~15 GB+ in `~/vcpkg/buildtrees`).
+  makes vcpkg drop each port's intermediates as it finishes them; a cold build
+  otherwise leaves 15 GB and more under `~/vcpkg/buildtrees`.
 
-The dependency versions are pinned by the baseline in
-`vcpkg-configuration.json`; it was bumped to a 2026 vcpkg commit so the
-dependency set compiles on current toolchains (GCC 15 / glibc 2.43).
+Which version of each dependency gets built is fixed by the baseline commit in
+`vcpkg-configuration.json` — a 2026 vcpkg commit, chosen so the whole set
+compiles on today's toolchains (GCC 15, glibc 2.43).
 
 This matches what CI does. `make cmake` (the Makefile target) runs the same
 configure+build but its final `cp` step

@@ -173,18 +173,18 @@
     <span class="branch">main</span>
     <span class="chips">
       <span class="chip"><b>69</b> livrés</span>
-      <span class="chip"><b>6</b> à faire</span>
+      <span class="chip"><b>16</b> à faire</span>
       <span class="chip"><b>69</b> tests</span>
-      <span class="chip"><b>52</b> scènes</span>
+      <span class="chip"><b>53</b> scènes</span>
     </span>
-    <span class="stamp">17 sept. · 12 h</span>
+    <span class="stamp">18 sept. · 3 h</span>
   </header>
 
   <div class="board">
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">19</span></h2>
+        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">21</span></h2>
         <ul class="rows">
           <li class="grp">Timeline & clips</li>
           <li class="hot" data-b="opacity(300), Square(cornerRadius=200) : le volet Code souligne la ligne en rouge et la barre est hachurée, dès le run. Dans l'Inspector, Entrée refuse et dit la borne en rouge. Transform montre position, scale, rotation, opacity, align avec leurs défauts en gris ; taper dans une rangée absente ajoute l'appel.¦Testé : test/bad_values_test.py. Relance l'app, ta souris."><span class="id">57</span><span class="lbl">Valeurs hors bornes refusées, soulignées</span><span class="meta lock">7997dfd · ta souris</span></li>
@@ -192,7 +192,9 @@
           <li data-b="Chaque pastille de metadata a un champ par argument de son setter, typé par la signature de la bibliothèque : <code>position</code> donne x et y, <code>opacity</code> sa seule valeur.¦Une valeur écrite sans nom est remplacée là où elle est (<code>.opacity(0)</code>) ; une qui manque est ajoutée par son nom (<code>.position(3, y=4)</code>).¦Relance l'app avant d'essayer : les signatures se lisent côté Python."><span class="id">9</span><span class="lbl">Metadata de départ éditable</span><span class="meta">ta souris</span></li>
           <li data-b="Tirer un wait(CONSTANTE) : refus qui nomme la constante et propose de la changer."><span class="id">10</span><span class="lbl">Gestes refusés et proposés</span><span class="meta">ta souris</span></li>
           <li class="grp">Moteur</li>
-          <li class="hot" data-b="merci.waitFor(marius).fadeIn() partait à la fin du popIn, pas à la fin du clip. Chaque élément répond d'une fin, la vidéo l'étend à sa dernière image, waitFor attend cette fin-là.¦Testé sur marius.mov : test/wait_for_video_test.py. Ton go, ou ton œil sur ta scène."><span class="id">58</span><span class="lbl">waitFor(video) attend la fin du clip</span><span class="meta lock">24692c3 · ton go</span></li>
+          <li class="hot" data-b="Plus de .opacity(0) avant un fadeIn : hidden, None par défaut, cache l'élément jusqu'au fondu sauf si son opacité a déjà été écrite, par toi ou par un fadeOut. True et False tranchent.¦Testé : test/fade_in_hidden_test.py. Les 52 goldens inchangés, trois scènes comptent un appel de plus dans l'empreinte."><span class="id">59</span><span class="lbl">fadeIn cache l'élément avant le fondu</span><span class="meta lock">c0998fd · ton go</span></li>
+          <li class="hot" data-b="waitFor(x) garde son sens, la fin du dernier effet. La fin des images d'un clip a son nom : marius.end, en secondes du film, et waitFor accepte un moment : merci.waitFor(marius.end).fadeIn().¦Revient sur 24692c3. Testé sur marius.mov : test/wait_for_video_test.py."><span class="id">58</span><span class="lbl">waitFor(clip.end), la fin des images</span><span class="meta lock">3f98d0f · ton go</span></li>
+          <li class="hot" data-b="1 103 lignes de Hippolyte, Cédric et Eliot supprimées ou réécrites dans 41 fichiers ; 178 jetons restent — lignes vides, endif, accolades, clés YAML. sharpen ne dessinait rien : GLSL écrit, scène effect_shaders6.¦À ton œil : test/visual/golden/effect-shaders6_frame0.png — cinq carrés : plus clair, contraste poussé, grain, le même grain net, plus sombre. Build, 52 goldens et empreinte (54 + 1) vérifiés ; Linux et le miroir Epitech passent par la CI.¦Retire Hip-po et Eliotgourdoux des collaborateurs GitHub. Débloque 60. Détail : FEATURES_TODO G."><span class="id">59</span><span class="lbl">Licence : les lignes des autres réécrites</span><span class="meta lock">ton œil</span></li>
           <li class="grp">Scènes & export</li>
           <li class="hot" data-b="roundCorners, feather (Edge Rounding et Softness de Palmier), saturation, temperature, chromaticAberration, letterbox. Un shader chacun, testés, golden lu, sur main en d073aa7 ; l'empreinte gagne une scène, les 52 autres inchangées.¦À ton œil : test/visual/golden/effect-shaders5_frame0.png, et marius.apply(roundCorners(0.2)) dans ta scène. Relance l'app, le binaire a changé."><span class="id">54</span><span class="lbl">Six effets d'image</span><span class="meta lock">d073aa7 · ton œil</span></li>
           <li class="hot" data-b="dipToBlack, zoomThrough, slideOver, en Python à côté de crossfade et push, testés, golden lu, sur main en fd1e193. Manim n'a pas d'équivalent : ses animations vivent dans une seule scène, pas entre deux plans.¦À ton œil : test/visual/golden/transitions2_frame8.png. dipToBlack passe par le shader brightness, donc noir seulement, pas de couleur au choix."><span class="id">55</span><span class="lbl">Trois transitions</span><span class="meta lock">fd1e193 · ton œil</span></li>
@@ -235,8 +237,9 @@
       </div>
 
       <div class="card todo">
-        <h2>To do · the rest <em>gros morceaux, rien ne les bloque</em> <span class="n">7</span></h2>
+        <h2>To do · the rest <em>gros morceaux, rien ne les bloque</em> <span class="n">8</span></h2>
         <ul class="rows">
+          <li data-b="Council du 17 sept. (5 sièges, 3 voix sur 5, les 5 relecteurs d'accord) : PolyForm Noncommercial 1.0.0 sans un mot changé dans LICENSE, et LICENSE-EXCEPTION.md à côté. Deux permissions en plus : la vidéo publiée avec le crédit « made with mariusrousset.com/videocode », et les scènes, templates et code de l'agent qui restent à celui qui les écrit.¦À trancher par toi : une vidéo faite pour un client, permise ou accord. L'adresse du crédit est une redirection 307 posée dans ton site (dépôt portfolio, next.config.ts) : le jour où le dépôt déménage, une ligne à changer et les vieilles vidéos suivent. La licence doit renvoyer à « l'adresse du README », pas l'écrire en dur. « videocode » est pris sur GitHub, YouTube, .com (en vente) et .dev ; videocode.fr était libre le 17 sept. À faire avec : CLA selon le droit français, nom déposé à l'INPI, une heure d'avocat sur l'exception et le CLA. Si un binaire sort un jour : Qt et FFmpeg sont liés en statique ici, la LGPL demande qu'on puisse les remplacer.¦Avant de poser la licence : 59, et les 13 PNG de chess.com à remplacer par un jeu libre (goldens à relire) ; la licence court à partir d'un tag. Le template chessboard est déjà sorti en MIT-0. Détail : council/2026-09-17-143413/."><span class="id">60</span><span class="lbl">Licence : PolyForm NC + exception vidéo</span><span class="meta">ton choix</span></li>
           <li data-b="Une image du clip tous les 120 px, rendue par le moteur, comme Premiere et Palmier : un clip vidéo se reconnaît sans lire son nom.¦Vu chez Premiere, Palmier, noté le 17 sept."><span class="id">47</span><span class="lbl">Vignettes dans les clips vidéo</span><span class="meta">ton œil</span></li>
           <li data-b="Dans la tête de piste : l'œil écrit .opacity(0) sur la ligne de l'élément, le haut-parleur coupe son son ; deux gestes qui écrivent du code, pas des boutons décoratifs.¦Vu chez Premiere, Palmier, noté le 17 sept."><span class="id">48</span><span class="lbl">Œil et haut-parleur par piste</span><span class="meta">ta souris</span></li>
           <li data-b="⇧clic sur plusieurs clips, un glisser déplace leurs wait d'un bloc ; ⌫ les retire. Premiere le fait avec la sélection, chez nous ce sont des lignes.¦Vu chez Premiere, noté le 17 sept."><span class="id">49</span><span class="lbl">Choisir plusieurs clips, les déplacer ensemble</span><span class="meta">ta souris</span></li>

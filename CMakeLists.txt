@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.25)
 project(video-code VERSION 1.0.0 LANGUAGES CXX)
 
 # OBJCXX (Objective-C++, for src/vulkan/MetalSurface.mm) is only needed on
@@ -11,10 +11,9 @@ endif()
 # Generate compile_commands.json automatically
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-deprecated -Wno-missing-field-initializers -pipe -D_REENTRANT -DQT_NO_DEBUG -DQT_WIDGETS_LIB -DQT_GUI_LIB -DQT_CORE_LIB -DQT_NO_KEYWORDS")
 
+option(DEBUG "no optimisation, full symbols, and the VC_DEBUG_ON traces — `make debug`" OFF)
 if(DEBUG)
     message(STATUS ">>> Debug build <<<")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g3 -O0 -DVC_DEBUG_ON")
@@ -29,57 +28,38 @@ if(VC_VERBOSE)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DVC_VERBOSE")
 endif()
 
-set_property(GLOBAL PROPERTY CXX_STANDARD 20)
-
-if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 13)
-    message(FATAL_ERROR "C++20 requires GCC 13 or higher")
+# std::format and the rest of the C++20 library this code leans on arrived in
+# libstdc++ 13. Clang and AppleClang are covered by the cxx_std_20 feature alone.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 13)
+    message(FATAL_ERROR "GCC ${CMAKE_CXX_COMPILER_VERSION} is too old for this code: pass -DCMAKE_CXX_COMPILER=g++-13 (or newer)")
 endif()
 
-if(NOT DEFINED ENV{VCPKG_ROOT})
-    message(FATAL_ERROR "VCPKG_ROOT environment variable not set")
+# The dependencies come from vcpkg, through the toolchain file the Makefile and
+# CI pass on the command line — it has to be known before project(), so it
+# cannot be chosen from here. A configure that did not get it stops now, with
+# the fix, instead of at the first find_package().
+if(NOT CI_BUILD AND NOT CMAKE_TOOLCHAIN_FILE)
+    message(FATAL_ERROR "no vcpkg toolchain: run `make`, or pass -DCMAKE_TOOLCHAIN_FILE=$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
 endif()
-
-set(VCPKG_ROOT $ENV{VCPKG_ROOT})
-set(CMAKE_TOOLCHAIN_FILE "${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "Vcpkg toolchain file")
-set(VCPKG_FEATURE_FLAGS "manifests")
-set(VCPKG_MANIFEST_MODE ON)
-
-set(OPENCV_LOG_LEVEL "ERROR")
-set(WITH_FFMPEG "ON")
+set(VCPKG_ROOT "$ENV{VCPKG_ROOT}")
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-if(NOT DEFINED VCPKG_TARGET_TRIPLET)
-    if(WIN32)
-        message(STATUS ">>> Windows build <<<")
-        set(VCPKG_TARGET_TRIPLET "x64-windows")
-    elseif(UNIX AND NOT APPLE)
-        message(STATUS ">>> Linux build <<<")
-        set(VCPKG_TARGET_TRIPLET "x64-linux")
-    elseif(APPLE)
-        message(STATUS ">>> Apple build <<<")
-        set(VCPKG_TARGET_TRIPLET "x64-osx")
-    endif()
-endif()
-
-set(CMAKE_PREFIX_PATH "${CMAKE_PREFIX_PATH};${CMAKE_SOURCE_DIR}/vcpkg_installed/${VCPKG_TARGET_TRIPLET}")
-
 if(CI_BUILD)
-    message(STATUS "CI_BUILD is defined")
+    # The runners build without vcpkg, and their apt has no package for these
+    # two header-only libraries: fetched at the tags vcpkg installs here.
     include(FetchContent)
-    FetchContent_Declare(
-        argparse
+    FetchContent_Declare(argparse
         GIT_REPOSITORY https://github.com/p-ranav/argparse.git
+        GIT_TAG v3.2
     )
-    FetchContent_MakeAvailable(argparse)
-
-    FetchContent_Declare(
-        nlohmann_json
+    FetchContent_Declare(nlohmann_json
         GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.12.0
     )
-    FetchContent_MakeAvailable(nlohmann_json)
+    FetchContent_MakeAvailable(argparse nlohmann_json)
 
     # earcut-hpp is header-only with no usable CMake target — just populate the
     # source and add its include dir directly.
@@ -102,10 +82,15 @@ if(CI_BUILD)
     )
     FetchContent_Populate(miniaudio)
     set(MINIAUDIO_INCLUDE_DIR ${miniaudio_SOURCE_DIR} CACHE PATH "miniaudio, fetched")
+else()
+    find_package(argparse CONFIG REQUIRED)
+    find_package(nlohmann_json CONFIG REQUIRED)
 endif()
 
 find_package(OpenCV CONFIG REQUIRED COMPONENTS core imgproc imgcodecs videoio)
-find_package(Python3 3.12 REQUIRED COMPONENTS Development Development.Module Development.Embed)
+# Development = Module + Embed. The interpreter is embedded, not extended, but
+# pybind11's own lookup wants both halves present.
+find_package(Python3 3.12 REQUIRED COMPONENTS Development)
 # pybind11 is pip-installed, not in any system CMake registry.
 # Ask it directly where its CMake config lives, then point find_package at that path.
 # (pybind11_DIR is the conventional hint variable find_package uses for pybind11Config.cmake)
@@ -157,21 +142,12 @@ endif()
 find_package(glslang CONFIG REQUIRED)
 find_package(Freetype REQUIRED)
 
-if(NOT CI_BUILD)
-    find_package(nlohmann_json CONFIG REQUIRED)
-    set(argparse_DIR "${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/share/argparse")
-    find_package(argparse CONFIG REQUIRED)
-endif()
+add_executable(${PROJECT_NAME})
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
+# Python's headers ride on pybind11::embed, OpenCV's on its imported targets.
+target_include_directories(${PROJECT_NAME} PRIVATE include ${Vulkan_INCLUDE_DIRS})
 
-include_directories(
-    ${OpenCV_INCLUDE_DIRS}
-    ${CMAKE_SOURCE_DIR}/include
-    ${Python3_INCLUDE_DIRS}
-    ${FFMPEG_INCLUDE_DIRS}
-    ${Vulkan_INCLUDE_DIRS}
-)
-
-set(SOURCES
+target_sources(${PROJECT_NAME} PRIVATE
     # --- Main ---
     src/Main.cpp
 
@@ -224,15 +200,11 @@ set(SOURCES
 )
 
 if(APPLE)
-    list(APPEND SOURCES src/vulkan/MetalSurface.mm)
     # The application menu's title, which only Cocoa can be told.
-    list(APPEND SOURCES src/window/MacApplication.mm)
+    target_sources(${PROJECT_NAME} PRIVATE src/vulkan/MetalSurface.mm src/window/MacApplication.mm)
 else()
-    list(APPEND SOURCES src/vulkan/MetalSurfaceStub.cpp)
-    list(APPEND SOURCES src/window/MacApplicationStub.cpp)
+    target_sources(${PROJECT_NAME} PRIVATE src/vulkan/MetalSurfaceStub.cpp src/window/MacApplicationStub.cpp)
 endif()
-
-add_executable(${PROJECT_NAME} ${SOURCES})
 
 # One translation unit against headers only — no Vulkan device, no Qt, no
 # window, and nothing of the application linked in, so it costs a second and a
@@ -240,6 +212,7 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 # build does not pay for it, `make check` and CI ask for it by name.
 add_executable(video-code-tests EXCLUDE_FROM_ALL test/cpp/unit_test.cpp)
 set_target_properties(video-code-tests PROPERTIES AUTOMOC OFF AUTOUIC OFF AUTORCC OFF)
+target_compile_features(video-code-tests PRIVATE cxx_std_20)
 target_include_directories(video-code-tests PRIVATE include)
 # Qt6::Core and nothing more: the diff the agent pane draws is QStringList
 # work, and linking Core alone costs a second where linking the application
@@ -255,19 +228,14 @@ if(APPLE)
         BUILD_RPATH "${MVK_PREFIX}/lib;${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/lib"
         INSTALL_RPATH "${MVK_PREFIX}/lib;${VCPKG_ROOT}/installed/${VCPKG_TARGET_TRIPLET}/lib"
     )
-elseif(UNIX AND NOT APPLE)
-    # The Vulkan preview window presents through an XCB surface on Linux; the
-    # widget pulls the X connection from Qt's xcb platform plugin.
-    target_compile_definitions(${PROJECT_NAME} PRIVATE VK_USE_PLATFORM_XCB_KHR)
+elseif(LINUX)
+    # Linux presents over XCB: the widget hands Vulkan the X connection Qt's
+    # xcb plugin holds, so it talks to libxcb directly.
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(XCB REQUIRED xcb)
-    target_include_directories(${PROJECT_NAME} PRIVATE ${XCB_INCLUDE_DIRS})
-    target_link_libraries(${PROJECT_NAME} ${XCB_LIBRARIES})
+    pkg_check_modules(xcb REQUIRED IMPORTED_TARGET xcb)
+    target_compile_definitions(${PROJECT_NAME} PRIVATE VK_USE_PLATFORM_XCB_KHR)
+    target_link_libraries(${PROJECT_NAME} PkgConfig::xcb)
 endif()
-
-target_link_directories(${PROJECT_NAME} PRIVATE
-    ${FFMPEG_LIBRARY_DIRS}
-)
 
 if(NOT APPLE)
     target_link_libraries(${PROJECT_NAME} stdc++fs)
@@ -288,13 +256,9 @@ find_path(MINIAUDIO_INCLUDE_DIR miniaudio.h REQUIRED)
 target_include_directories(${PROJECT_NAME} PRIVATE ${MINIAUDIO_INCLUDE_DIR})
 
 target_link_libraries(${PROJECT_NAME}
-    argparse::argparse
-    nlohmann_json::nlohmann_json
-    ${OpenCV_LIBS}
-    ${FFMPEG_LIBRARIES}
-    Qt6::Widgets
     Qt6::Core
     Qt6::Gui
+    Qt6::Widgets
     $<$<BOOL:${Qt6GuiPrivate_FOUND}>:Qt6::GuiPrivate>
     Qt6::Quick
     Qt6::Qml
@@ -308,6 +272,10 @@ target_link_libraries(${PROJECT_NAME}
     glslang::glslang-default-resource-limits
     glslang::SPIRV
     Freetype::Freetype
+
+    ${OpenCV_LIBS}
+    argparse::argparse
+    nlohmann_json::nlohmann_json
 )
 
 # A static Qt turns QML modules into static libraries: there is no plugin for the

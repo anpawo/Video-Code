@@ -25,9 +25,7 @@
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <nlohmann/json.hpp>
 #include <opencv2/core/utils/logger.hpp>
-#include <opencv2/opencv.hpp>
 
 #include "compiler/Compiler.hpp"
 #include "core/ScreenSize.hpp"

@@ -161,6 +161,15 @@
   "lastFrame": 30,
   "shape": "15233d3789bdf8f6"
  },
+ "test/visual/scenes/effect_shaders6.py": {
+  "applyCalls": 10,
+  "entries": 20,
+  "events": 0,
+  "frameSlots": 10,
+  "inputs": 5,
+  "lastFrame": 30,
+  "shape": "a71e89a749a3ef6e"
+ },
  "test/visual/scenes/effect_templates.py": {
   "applyCalls": 237,
   "entries": 258,

@@ -13,8 +13,7 @@ vc
 video/
 *.mp4
 *.mkv
-*.jpg
-*.jpeg
+*.jp*g
 *.png
 *.mov
 *.webm
@@ -26,27 +25,20 @@ video/
 __pycache__/
 *.pyc
 
-
 # Direnv
 .envrc
 .direnv/
 
-# Python virtual environments
-.venv/
-venv/
-videocodevenv/
+# Python virtual environments, whatever they were named
+*venv/
 
-# CMake
-build/
-# vcpkg's generated install tree (but keep the manifest, overlay triplets/ports,
-# and chainload toolchain under version control)
+# Build trees, and what vcpkg installs from the manifest. The manifest itself,
+# the overlay ports and triplets, and the chainload toolchain stay tracked.
+build*/
 vcpkg_installed/
 
-# Dependencies
-include/argparse/
-
-# Executables
-video-code
+# The binary `make` copies to the root
+/video-code
 
 # Mac
 .DS_Store
@@ -79,7 +71,6 @@ pgn
 
 # WebImage
 webimage/
-build-qml/
 temp/
 dist/
 test/tour_music.wav

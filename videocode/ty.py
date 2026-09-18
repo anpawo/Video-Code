@@ -16,8 +16,6 @@ if TYPE_CHECKING:
     from videocode.shader.ishader import Paint
 
 
-type int8 = int
-
 type uint = int
 type uint8 = int
 type ufloat = float

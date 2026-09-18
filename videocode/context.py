@@ -182,7 +182,7 @@ _LIBRARY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 # What a type in ty.py promises about a number: the closed ranges the editor
 # can refuse before writing, and the run can refuse after.
 _BOUNDS: dict[str, tuple[float | None, float | None]] = {
-    "uint8": (0, 255), "int8": (-128, 127), "percent": (0, 100),
+    "uint8": (0, 255), "percent": (0, 100),
     "uint": (0, None), "ufloat": (0, None), "unumber": (0, None),
     "wuint": (0, None), "wufloat": (0, None), "wunumber": (0, None),
     "sec": (0, None), "frame": (0, None),
