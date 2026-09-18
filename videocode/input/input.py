@@ -758,7 +758,17 @@ class Input(ABC):
         that faded out earlier, keeps what it had. `hidden=False` never hides.
         """
         if hidden and not self._opacityWritten() and self._opacityNow() == 255:
-            self.apply(opacity(0))
+            # From the first frame of the film, not from this element's clock:
+            # after a `waitFor()` the clock is already at the fade, and the
+            # element stood fully opaque for the whole wait it was meant to be
+            # hidden. An element made after a `wait()` is hidden until then
+            # anyway, so frame 0 is never too early.
+            mark = len(Context.statements)
+            self.apply(opacity(0), offset=0)
+            # The library's hiding, not the author's fade: left in, the bar of
+            # this `fadeIn` would start where the element was made.
+            for statement in Context.statements[mark:]:
+                statement["placement"] = True
         return self.apply(*fadeTo(self, src=0 if from0 else None, dst=255, easing=easing, start=start, duration=duration), at=at)
 
     def _opacityWritten(self) -> bool:

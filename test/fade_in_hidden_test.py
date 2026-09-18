@@ -27,4 +27,9 @@ assert opacityAt15(HEAD + "Square(side=1).opacity(128).fadeIn(start=1)\n") == 12
 assert opacityAt15(HEAD + "Square(side=1).fadeIn(start=1, hidden=False)\n") == 255
 # Faded out, then in again: the fade out wrote the opacity, nothing is added.
 assert opacityAt15(HEAD + "Square(side=1).fadeOut().fadeIn(start=1)\n") == 0
+# A waitFor() moves the element's clock to the fade: the hiding still starts
+# where the element was made, not there — it stood opaque for the whole wait.
+report = serialize.execSource(HEAD + "a = Square(side=1)\na.fadeOut(duration=1)\nb = Square(side=1)\nb.waitFor(a).fadeIn()\n", "test/fade_in_hidden_scene.py")
+assert report["ok"], report
+assert Context.stateAt(1, 15)["Opacity"] == 0, Context.stateAt(1, 15)
 print("\033[32m✓\033[0m  fadeIn hides until it starts, unless the opacity was already written")
