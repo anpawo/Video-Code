@@ -1,4 +1,3 @@
-python-chess==1.999  # ChessBoard template; commented out for 8 weeks, which is how long pyright stayed red
 shapely
 freetype-py
 uharfbuzz

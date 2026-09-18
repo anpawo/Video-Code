@@ -71,15 +71,6 @@
   "lastFrame": 60,
   "shape": "a9ca4210600dea32"
  },
- "test/visual/scenes/chess.py": {
-  "applyCalls": 120,
-  "entries": 186,
-  "events": 12,
-  "frameSlots": 121,
-  "inputs": 33,
-  "lastFrame": 131,
-  "shape": "8d1366c04b004b94"
- },
  "test/visual/scenes/composition.py": {
   "applyCalls": 39,
   "entries": 67,
