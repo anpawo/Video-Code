@@ -61,13 +61,23 @@ jobs:
         if: ${{ !cancelled() }}
         run: python3 test/coverage_check.py --pushed
 
-      # What the codebase says twice, and what it says to nobody. Both numbers
-      # are pre-existing — 992 repeated lines, 22 public names nothing reaches —
-      # so this refuses GROWTH rather than the debt itself: a gate that fails
-      # the day it is written gets disabled by the end of the week. 1.2s.
+      # What the codebase says twice, and what it says to nobody. Both are
+      # pre-existing — 1691 repeated lines in 119 clones, 19 public names
+      # nothing reaches — so this refuses what is NEW rather than the debt
+      # itself: a clone the record does not know, a declared twin that grew. A
+      # gate that fails the day it is written gets disabled by the end of the
+      # week. 1.0s.
       - name: Repetition and surface nobody reaches
         if: ${{ !cancelled() }}
         run: python3 test/repetition_check.py
+
+      # The one thing a runner can honestly say about speed: whether a number
+      # EXISTS. Above ten engine commits since the last row of history.jsonl it
+      # leaves a warning on the run; it claims nothing and never fails. Rides
+      # on the fetch-depth: 0 this job already pays for.
+      - name: How much engine work nobody has measured
+        if: ${{ !cancelled() }}
+        run: python3 test/perf/history.py --stale
 
       # The perf memory a shared runner CAN hold. It cannot reproduce a
       # millisecond — lavapipe against Metal is a 30x gap — but baking every

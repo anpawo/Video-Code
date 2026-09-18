@@ -10,6 +10,7 @@ publishes the curve.
 
     python3 test/perf/history.py --verify              # is the record sound?
     python3 test/perf/history.py --append bench.json   # add it to what CI plots
+    python3 test/perf/history.py --stale               # how much engine work is unmeasured?
 
 Why verify at all
 ─────────────────
@@ -159,6 +160,33 @@ def append(path: Path) -> int:
     return 0
 
 
+# Engine commits the last measurement has not seen before CI says so. Below
+# this a week of small fixes would nag; above it the curve has a hole in it.
+STALE_AFTER = 10
+
+
+def stale() -> int:
+    """
+    What a runner CAN say about speed: whether a number EXISTS. It measures
+    nothing, claims nothing, and never fails — a warning on the run, nothing more.
+    """
+    if not rows():
+        return 0
+    last = rows()[-1]
+    sha = str(last.get("sha", ""))
+    shallow = subprocess.run(["git", "rev-parse", "--is-shallow-repository"], capture_output=True, text=True).stdout.strip() != "false"
+    count = subprocess.run(["git", "rev-list", "--count", f"{sha}..HEAD", "--", "src", "include", "assets/shaders"], capture_output=True, text=True)
+    if shallow or count.returncode:
+        print(f"perf history: engine commits since {sha[:7]} unknown — this clone does not hold the history to count them")
+        return 0
+    n = int(count.stdout)
+    if n > STALE_AFTER:
+        print(f"::warning::{n} engine commits unmeasured since {sha[:7]} ({str(last.get('date', '?'))[:10]}) — run python3 test/perf/guard.py --record on the Mac")
+    else:
+        print(f"perf history: {n} engine commit(s) since the last measurement, {sha[:7]}")
+    return 0
+
+
 def selftest() -> int:
     known = {str(r.get("sha", "")) for r in rows()}
     victim = next(
@@ -175,13 +203,15 @@ def selftest() -> int:
 def main() -> int:
     if "--selftest" in sys.argv:
         return selftest()
+    if "--stale" in sys.argv:
+        return stale()
     if "--verify" in sys.argv:
         return verify()
     if "--append" in sys.argv:
         if verify():
             return 1
         return append(Path(sys.argv[sys.argv.index("--append") + 1]))
-    print(__doc__.strip().splitlines()[0])
+    print((__doc__ or "").strip().splitlines()[0])
     return 1
 
 

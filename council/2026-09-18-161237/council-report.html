@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Council Verdict: 2026-09-18</title>
+<style>
+ :root {
+ --paper: #fafaf7;
+ --ink: #141413;
+ --ink-soft: #4b4b47;
+ --ink-mute: #8a8a83;
+ --rule: #e5e3dc;
+ --accent: #1e3a5f;
+ --accent-soft: #e8eef5;
+ --sans: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+ --serif: "Iowan Old Style", "Iowan", ui-serif, Georgia, Cambria, "Times New Roman", serif;
+ --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+ }
+ * { box-sizing: border-box; }
+ html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+ body { font-family: var(--serif); font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+ .wrap { max-width: 780px; margin: 0 auto; padding: 64px 32px 96px; }
+
+ .eyebrow {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.22em;
+ text-transform: uppercase;
+ color: var(--accent);
+ font-weight: 600;
+ margin: 0 0 16px;
+ }
+ h1.question {
+ font-family: var(--serif);
+ font-weight: 500;
+ font-size: 34px;
+ line-height: 1.25;
+ letter-spacing: -0.01em;
+ margin: 0 0 20px;
+ color: var(--ink);
+ }
+ .meta {
+ font-family: var(--sans);
+ font-size: 13px;
+ color: var(--ink-mute);
+ margin: 0 0 56px;
+ border-bottom: 1px solid var(--rule);
+ padding-bottom: 28px;
+ }
+
+ section.verdict {
+ background: var(--accent-soft);
+ border-left: 3px solid var(--accent);
+ padding: 36px 40px;
+ margin: 0 0 56px;
+ border-radius: 2px;
+ }
+ section.verdict h2 {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.22em;
+ text-transform: uppercase;
+ color: var(--accent);
+ margin: 0 0 24px;
+ font-weight: 600;
+ }
+ section.verdict h3 {
+ font-family: var(--sans);
+ font-size: 14px;
+ font-weight: 600;
+ color: var(--ink);
+ margin: 28px 0 8px;
+ letter-spacing: 0;
+ }
+ section.verdict h3:first-of-type { margin-top: 0; }
+ section.verdict p, section.verdict ul { margin: 0 0 8px; }
+ section.verdict ul { padding-left: 20px; }
+ section.verdict li { margin-bottom: 6px; }
+ section.verdict .recommendation {
+ font-size: 19px;
+ line-height: 1.5;
+ margin-top: 4px;
+ }
+ section.verdict .one-thing {
+ font-family: var(--serif);
+ font-style: italic;
+ font-size: 18px;
+ border-top: 1px solid rgba(30, 58, 95, 0.2);
+ padding-top: 20px;
+ margin-top: 28px;
+ }
+
+ .round-label {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.22em;
+ text-transform: uppercase;
+ color: var(--ink-mute);
+ font-weight: 600;
+ margin: 0 0 16px;
+ padding-top: 16px;
+ border-top: 1px solid var(--rule);
+ }
+
+ details {
+ border-bottom: 1px solid var(--rule);
+ padding: 20px 0;
+ }
+ details[open] { padding-bottom: 28px; }
+ summary {
+ cursor: pointer;
+ list-style: none;
+ font-family: var(--sans);
+ font-weight: 500;
+ font-size: 15px;
+ color: var(--ink);
+ display: flex;
+ align-items: baseline;
+ gap: 12px;
+ user-select: none;
+ }
+ summary::-webkit-details-marker { display: none; }
+ summary::before {
+ content: "+";
+ font-family: var(--mono);
+ color: var(--accent);
+ font-weight: 400;
+ font-size: 16px;
+ transition: transform 160ms ease;
+ display: inline-block;
+ width: 12px;
+ }
+ details[open] summary::before { content: "−"; }
+ .advisor-kind {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.16em;
+ text-transform: uppercase;
+ color: var(--ink-mute);
+ margin-left: 4px;
+ }
+ details .body {
+ margin-top: 16px;
+ padding-left: 24px;
+ color: var(--ink-soft);
+ font-size: 16px;
+ line-height: 1.65;
+ }
+ details .body p { margin: 0 0 12px; }
+ details .body p:last-child { margin-bottom: 0; }
+
+ footer {
+ margin-top: 80px;
+ padding-top: 24px;
+ border-top: 1px solid var(--rule);
+ font-family: var(--sans);
+ font-size: 12px;
+ color: var(--ink-mute);
+ line-height: 1.6;
+ }
+ footer code {
+ font-family: var(--mono);
+ background: rgba(30, 58, 95, 0.08);
+ padding: 1px 6px;
+ border-radius: 3px;
+ color: var(--ink);
+ font-size: 11px;
+ }
+
+ @media (max-width: 640px) {
+ .wrap { padding: 40px 20px 64px; }
+ h1.question { font-size: 26px; }
+ section.verdict { padding: 28px 24px; }
+ }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+ <p class="eyebrow">Council Verdict</p>
+ <h1 class="question">DECISION. Design the CI job that uses AI AGENTS to keep the Video-Code repository free of duplicated code and of code that has stopped being efficient (&quot;no double function, no repeated code, still optimised&quot;). Settle: (1) gate or advisory; (2) when it runs and where its output lands; (3) how it authenticates and what it costs; (4) what the agent may do (read, comment, push a branch); (5) how deliberate twins are declared so it stops proposing abstractions the owner has rejected; (6) whether to extend the existing deterministic ratchet or adopt jscpd; (7) what &quot;still optimised&quot; can honestly mean on a shared runner; (8) how the agent is prompted given the repo&#x27;s CLAUDE.md. Give ONE concrete design, not a menu.</h1>
+ <p class="meta">18 September 2026 &nbsp;·&nbsp; 5 advisors · 5 peer reviewers</p>
+
+ <section class="verdict">
+ <h2>Synthesis</h2>
+
+ <h3>Where the council agrees</h3>
+ <ul>
+<li><strong>The agent never gates</strong> (all five). Same commit, same verdict is something an LLM cannot promise; &quot;nothing blocks a push&quot; stays true. Only the deterministic script can turn a run red.</li>
+<li><strong>Weekly, never on a push or a PR</strong> (platform, security, principal, test). On a public repo this removes the injection surface in one move — no PR text in the prompt, no secret near a fork — and costs about $4 a month instead of about $100.</li>
+<li><strong>Read-only agent, metered key</strong> (platform, security, principal): <code>Read,Grep,Glob</code> only, no shell, no network tool, no GitHub token; a capped API key in one step, <code>--bare</code> so the repo&#x27;s CLAUDE.md is not loaded as orders; a second, LLM-free step does the posting. It pushes nothing.</li>
+<li><strong>Fix the ratchet before adding anything</strong> (principal, test): record clone IDENTITIES, not three integers — today one clone can be swapped for another unnoticed — and read QML and GLSL. Both reject jscpd as a second definition of &quot;clone&quot;.</li>
+<li><strong>Deliberate twins are data</strong> (principal, test): a file listing the pairs with the owner&#x27;s reason. Still counted, exempt from refactor proposals; a rejected finding becomes an entry, which is the agent&#x27;s memory.</li>
+<li><strong>No agent has an opinion on speed</strong> (performance, test, principal). What CI can say honestly is whether a number EXISTS: the last perf row measures 96587a7 (6 Sept.), 25 engine commits ago.</li>
+</ul>
+
+ <h3>Where the council clashes</h3>
+ <ul>
+<li><strong><code>workflow_dispatch</code> or not.</strong> Platform drops it (a dispatched run executes the dispatched ref&#x27;s workflow file, main is unprotected); security and principal keep it. Reviewers checked: <code>nightly.yaml</code> does have dispatch, and the comment platform cited is about a self-hosted runner. Settled by platform&#x27;s OTHER idea: the key lives in a GitHub Environment restricted to <code>main</code>, so a dispatch from any other ref gets no secret. Dispatch stays — a job that cannot be run by hand cannot be debugged.</li>
+<li><strong>One rolling issue or one issue per finding.</strong> Platform, principal, security: one issue edited in place, quiet. Test: one per finding, keyed on a stable ID, closed = rejected. Reviewers broke the tie: editing an issue body notifies nobody. One issue per finding, at most three new ones a run.</li>
+<li><strong>A perf section in the agent, or none.</strong> Performance: four structural patterns on the engine diff, phrased as questions ending in the command that answers them, on a four-week trial. Test and principal: nothing. Kept as performance framed it — it is the only part of &quot;still optimised&quot; an agent can honestly hold, and its own author gave it an expiry date.</li>
+</ul>
+
+ <h3>Blind spots the council caught</h3>
+ <ul>
+<li><strong>The agent would never see a semantic clone</strong> (4 of 5 reviewers). Every design fed it only what the verbatim detector already finds, and the gate forbids those from growing: from week two it re-reads the same ~68 repetitions that <code>--list</code> prints for free. The one thing only an LLM can find never becomes a candidate — and the test seat&#x27;s 0.6 text-similarity filter would have thrown out its own seeded fixture. Fix: a deterministic INDEX of every function (name, signature, first docstring line, file:line), with the ones added or changed since the last run marked; the agent looks there for two functions doing one job, then reads the bodies.</li>
+<li><strong>The findings never reach the owner</strong> (3 of 5). Everyone treated CLAUDE.md&#x27;s board order as a hazard to strip; nobody routed a finding to the one page he keeps open. CI cannot publish the board, so the bridge is the label: open <code>audit</code> issues are To-do rows the next local session adds, closed ones are Won&#x27;t-do with the closing comment as the reason.</li>
+<li><strong>The identity ratchet goes red exactly when he does the right thing</strong> (1 reviewer): fixing a bug in BOTH twins creates new hashes. Inside a declared twin pair the rule is therefore growth, not identity — and a clone that VANISHES from a pair is printed, because that is what a fix applied to one side only looks like. The drift check, for free.</li>
+<li><strong>The existing script undercounts</strong> (test seat, confirmed by 4 reviewers; one measured 16 of 155 runs, 359 lines): overlapping hot windows merge into one run whose hash matches nothing, and it is dropped.</li>
+</ul>
+
+ <h3>The recommendation</h3>
+ <p class="recommendation"><p>Build the principal engineer&#x27;s design — 4 of 5 reviewers picked it — with the test engineer&#x27;s validator and stable IDs, the security engineer&#x27;s two-step job, the platform engineer&#x27;s environment-restricted key and provider-side cap, and the performance engineer&#x27;s staleness check. Then add what only the review round saw: the function index that gives the agent something a script cannot find, and the <code>audit</code> label as the bridge to the board. The chairman overrules the majority on one point: one issue per finding, not a rolling one.</p></p>
+
+ <p class="one-thing"><strong>Do first:</strong> <p>Fix <code>test/repetition_check.py</code> — identities instead of counts, the merged-run bug, QML and GLSL — because every other piece reads its output, and today it is undercounting.</p></p>
+ </section>
+
+ <p class="round-label">Round 1: Advisors</p>
+
+ <details>
+ <summary>Security engineer <span class="advisor-kind">downside lens</span></summary>
+ <div class="body"><p>The fatal flaw is the combination, not the agent itself: an LLM with tools, a secret in its environment, attacker-controllable input and a public log. Remove any one of the four and the hole closes. So the agent never runs on <code>pull_request</code>, never on <code>pull_request_target</code>, and never holds a write token.</p>
+<p><strong>Triggers allowed to see the secret</strong></p>
+<ul>
+<li>The secret is exposed on <code>schedule</code> (weekly) and <code>workflow_dispatch</code> only, in a new <code>audit.yaml</code>. It does not go in <code>ci.yaml</code>, whose <code>pull_request</code> trigger must stay secret-free.</li>
+<li>The job reuses the guard the <code>remember</code> job already has: <code>if: github.repository == &#x27;anpawo/Video-Code&#x27;</code>.</li>
+<li>Fork PRs keep getting the deterministic <code>repetition_check.py</code> and nothing else.</li>
+<li><code>cd-mirror.yaml</code> already hands its deploy key to a <code>pull_request: opened</code> run. That exposure is small today and should not be copied.</li>
+</ul>
+<p><strong>Permissions</strong></p>
+<p><code>`</code>yaml</p>
+<p>permissions: {}</p>
+<p>jobs:</p>
+<p>  audit:</p>
+<p>    permissions:</p>
+<p>      contents: read</p>
+<p>      issues: write   # one rolling issue, nothing else</p>
+<p><code>`</code></p>
+<ul>
+<li>No <code>pull-requests: write</code>, no <code>id-token</code>, and never <code>contents: write</code>.</li>
+<li>Checkout uses <code>persist-credentials: false</code>, so no token sits in <code>.git/config</code> for a Bash tool to read.</li>
+</ul>
+<p><strong>Two steps, with the secret in one of them</strong></p>
+<ul>
+<li>Step 1 runs the deterministic candidate generator and writes <code>candidates.json</code>.</li>
+<li>Step 2 is the only step with <code>ANTHROPIC_API_KEY</code> in its <code>env:</code>, following the <code>cd-mirror</code> rule of one step, one reader. The agent gets no <code>GH_TOKEN</code> at all.</li>
+<li>Step 3 is plain <code>gh issue edit</code>. It posts the agent&#x27;s JSON after a schema check: fixed fields, length-capped, file paths must exist in the tree.</li>
+<li>The agent cannot write anywhere, and the step that writes runs no LLM.</li>
+</ul>
+<p><strong>Tool allowlist</strong></p>
+<ul>
+<li><code>--allowedTools &quot;Read,Grep,Glob&quot;</code>.</li>
+<li>Disallowed: <code>Bash</code>, <code>WebFetch</code>, <code>WebSearch</code>, <code>Edit</code>, <code>Write</code> and MCP. With no network tool and no shell, an injected comment in a source file has nowhere to send the key.</li>
+<li><code>--max-turns 15</code> caps the run.</li>
+</ul>
+<p><strong>Auth</strong></p>
+<ul>
+<li>A metered API key in a dedicated workspace with a $20 monthly spend cap.</li>
+<li>Not the subscription token: a leak of that lends out the owner&#x27;s interactive quota for a year. A capped key leaks $20.</li>
+<li>The key lets us run <code>--bare</code>, which also stops the repo&#x27;s own CLAUDE.md being loaded as instructions.</li>
+</ul>
+<p><strong>Logs</strong></p>
+<ul>
+<li><code>show_full_output</code> stays off. Only the validated JSON reaches the issue.</li>
+</ul>
+<p><strong>Supply chain</strong></p>
+<ul>
+<li>Pin <code>anthropics/claude-code-action</code> by 40-character SHA, as <code>ci.yaml</code> does for <code>benchmark-action</code>.</li>
+<li>Better: <code>npm i -g @anthropic-ai/claude-code@&lt;exact version&gt;</code> and headless <code>claude -p</code>. That is one fewer third-party action near a secret.</li>
+</ul>
+<p><strong>Write policy</strong></p>
+<ul>
+<li>The agent never pushes a branch. A bot that pushes to a repo with an unprotected main is one misconfigured ref away from pushing to main.</li>
+<li>It proposes changes in the issue; the owner applies them locally.</li>
+</ul>
+<p><strong>Before the first run</strong></p>
+<ul>
+<li>Finish removing the two extra accounts that still hold push rights.</li>
+<li>Set the default workflow token to read-only in the repo settings.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>Principal engineer <span class="advisor-kind">reframe lens</span></summary>
+ <div class="body"><p>The fatal flaw is an agent that carries the detection. The 1.2-second script already detects, deterministically. What it lacks is identity and memory, and both are data problems. The design below fixes the script first and gives the agent only the remaining triage.</p>
+<p><strong>1. Extend <code>test/repetition_check.py</code>; do not adopt jscpd.</strong></p>
+<ul>
+<li>jscpd would be a second detector: a Node dependency with a second definition of &quot;clone&quot;. It also silently skips the two files that hold 64 % of the problem.</li>
+<li>Two changes to the script, about 30 lines:</li>
+<li>Record the SHA-256 of each 8-line window the script already computes in <code>test/repetition.json</code>, and fail on any new hash instead of on count growth. That closes the &quot;remove one clone, add another&quot; hole.</li>
+<li>Add <code>.qml</code>, <code>.glsl</code>, <code>.vert</code> and <code>.frag</code> to <code>sources()</code>.</li>
+<li>It stays in CI&#x27;s <code>fast</code> lane as the only gate.</li>
+</ul>
+<p><strong>2. Declare deliberate twins as data in the record file.</strong></p>
+<ul>
+<li>Add a <code>&quot;twins&quot;</code> list to <code>repetition.json</code>. Each entry holds <code>{files: [a, b], reason, date}</code>. No in-code annotations.</li>
+<li>First entry: <code>VulkanWidget.cpp</code> and <code>VulkanHeadlessRenderer.cpp</code>, with the reason &quot;preview and headless diverge on purpose; no shared base&quot;.</li>
+<li>A twin is still counted; it is only exempt from refactor proposals. The entry also adds a drift check: when a commit touches a hashed run in one twin and not in the other, the script prints both locations. That is the bug the owner actually has, and it needs no LLM.</li>
+</ul>
+<p><strong>3. The agent is a weekly advisory job in <code>nightly.yaml</code>, never in <code>ci.yaml</code>.</strong></p>
+<ul>
+<li>Trigger: Monday cron plus <code>workflow_dispatch</code>.</li>
+<li>Invocation: headless <code>claude -p --bare --output-format json</code>, with an API key held in a GitHub environment secret and <code>permissions: contents: read, issues: write</code>. <code>--bare</code> rules out the subscription token, which is fine.</li>
+<li><code>--bare</code> also keeps <code>CLAUDE.md</code> and its board order out of the run. The prompt lives in a new <code>.github/prompts/clone-audit.md</code>.</li>
+<li>Input: the script&#x27;s candidate list plus the twins list. The agent never reads the whole repo.</li>
+<li>Output: one rolling issue, edited in place, of at most five findings. Each finding must name lines to delete. &quot;Extract a base class&quot; is banned in the prompt. A rejected finding becomes a twins entry, and that list is the agent&#x27;s memory.</li>
+<li>It pushes no branch.</li>
+<li>Cost is about $0.80 a week, with a hard <code>--max-turns</code> cap.</li>
+</ul>
+<p><strong>4. &quot;Still optimised&quot; is not an agent job.</strong></p>
+<ul>
+<li><code>test/perf/history.jsonl</code> and the owner&#x27;s Mac measure it. CI keeps checking what the scenes ask the renderer to do. Nothing is added here.</li>
+</ul>
+<p>In total this adds one JSON key, one prompt file and one cron job.</p></div>
+ </details>
+
+ <details>
+ <summary>Performance engineer <span class="advisor-kind">upside lens</span></summary>
+ <div class="body"><p><strong>&quot;Still optimised&quot; in CI can only mean one thing: a number exists for this code.</strong> The gap in the repo today is a missing measurement, not a missing reviewer. The last row of <code>test/perf/history.jsonl</code> measures <code>96587a7</code>, dated 2026-09-06. Since then 25 commits have touched <code>src/</code>, <code>include/</code> or <code>assets/shaders/</code> with no new row. The guard exists, but nobody has run it in twelve days.</p>
+<p><strong>The design has three parts, and only the third is an agent.</strong></p>
+<ul>
+<li><strong>Staleness check (deterministic, fast lane, red but non-blocking).</strong> It counts commits touching <code>src/</code>, <code>include/</code> and <code>assets/shaders/</code> since the sha in the last history row. Past a limit of 10 it prints &quot;N engine commits unmeasured — run <code>guard.py --record</code>&quot;. It takes about ten lines in <code>history.py</code> next to <code>--verify</code> and costs nothing. It claims nothing about speed.</li>
+<li><strong><code>digest.py</code> stays as it is.</strong> It is the only honest perf gate a shared runner can hold, and its zero tolerance stays.</li>
+<li><strong>Agent (weekly, advisory, candidates-first, the same run as the duplication audit).</strong> It reads only the engine diff since the last measured sha. It may flag four kinds of change, each with a file and line:</li>
+<li>work that moved from per-scene to per-frame, or from per-frame to per-object;</li>
+<li>a heap allocation, string build or container copy inside a draw or bake loop;</li>
+<li>Vulkan resources created or pipelines rebuilt per frame;</li>
+<li>a loop nested inside another loop over the same collection.</li>
+</ul>
+<p><strong>Every agent finding is a question that ends in the command that answers it.</strong> The agent may write &quot;this adds an allocation per glyph per frame; <code>stress_text.py</code> would show it; measure&quot;. It must never write &quot;slow&quot;, &quot;faster&quot;, a percentage, an estimated millisecond figure or a fix.</p>
+<p><code>guard.py</code> already documents that wall time on identical code swings 2–4% at rest, and that a ±20% gate fired on 26.8% of clean runs. An LLM reading a diff has less signal than that, because it has no clock at all. If the agent cannot name the loop and its trip count, it stays silent.</p>
+<p><strong>Two things are not built.</strong></p>
+<ul>
+<li>There is no CI timing step and no &quot;perf score&quot; at any tolerance.</li>
+<li>The agent does not review the Python library for micro-optimisations. <code>digest.py</code> already catches what matters there, which is more work being asked of the renderer.</li>
+</ul>
+<p><strong>One flaw could sink the perf half of the agent.</strong> Once the staleness check makes the owner measure every ten engine commits, the measurement answers the question better than any reviewer. Within a month the agent&#x27;s perf findings may have nothing left to add. Ship the staleness check now, give the agent&#x27;s perf section four weeks, and delete it if no finding led to a row in <code>history.jsonl</code>.</p></div>
+ </details>
+
+ <details>
+ <summary>Platform engineer <span class="advisor-kind">fresh-eyes lens</span></summary>
+ <div class="body"><p><strong>Drop <code>pull_request</code> and <code>push</code> as agent triggers.</strong> On a public repo, that alone removes the three documented risks: fork PRs never receive the secret, PR text never reaches the prompt, and the agent never reacts to untrusted input. The owner pushes straight to main, so nothing else is lost.</p>
+<p><strong>Layout.</strong> One new file, <code>.github/workflows/twins.yaml</code>. <code>ci.yaml</code> and <code>test/repetition_check.py</code> stay exactly as they are and remain the only gate.</p>
+<ul>
+<li><code>on: schedule: cron &#x27;0 4 * * 1&#x27;</code>, an hour after Nightly&#x27;s 03:00 cron. There is no <code>workflow_dispatch</code>. <code>nightly.yaml</code> already records why: a dispatched run executes the workflow file of the dispatched ref, and <code>main</code> is unprotected.</li>
+<li><code>concurrency: {group: twins, cancel-in-progress: true}</code> and <code>timeout-minutes: 15</code>.</li>
+<li>Job <code>candidates</code> has <code>contents: read</code> and no secrets. It runs <code>python3 test/repetition_check.py</code>, then <code>npx jscpd@4.0.5 --max-lines 5000 --reporters json</code>. The <code>--max-lines</code> flag matters because jscpd&#x27;s default silently skips the two largest files. The job uploads the JSON, and an empty clone list ends the run before any model call is made.</li>
+<li>Job <code>triage</code> has <code>needs: candidates</code>, <code>contents: read</code> and <code>issues: write</code>. It checks out the repo and runs headless <code>claude -p --output-format json --max-turns 25 --allowedTools &quot;Read,Grep,Glob&quot;</code> on a Sonnet-class model. The agent has no Bash, no Edit and no git credentials, so it can neither push nor publish a board.</li>
+</ul>
+<p><strong>Auth.</strong> Use an API key held in a GitHub Environment restricted to <code>main</code>, under a dedicated Anthropic workspace with a $10 monthly spend limit. The provider-side limit is the real cost cap because it still holds if the YAML is wrong. Do not use the subscription token: a CI job that competes with the owner&#x27;s interactive 5-hour window will be switched off the first time it throttles him. The API key also permits <code>--bare</code>, which prevents CLAUDE.md&#x27;s board-update order from being loaded. Expected bill is about $0.80 × 4 ≈ $4 a month.</p>
+<p><strong>Output.</strong> Maintain a single rolling issue labelled <code>twins</code>, found with <code>gh issue list --label twins</code> and rewritten each week with <code>gh issue edit --body-file</code>. It lists at most five findings and includes <code>total_cost_usd</code> from the run. Post only that parsed digest, because a raw transcript in the public Actions log leaks everything the model read. An empty week leaves the issue untouched and sends no notification.</p>
+<p><strong>Failure at 3am.</strong> The schedule run goes red and GitHub emails the owner. A failed run blocks no push.</p>
+<p><strong>Known gap.</strong> Weekly cadence means a new twin can sit undetected for up to seven days. The 1.2-second count ratchet covers that window. Running the agent on every push would cost about $100 a month to close a gap that is already covered.</p></div>
+ </details>
+
+ <details>
+ <summary>Test engineer <span class="advisor-kind">Monday-morning lens</span></summary>
+ <div class="body"><p>The agent must never be the gate. Same commit must give the same verdict, and an LLM cannot promise that. So there are two jobs, and only the deterministic one can go red.</p>
+<p><strong>Fix the ratchet first.</strong> <code>test/repetition_check.py</code> compares three integers, so it can be fooled: delete one clone, add another, it passes. The script also has a false-negative bug: <code>hot</code> marks windows per file, so two separate clones that sit next to each other merge into one run. Its content hash then matches nothing and it is dropped from the report.</p>
+<ul>
+<li><strong>Baseline:</strong> record clone identities. <code>repetition.json</code> holds the sorted <code>byContent</code> hashes the script already computes (<code>{hash: lines}</code>).</li>
+<li><strong>Failure rule:</strong> fail on any hash not in the baseline, even when totals fall.</li>
+<li><strong>Reproducibility:</strong> the hashes are line-number-free, so editing above a clone changes nothing. Same tree gives the same set.</li>
+<li><strong>Staleness:</strong> <code>--update</code> stays the only way to accept a new clone, and the diff names each clone added or removed.</li>
+<li><strong>Coverage:</strong> add <code>qml/<strong>/*.qml</code> and <code>assets/shaders/</strong></code> to <code>SOURCES</code>.</li>
+<li><strong>Tooling:</strong> skip jscpd. It silently skipped the two biggest files, and a detector that drops input without saying so cannot sit under a gate.</li>
+</ul>
+<p><strong>Declared twins live in one file.</strong> <code>test/twins.json</code> lists pairs of <code>file:function</code> with the owner&#x27;s reason. The ratchet still counts them, because growth inside a twin still matters. Only the agent skips them.</p>
+<p><strong>The agent triages candidates; it does not discover.</strong> It runs weekly on <code>--list</code> output plus near-miss windows, and its output goes through a validator before anyone reads it.</p>
+<ul>
+<li><strong>Schema:</strong> reject anything that does not parse.</li>
+<li><strong>Citations:</strong> every <code>file:start-end</code> must exist at the audited SHA.</li>
+<li><strong>Similarity:</strong> recompute on the cited spans with <code>difflib.SequenceMatcher</code> over normalised lines. Below 0.6, drop the finding and log the drop.</li>
+<li><strong>Twins:</strong> drop any finding that touches a declared twin.</li>
+<li><strong>Stable ID:</strong> each finding is the hash of the two normalised spans. Issues are keyed on that ID, so the same finding never posts twice, and a closed issue means &quot;rejected, stay silent&quot;.</li>
+</ul>
+<p>The validator is deterministic, so it runs in the fast lane against recorded agent outputs.</p>
+<p><strong>Test the agent job itself.</strong> Keep a fixture directory with:</p>
+<ul>
+<li>one seeded type-4 duplicate it must report;</li>
+<li>one declared twin it must stay silent on;</li>
+<li>one hallucination trap, a recorded finding citing a line that does not exist, which the validator must reject.</li>
+</ul>
+<p>Run this monthly. Recall on the seed is the only honest measure of whether the prompt still works.</p>
+<p><strong>&quot;Still optimised&quot;:</strong> CI can only assert the ask-counts that <code>test/perf/digest.py</code> already pins. No agent gets an opinion on speed.</p></div>
+ </details>
+
+ <p class="round-label">Round 2: Peer review</p>
+
+ <details>
+ <summary>Reviewer 1</summary>
+ <div class="body"><p>1. <strong>Strongest: C.</strong></p>
+<ul>
+<li>It is the only answer that settles all eight points with a small diff.</li>
+<li>Its twin-drift check targets the bug the owner actually has (a fix made in one twin and forgotten in the other), and it needs no LLM.</li>
+<li>Rejected findings become twins entries, so the agent does not propose them again.</li>
+<li>D is the runner-up. The false-negative D found in <code>test/repetition_check.py</code> is real, but reading the code it is triggered by overlapping clones, not adjacent ones. D&#x27;s <code>difflib</code> similarity floor of 0.6 would also drop the semantic clones the agent exists to find, including D&#x27;s own seeded fixture.</li>
+<li>B&#x27;s two repo claims hold: the last perf row is <code>96587a7</code> from 2026-09-06, and 25 engine commits have landed since.</li>
+</ul>
+<p>2. <strong>Biggest blind spot: A.</strong></p>
+<ul>
+<li>It has no declared twins and no memory of rejected findings, although point 5 asked for that explicitly.</li>
+<li>The two Vulkan files hold 64 % of the duplication. They would fill the five-item issue every week, producing exactly the noisy reviewer that gets muted within a week.</li>
+<li>A&#x27;s prompt carries no ban on proposing abstractions.</li>
+<li>A says <code>nightly.yaml</code> has no <code>workflow_dispatch</code>; it does, on line 6. Only the comment in that file argues for dropping it.</li>
+</ul>
+<p>3. <strong>All five missed where the owner looks.</strong></p>
+<ul>
+<li>A, C and E edit a rolling issue in place. GitHub does not notify on a body edit, so a new finding reaches nobody.</li>
+<li>B names no destination for its output. D opens one issue per finding and links it to nothing the owner reads.</li>
+<li>The page he keeps open is the board, which <code>CLAUDE.md</code> says must agree with <code>docs/FEATURES_TODO.md</code>.</li>
+<li>All five treat <code>CLAUDE.md</code> and its board order as a threat to strip with <code>--bare</code>.</li>
+<li>None routes a finding onto the board, so findings pile up in a third place that contradicts both. Every design is also silent on who adds the board row for each finding.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 2</summary>
+ <div class="body"><p><strong>1. Strongest: C.</strong></p>
+<ul>
+<li>It is the only response that settles all eight points with one small design.</li>
+<li>It fixes the ratchet to track clone identities instead of counts.</li>
+<li>It declares twins as data.</li>
+<li>Its drift check between twins catches the bug the owner actually has, with no LLM.</li>
+<li>Caveat: fixing a bug in both twins creates new hashes, so the gate goes red exactly when he does the right thing.</li>
+<li>Caveat: it keeps <code>workflow_dispatch</code> next to a secret, and only A restricts the secret to <code>main</code>.</li>
+<li>D found a real bug in <code>test/repetition_check.py</code>, which I checked: two adjacent clones merge into one run whose hash matches nothing, so both are dropped. D skips auth, cost and triggers.</li>
+<li>B&#x27;s claim holds: last perf row is <code>96587a7</code> on 2026-09-06, with 25 engine commits since.</li>
+</ul>
+<p><strong>2. Biggest blind spot: A.</strong></p>
+<ul>
+<li>It has no way to declare twins.</li>
+<li>It feeds jscpd&#x27;s 87 clones to the agent, and 47 of them are the <code>VulkanWidget.cpp</code> / <code>VulkanHeadlessRenderer.cpp</code> pair the owner has already refused to merge.</li>
+<li>So every weekly top-five will be that same rejected proposal, and the job gets muted within a week.</li>
+<li>It also never says what the prompt contains.</li>
+</ul>
+<p><strong>3. What all five missed.</strong></p>
+<ul>
+<li>The agent only ever sees what the verbatim detector found.</li>
+<li>Semantic duplicates, the one thing the brief says needs an LLM, never enter any pipeline. D asks for them, then drops them with its 0.6 text-similarity filter, which would also reject its own seeded fixture.</li>
+<li>Growth is already gated, so from week two the agent re-reads the same candidates the script&#x27;s <code>--list</code> already prints, at the same cost.</li>
+<li>Editing an issue body sends no GitHub notification, so nobody learns a new finding was posted.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 3</summary>
+ <div class="body"><p><strong>1. Strongest: C.</strong></p>
+<ul>
+<li>It is the only response that settles all eight points in one small design, roughly 30 lines plus a cron job.</li>
+<li>Its drift check between declared twins targets the bug the owner actually has, and it needs no LLM.</li>
+<li>One flaw: it puts the secret-bearing job behind <code>workflow_dispatch</code> in <code>nightly.yaml</code>. The comment at <code>nightly.yaml:38-48</code> says to drop dispatch the day an agent lands there.</li>
+<li>D is the runner-up. Its merged-run bug is real (<code>repetition_check.py:92-105</code>): two adjacent clones merge into one run whose hash matches nothing, so both are dropped from the report. But D skips auth, triggers and cost.</li>
+<li>B&#x27;s claim also checks out: the last perf row is <code>96587a7</code> (2026-09-06), with 25 engine commits since.</li>
+</ul>
+<p><strong>2. Biggest blind spot: A.</strong></p>
+<ul>
+<li>It has no twin declaration and no memory of rejected findings.</li>
+<li>The 64 % twin pair (<code>VulkanWidget.cpp</code> and <code>VulkanHeadlessRenderer.cpp</code>) will head the issue every Monday with the same &quot;unify them&quot; advice. That is the mute-within-a-week outcome the brief names.</li>
+<li>It also leaves the ratchet&#x27;s swap-one-clone hole open while adding jscpd as a second definition of &quot;clone&quot;.</li>
+</ul>
+<p><strong>3. What all five missed: the agent&#x27;s input never changes.</strong></p>
+<ul>
+<li>Every design feeds the agent candidates from a verbatim or token detector, and the gate forbids those candidates from growing.</li>
+<li>From week two the agent re-reads the same ~68 repetitions and produces the same findings.</li>
+<li>Semantic clones, the one thing only an LLM can find, never become candidates. D&#x27;s &quot;near-miss windows&quot; is the only gesture toward it, and it reaches reworded copies at most.</li>
+<li>Separately, the designs with a rolling issue (A, C, E) rely on <code>gh issue edit</code>, which sends no notification, and none of the five feeds <code>docs/board.html</code>, the one page the owner watches.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 4</summary>
+ <div class="body"><p><strong>1. Strongest: D.</strong></p>
+<ul>
+<li>D is the only response that found a real bug in the existing script, and I confirmed it against the repo. <code>repetitions()</code> merges overlapping hot windows into one run per file, so the merged run&#x27;s hash matches nothing and it is dropped.</li>
+<li>My check found 16 of 155 runs dropped this way, 359 lines in all. The recorded 975 repeated lines is therefore an undercount.</li>
+<li>D also fixes the two ways the agent job would actually get muted: a deterministic validator on the agent&#x27;s output, and stable finding IDs so that a closed issue means &quot;rejected, stay silent&quot;.</li>
+</ul>
+<p><strong>2. Biggest blind spot: A.</strong></p>
+<ul>
+<li>A leaves <code>repetition_check.py</code> &quot;exactly as it is&quot;, so the swap hole stays open: remove one clone, add another, and it still passes.</li>
+<li>A declares no deliberate twins, which the framed question asked for as item 5. Its five weekly findings will be the VulkanWidget/VulkanHeadlessRenderer clones every week.</li>
+<li>A&#x27;s factual claim about <code>nightly.yaml</code> is false. The file has <code>workflow_dispatch:</code> on line 6, and the comment A cites is about a self-hosted Mac runner, not about secrets.</li>
+</ul>
+<p><strong>3. What all five missed: the findings never reach the owner.</strong></p>
+<ul>
+<li>Every response treats CLAUDE.md&#x27;s board order only as a hazard to suppress with <code>--bare</code>. None of them puts findings on <code>docs/board.html</code> or in <code>FEATURES_TODO.md</code>, which is the one page he keeps open and the repo&#x27;s written record.</li>
+<li>A, C and E edit one rolling issue in place. GitHub sends no notification for a body edit, and A counts that silence as a feature.</li>
+<li>None of the five says who moves an accepted finding to &quot;To do&quot; or a rejected one to &quot;Won&#x27;t do&quot; with its reason.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 5</summary>
+ <div class="body"><p>1. <strong>Strongest: C.</strong></p>
+<ul>
+<li>C is the only response that settles all eight points with one design, and it adds the fewest pieces: one JSON key, one prompt file, one cron job.</li>
+<li>Its twin drift check targets the bug the owner actually has, where a fix lands in one renderer and not the other. It needs no LLM.</li>
+<li>C has two flaws. It keeps <code>workflow_dispatch</code> next to a secret, which <code>nightly.yaml:38-48</code> already documents as an escalation path (A caught this). It also rejects jscpd because it &quot;silently skips&quot; the two biggest files, which only happens with jscpd&#x27;s defaults.</li>
+<li>D&#x27;s merge bug is real and should be folded into C. At <code>repetition_check.py:91-107</code>, a run made of adjacent clones hashes to nothing and drops out of the report.</li>
+<li>B&#x27;s figures check out: the last history row is <code>96587a7</code> from 2026-09-06, and 25 engine commits since then have no measurement.</li>
+</ul>
+<p>2. <strong>Biggest blind spot: A.</strong></p>
+<ul>
+<li>A has no declaration of deliberate twins and no memory of rejected findings.</li>
+<li>64 % of the candidates are the VulkanWidget/VulkanHeadlessRenderer pair, so A&#x27;s five weekly findings will be that same rejected refactor every Monday.</li>
+<li>The owner would mute the job within a week, which is the first stake named in the question.</li>
+</ul>
+<p>3. <strong>What all five missed: the agent never sees a semantic clone.</strong></p>
+<ul>
+<li>Every design feeds the agent only the verbatim or token-level candidates the deterministic detectors already find.</li>
+<li>Two functions that do the same job with different code never become candidates, so they never reach the agent.</li>
+<li>The weekly issue would re-rank what <code>--list</code> already prints, which is the &quot;adds nothing to the script&quot; outcome the stakes warn about.</li>
+<li>D&#x27;s seeded type-4 fixture would fail against D&#x27;s own pipeline.</li>
+<li>Nobody proposed a cheap semantic candidate source, such as an index of function signatures and docstrings.</li>
+</ul></div>
+ </details>
+
+ <footer>
+ Generated by the <code>llm-council</code> skill on 18 September 2026.
+ Full transcript and anonymization map in
+ <code>council-transcript.md</code>.
+ </footer>
+
+</div>
+</body>
+</html>
