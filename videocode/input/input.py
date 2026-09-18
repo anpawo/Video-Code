@@ -266,6 +266,8 @@ class Input(ABC):
             # sets self.x = current x when x=None) so vars(s) contains the right args.
             # Shallow copy is sufficient: only primitive attributes are reassigned, never mutated.
             if not registered:
+                if isinstance(s, VertexShader) and not s.autodestroy(self):
+                    _shallow_copy(s).modify(self)
                 continue
 
             key = upperFirst(s.__class__.__name__)
