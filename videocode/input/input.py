@@ -751,17 +751,22 @@ class Input(ABC):
             title = Text("Hello")
             title.fadeIn(start=1)        # nothing on screen until second 1
 
-        It stands down by itself when the opacity was already written — an
-        element the author dimmed, or that faded out earlier, keeps what it
-        had. `hidden=False` never hides.
+        It stands down by itself unless the element is still fully opaque and
+        nothing ever touched its opacity — an element the author dimmed, or
+        that faded out earlier, keeps what it had. `hidden=False` never hides.
         """
-        if hidden and not self._opacityWritten():
+        if hidden and not self._opacityWritten() and self._opacityNow() == 255:
             self.apply(opacity(0))
         return self.apply(*fadeTo(self, src=0 if from0 else None, dst=255, easing=easing, start=start, duration=duration), at=at)
 
     def _opacityWritten(self) -> bool:
         return self.meta.index is not None and any(
             st["input"] == self.meta.index and "Opacity" in st["keys"] for st in Context.statements)
+
+    def _opacityNow(self) -> float:
+        if self.meta.index is None:
+            return 255
+        return Context.stateAt(self.meta.index, self.meta.lastAffectedFrame).get("Opacity", 255)
 
     @_rebasing
     def fadeOut(self, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, hide=False, from255: maybe[bool] = True) -> Self:
