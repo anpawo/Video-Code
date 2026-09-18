@@ -1087,6 +1087,21 @@ QVariantMap VC::Editor::positionalSpan(
     return QVariantMap{{"ok", false}, {"start", 0}, {"end", 0}, {"text", QString()}, {"message", QString()}};
 }
 
+QVariantMap VC::Editor::waitLinkSpan(
+    const QString& source, int line, const QStringList& calls, double seconds
+)
+{
+    try {
+        py::gil_scoped_acquire hold;
+        py::list               names;
+        for (const QString& call : calls)
+            names.append(call.toStdString());
+        return spanAnswer(py::module::import("videocode.edit").attr("waitLinkSpan")(source.toStdString(), line, names, seconds));
+    } catch (const py::error_already_set&) {
+    }
+    return QVariantMap{{"ok", false}, {"start", 0}, {"end", 0}, {"text", QString()}, {"message", QString()}};
+}
+
 QVariantMap VC::Editor::constantOffer(
     const QString& source, int line, const QString& call, const QVariant& key, const QString& value,
     int occurrence

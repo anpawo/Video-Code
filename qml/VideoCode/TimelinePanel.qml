@@ -172,7 +172,8 @@ Item {
     // it can be lit. -1 for none.
     property int hoverLane: -1
 
-    // Where a carried thing would land, in seconds, or -1 for nothing carried.
+    // Where a carried thing would land — or where the edge being dragged
+    // stands — in seconds, or -1 for nothing carried.
     // Drawn, because a drop you cannot aim is a drop you undo.
     property real dropAt: -1
 
@@ -181,6 +182,54 @@ Item {
     // square ends by being hidden, and both are one line of Python — see
     // Main.trimElement.
     signal trimmed(var element, string edge, real seconds)
+
+    // A clip's body was dragged along its lane, by this many seconds. The
+    // element's own clock is what moves — see Main.moveElement.
+    signal shifted(var element, real seconds)
+
+    // The clip in the hand, by element index, and how far each of its edges has
+    // been pulled, in seconds. Held in seconds while the drag lasts, written
+    // once on release — the buffer is not rewritten sixty times a second. Here
+    // rather than on the bar, so that Escape can drop what the pointer holds.
+    property int heldLane: -1
+    property real heldIn: 0
+    property real heldOut: 0
+
+    function letGo() {
+        root.heldLane = -1;
+        root.heldIn = 0;
+        root.heldOut = 0;
+        root.dropAt = -1;
+    }
+
+    Keys.onEscapePressed: (event) => {
+        if (root.heldLane >= 0)
+            root.letGo();
+        else
+            event.accepted = false;
+    }
+
+    // How far an edge that stood at `from` has been pulled, in seconds.
+    //
+    // The EDGE is what snaps, not the distance it travelled: lining a clip up
+    // with the one above it is the whole point, and a snapped distance only
+    // ever lines up with where the drag started.
+    //
+    // Off a magnet, a distance that ends up WRITTEN is rounded itself. A move
+    // writes `.wait(0.5)`, and everything that fades in starts on frame 1, not
+    // frame 0: rounding the edge there wrote `.wait(0.47)`. On a magnet it is
+    // rounded UP to the hundredth, because `.wait()` counts whole frames and
+    // drops the rest: 1.0333 s written as 1.03 is thirty frames, not thirty-one,
+    // and the clip stops one frame short of the edge it was lined up with.
+    function travel(from, px, free, written) {
+        const raw = px / root.pxPerSecond;
+        const to = root.snapped(from + raw, free);
+        if (!written)
+            return to - from;
+        if (!free && to === Math.round((from + raw) * 10) / 10)
+            return Math.round(raw * 10) / 10;
+        return Math.ceil((to - from) * 100 - 1e-6) / 100;
+    }
 
     // A gap you can change. The band knows the line it was written on, so
     // clicking it is an edit to that line and nothing else — see Main.writeWait.
@@ -823,35 +872,39 @@ Item {
                             }
                         }
 
-                        // ── The edge you can pull ─────────────────────────
-                        // A clip that can only be opened is a label; the first
-                        // gesture any editor has is dragging where something
-                        // stops. Held in seconds while the drag lasts, written
-                        // once on release — the buffer is not rewritten sixty
-                        // times a second.
+                        // ── The clip in the hand ──────────────────────────
+                        // A clip that can only be opened is a label. Three
+                        // gestures, one piece of code: the body moves it, the
+                        // left edge says when it appears, the right edge when
+                        // it stops.
                         //
-                        // The right edge only. Where a clip STARTS is where the
-                        // lines above it left the clock — `waitFor`, `flush`,
-                        // a `wait` — and that is a statement to move, not an
-                        // argument to change. A handle that could only refuse
-                        // is a handle that lies about what it does.
-                        property real heldIn: 0
-                        property real heldOut: 0
-
+                        // The left edge was gone for a while — a handle that
+                        // could only refuse is a handle that lies about what it
+                        // does — and is back now that it has something true to
+                        // write: the element's own `.wait()`, see
+                        // Main.moveElement.
                         Repeater {
-                            model: [{ edge: "out", at: 1 }]
+                            model: ["body", "in", "out"]
 
                             MouseArea {
-                                required property var modelData
-                                readonly property bool outward: modelData.edge === "out"
+                                id: grip
+                                required property string modelData
+                                readonly property string edge: modelData
+                                // A third of the bar at most, or the two edges
+                                // of a short clip leave no body to take hold of.
+                                readonly property real lip: Math.min(9, bar.width / 3)
 
-                                x: outward ? bar.width - 9 : 0
-                                width: 9
+                                x: edge === "out" ? bar.width - lip : 0
+                                width: edge === "body" ? bar.width : lip
                                 height: bar.height
                                 hoverEnabled: true
-                                cursorShape: Qt.SizeHorCursor
+                                cursorShape: edge !== "body" ? Qt.SizeHorCursor
+                                           : pressed && moved ? Qt.ClosedHandCursor : Qt.ArrowCursor
                                 preventStealing: true
-                                visible: !bar.away
+                                // A sound is not ON SCREEN from a moment: nothing
+                                // it has says when it starts, so its left edge
+                                // would be a handle with nothing to write.
+                                visible: !bar.away && !(edge === "in" && lane.modelData.kind === "sound")
 
                                 property real anchorX: 0
                                 property bool moved: false
@@ -865,43 +918,85 @@ Item {
                                 onPositionChanged: (mouse) => {
                                     if (!pressed)
                                         return;
-                                    const now = mapToItem(lane, mouse.x, 0).x;
+                                    const px = mapToItem(lane, mouse.x, 0).x - anchorX;
+                                    // A click is allowed to tremble: at ten
+                                    // pixels a second, one pixel is a tenth.
+                                    if (!moved && Math.abs(px) < Application.styleHints.startDragDistance)
+                                        return;
                                     const free = (mouse.modifiers & Qt.ControlModifier) !== 0;
-                                    // The EDGE is what snaps, not the distance it
-                                    // travelled: lining a clip up with the one
-                                    // above it is the whole point, and a snapped
-                                    // delta only ever lines up with where the
-                                    // drag started.
-                                    const edge = lane.modelData.l + lane.modelData.d;
-                                    const delta = root.snapped(edge + (now - anchorX) / root.pxPerSecond, free) - edge;
+                                    const from = lane.modelData.l + (edge === "out" ? lane.modelData.d : 0);
+                                    const delta = root.travel(from, px, free, edge !== "out");
                                     if (Math.abs(delta) > 0.001)
                                         moved = true;
+                                    if (!moved)
+                                        return;
 
                                     // Neither edge may pass the other: a clip of
                                     // no length is a clip you can no longer find.
-                                    if (outward)
-                                        bar.heldOut = Math.max(0.1 - lane.modelData.d, delta);
-                                    else
-                                        bar.heldIn = Math.min(lane.modelData.d - 0.1, delta);
+                                    // And nothing starts before the film does.
+                                    const early = Math.max(-lane.modelData.l, delta);
+                                    root.heldLane = lane.elementIndex;
+                                    root.heldOut = edge === "out" ? Math.max(0.1 - lane.modelData.d, delta)
+                                                 : edge === "body" ? early : 0;
+                                    root.heldIn = edge === "in" ? Math.min(lane.modelData.d - 0.1, early)
+                                                : edge === "body" ? early : 0;
+                                    root.dropAt = from + (edge === "out" ? root.heldOut : root.heldIn);
                                 }
 
+                                onCanceled: root.letGo()
+
                                 onReleased: {
-                                    if (moved) {
-                                        const at = outward
-                                                 ? lane.modelData.l + lane.modelData.d + bar.heldOut
-                                                 : lane.modelData.l + bar.heldIn;
-                                        root.trimmed(lane.modelData, modelData.edge, at);
-                                    }
-                                    bar.heldIn = 0;
-                                    bar.heldOut = 0;
+                                    // Escape let go of it first: nothing to write.
+                                    const mine = moved && root.heldLane === lane.elementIndex;
+                                    const at = root.dropAt;
+                                    const by = root.heldIn;
+                                    root.letGo();
+                                    if (!mine)
+                                        return;
+                                    if (edge !== "body")
+                                        root.trimmed(lane.modelData, edge, at);
+                                    else if (Math.abs(by) > 0.001)
+                                        root.shifted(lane.modelData, by);
+                                }
+
+                                // A tap picks the clip and fills the Inspector; a double
+                                // tap opens the clip's own timeline — somewhere else.
+                                //
+                                // What is inside a clip does not belong on the timeline:
+                                // rows that grow push everything below them down, and a
+                                // timeline whose geometry changes when you look at
+                                // something has stopped being a map. The bar reports
+                                // where it is on screen so the card can start there and
+                                // travel, which is what makes it obvious that the big
+                                // thing in the middle IS this clip.
+                                //
+                                // Asked of the area that also drags, not of a
+                                // TapHandler beside it: the area takes the press,
+                                // and only it knows whether the press then moved.
+                                onClicked: {
+                                    if (edge !== "body" || moved)
+                                        return;
+                                    root.elementPicked(lane.elementIndex);
+                                    root.elementInspected(lane.modelData);
+                                }
+
+                                onDoubleClicked: {
+                                    if (edge !== "body")
+                                        return;
+                                    const at = bar.mapToItem(null, 0, 0);
+                                    root.elementOpened(
+                                        lane.modelData,
+                                        Qt.rect(at.x, at.y, bar.width, bar.height)
+                                    );
                                 }
 
                                 // The edge, drawn only when the pointer is on it
                                 // or pulling it.
                                 Rectangle {
+                                    visible: grip.edge !== "body"
                                     anchors {
-                                        right: parent.outward ? parent.right : undefined
-                                        left: parent.outward ? undefined : parent.left
+                                        right: grip.edge === "out" ? parent.right : undefined
+                                        left: grip.edge === "out" ? undefined : parent.left
                                         top: parent.top; bottom: parent.bottom
                                         topMargin: 3; bottomMargin: 3
                                     }
@@ -914,31 +1009,10 @@ Item {
                             }
                         }
 
-                        // A tap picks the clip and fills the Inspector; a double
-                        // tap opens the clip's own timeline — somewhere else.
-                        //
-                        // What is inside a clip does not belong on the timeline:
-                        // rows that grow push everything below them down, and a
-                        // timeline whose geometry changes when you look at
-                        // something has stopped being a map. The bar reports
-                        // where it is on screen so the card can start there and
-                        // travel, which is what makes it obvious that the big
-                        // thing in the middle IS this clip.
-                        TapHandler {
-                            onTapped: {
-                                root.forceActiveFocus();
-                                root.elementPicked(lane.elementIndex);
-                                root.elementInspected(lane.modelData);
-                            }
-
-                            onDoubleTapped: {
-                                const at = bar.mapToItem(null, 0, 0);
-                                root.elementOpened(
-                                    lane.modelData,
-                                    Qt.rect(at.x, at.y, bar.width, bar.height)
-                                );
-                            }
-                        }
+                        // How far this bar's edges are out of place, which is
+                        // nothing unless it is the one in the hand.
+                        readonly property real heldIn: root.heldLane === lane.elementIndex ? root.heldIn : 0
+                        readonly property real heldOut: root.heldLane === lane.elementIndex ? root.heldOut : 0
                     }
                 }
             }

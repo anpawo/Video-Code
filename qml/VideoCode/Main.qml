@@ -2690,7 +2690,123 @@ ApplicationWindow {
     function trimElement(element, edge, seconds) {
         if (element === null || element.line === undefined || element.line <= 0)
             return;
-        hideAt(element, seconds);
+        if (edge === "out") {
+            hideAt(element, seconds);
+            return;
+        }
+
+        // The left edge is a move whose END stays put. An end the film gives —
+        // nothing hides the element — did not follow the clock and needs
+        // nothing; a `hide(start=…)` counts from the clock that just moved, so
+        // it is told the old moment again. Asked of the scene as it is AFTER
+        // the move, because only a run knows where that line's cursor now is.
+        const end = element.l + element.d;
+        const now = app.shiftClock(element, seconds - element.l);
+        if (now === null)
+            return;
+        const fps = execFps > 0 ? execFps : 30;
+        if (now.points.some((point) => point.call === "hide") && Math.abs(now.l + now.d - end) * fps > 0.5) {
+            // A hide that could not be rewritten has said why; that stands.
+            const before = source.text;
+            hideAt(now, end);
+            if (source.text === before)
+                return;
+        }
+        source.say(now.n + " now starts at " + now.l.toFixed(1) + "s");
+    }
+
+    // ── Moving: when a clip starts ────────────────────────────────────────
+    //
+    // A clip starts where its element's own clock stood when the first thing
+    // that takes time was written, and the word that moves that clock is
+    // `.wait()`. So a drag writes one — or changes the one already there — in
+    // front of that call: `title.wait(0.5).fadeIn()`. Everything the element
+    // does afterwards counts from the same clock and follows on its own, which
+    // is what makes it a move and not a retiming of one effect.
+    //
+    // A video does not follow its clock: its frames play from where the scene
+    // stood when the line made it. Waiting would delay its entrance over a
+    // picture that kept running — a slip, shown as a move — so the body of a
+    // media clip refuses, while its left edge, which MEANS that, does not.
+    function moveElement(element, by) {
+        if (element === null || element.line === undefined || element.line <= 0)
+            return;
+        if (element.kind === "video" || element.kind === "sound") {
+            source.say(element.n + " plays from where line " + element.line
+                       + " stands in the scene — nothing to move but that line, or the wait() above it");
+            return;
+        }
+        const now = app.shiftClock(element, by);
+        if (now !== null)
+            source.say(now.n + " now starts at " + now.l.toFixed(1) + "s");
+    }
+
+    // The write, then what the run made of it. A `wait()` or a `waitFor()`
+    // between the element and its first effect sets the clock AFTER the
+    // `.wait()` did: the clip stays where it was, and the line has gained a word
+    // that does nothing. That word is taken back — code the editor wrote and
+    // the scene ignores is the one thing worse than a refusal. Answers the
+    // element as the new run has it, or null.
+    function shiftClock(element, by) {
+        if (!app.ownsLine(element.file) || !app.writeClock(element, by) || execState !== "fresh")
+            return null;
+
+        // Most of the way is a move: `.wait()` counts whole frames, and a fade
+        // is seen a frame after it starts, so the last frame is not promised.
+        const now = liveScene.elements.find((one) => one.index === element.index);
+        if (now !== undefined && (now.l - element.l) / by > 0.5)
+            return now;
+
+        source.undo();
+        app.executeScene();
+        source.say("could not move " + element.n + " — a wait() above it sets its clock later than that");
+        return null;
+    }
+
+    function writeClock(element, by) {
+        const fps = execFps > 0 ? execFps : 30;
+        const mine = element.effects.filter((fx) => fx.line > 0 && app.fromOpenFile(fx.file));
+
+        // Placed by a drop: `hide()`, then `show(start=…)`. The show already
+        // says when, in a number — that number moves.
+        for (const fx of mine) {
+            const written = fx.call === "show" ? parseFloat(Shell.readArgument(source.text, fx.line, "show", "start")) : NaN;
+            if (isNaN(written))
+                continue;
+            if (written + by < 0) {
+                source.say("that is before " + element.n + " reaches this line");
+                return false;
+            }
+            return app.writeOn(fx.line, "show", "start", app.plain(written + by), fx.file);
+        }
+
+        // The first thing that takes TIME. `.opacity(0)` and `.position()` are
+        // written on a frame and stay on it; a wait in front of them would
+        // leave the element standing there, opaque, for as long as it waits.
+        const timed = mine.filter((fx) => fx.d * fps > 1.5).sort((a, b) => a.l - b.l);
+        if (timed.length === 0) {
+            source.say("nothing says when " + element.n + " starts — it is there from its first line. Give it a fadeIn() and drag that");
+            return false;
+        }
+
+        // `apply(popIn())` is a call the scene cannot name; the link is `apply`.
+        const line = timed[0].line;
+        const calls = timed.filter((fx) => fx.line === line).map((fx) => fx.call.length > 0 ? fx.call : "apply");
+        const span = Shell.waitLinkSpan(source.text, line, calls, by);
+        if (!span.ok) {
+            // `.wait(PAUSE)`: the name stays, and its own line is offered —
+            // worth what it is worth now, plus the drag.
+            const named = Shell.constantOffer(source.text, line, "wait", 0, "0");
+            const next = named.ok ? parseFloat(source.text.slice(named.start, named.end)) + by : -1;
+            if (!(next > 0 && app.offerConstant(line, "wait", 0, app.plain(next))))
+                source.say(span.message.length > 0 ? span.message : "could not move " + element.n + " — nothing on line " + line + " to wait in front of");
+            return false;
+        }
+        if (!source.replaceRange(span.start, span.end, span.text))
+            return false;
+
+        app.executeScene();
+        return true;
     }
 
     // Where a statement about this element has to go if it is to happen at a
@@ -3670,6 +3786,7 @@ ApplicationWindow {
         // wait carries the line it was written on, and `wait(0.3)` writes its
         // seconds without a name, so the span comes from the positional writer.
         onTrimmed: (element, edge, seconds) => app.trimElement(element, edge, seconds)
+        onShifted: (element, seconds) => app.moveElement(element, seconds)
         onWaitChanged: (line, seconds) => {
             const value = parseFloat(seconds);
             if (isNaN(value) || value < 0) {

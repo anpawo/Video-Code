@@ -339,6 +339,13 @@ namespace VC
             int occurrence = 0
         );
 
+        // waitLinkSpan() — the span that makes what a line starts happen
+        // `seconds` later or sooner: the `.wait()` in front of the first of
+        // `calls`, changed, added or taken away. What a dragged clip writes.
+        Q_INVOKABLE QVariantMap waitLinkSpan(
+            const QString& source, int line, const QStringList& calls, double seconds
+        );
+
         // removeCallSpan() — the span that takes a call OUT, as a range to
         // replace with nothing. A link in a chain loses just its link; a call
         // that is a statement on its own loses the whole line, because
