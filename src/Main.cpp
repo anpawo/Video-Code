@@ -10,6 +10,7 @@
 
 #include <QApplication>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocalSocket>
@@ -367,6 +368,8 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
 
     QApplication app(argc, argv);
     quitOnSignal(app);
+    // The Dock tile and ⌘-Tab on macOS, the window and taskbar icon elsewhere.
+    app.setWindowIcon(QIcon(QString::fromStdString(VC::resourceDir(SHADER_DIR, "assets/shaders") + "/../logo/icon.png")));
 
     // Needs a QApplication (a QWidget cannot exist without one) and nothing
     // else — no event loop, no editor chrome, and no window on the desktop.

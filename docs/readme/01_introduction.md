@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo/videocode.svg" width="120" alt="Videocode"></p>
+
 # Video-Code
 The initial goal of this project is to create videos from code.<br>
 I've always wanted to create millimetric videos and I will be able to, soon enough.

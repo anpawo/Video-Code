@@ -64,6 +64,9 @@ pgn
 # a file it did not contain.
 !tinder-mail.png
 
+# The logo: the SVG is the source, these two are what Qt and GitHub can show.
+!assets/logo/*.png
+
 # WebImage
 webimage/
 temp/
