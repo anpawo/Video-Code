@@ -406,6 +406,14 @@ class Group(Interface, Generic[_GROUP_T]):
     # ------------------------------------------------------------------
     # Interface
 
+    # A group has no slot of its own, so what `fadeIn` asks before hiding is
+    # asked of the members: a `Text` the author dimmed is five letters that were.
+    def _opacityWritten(self) -> bool:
+        return any(i._opacityWritten() for i in self.inputs)
+
+    def _opacityNow(self) -> float:
+        return min((i._opacityNow() for i in self.inputs), default=255)
+
     def __iter__(self):
         for i in self.inputs:
             yield i
