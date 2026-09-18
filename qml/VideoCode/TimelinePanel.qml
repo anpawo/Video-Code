@@ -1450,4 +1450,17 @@ Item {
             }
         }
     }
+
+    // The cursor of the gesture, for as long as it lasts. A handle is sixteen
+    // pixels wide and the edge it pulls is magnetised: the pointer runs ahead
+    // of it, leaves the handle, and the double arrow fell back to a plain arrow
+    // in the middle of a stretch. Takes no button, so it takes nothing from the
+    // area that holds the press — it only says what the hand is doing.
+    MouseArea {
+        anchors.fill: parent
+        z: 100
+        visible: root.heldLane >= 0
+        acceptedButtons: Qt.NoButton
+        cursorShape: root.heldIn !== root.heldOut ? Qt.SizeHorCursor : Qt.ClosedHandCursor
+    }
 }
