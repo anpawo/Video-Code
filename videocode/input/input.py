@@ -181,34 +181,7 @@ class Input(ABC):
         place that already turns seconds into frames.
         """
 
-        if at is not None:
-            if offset is not None:
-                raise TypeError(
-                    "at= and offset= both say WHEN, in two units — pass one: "
-                    "at= in seconds of the film, offset= in frames"
-                )
-            offset = round(at * FRAMERATE)
-            # Vers l'avant, oui ; vers l'arrière, non — pas tant que S1 n'est
-            # pas là.
-            #
-            # Une animation lit sa valeur de départ au moment où la LIGNE est
-            # exécutée, pas au moment où elle joue (`moveTo.py:24`). Écrire à une
-            # image déjà dépassée par l'horloge de l'élément donne donc une base
-            # qui appartient à un instant pas encore arrivé : `moveTo(x=5, at=2)`
-            # puis `moveTo(x=2)` mesure 4,99 → 2 dans un ordre et 0 → 2 dans
-            # l'autre. `Context.backdatedWrites()` sait le nommer après coup ;
-            # ici on peut refuser avant.
-            #
-            # Backwards `at=` is the backdated write S1 exists to fix: an
-            # animation reads its base when the line runs, not when it plays.
-            if offset < self.meta.transformationOffset:
-                raise ValueError(
-                    f"at={at}s lands on frame {offset}, behind this element's clock "
-                    f"(frame {self.meta.transformationOffset}) — the animation would read a "
-                    f"starting value from a moment that has not happened yet. "
-                    f"Write it in film order, or wait for S1 (deferred base resolution, "
-                    f"docs/FEATURES_TODO.md §S1), which is what makes reaching back safe."
-                )
+        offset = self._when(at, offset)
 
         # If a `wait()` happens, any input should be flushed before applying any new effect.
         if Context.waitOffset >= self.meta.transformationOffset:
@@ -366,6 +339,39 @@ class Input(ABC):
 
         return self
 
+    def _when(self, at: maybe[sec], offset: maybe[frame]) -> maybe[frame]:
+        """`at=`, in seconds of the film, as the `offset=` in frames every verb ends up scheduling with."""
+        if at is None:
+            return offset
+        if offset is not None:
+            raise TypeError(
+                "at= and offset= both say WHEN, in two units — pass one: "
+                "at= in seconds of the film, offset= in frames"
+            )
+        offset = round(at * FRAMERATE)
+        # Vers l'avant, oui ; vers l'arrière, non — pas tant que S1 n'est
+        # pas là.
+        #
+        # Une animation lit sa valeur de départ au moment où la LIGNE est
+        # exécutée, pas au moment où elle joue (`moveTo.py:24`). Écrire à une
+        # image déjà dépassée par l'horloge de l'élément donne donc une base
+        # qui appartient à un instant pas encore arrivé : `moveTo(x=5, at=2)`
+        # puis `moveTo(x=2)` mesure 4,99 → 2 dans un ordre et 0 → 2 dans
+        # l'autre. `Context.backdatedWrites()` sait le nommer après coup ;
+        # ici on peut refuser avant.
+        #
+        # Backwards `at=` is the backdated write S1 exists to fix: an
+        # animation reads its base when the line runs, not when it plays.
+        if offset < self.meta.transformationOffset:
+            raise ValueError(
+                f"at={at}s lands on frame {offset}, behind this element's clock "
+                f"(frame {self.meta.transformationOffset}) — the animation would read a "
+                f"starting value from a moment that has not happened yet. "
+                f"Write it in film order, or wait for S1 (deferred base resolution, "
+                f"docs/FEATURES_TODO.md §S1), which is what makes reaching back safe."
+            )
+        return offset
+
     def __setattr__(self, name: str, value: Any) -> None:
         """
         Handles attributes updates.
@@ -425,6 +431,7 @@ class Input(ABC):
         offset: maybe[frame] = None,
     ) -> Self:
         src = self.__getattribute__(attr)
+        offset = self._when(at, offset)
 
         def _apply(m: number, i: int):
             setattr(self, attr, At(start=start + i * SF, duration=SINGLE_FRAME, offset=offset) | (src + (to - src) * m))
@@ -451,7 +458,7 @@ class Input(ABC):
         against the real property type and provides autocomplete on all attributes.
         Internally fires ``ease()`` per assignment.
         """
-        return cast(Self, _Over(self, easing=easing, start=start, duration=duration, offset=offset))
+        return cast(Self, _Over(self, easing=easing, start=start, duration=duration, offset=self._when(at, offset)))
 
     def easeTogether(
         self,
@@ -464,6 +471,7 @@ class Input(ABC):
     ) -> Self:
         # Same arrival rule as `rangeIdx`: one frame at least, carrying the destination.
         n = max(1, int(duration * FRAMERATE))
+        offset = self._when(at, offset)
 
         # Snapshot all sources before scheduling anything
         snapshot = {attr: getattr(self, attr) for (attr, _, *_) in anims}
@@ -772,19 +780,28 @@ class Input(ABC):
         return self.apply(*fadeTo(self, src=0 if from0 else None, dst=255, easing=easing, start=start, duration=duration), at=at)
 
     def _opacityWritten(self) -> bool:
-        return self.meta.index is not None and any(
-            st["input"] == self.meta.index and "Opacity" in st["keys"] for st in Context.statements)
+        return self.placed and any(st["input"] == self.meta.index and "Opacity" in st["keys"] for st in Context.statements)
 
     def _opacityNow(self) -> float:
-        if self.meta.index is None:
+        if not self.placed:
             return 255
-        return Context.stateAt(self.meta.index, self.meta.lastAffectedFrame).get("Opacity", 255)
+        return float(Context.stateAt(self.meta.index, self.meta.lastAffectedFrame).get("Opacity", 255))
 
     @_rebasing
-    def fadeOut(self, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, hide=False, from255: maybe[bool] = True) -> Self:
-        self.apply(*fadeTo(self, src=255 if from255 else None, dst=0, easing=easing, start=start, duration=duration))
+    def fadeOut(self, *, easing: easing = Easing.InOut, start: sec = 0, at: maybe[sec] = None, duration: sec = 0.4, hide: bool = False, from255: maybe[bool] = True) -> Self:
+        """
+        Fade this element out over `duration` seconds.
+
+            title.fadeOut()                      # now, on this element's clock
+            clip.fadeOut(at=clip.end - 0.4)      # so the fade ENDS with the clip
+
+        `start=` counts from the element's own clock, `at=` from the start of
+        the film. `hide=True` also hides it once the fade is over, which ends
+        its clip on the timeline instead of leaving it there at opacity 0.
+        """
+        self.apply(*fadeTo(self, src=255 if from255 else None, dst=0, easing=easing, start=start, duration=duration), at=at)
         if hide:
-            return self.hide(start=start + duration)
+            return self.hide(start=start + duration, at=at)
         return self
 
     @_rebasing

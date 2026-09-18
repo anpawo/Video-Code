@@ -113,4 +113,31 @@ except ValueError as err:
     check("l'erreur nomme S1", "S1" in str(err))
     check("l'erreur donne l'image visée et l'horloge", "frame" in str(err))
 
+section("chaque verbe qui accepte at= s'en sert")
+# `fadeOut`, `ease`, `over` et `easeTogether` prenaient `at=` et l'ignoraient :
+# `fadeOut(at=3)` partait à l'horloge de l'élément. Invisible tant que les deux
+# coïncident — c'était le cas dans scene.py, à une image près.
+def ouvertA(ecrit) -> int:
+    mark = len(Context.statements)
+    ecrit()
+    return min(span[0] for st in Context.statements[mark:] if st["keys"] and not st.get("placement") for span in st["keys"].values())
+
+for nom, ecrit in (
+    ("fadeOut", lambda e: e.fadeOut(at=3)),
+    ("ease", lambda e: e.ease("width", 2, at=3)),
+    ("over", lambda e: setattr(e.over(at=3), "fillColor", RED_B)),
+    ("easeTogether", lambda e: e.easeTogether((e.ref.width, 2), at=3)),
+):
+    e = Rectangle(width=1, height=1)
+    e.wait(1.0)                   # horloge de l'élément : 1 s, loin de at=3
+    image = ouvertA(lambda: ecrit(e))
+    check(f"{nom}(at=3) ouvre à la 3e seconde, pas à l'horloge (image {image})", 3 * FRAMERATE <= image <= 3 * FRAMERATE + 1)
+
+e = Rectangle(width=1, height=1)
+try:
+    e.fadeOut(at=1, start=0).ease("width", 2, at=2, offset=3)
+    check("at= et offset= ensemble sont refusés par ease aussi", False)
+except TypeError:
+    check("at= et offset= ensemble sont refusés par ease aussi", True)
+
 summary()
