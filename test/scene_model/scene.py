@@ -5,7 +5,7 @@ from videocode.template.effect.other.popIn import popIn
 
 RATIO = 1
 
-square = EquilateralTriangle(side=1 * RATIO, cornerRadius=15, fillColor=BLUE_C, strokeColor=WHITE).opacity(0)
+square = Square(side=1 * RATIO, cornerRadius=15, fillColor=BLUE_C, strokeColor=WHITE).opacity(0)
 circle = Circle(radius=0.5 * RATIO, fillColor=RED_B, strokeColor=WHITE).opacity(0)
 
 square.fadeIn()
@@ -31,10 +31,3 @@ marius = Video("marius.mov", width=6, cornerRadius=30).position(x=0, y=0).opacit
 marius.scale(2).apply(popIn(duration=0.6))
 
 # arrondi les corners de la video marius de 30%
-
-wait(3)
-
-marius.fadeOut(at=marius.end - 0.4)
-
-merci = Text("Merci").opacity(0)
-merci.waitFor(marius).fadeIn()

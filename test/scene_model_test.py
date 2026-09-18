@@ -28,6 +28,9 @@ from helpers import check, needsRenderer, section, summary
 from videocode.serialize import execSource
 
 FPS = 30
+# Its own copy, frozen: the scene.py at the root is the one being worked on, and
+# this test pins lines, waits and a length.
+FIXTURE = "test/scene_model/scene.py"
 
 
 def model(source: str) -> dict:
@@ -423,7 +426,7 @@ section("--inspect prints the model the timeline is drawn from")
 # The agent pane's child edits the file and cannot see the timeline. This is
 # how it asks for one — the same model, out of the same binary, as JSON.
 if needsRenderer("--inspect is a flag of the renderer"):
-    done = subprocess.run(["./video-code", "--inspect", "--file", "scene.py"],
+    done = subprocess.run(["./video-code", "--inspect", "--file", FIXTURE],
                           capture_output=True, text=True, timeout=120)
     check("it exits clean", done.returncode == 0)
     # Read defensively, so a binary that has no --inspect fails these checks
@@ -475,7 +478,7 @@ if needsRenderer("the brief is built by the chrome"):
     shot.close()
     dock = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
     dock.close()
-    env = dict(os.environ, VC_SCENE_FILE="scene.py", VC_SETTLE="11000", VC_DOCK_FILE=dock.name,
+    env = dict(os.environ, VC_SCENE_FILE=FIXTURE, VC_SETTLE="11000", VC_DOCK_FILE=dock.name,
                VC_KEYS=";".join([
                    "Eval:agentBrief()",
                    "Eval:selectedIndex = 0",
