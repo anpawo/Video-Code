@@ -890,12 +890,17 @@ Item {
                                 id: grip
                                 required property string modelData
                                 readonly property string edge: modelData
-                                // A third of the bar at most, or the two edges
-                                // of a short clip leave no body to take hold of.
-                                readonly property real lip: Math.min(9, bar.width / 3)
+                                // Nine pixels inside the bar was a target to
+                                // aim at, and on a short clip a third of it. The
+                                // handle now reaches as far OUTSIDE the edge as
+                                // inside it: the edge is grabbed from either
+                                // side, and a short clip keeps its body — a
+                                // quarter of the bar at most is taken from it.
+                                readonly property real reach: 8
+                                readonly property real lip: Math.min(reach, bar.width / 4)
 
-                                x: edge === "out" ? bar.width - lip : 0
-                                width: edge === "body" ? bar.width : lip
+                                x: edge === "out" ? bar.width - lip : edge === "in" ? -reach : 0
+                                width: edge === "body" ? bar.width : lip + reach
                                 height: bar.height
                                 hoverEnabled: true
                                 cursorShape: edge !== "body" ? Qt.SizeHorCursor

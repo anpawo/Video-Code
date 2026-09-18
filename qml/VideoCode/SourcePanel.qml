@@ -872,6 +872,11 @@ Item {
             offset += lines[i].length + 1;
 
         const indent = /^\s*/.exec(lines[line - 1])[0];
+        // A file that does not end in a newline has no "after" its last line:
+        // the offset lands one past the end, the edit was refused without a
+        // word, and the last clip of a scene could not be given an end.
+        if (offset > editor.text.length)
+            return root.replaceRange(editor.text.length, editor.text.length, "\n" + indent + statement + "\n");
         return root.replaceRange(offset, offset, indent + statement + "\n");
     }
 

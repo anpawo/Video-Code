@@ -2549,8 +2549,11 @@ ApplicationWindow {
 
         const span = Shell.argumentSpan(source.text, line, call, name, value);
         if (!span.ok) {
+            // Where and what, not just that: "could not write start" names
+            // nothing anyone can go and look at.
             if (!app.offerConstant(line, call, name, value))
-                source.say(span.message.length > 0 ? span.message : "could not write " + name);
+                source.say(span.message.length > 0 ? span.message
+                           : "could not write " + name + "=" + value + " on " + call + "(), line " + line);
             return false;
         }
         if (!source.replaceRange(span.start, span.end, span.text))
