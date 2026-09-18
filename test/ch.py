@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT-0
+# Same carve-out as videocode/template/misc/chess/chessboard.py: python-chess is GPL-3.0.
 
 import chess.pgn
 

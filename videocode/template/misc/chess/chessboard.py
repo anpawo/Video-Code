@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT-0
+# Copyright (c) Marius Rousset
+#
+# NOT under the Video-Code License. This file imports python-chess (GPL-3.0),
+# and the GPL forbids stacking a non-commercial restriction on top of it — so
+# this template is carved out and given away: do whatever you want with it.
+# The PNGs in assets/chess/ are NOT covered: they are chess.com's.
 
 from __future__ import annotations
 
