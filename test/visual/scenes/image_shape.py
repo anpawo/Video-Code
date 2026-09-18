@@ -9,6 +9,6 @@
 
 from videocode import *
 
-Image("wb.png", width=3, height=3, cornerRadius=30, strokeColor=WHITE, strokeWidth=0.1).position(x=-2.5, y=0)
-Image("wb.png").scale(2).position(x=2.5, y=0)
-Image("wb.png", cornerRadius=30, strokeColor=WHITE, strokeWidth=0.1).position(x=0, y=2.5)
+Image("tinder-mail.png", width=3, height=3, cornerRadius=30, strokeColor=WHITE, strokeWidth=0.1).position(x=-2.5, y=0)
+Image("tinder-mail.png").scale(2).position(x=2.5, y=0)
+Image("tinder-mail.png", cornerRadius=30, strokeColor=WHITE, strokeWidth=0.1).position(x=0, y=2.5)

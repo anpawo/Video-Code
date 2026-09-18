@@ -62,7 +62,7 @@ pgn
 # The asset a scene of the corpus reads. Ignored, it made image_shape.py
 # impossible to bake from a clean clone — the repo asked its own test suite for
 # a file it did not contain.
-!wb.png
+!tinder-mail.png
 
 # WebImage
 webimage/

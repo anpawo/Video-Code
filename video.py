@@ -174,7 +174,7 @@ def sceneImage(sv: SplitView, para: Paragraphe) -> Group:
     para.add(textImg2 := Code("img.fadeIn().scaleTo(2)")).newline()
 
     timestamp("show: image")
-    img = Image("wb.png").position(sv.b.x, sv.b.y).opacity(0).waitFor(para).wait(PAUSE_DELAY).fadeIn().scaleTo(2).flush()
+    img = Image("tinder-mail.png").position(sv.b.x, sv.b.y).opacity(0).waitFor(para).wait(PAUSE_DELAY).fadeIn().scaleTo(2).flush()
     # problem to fix here, im forced to add opacity(0) because the image appears before the effects are sent. maybe its meant
 
     timestamp("text: image lightsweep")

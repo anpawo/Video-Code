@@ -202,7 +202,7 @@ def example5():
 #     """
 #     timestamp("Example #6: Image & WebImage")
 
-#     img = Image("wb.png")
+#     img = Image("tinder-mail.png")
 
 #     # wi = WebImage("https://upload.wikimedia.org/wikipedia/commons/thumb/2/20/YouTube_2024.svg/langfr-3840px-YouTube_2024.svg.png")
 #     # wi.scale(0.2).flush()

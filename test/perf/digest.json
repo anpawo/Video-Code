@@ -258,7 +258,7 @@
   "frameSlots": 6,
   "inputs": 3,
   "lastFrame": 1,
-  "shape": "5cb979d15cfabdf8"
+  "shape": "81ea7cec7d402c69"
  },
  "test/visual/scenes/layers.py": {
   "applyCalls": 12,
@@ -474,7 +474,7 @@
   "frameSlots": 5,
   "inputs": 3,
   "lastFrame": 1,
-  "shape": "47ac5b6243297518"
+  "shape": "37674d2101d4acff"
  },
  "test/visual/scenes/video.py": {
   "applyCalls": 6,
