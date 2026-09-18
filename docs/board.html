@@ -177,14 +177,14 @@
       <span class="chip"><b>70</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">18 sept. · 12 h</span>
+    <span class="stamp">18 sept. · 13 h</span>
   </header>
 
   <div class="board">
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">22</span></h2>
+        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">21</span></h2>
         <ul class="rows">
           <li class="grp">Timeline & clips</li>
           <li class="hot" data-b="opacity(300), Square(cornerRadius=200) : le volet Code souligne la ligne en rouge et la barre est hachurée, dès le run. Dans l'Inspector, Entrée refuse et dit la borne en rouge. Transform montre position, scale, rotation, opacity, align avec leurs défauts en gris ; taper dans une rangée absente ajoute l'appel.¦Testé : test/bad_values_test.py. Relance l'app, ta souris."><span class="id">57</span><span class="lbl">Valeurs hors bornes refusées, soulignées</span><span class="meta lock">7997dfd · ta souris</span></li>
@@ -194,7 +194,6 @@
           <li class="grp">Moteur</li>
           <li class="hot" data-b="Plus de .opacity(0) avant un fadeIn : hidden, None par défaut, cache l'élément jusqu'au fondu sauf si son opacité a déjà été écrite, par toi ou par un fadeOut. True et False tranchent.¦Testé : test/fade_in_hidden_test.py. Les 52 goldens inchangés, trois scènes comptent un appel de plus dans l'empreinte."><span class="id">59</span><span class="lbl">fadeIn cache l'élément avant le fondu</span><span class="meta lock">c0998fd · ton go</span></li>
           <li class="hot" data-b="waitFor(x) garde son sens, la fin du dernier effet. La fin des images d'un clip a son nom : marius.end, en secondes du film, et waitFor accepte un moment : merci.waitFor(marius.end).fadeIn().¦Revient sur 24692c3. Testé sur marius.mov : test/wait_for_video_test.py."><span class="id">58</span><span class="lbl">waitFor(clip.end), la fin des images</span><span class="meta lock">3f98d0f · ton go</span></li>
-          <li class="hot" data-b="Sous noRegister(), position() n'écrivait plus rien depuis le 24 août : les 103 lignes d'un Plane s'empilaient en une croix brillante au lieu d'une grille pâle (le gif du README), et les lettres de la scène matte perdaient leur place. Deux lignes, un test qui échoue sans elles, empreinte inchangée, gif refait.¦À ton œil : cinq goldens enregistraient le bug — gradient-holes, matte, resize 0 et 15, video. Avant/après côte à côte dans le scratchpad de la session (sbs2_*.png). Tant qu'ils ne sont pas réécrits, make check est rouge sur eux, exprès."><span class="id">61</span><span class="lbl">La grille du Plane, et 5 goldens qui enregistraient le bug</span><span class="meta lock">69c3258 · ton œil</span></li>
           <li class="hot" data-b="1 103 lignes de Hippolyte, Cédric et Eliot supprimées ou réécrites dans 41 fichiers ; 178 jetons restent — lignes vides, endif, accolades, clés YAML. sharpen ne dessinait rien : GLSL écrit, scène effect_shaders6.¦À ton œil : test/visual/golden/effect-shaders6_frame0.png — cinq carrés : plus clair, contraste poussé, grain, le même grain net, plus sombre. Build, 52 goldens et empreinte (54 + 1) vérifiés ; Linux et le miroir Epitech passent par la CI.¦Retire Hip-po et Eliotgourdoux des collaborateurs GitHub. Débloque 60. Détail : FEATURES_TODO G."><span class="id">59</span><span class="lbl">Licence : les lignes des autres réécrites</span><span class="meta lock">0b81cac · ton œil</span></li>
           <li class="grp">Scènes & export</li>
           <li class="hot" data-b="roundCorners, feather (Edge Rounding et Softness de Palmier), saturation, temperature, chromaticAberration, letterbox. Un shader chacun, testés, golden lu, sur main en d073aa7 ; l'empreinte gagne une scène, les 52 autres inchangées.¦À ton œil : test/visual/golden/effect-shaders5_frame0.png, et marius.apply(roundCorners(0.2)) dans ta scène. Relance l'app, le binaire a changé."><span class="id">54</span><span class="lbl">Six effets d'image</span><span class="meta lock">d073aa7 · ton œil</span></li>
