@@ -1978,6 +1978,10 @@ Item {
             MouseArea {
                 id: probe
                 anchors.fill: parent
+                // Unset, not the arrow: this area only watches — a MouseArea
+                // claims the arrow from birth, and over the text that hid the
+                // text caret. What is under the pointer says what it is.
+                cursorShape: undefined
                 // Clicks are taken only to be handed straight back: ⌘-click
                 // follows a definition, and a press with no modifier is
                 // refused, which passes it up to the text where it belongs.
@@ -2125,6 +2129,7 @@ Item {
                         anchors.fill: parent
                         acceptedButtons: Qt.NoButton
                         hoverEnabled: true
+                        cursorShape: undefined // the text's caret, not an arrow over a word
                         ToolTip.visible: containsMouse
                         ToolTip.delay: 350
                         ToolTip.text: squiggle.modelData.message

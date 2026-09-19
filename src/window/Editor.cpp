@@ -1977,7 +1977,10 @@ void VC::Editor::hoverAt(const QPointF& pos)
 
     QMouseEvent move(QEvent::MouseMove, pos, window->mapToGlobal(pos), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
     QCoreApplication::sendEvent(window, &move);
-    std::cout << std::format("Probed a hover at ({}, {})\n", pos.x(), pos.y());
+    // The cursor is the one thing a screenshot cannot show, and it is how a
+    // handle says what it does before it is pressed. Qt's own number: 0 the
+    // arrow, 4 the text caret, 6 the horizontal resize, 18 the closed hand.
+    std::cout << std::format("Probed a hover at ({}, {}) cursor {}\n", pos.x(), pos.y(), static_cast<int>(window->cursor().shape()));
 }
 
 void VC::Editor::dragProbe(const QPointF& from, const QPointF& to, bool hold, Qt::KeyboardModifiers modifiers)

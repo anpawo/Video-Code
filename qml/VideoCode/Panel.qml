@@ -532,6 +532,11 @@ Rectangle {
             anchors.fill: parent
             z: 100
             acceptedButtons: Qt.AllButtons
+            // Unset, not the arrow. A MouseArea claims the arrow cursor from
+            // birth, and this one lies over the whole pane: every cursor under
+            // it — the text caret, the resize arrows of a clip's edges, the
+            // hand on the ruler — was the arrow, since the day the dock existed.
+            cursorShape: undefined
             onPressed: (mouse) => {
                 floor.forceActiveFocus();
                 mouse.accepted = false;

@@ -104,6 +104,24 @@ try:
     original = lines()
     before = rows()
 
+    section("the cursor says what the hand will do")
+    # A MouseArea claims the arrow from birth, and every pane had one laid over
+    # its whole content to take the keyboard: the arrow was all anyone saw, on a
+    # clip's edge as on the text. The probe reads the window's own cursor.
+    def cursorAt(x: float, y: float) -> int:
+        tell("screenshot", f"out={shot.name}")
+        tell("key", f"spec=Hover:{x},{y}")
+        with open(log.name) as out:
+            seen = [one for one in out.read().splitlines() if one.startswith("Probed a hover at") and " cursor " in one]
+        return int(seen[-1].rsplit(" cursor ", 1)[1]) if seen else -1
+
+    row = rows()["circle"]
+    left, y = at("circle", row["from"])
+    right, _ = at("circle", row["to"])
+    check("a clip's left edge offers to stretch it", cursorAt(left + 3, y) == 6)
+    check("its right edge too", cursorAt(right - 3, y) == 6)
+    check("its body is the arrow until it is taken", cursorAt((left + right) / 2, y) == 0)
+
     section("a click is still a click")
     gesture("Click:%s,%s" % at("circle", 1.5))
     check("it picks the clip", tell("state").get("selected", {}).get("line") == 11)

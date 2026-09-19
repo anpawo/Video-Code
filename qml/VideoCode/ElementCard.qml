@@ -714,6 +714,7 @@ Item {
             z: 500
             visible: root.editing !== null
             acceptedButtons: Qt.AllButtons
+            cursorShape: undefined // it hands the press back; the cursor is not its to say either
             onPressed: (mouse) => {
                 root.forceActiveFocus();
                 mouse.accepted = false;

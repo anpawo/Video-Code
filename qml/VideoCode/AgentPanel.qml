@@ -217,6 +217,7 @@ Item {
         anchors.fill: parent
         z: 50
         acceptedButtons: Qt.LeftButton
+        cursorShape: undefined // it hands the press back; the cursor is not its to say either
         onPressed: (mouse) => {
             input.forceActiveFocus();
             mouse.accepted = false;
