@@ -5,7 +5,7 @@ Three places, split by what each can actually decide. Nothing blocks a push.
 | where | what it checks | when | blocks? |
 |---|---|---|---|
 | **GitHub Actions** | types, the suites, docs/test coverage of new API, qmllint, formatting, the build, the C++ unit tests, the QML chrome, `eg.py` still renders, the bake digest | every push and PR | the run goes red, the push already landed |
-| **the weekly audit** | two functions doing one job, a public name nothing calls, engine work that moved into a hotter loop — read by an agent, checked by a script | Mondays 04:00 UTC, or by hand | no — at most three `audit` issues |
+| **the weekly audit** (a Claude Code routine) | two functions doing one job, a public name nothing calls, engine work that moved into a hotter loop | Mondays 08:00 Paris, or by hand | no — at most three draft PRs and one email |
 | **`make check`** | visual regression, C++ unit tests, bake digest, performance — and RECORDS the timings into `test/perf/history.jsonl` | when you ask for it | no |
 | **`/ship`** | writes the docs, tests and examples a change owes | before committing | no |
 | `.githooks/pre-commit` | what the repo forgot to commit, coverage, types, the QML chrome (~15 s) — armed with `make arm` | on commit, once armed | yes |
@@ -56,31 +56,30 @@ stale — which is the failure mode documentation actually has.
 
 ## The weekly audit
 
-`test/repetition_check.py`, in the `fast` job, is the gate: it records every
-verbatim clone by the hash of its content in `test/repetition.json` and goes red
-on one the record does not know, in the Python, the C++, the QML and the GLSL.
-What it cannot see is two functions doing one job with DIFFERENT code. That
-takes reading, so `.github/workflows/audit.yaml` has an agent read — once a
-week, never on a push or a pull request.
+`test/repetition_check.py`, in the `fast` job and in the pre-commit hook, is the
+gate: it records every verbatim clone by the hash of its content in
+`test/repetition.json` and refuses one the record does not know, in the Python,
+the C++, the QML and the GLSL. What it cannot see is two functions doing one job
+with DIFFERENT code. That takes reading, so a Claude Code routine reads — once a
+week, in the cloud, on Marius's subscription: no API key, no GitHub environment,
+nothing in `.github/workflows`.
 
-| | can decide | cannot |
-|---|---|---|
-| the script (`repetition_check.py`) | whether a clone is new; whether a declared twin grew; turn a run red | see a semantic clone |
-| the agent (`.github/prompts/audit.md`) | nothing. It proposes: lines to delete and what stays, or a question about the engine ending in the command that answers it | gate, push, comment, run a command, claim a speed, propose a base class |
-| the validator (`test/audit_validate.py`) | which of the agent's findings leave: the cited lines exist, not a declared twin, no abstraction, no speed claim, three at most | judge whether a finding is RIGHT — that is you |
+The routine's instructions are `.github/prompts/audit.md`, versioned here so a
+change to them is a commit. It runs the script's `--candidates` and `--list`,
+reads, and for at most three findings either opens a DRAFT pull request on a
+`claude/audit-*` branch — only for a deletion it has run the tests on — or
+leaves the question to the email. Then one email to Marius, and none on a week
+with nothing worth his time. It never pushes to `main` and never merges.
 
-The perf half of the prompt is on a four-week trial from 2026-09-18: if none of
-its questions has led to a row in `test/perf/history.jsonl` by then, delete
-section B. Until then the `fast` job says the one thing a runner can say about
+It remembers what it has already raised by reading its own past emails, so a
+finding is not proposed twice unless its code changed. Closing a draft PR is
+how a finding is refused.
+
+The perf half is on a four-week trial from 2026-09-18: if none of its questions
+has led to a row in `test/perf/history.jsonl` by then, delete it from the
+prompt. Until then the `fast` job says the one thing a runner can say about
 speed honestly — `history.py --stale` warns when more than ten engine commits
 have gone unmeasured.
-
-**The `audit` label is the bridge to the board.** CI cannot publish the board;
-a local session can. An OPEN `audit` issue is a To-do row the next local
-session adds. A CLOSED one is a Won't do, and its closing comment is the reason
-in the right-hand column. Each issue carries an ID made from the code it cites,
-and the workflow looks for that ID among open AND closed issues before posting
-— so closing an issue is how you refuse a finding for good.
 
 **Declaring a twin.** Two files alike on purpose go in `test/twins.json`:
 
@@ -92,10 +91,9 @@ and the workflow looks for that ID among open AND closed issues before posting
 repeated lines rather than on a new hash — a bug fixed on both sides changes
 the hashes and must stay green — and prints a warning when a clone VANISHES
 from the pair, which is what a fix applied to one side only looks like. The
-agent is told to stay silent on the pair, and the validator drops it if it does
-not.
+routine is told to stay silent on the pair.
 
-**Accepting a new clone.** The red run names it — `file:line ↔ file:line (N
+**Accepting a new clone.** The refusal names it — `file:line ↔ file:line (N
 lines)`. If it is deliberate:
 
 ```bash
@@ -103,17 +101,6 @@ python3 test/repetition_check.py --update
 ```
 
 and the diff of `repetition.json` shows one line per clone you accepted.
-
-**Once, by hand** — the workflow is green and does nothing until these exist:
-
-1. Settings → Environments → `audit`, deployment branches restricted to `main`.
-   A dispatched run executes the workflow file of the ref it is given and `main`
-   is not protected; the environment is what keeps the key away from any other
-   ref.
-2. An Anthropic API key in a workspace of its own, with a monthly spend cap
-   (~$10; a run is under a dollar), stored as `ANTHROPIC_API_KEY` **in that
-   environment**, not in the repository's secrets.
-3. `gh label create audit`.
 
 ## One rule, one place
 

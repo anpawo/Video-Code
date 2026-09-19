@@ -37,7 +37,7 @@ is printed, because that is what a fix applied to one side only looks like.
     python3 test/repetition_check.py --candidates out.json [--since <ref>]
                                                 # what the weekly audit reads
 
-`--candidates` is for `.github/workflows/audit.yaml`: the clones outside the
+`--candidates` is for the weekly audit routine: the clones outside the
 declared twins, and an index of every function with the ones touched since
 `<ref>` (default: the last 8 days) marked. The index is the point — two
 functions doing one job with different code never show up as a verbatim clone,
