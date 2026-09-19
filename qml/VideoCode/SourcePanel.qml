@@ -338,7 +338,11 @@ Item {
         let offset = 0;
         for (let i = 0; i < line && i < lines.length; ++i)
             offset += lines[i].length + 1;
-        return offset + Math.min(character, line < lines.length ? lines[line].length : 0);
+        // A line past the last one is the end of the text, not one character
+        // beyond it: a file that does not end in a newline has no "start of the
+        // next line", and a squiggle or a caret sent there made Qt warn on every
+        // repaint (QTextCursor::setPosition: Position out of range).
+        return Math.min(offset + Math.min(character, line < lines.length ? lines[line].length : 0), editor.text.length);
     }
 
     // The other direction: where the mouse is, told in the protocol's terms.
