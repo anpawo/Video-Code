@@ -197,6 +197,22 @@ ApplicationWindow {
         ? shownScene.elements[selectedIndex]
         : null
 
+    // Something is always selected once the scene has something: an empty
+    // Inspector was a panel that answered nothing, asked on 19 Sept. So when the
+    // selection is gone — Escape, a first run, a re-run that dropped the element
+    // — it lands on the top lane as the timeline draws it, and Escape now means
+    // "back to the first", not "nothing". Filled quietly: only a click brings
+    // the Inspector's tab forward. Called later, not at once: the lanes' order
+    // is itself re-derived from the scene that just changed.
+    function holdSelection() {
+        const lanes = timeline.lanesOrder;
+        if (selectedElement !== null || lanes.length === 0)
+            return;
+        selectedIndex = lanes[0];
+        inspector.open(selectedElement, Qt.rect(0, 0, 0, 0));
+    }
+    onSelectedElementChanged: Qt.callLater(holdSelection)
+
     // ── The dock ──────────────────────────────────────────────────────────
     // Panels are created once, below, and never move house: a slot is told which
     // keys it holds and reparents those items into itself. Everything about the
@@ -3818,6 +3834,7 @@ ApplicationWindow {
         markOut: app.markOut
         snapPoints: app.snapPoints
         onElementPicked: (index) => app.selectedIndex = index
+        onLanesOrderChanged: Qt.callLater(app.holdSelection)
     }
 
     // The clip you clicked, as rows in the dock — the Inspector of Palmier Pro

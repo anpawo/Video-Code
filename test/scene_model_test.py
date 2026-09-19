@@ -498,7 +498,10 @@ if needsRenderer("the brief is built by the chrome"):
         check("a block the question follows",
               clean.startswith("<editor>\n") and clean.endswith("</editor>\n\n"))
         check("the file, and the caret in it", "/scene.py · caret on line 1\n" in clean)
-        check("nothing selected is said, not left out", "\nselected: nothing\n" in clean)
+        # Never "nothing" on a scene that has something: with no clip picked,
+        # the top lane is the selection (Main.holdSelection).
+        check("the top lane stands in for a selection nobody made",
+              "\nselected: Square at line 8 — " in clean)
         check("the playhead against the length", "\nplayhead: 0.00 s of 8.47 s\n" in clean)
         # The base scene's two competing `moveBy` lines are commented out, so
         # what this proves now is the CLEAN wording. Nothing anywhere exercises

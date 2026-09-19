@@ -19,6 +19,11 @@ QtObject {
     readonly property color edge:     "#2a3140"
     readonly property color edgeSoft: "#212734"
 
+    // What the pointer is on. A veil rather than a surface, so the same token
+    // lifts a transparent row, a rail and a panel alike — `rail` as a hover
+    // vanished on everything that was already rail.
+    readonly property color hover:    Qt.rgba(1, 1, 1, 0.05)
+
     // ── Text ──
     readonly property color ink:      "#e3e7ef"
     readonly property color inkDim:   "#8a93a6"

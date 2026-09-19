@@ -259,7 +259,7 @@ Rectangle {
 
                     width: label.implicitWidth + (tab.active ? 40 : 22)
                     height: strip.height
-                    color: tab.active ? Theme.panel : "transparent"
+                    color: tab.active ? Theme.panel : tabMouse.containsMouse ? Theme.hover : "transparent"
                     // The first tab sits in the strip's rounded corner, so it has
                     // to follow the curve instead of filling it in square.
                     topLeftRadius: tab.index === 0 ? Theme.radiusInner : 0

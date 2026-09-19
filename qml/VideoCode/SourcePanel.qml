@@ -1029,6 +1029,8 @@ Item {
             font.pixelSize: root.codeSize - 2
         }
 
+        HoverTint { visible: notice.act !== null }
+
         MouseArea {
             anchors.fill: parent
             enabled: notice.act !== null
@@ -1727,6 +1729,8 @@ Item {
                     elide: Text.ElideRight
                     horizontalAlignment: Text.AlignRight
                 }
+
+                HoverTint {}
 
                 MouseArea {
                     anchors.fill: parent

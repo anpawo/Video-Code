@@ -277,6 +277,8 @@ Item {
                     font.weight: Font.Bold
                 }
 
+                HoverTint {}
+
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor

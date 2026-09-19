@@ -402,6 +402,8 @@ Item {
                             font.pixelSize: 13
                         }
 
+                        HoverTint {}
+
                         MouseArea {
                             anchors.fill: parent
                             hoverEnabled: true

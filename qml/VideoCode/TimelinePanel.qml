@@ -601,6 +601,7 @@ Item {
                     width: 30
                     height: parent.height
                     cursorShape: Qt.SizeVerCursor
+                    HoverTint {}
                     // Measured in the panel's frame, not the grip's: the grip
                     // itself moves with the pointer, so its own y never changes.
                     property real startY: 0
@@ -740,19 +741,33 @@ Item {
 
                         readonly property bool lit: root.litIndex === lane.elementIndex
 
+                        readonly property bool picked: root.selectedIndex === lane.elementIndex
+                        // Which of the three grips has the pointer, by name: the
+                        // edges overlap the body, and whether the leave or the
+                        // enter arrives first is not ours to choose. Told by a
+                        // HoverHandler in each grip, not by the grip's own
+                        // containsMouse, which stayed true on the last clip
+                        // pressed, wherever the pointer went next.
+                        property string pointed: ""
+
+                        // Selection is the clip's own hue lifted, not white: a
+                        // white frame outshouted the playhead and the code pane
+                        // both. The pointer adds half as much again, on top of
+                        // whatever else the clip is, so it never reads as picked.
                         readonly property color hue: Theme.kind[lane.modelData.kind]
                         color: away ? "transparent"
-                                    : root.selectedIndex === lane.elementIndex ? Qt.lighter(bar.hue, 1.25)
-                                    : bar.lit ? Qt.lighter(bar.hue, 1.12)
-                                    : bar.hue
+                                    : Qt.lighter(bar.hue, (bar.picked ? 1.10 : bar.lit ? 1.12 : 1)
+                                                          + (bar.pointed.length > 0 ? 0.06 : 0))
                         border.width: 1
                         border.color: away
                                       ? Qt.rgba(1, 1, 1, 0.10)
-                                      : (root.selectedIndex === lane.elementIndex
-                                         ? "#ffffff"
+                                      : (bar.picked
+                                         ? Qt.lighter(bar.hue, 1.7)
                                          : (bar.lit
                                             ? Qt.alpha(Theme.live, 0.55)
-                                            : Qt.darker(bar.hue, 1.35)))
+                                            : (bar.pointed.length > 0
+                                               ? Qt.lighter(bar.hue, 1.3)
+                                               : Qt.darker(bar.hue, 1.35))))
 
                         // ── A fault the run found on this element ────────
                         // Hazard hatching, the mark every editing tool uses for
@@ -910,6 +925,10 @@ Item {
                                 // it has says when it starts, so its left edge
                                 // would be a handle with nothing to write.
                                 visible: !bar.away && !(edge === "in" && lane.modelData.kind === "sound")
+                                HoverHandler {
+                                    onHoveredChanged: bar.pointed = hovered ? grip.edge
+                                                                  : bar.pointed === grip.edge ? "" : bar.pointed
+                                }
 
                                 property real anchorX: 0
                                 property bool moved: false
@@ -1146,6 +1165,8 @@ Item {
                 height: 1
                 color: Theme.edge
             }
+
+            HoverTint {}
 
             // Scrubbing. On the ruler only, and not over the lanes: a click on a
             // clip means "open this", and a surface where the same gesture does

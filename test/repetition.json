@@ -1,6 +1,6 @@
 {
-  "repeatedLines": 1691,
-  "repetitions": 119,
+  "repeatedLines": 1683,
+  "repetitions": 118,
   "deadNames": 19,
   "clones": {
     "f701efd1a8b3f6ef": [42, 2, "auto vertSpv = compileGLSL(loadShaderSource(\"vert.glsl\"), VK_SHADER_STAGE_VERTEX_BIT);"],
@@ -56,7 +56,6 @@
     "97f7e88172e00ec9": [8, 2, "super().__init__("],
     "99aba44724814553": [8, 2, "Rectangle {"],
     "9cce56f1e5076544": [8, 2, "def __init__("],
-    "a1163e6eab7d6930": [8, 2, "source.say(span.message.length > 0 ? span.message : \"could not write \" + name);"],
     "a9dc5d500ca2a0cf": [8, 2, "from typing import TYPE_CHECKING, Generator, Any"],
     "adc9a69785998ff5": [8, 2, "_resetContext()"],
     "b745c8fc3bdd9141": [8, 2, "Rectangle {"],

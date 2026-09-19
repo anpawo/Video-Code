@@ -152,6 +152,8 @@ Item {
     // One area for both points rather than a hit box on each: a synthetic drag
     // presses where it starts and moves without ever hovering, so the point has
     // to be chosen from the press itself — the nearer of the two.
+    HoverTint { visible: root.interactive }
+
     MouseArea {
         id: pull
         anchors.fill: parent

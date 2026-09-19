@@ -756,6 +756,7 @@ Item {
                 width: Math.min(implicitWidth, root.docked ? head.width - 56 : head.width / 3)
 
                 HoverHandler { cursorShape: Qt.PointingHandCursor }
+                HoverTint {}
 
                 TapHandler {
                     onTapped: if (root.element !== null) root.renameRequested(root.element)
@@ -1320,6 +1321,8 @@ Item {
                                : root.fxHue
                         clip: true
 
+                        HoverTint {}
+
                         // What the run said about THIS call, or "". The timeline
                         // says which element is at fault; this says which of its
                         // lines earned it, which is the only place the two ever
@@ -1588,6 +1591,8 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: row.openCurve(easeChip)
                         }
+
+                        HoverTint { radius: 3 }
                     }
                 }
             }
@@ -1760,6 +1765,8 @@ Item {
                             argEntry.selectAll();
                         }
                     }
+
+                    HoverTint { visible: root.writable }
                 }
             }
             }
@@ -1966,6 +1973,8 @@ Item {
                                                 fieldEntry.selectAll();
                                             }
                                         }
+
+                                        HoverTint { visible: root.writable }
                                     }
                                 }
                             }
@@ -2799,6 +2808,8 @@ Item {
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
                 }
+
+                HoverTint { visible: root.missing.length === 0 }
 
                 MouseArea {
                     anchors.fill: parent
