@@ -322,10 +322,6 @@ Item {
         // A MouseArea, not a TapHandler: under the slot's floor a handler never
         // sees the press (AgentPanel.qml says why). Pressing puts the caret in
         // the field with the value selected, ready to be overwritten.
-        // The hand: a HoverHandler, since the slot's floor sits above every
-        // MouseArea and would keep the arrow.
-        HoverHandler { cursorShape: row.editable ? Qt.PointingHandCursor : Qt.ArrowCursor }
-
         MouseArea {
             id: over
             anchors.fill: parent
@@ -333,6 +329,11 @@ Item {
             // on its way through the Flickable; taken here, it lands.
             z: 2
             hoverEnabled: true
+            // The cursor is this area's to give, being the topmost thing on the
+            // row: a hand where a click edits, the caret once the field is
+            // being typed in. A HoverHandler under it used to ask for the hand
+            // and lose to the arrow every MouseArea claims from birth.
+            cursorShape: !row.editable ? Qt.ArrowCursor : field.activeFocus ? Qt.IBeamCursor : Qt.PointingHandCursor
             onPressed: (mouse) => {
                 if (!row.editable) { mouse.accepted = false; return; }
                 if (row.isPath && mouse.x >= browse.x - 4 && mouse.x <= browse.x + browse.width + 4) {
@@ -351,6 +352,13 @@ Item {
                 row.beginEdit();
             }
             readonly property bool hovered: containsMouse
+        }
+
+        // Driven by the area above rather than a HoverTint of its own: a
+        // MouseArea that takes hover keeps it from the siblings under it.
+        Rectangle {
+            anchors.fill: parent
+            color: over.containsMouse ? Theme.hover : "transparent"
         }
 
         Text {

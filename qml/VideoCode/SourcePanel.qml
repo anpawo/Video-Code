@@ -1849,6 +1849,21 @@ Item {
                 visible: editor.activeFocus
             }
 
+            // The line under the pointer, faintly, whether or not the pane has
+            // the keyboard: the window answers the hand everywhere, and a line
+            // is what a click here will land on. Not past the last line — the
+            // empty space below the text belongs to no line.
+            Rectangle {
+                readonly property rect at: editor.positionToRectangle(editor.positionAt(probe.mouseX, probe.mouseY))
+                z: -1
+                x: 0
+                y: at.y
+                width: Math.max(view.width, editor.contentWidth)
+                height: at.height
+                color: Theme.hover
+                visible: probe.containsMouse && probe.mouseY <= editor.topPadding + editor.contentHeight
+            }
+
             // Only a human's edit dirties the buffer: assigning the initial text
             // fires onTextChanged too, and counting that as a modification made
             // the pane open claiming an edit nobody had made.

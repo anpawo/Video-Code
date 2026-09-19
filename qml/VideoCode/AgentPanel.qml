@@ -258,6 +258,10 @@ Item {
                 onAccepted: root.ask(text)
             }
 
+            // After the field, so it hears the pointer before the field keeps
+            // it; before the send button, which has its own.
+            HoverTint {}
+
             // Send, as a round button; stop while it works.
             Rectangle {
                 id: send
