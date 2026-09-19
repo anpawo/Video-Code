@@ -2014,28 +2014,173 @@ ApplicationWindow {
     // window's level rather than inside the pane: a label that belongs to a
     // splitter is on the boundary of two panes, and inside either one it would be
     // clipped away by the very edge you are dragging.
+    //
+    // A clip's edge gets the long form (see aimTip): a callout beside the edge,
+    // with a notch pointing at it — outside the clip, so it never covers the
+    // bar being pulled, unless that side would leave the window.
     Rectangle {
         id: tipBox
         z: 340
         visible: app.tip !== null
-        width: tipText.implicitWidth + 14
-        height: tipText.implicitHeight + 8
+        readonly property bool aimed: app.tip !== null && app.tip.title !== undefined
+        readonly property bool flipped: aimed && (app.tip.leftward ? app.tip.x - 14 - width >= 8
+                                                                   : app.tip.x + 14 + width > app.width - 8)
+        width: aimed ? aimedText.implicitWidth + 24 : tipText.implicitWidth + 14
+        height: aimed ? aimedText.implicitHeight + 16 : tipText.implicitHeight + 8
         // Ahead of the pointer, and pulled back inside the window at the edges —
         // the reading you want is the one you get while dragging TOWARDS an edge.
-        x: app.tip !== null ? Math.max(4, Math.min(app.tip.x + 14, app.width - width - 4)) : 0
-        y: app.tip !== null ? Math.max(4, Math.min(app.tip.y + 16, app.height - height - 4)) : 0
-        color: Theme.rail
+        x: app.tip === null ? 0
+           : aimed ? (flipped ? app.tip.x - 14 - width : app.tip.x + 14)
+           : Math.max(4, Math.min(app.tip.x + 14, app.width - width - 4))
+        y: app.tip !== null ? Math.max(4, Math.min(aimed ? app.tip.y - height / 2 : app.tip.y + 16, app.height - height - 4)) : 0
+        color: aimed ? "transparent" : Theme.rail
         radius: Theme.radiusSmall
-        border.width: 1
+        border.width: aimed ? 0 : 1
         border.color: Theme.live
+
+        onAimedChanged: {
+            appear.stop();
+            opacity = 1;
+            if (aimed)
+                appear.start();
+        }
+        NumberAnimation { id: appear; target: tipBox; property: "opacity"; from: 0; to: 1; duration: Theme.motion(250) }
+
+        // Drawn opaque in a layer that is then made translucent as a whole: the
+        // notch's fill has to cover the box's border where the two meet, and
+        // two translucent fills would show the seam. The layer is widened by
+        // the notch on each side, or it would cut the notch off.
+        Item {
+            visible: tipBox.aimed
+            x: -8
+            width: tipBox.width + 16
+            height: tipBox.height
+            opacity: 0.85
+            layer.enabled: visible
+
+            Rectangle {
+                x: 8
+                width: tipBox.width
+                height: tipBox.height
+                radius: 12
+                color: Theme.sunk
+                border.width: 1
+                border.color: Qt.alpha(Theme.ink, 0.25)
+            }
+
+            Item {
+                x: tipBox.flipped ? 8 + tipBox.width - 1 : 1
+                y: app.tip !== null ? Math.max(12, Math.min(tipBox.height - 12, app.tip.y - tipBox.y)) - 7 : 0
+                width: 8
+                height: 14
+                clip: true
+
+                Rectangle {
+                    x: tipBox.flipped ? -4 : 2
+                    y: 2
+                    width: 10
+                    height: 10
+                    rotation: 45
+                    color: Theme.sunk
+                    border.width: 1
+                    border.color: Qt.alpha(Theme.ink, 0.25)
+                }
+            }
+        }
 
         Text {
             id: tipText
+            visible: !tipBox.aimed
             anchors.centerIn: parent
-            text: app.tip !== null ? app.tip.text : ""
+            text: app.tip !== null && app.tip.text !== undefined ? app.tip.text : ""
             color: Theme.ink
             font.family: Theme.mono
             font.pixelSize: 11
+        }
+
+        Column {
+            id: aimedText
+            visible: tipBox.aimed
+            x: 12
+            y: 8
+            spacing: 6
+
+            Text {
+                text: tipBox.aimed ? app.tip.title : ""
+                color: Theme.ink
+                font.family: Theme.ui
+                font.pixelSize: 15
+                font.weight: Font.Medium
+            }
+
+            // Refused before the button is let go, in the words the code pane
+            // would have used after.
+            Text {
+                visible: text.length > 0
+                width: Math.min(implicitWidth, 460)
+                wrapMode: Text.Wrap
+                text: tipBox.aimed ? app.tip.refused : ""
+                color: Theme.warn
+                font.family: Theme.mono
+                font.pixelSize: 12
+            }
+
+            // A scene line can run to two hundred characters and the tip must
+            // stay in the window: cut at a width, the change is near the start
+            // of the line anyway — it is what the gesture is aimed at.
+            Column {
+                width: Math.min(implicitWidth, 520)
+                clip: true
+                Repeater {
+                    model: tipBox.aimed ? app.tip.rows : []
+
+                    Row {
+                        required property var modelData
+                        spacing: 10
+
+                        Text {
+                            width: 22
+                            horizontalAlignment: Text.AlignRight
+                            text: parent.modelData.n
+                            color: Theme.inkFaint
+                            font.family: Theme.mono
+                            font.pixelSize: 12
+                        }
+
+                        Row {
+                            readonly property var line: parent.modelData
+                            readonly property color ink: line.here ? Theme.ink : Theme.inkDim
+
+                            Text {
+                                text: parent.line.text.slice(0, parent.line.from)
+                                color: parent.ink
+                                font.family: Theme.mono
+                                font.pixelSize: 12
+                            }
+                            Rectangle {
+                                width: changed.implicitWidth
+                                height: changed.implicitHeight
+                                radius: 2
+                                color: Theme.liveSoft
+
+                                Text {
+                                    id: changed
+                                    text: parent.parent.line.text.slice(parent.parent.line.from, parent.parent.line.to)
+                                    color: Theme.live
+                                    font.family: Theme.mono
+                                    font.pixelSize: 12
+                                }
+                            }
+                            Text {
+                                text: parent.line.text.slice(parent.line.to)
+                                color: parent.ink
+                                font.family: Theme.mono
+                                font.pixelSize: 12
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -2512,11 +2657,15 @@ ApplicationWindow {
             || source.path.length === 0 || file === source.path;
     }
 
+    function foreignLine(file) {
+        return app.fromOpenFile(file) ? "" : String(file).split("/").pop() + " wrote that line — open it to change it there";
+    }
+
     function ownsLine(file) {
-        if (app.fromOpenFile(file))
-            return true;
-        source.say(String(file).split("/").pop() + " wrote that line — open it to change it there");
-        return false;
+        const foreign = app.foreignLine(file);
+        if (foreign.length > 0)
+            source.say(foreign);
+        return foreign.length === 0;
     }
 
     function writeArgument(element, call, name, value) {
@@ -2558,23 +2707,45 @@ ApplicationWindow {
     }
 
     function writeOn(line, call, name, value, file) {
+        return app.carryOut(app.planOn(line, call, name, value, file));
+    }
+
+    // An edit decided without being made: `{ ok, line, start, end, text }` for
+    // a range of the buffer and what replaces it, `{ ok, line, insert }` for a
+    // statement written under a line, `{ ok: false, message, offer }` for a
+    // refusal — with the constant's own line to offer when a name stood in the
+    // way. Decided apart from the write so that the timeline's tip can show
+    // the very edit the release will make, before anything is written.
+    function planOn(line, call, name, value, file) {
         if (line === undefined || line <= 0 || call === undefined || call.length === 0)
-            return false;
-        if (!app.ownsLine(file))
-            return false;
+            return { ok: false, message: "" };
+        const foreign = app.foreignLine(file);
+        if (foreign.length > 0)
+            return { ok: false, message: foreign };
 
         const span = Shell.argumentSpan(source.text, line, call, name, value);
-        if (!span.ok) {
+        if (!span.ok)
             // Where and what, not just that: "could not write start" names
             // nothing anyone can go and look at.
-            if (!app.offerConstant(line, call, name, value))
-                source.say(span.message.length > 0 ? span.message
-                           : "could not write " + name + "=" + value + " on " + call + "(), line " + line);
+            return {
+                ok: false, offer: { line: line, call: call, key: name, value: value },
+                message: span.message.length > 0 ? span.message
+                         : "could not write " + name + "=" + value + " on " + call + "(), line " + line
+            };
+        return { ok: true, line: line, start: span.start, end: span.end, text: span.text };
+    }
+
+    function carryOut(plan) {
+        if (!plan.ok) {
+            const offer = plan.offer;
+            if (!(offer !== undefined && app.offerConstant(offer.line, offer.call, offer.key, offer.value))
+                && plan.message.length > 0)
+                source.say(plan.message);
             return false;
         }
-        if (!source.replaceRange(span.start, span.end, span.text))
+        if (!(plan.insert !== undefined ? source.insertAfterLine(plan.line, plan.insert)
+                                         : source.replaceRange(plan.start, plan.end, plan.text)))
             return false;
-
         app.executeScene();
         return true;
     }
@@ -2720,7 +2891,7 @@ ApplicationWindow {
         // it is told the old moment again. Asked of the scene as it is AFTER
         // the move, because only a run knows where that line's cursor now is.
         const end = element.l + element.d;
-        const now = app.shiftClock(element, seconds - element.l);
+        const now = app.shiftClock(element, seconds - element.l, app.planGesture(element, edge, seconds));
         if (now === null)
             return;
         const fps = execFps > 0 ? execFps : 30;
@@ -2748,16 +2919,83 @@ ApplicationWindow {
     // picture that kept running — a slip, shown as a move — so the body of a
     // media clip refuses, while its left edge, which MEANS that, does not.
     function moveElement(element, by) {
-        if (element === null || element.line === undefined || element.line <= 0)
-            return;
-        if (element.kind === "video" || element.kind === "sound") {
-            source.say(element.n + " plays from where line " + element.line
-                       + " stands in the scene — nothing to move but that line, or the wait() above it");
-            return;
-        }
-        const now = app.shiftClock(element, by);
+        const now = app.shiftClock(element, by, app.planGesture(element, "body", by));
         if (now !== null)
             source.say(now.n + " now starts at " + now.l.toFixed(1) + "s");
+    }
+
+    // What a clip gesture would write — the one decision behind the release
+    // (trimElement, moveElement) and the tip that shows it beforehand (aimTip).
+    // `value` is what the timeline hands over: the moment for an edge, the
+    // distance for the body.
+    function planGesture(element, edge, value) {
+        if (element === null || element.line === undefined || element.line <= 0)
+            return { ok: false, message: "" };
+        if (edge === "out")
+            return app.planHide(element, value);
+        if (edge === "in")
+            return app.planClock(element, value - element.l);
+        if (element.kind === "video" || element.kind === "sound")
+            return {
+                ok: false,
+                message: element.n + " plays from where line " + element.line
+                         + " stands in the scene — nothing to move but that line, or the wait() above it"
+            };
+        return app.planClock(element, value);
+    }
+
+    // The tip a hand on a clip gets: the line the release will write, as it
+    // will read, between its two neighbours — or the refusal, while the button
+    // is still down. Asked of `planGesture`, so it shows the edit the release
+    // makes, and the buffer is never touched. Two things only a run can know
+    // are not in it: a `.wait()` the scene ignores (taken back on release, see
+    // shiftClock) and the `hide` a moved left edge is told again (trimElement)
+    // — the tip shows the first edit.
+    function aimTip(aim) {
+        if (aim === null) {
+            if (app.tip !== null && app.tip.title !== undefined)
+                app.tip = null;
+            return;
+        }
+        // Hovered, nothing is pulled yet: planned a tenth further, which is the
+        // line a drag would touch, and any refusal a drag would meet.
+        const nudged = aim.edge === "body" ? 0.1 : aim.at + 0.1;
+        const plan = app.planGesture(aim.element, aim.edge, aim.held ? aim.value : nudged);
+        const tip = {
+            x: aim.x, y: aim.y, rows: [], refused: "", leftward: aim.edge !== "out",
+            title: aim.element.n + (aim.edge === "out" ? " ends at " : " starts at ") + aim.at.toFixed(1) + "s"
+        };
+        if (!plan.ok) {
+            const named = plan.offer !== undefined
+                          ? Shell.constantOffer(source.text, plan.offer.line, plan.offer.call, plan.offer.key, plan.offer.value)
+                          : { ok: false };
+            tip.refused = named.ok ? named.name + " is a name — let go and its own line is offered: " + named.name + " → " + plan.offer.value
+                        : plan.message.length > 0 ? plan.message : "nothing to write";
+            app.tip = tip;
+            return;
+        }
+
+        let lines = source.text.split("\n");
+        let line = plan.line;
+        let from = 0;
+        let to = 0;
+        if (plan.insert === undefined) {
+            const text = aim.held ? source.text.slice(0, plan.start) + plan.text + source.text.slice(plan.end) : source.text;
+            const before = text.slice(0, plan.start).split("\n");
+            lines = text.split("\n");
+            line = before.length;
+            from = before[before.length - 1].length;
+            to = from + (aim.held ? plan.text.length : plan.end - plan.start);
+        } else if (aim.held) {
+            const indent = /^\s*/.exec(lines[plan.line - 1])[0];
+            lines.splice(plan.line, 0, indent + plan.insert);
+            line = plan.line + 1;
+            from = indent.length;
+            to = lines[plan.line].length;
+        }
+        for (let n = Math.max(1, line - 1); n <= Math.min(lines.length, line + 1); ++n)
+            tip.rows.push({ n: n, text: lines[n - 1], from: n === line ? from : 0, to: n === line ? to : 0, here: n === line });
+        app.tip = tip;
     }
 
     // The write, then what the run made of it. A `wait()` or a `waitFor()`
@@ -2766,8 +3004,8 @@ ApplicationWindow {
     // that does nothing. That word is taken back — code the editor wrote and
     // the scene ignores is the one thing worse than a refusal. Answers the
     // element as the new run has it, or null.
-    function shiftClock(element, by) {
-        if (!app.ownsLine(element.file) || !app.writeClock(element, by) || execState !== "fresh")
+    function shiftClock(element, by, plan) {
+        if (!app.carryOut(plan) || execState !== "fresh")
             return null;
 
         // Most of the way is a move: `.wait()` counts whole frames, and a fade
@@ -2782,7 +3020,10 @@ ApplicationWindow {
         return null;
     }
 
-    function writeClock(element, by) {
+    function planClock(element, by) {
+        const foreign = app.foreignLine(element.file);
+        if (foreign.length > 0)
+            return { ok: false, message: foreign };
         const fps = execFps > 0 ? execFps : 30;
         const mine = element.effects.filter((fx) => fx.line > 0 && app.fromOpenFile(fx.file));
 
@@ -2792,21 +3033,17 @@ ApplicationWindow {
             const written = fx.call === "show" ? parseFloat(Shell.readArgument(source.text, fx.line, "show", "start")) : NaN;
             if (isNaN(written))
                 continue;
-            if (written + by < 0) {
-                source.say("that is before " + element.n + " reaches this line");
-                return false;
-            }
-            return app.writeOn(fx.line, "show", "start", app.plain(written + by), fx.file);
+            if (written + by < 0)
+                return { ok: false, message: "that is before " + element.n + " reaches this line" };
+            return app.planOn(fx.line, "show", "start", app.plain(written + by), fx.file);
         }
 
         // The first thing that takes TIME. `.opacity(0)` and `.position()` are
         // written on a frame and stay on it; a wait in front of them would
         // leave the element standing there, opaque, for as long as it waits.
         const timed = mine.filter((fx) => fx.d * fps > 1.5).sort((a, b) => a.l - b.l);
-        if (timed.length === 0) {
-            source.say("nothing says when " + element.n + " starts — it is there from its first line. Give it a fadeIn() and drag that");
-            return false;
-        }
+        if (timed.length === 0)
+            return { ok: false, message: "nothing says when " + element.n + " starts — it is there from its first line. Give it a fadeIn() and drag that" };
 
         // `apply(popIn())` is a call the scene cannot name; the link is `apply`.
         const line = timed[0].line;
@@ -2817,15 +3054,12 @@ ApplicationWindow {
             // worth what it is worth now, plus the drag.
             const named = Shell.constantOffer(source.text, line, "wait", 0, "0");
             const next = named.ok ? parseFloat(source.text.slice(named.start, named.end)) + by : -1;
-            if (!(next > 0 && app.offerConstant(line, "wait", 0, app.plain(next))))
-                source.say(span.message.length > 0 ? span.message : "could not move " + element.n + " — nothing on line " + line + " to wait in front of");
-            return false;
+            return {
+                ok: false, offer: next > 0 ? { line: line, call: "wait", key: 0, value: app.plain(next) } : undefined,
+                message: span.message.length > 0 ? span.message : "could not move " + element.n + " — nothing on line " + line + " to wait in front of"
+            };
         }
-        if (!source.replaceRange(span.start, span.end, span.text))
-            return false;
-
-        app.executeScene();
-        return true;
+        return { ok: true, line: line, start: span.start, end: span.end, text: span.text };
     }
 
     // Where a statement about this element has to go if it is to happen at a
@@ -2876,16 +3110,21 @@ ApplicationWindow {
     }
 
     function hideAt(element, seconds) {
-        if (!app.ownsLine(element.file))
-            return;
+        const fps = execFps > 0 ? execFps : 30;
+        if (app.carryOut(app.planHide(element, seconds)))
+            source.say(element.n + " now ends at " + (Math.round(seconds * fps) / fps).toFixed(1) + "s");
+    }
+
+    function planHide(element, seconds) {
+        const foreign = app.foreignLine(element.file);
+        if (foreign.length > 0)
+            return { ok: false, message: foreign };
 
         const fps = execFps > 0 ? execFps : 30;
         const target = Math.round(seconds * fps);
         const points = element.points !== undefined ? element.points : [];
-        if (points.length === 0) {
-            source.say("nothing in the scene says when " + element.n + " happens");
-            return;
-        }
+        if (points.length === 0)
+            return { ok: false, message: "nothing in the scene says when " + element.n + " happens" };
 
         // One end, not a queue of them: an element already told to hide is told
         // a different moment.
@@ -2893,35 +3132,24 @@ ApplicationWindow {
             if (written.call !== "hide")
                 continue;
             const moment = (target - written.cursor) / fps;
-            if (moment < 0) {
-                source.say("that is before " + element.n + " reaches this line");
-                return;
-            }
-            if (app.writeOn(written.line, "hide", "start", app.plain(moment), written.file))
-                source.say(element.n + " now ends at " + (target / fps).toFixed(1) + "s");
-            return;
+            if (moment < 0)
+                return { ok: false, message: "that is before " + element.n + " reaches this line" };
+            return app.planOn(written.line, "hide", "start", app.plain(moment), written.file);
         }
 
         const where = app.pointFor(element, target);
-        if (where === null) {
-            source.say("that is before " + element.n + " is finished moving");
-            return;
-        }
+        if (where === null)
+            return { ok: false, message: "that is before " + element.n + " is finished moving" };
 
         // The name has to be a name. An element built inline — `Square(...)`
         // with nothing on the left of an `=` — is called after its class here,
         // and `Square.hide()` is a statement about the class.
         const lines = source.text.split("\n");
         const declaration = element.line <= lines.length ? lines[element.line - 1] : "";
-        if (!new RegExp("^\\s*" + element.n + "\\s*=").test(declaration)) {
-            source.say("give it a name first — " + element.cls + "(...) on its own cannot be told to hide");
-            return;
-        }
+        if (!new RegExp("^\\s*" + element.n + "\\s*=").test(declaration))
+            return { ok: false, message: "give it a name first — " + element.cls + "(...) on its own cannot be told to hide" };
 
-        if (!source.insertAfterLine(where.line, element.n + ".hide(start=" + app.plain(where.start) + ")"))
-            return;
-        app.executeScene();
-        source.say(element.n + " now ends at " + (target / fps).toFixed(1) + "s");
+        return { ok: true, line: where.line, insert: element.n + ".hide(start=" + app.plain(where.start) + ")" };
     }
 
     // ── Off, without being gone ───────────────────────────────────────────
@@ -3806,6 +4034,7 @@ ApplicationWindow {
         // seconds without a name, so the span comes from the positional writer.
         onTrimmed: (element, edge, seconds) => app.trimElement(element, edge, seconds)
         onShifted: (element, seconds) => app.moveElement(element, seconds)
+        onAimChanged: app.aimTip(timeline.aim)
         onWaitChanged: (line, seconds) => {
             const value = parseFloat(seconds);
             if (isNaN(value) || value < 0) {

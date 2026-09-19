@@ -202,11 +202,18 @@ Item {
     property real heldIn: 0
     property real heldOut: 0
 
+    // What a hand on a clip is about to write, for the tip that shows it
+    // before the release does — see Main.aimTip. `at` is the moment the edge
+    // stands at, `value` what the release would hand `trimmed`/`shifted`, and
+    // x, y the edge in the window's frame. Null when nothing is aimed at.
+    property var aim: null
+
     function letGo() {
         root.heldLane = -1;
         root.heldIn = 0;
         root.heldOut = 0;
         root.dropAt = -1;
+        root.aim = null;
     }
 
     Keys.onEscapePressed: (event) => {
@@ -963,8 +970,29 @@ Item {
                                 // would be a handle with nothing to write.
                                 visible: !bar.away && !(edge === "in" && lane.modelData.kind === "sound")
                                 HoverHandler {
-                                    onHoveredChanged: bar.pointed = hovered ? grip.edge
-                                                                  : bar.pointed === grip.edge ? "" : bar.pointed
+                                    onHoveredChanged: {
+                                        bar.pointed = hovered ? grip.edge
+                                                    : bar.pointed === grip.edge ? "" : bar.pointed;
+                                        // An edge under the hand says what pulling it
+                                        // would touch; the body waits until it is taken.
+                                        if (grip.edge === "body" || root.heldLane >= 0)
+                                            return;
+                                        if (hovered)
+                                            root.aim = grip.aimed(false);
+                                        else if (root.aim !== null && !root.aim.held
+                                                 && root.aim.element === lane.modelData && root.aim.edge === grip.edge)
+                                            root.aim = null;
+                                    }
+                                }
+
+                                function aimed(held) {
+                                    const point = bar.mapToItem(null, edge === "out" ? bar.width : 0, bar.height / 2);
+                                    return {
+                                        element: lane.modelData, edge: edge, held: held,
+                                        at: held ? root.dropAt : lane.modelData.l + (edge === "out" ? lane.modelData.d : 0),
+                                        value: edge === "body" ? root.heldIn : root.dropAt,
+                                        x: point.x, y: point.y
+                                    };
                                 }
 
                                 property real anchorX: 0
@@ -1002,6 +1030,10 @@ Item {
                                     root.heldIn = edge === "in" ? Math.min(lane.modelData.d - 0.1, early)
                                                 : edge === "body" ? early : 0;
                                     root.dropAt = from + (edge === "out" ? root.heldOut : root.heldIn);
+                                    // Asked again when the SNAPPED moment moves, not on
+                                    // every pixel: the plan parses the scene.
+                                    if (root.aim === null || !root.aim.held || root.aim.at !== root.dropAt)
+                                        root.aim = grip.aimed(true);
                                 }
 
                                 onCanceled: root.letGo()
@@ -1052,17 +1084,17 @@ Item {
                                 }
 
                                 // The edge, drawn only when the pointer is on it
-                                // or pulling it.
+                                // or pulling it — on the BAR's edge, not the
+                                // handle's, which reaches outside the bar.
                                 Rectangle {
                                     visible: grip.edge !== "body"
+                                    x: grip.edge === "out" ? bar.width - width - grip.x : -grip.x
                                     anchors {
-                                        right: grip.edge === "out" ? parent.right : undefined
-                                        left: grip.edge === "out" ? undefined : parent.left
                                         top: parent.top; bottom: parent.bottom
                                         topMargin: 3; bottomMargin: 3
                                     }
-                                    width: 3
-                                    radius: 1.5
+                                    width: 2
+                                    radius: 1
                                     color: Qt.rgba(1, 1, 1, 0.30)
                                     opacity: parent.containsMouse || parent.pressed ? 0.95 : 0
                                     Behavior on opacity { NumberAnimation { duration: Theme.motion(90) } }

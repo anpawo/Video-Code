@@ -42,6 +42,18 @@ env = {**os.environ, "VC_SOCKET": SOCKET, "VC_DOCK_FILE": dock.name}
 SAID = ("(function find(item) { if (typeof item.offer === 'function' && item.act !== undefined) return item.children[0].text ;"
         " for (const c of item.children) { const r = find(c) ; if (r !== null) return r } return null })(source)")
 
+# The white line a lit edge draws, and the bar it belongs to, in the window's
+# frame: "lineLeft lineRight barLeft barRight".
+EDGE = ("(function find(item) { if ((item.edge === 'in' || item.edge === 'out') && item.children.length > 0 && item.children[0].opacity > 0.5) {"
+        " const line = item.children[0] ; const bar = item.parent ;"
+        " return [line.mapToItem(null, 0, 0).x, line.mapToItem(null, line.width, 0).x, bar.mapToItem(null, 0, 0).x, bar.mapToItem(null, bar.width, 0).x].join(' ') }"
+        " for (const c of item.children) { const r = find(c) ; if (r !== null) return r } return null })(timeline)")
+
+# The tip beside a clip's edge: its changed line, the part of it emphasised,
+# and the refusal — "" when there is none.
+TIP = ("app.tip === null ? null : JSON.stringify({ refused: app.tip.refused, rows: app.tip.rows.filter((r) => r.here)"
+       ".map((r) => [r.n, r.text, r.text.slice(r.from, r.to)]) })")
+
 
 def tell(*args: str) -> dict:
     run = subprocess.run(["./video-code", "tell", *args], env=env, capture_output=True, text=True, timeout=60)
@@ -122,6 +134,26 @@ try:
     check("its right edge too", cursorAt(right - 3, y) == 6)
     check("its body is the arrow until it is taken", cursorAt((left + right) / 2, y) == 0)
 
+    section("the edge that lights is the clip's own, and it says what it would write")
+    row = rows()["square"]
+    left, y = at("square", row["from"])
+    right, _ = at("square", row["to"])
+    cursorAt(right + 5, y)
+    time.sleep(0.3)
+    lit = [float(v) for v in probe(EDGE).split()]
+    check(f"hovered from just outside, the right edge's line ends on the bar's own edge ({lit})",
+          abs(lit[1] - lit[3]) < 0.5 and lit[1] - lit[0] <= 2)
+    tip = json.loads(probe(TIP))
+    check(f"hovered, the tip shows the line a drag would change, as it reads now ({tip})",
+          tip["refused"] == "" and tip["rows"] == [[10, "square.hide(start=1.5)", "1.5"]])
+    cursorAt(left - 5, y)
+    time.sleep(0.3)
+    lit = [float(v) for v in probe(EDGE).split()]
+    check(f"the left edge's line starts on the bar's left edge ({lit})", abs(lit[0] - lit[2]) < 0.5 and lit[1] - lit[0] <= 2)
+    check("and its tip names the wait that moves it", json.loads(probe(TIP))["rows"] == [[9, "square.wait(1).fadeIn()", "1"]])
+    cursorAt((left + right) / 2, 5)
+    check("the tip goes when the pointer leaves the edge", probe(TIP) is None)
+
     section("a click is still a click")
     gesture("Click:%s,%s" % at("circle", 1.5))
     check("it picks the clip", tell("state").get("selected", {}).get("line") == 11)
@@ -150,8 +182,12 @@ try:
     drag("title", 1.0, 1.5, ",hold")
     held = probe("timeline.heldIn + ' ' + timeline.heldOut + ' ' + timeline.dropAt.toFixed(1)")
     check(f"while it is held the clip follows, and the moment under its edge is stamped ({held})", held == "1.5 1.5 1.5")
+    check("the tip shows the wait the release would write",
+          json.loads(probe(TIP))["rows"] == [[7, 'title = Text("Hello").wait(1.5).fadeIn()', ".wait(1.5)"]])
+    check("while nothing is written yet", lines() == original)
     tell("key", "spec=Escape")
     check("Escape drops it", probe("timeline.heldLane") == -1)
+    check("and the tip with it", probe(TIP) is None)
     tell("key", "spec=Click:%s,%s" % at("title", 4.0))
     check("and the release writes nothing", lines() == original)
 
@@ -169,7 +205,14 @@ try:
           lines()[7] == 'title = Text("Hello").wait(1).fadeIn()' and now["end"] == before["title"]["end"])
 
     section("the right edge still writes hide(start=…)")
+    settled = lines()
+    drag("square", -0.06, -0.5, ",hold")
+    tip = json.loads(probe(TIP))
+    check("held, the buffer is untouched", lines() == settled)
+    tell("key", "spec=Escape")
+    tell("key", "spec=Click:%s,%s" % at("title", 4.0))
     drag("square", -0.06, -0.5)
+    check(f"what the tip showed is what the release wrote ({tip})", tip["rows"] == [[10, lines()[10], lines()[10][len("square.hide(start="):-1]]])
     now = rows()["square"]
     check("the hide moved", lines()[10].startswith("square.hide(start=") and lines()[10] != "square.hide(start=1.2)")
     check("the end is on the tenth the edge snapped to, the start stayed",
@@ -187,6 +230,11 @@ try:
           lines() == settled and probe(SAID).startswith("PAUSE → 1.5, read on 1 line"))
     drag("circle", 1.0, -0.2)
     check("sooner too", lines() == settled and probe(SAID).startswith("PAUSE → 0.3"))
+    drag("still", 1.0, 1.0, ",hold")
+    check("a refusal is in the tip before the button is let go",
+          json.loads(probe(TIP))["refused"].startswith("nothing says when still starts") and lines() == settled)
+    tell("key", "spec=Escape")
+    tell("key", "spec=Click:%s,%s" % at("title", 4.0))
     drag("still", 1.0, 1.0)
     check("an element nothing starts has nothing to move",
           lines() == settled and probe(SAID).startswith("nothing says when still starts"))
