@@ -172,6 +172,13 @@ Item {
     // it can be lit. -1 for none.
     property int hoverLane: -1
 
+    // The row the pointer is simply resting on — head and track light
+    // together, so the eye follows one line across the panel instead of
+    // matching a clip to its name by counting rows. Two sources, one answer:
+    // leaving the track for the head must not clear what the head just said.
+    property int headRow: -1
+    readonly property int pointerRow: rowHover.row >= 0 && rowHover.row < root.lanesOrder.length ? rowHover.row : root.headRow
+
     // Where a carried thing would land — or where the edge being dragged
     // stands — in seconds, or -1 for nothing carried.
     // Drawn, because a drop you cannot aim is a drop you undo.
@@ -578,6 +585,19 @@ Item {
                     border.color: Theme.edge
                 }
 
+                Rectangle {
+                    anchors.fill: parent
+                    color: root.pointerRow === head.index ? Theme.hover : "transparent"
+                }
+                HoverHandler {
+                    onHoveredChanged: {
+                        if (hovered)
+                            root.headRow = head.index;
+                        else if (root.headRow === head.index)
+                            root.headRow = -1;
+                    }
+                }
+
                 // The lane's colour, as a strip along the edge.
                 Rectangle {
                     width: 3
@@ -681,6 +701,14 @@ Item {
         ScrollBar.horizontal: ScrollBar {}
         ScrollBar.vertical: ScrollBar {}
 
+        // The row under the pointer, from anywhere in the panel's width — a
+        // handler per lane only answered where the scene had frames.
+        HoverHandler {
+            id: rowHover
+            readonly property int row: hovered
+                ? Math.floor(lanes.mapFromItem(flick, point.position.x, point.position.y).y / root.laneHeight) : -1
+        }
+
         Column {
             id: lanes
             x: root.pad
@@ -706,6 +734,15 @@ Item {
                     }
 
                     height: root.laneHeight
+
+                    // Across the whole visible width, not the scene's: the
+                    // row goes on after the last clip, and so does the line.
+                    Rectangle {
+                        x: -lanes.x
+                        width: Math.max(flick.contentWidth, flick.width)
+                        height: parent.height
+                        color: root.pointerRow === lane.index ? Theme.hover : "transparent"
+                    }
 
                     Rectangle {
                         anchors.bottom: parent.bottom
