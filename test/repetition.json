@@ -1,6 +1,6 @@
 {
-  "repeatedLines": 1683,
-  "repetitions": 118,
+  "repeatedLines": 1675,
+  "repetitions": 117,
   "deadNames": 19,
   "clones": {
     "f701efd1a8b3f6ef": [42, 2, "auto vertSpv = compileGLSL(loadShaderSource(\"vert.glsl\"), VK_SHADER_STAGE_VERTEX_BIT);"],
@@ -48,7 +48,6 @@
     "c4cb85a9b503ffdf": [9, 2, "function readable(value) {"],
     "ffa6d4e8434cefc5": [9, 2, "VkImageCreateInfo ici{};"],
     "157d0a2668bdd465": [8, 2, "auto emit = [&](cv::Vec2f p, cv::Vec4b color) {"],
-    "35e6de420fa9ce41": [8, 2, "color: pick.containsMouse ? Theme.ink : Theme.inkDim"],
     "45360ba62ec8d58c": [8, 2, "color: Theme.panel"],
     "5679e54d31c92705": [8, 4, "VkImageCreateInfo ici{};"],
     "5c70351af983a32d": [8, 2, "Item {"],
