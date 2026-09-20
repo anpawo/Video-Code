@@ -6,6 +6,10 @@ raison, comme la colonne « Won't do » du tableau de bord.
 
 Trois verdicts possibles : **adopter**, **ignorer**, **à creuser**.
 
+Quatre outils regardés le 2026-09-20 : HyperFrames, l'API Higgsfield, Palmier
+Pro, Remotion. Aucun adopté. Ce qui en sort tient en deux lignes de tableau
+(66, 67) et une idée vue deux fois — voir Remotion.
+
 ---
 
 ## HyperFrames — ignorer comme dépendance, garder deux idées
@@ -135,6 +139,57 @@ une animation sur la musique, c'est du timing, pas du montage parlé — c'est l
 métier de l'outil. Et ça reste une analyse hors-ligne qui rend une liste de
 nombres, donc des `timestamp()` de plus dans le fichier de scène : aucune
 architecture nouvelle, aucune dépendance dans le moteur.
+
+---
+
+## Remotion — ignorer, mais c'est la meilleure référence des quatre
+
+`remotion-dev/remotion`, 59 854 étoiles, une version tous les deux ou trois
+jours depuis 2021. Le paquet `remotion` n'a **aucune dépendance**. C'est, de
+loin, le projet le plus mûr des quatre — et le plus proche de nous par
+l'intention : une vidéo est du code, et le code est la source de vérité.
+
+**Pourquoi on ne prend rien.** Deux raisons, et la première suffit.
+
+1. **Sa licence l'interdit explicitement.** Ce n'est pas une licence OSI (`SEE
+   LICENSE IN LICENSE.md`, l'API GitHub dit `NOASSERTION`). Gratuit pour un
+   individu ou une société de 3 salariés au plus, licence payante au-delà —
+   mais surtout : « It is not allowed to copy or modify Remotion code for the
+   purpose of selling, renting, licensing, relicensing, or sublicensing your
+   own derivate of Remotion. » video-code est un outil de création vidéo qui
+   va être licencié (ligne 60). Copier son code, c'est précisément le cas
+   interdit.
+2. **Même famille d'architecture qu'HyperFrames** : React rendu image par
+   image dans un Chrome headless. On a un moteur Vulkan ; une image coûte des
+   millisecondes, pas un aller-retour navigateur.
+
+**Le modèle de licence, lui, a déjà été jugé.** Le council du 17 sept. a
+examiné « le seuil façon Remotion » pour notre propre licence et l'a écarté :
+pas de société pour facturer, et le seuil tombe mal — un SaaS de trois
+personnes ne paierait rien, une grosse chaîne paierait. Verdict inchangé ;
+c'est noté ici pour que la question ne soit pas rouverte une troisième fois.
+
+**Ce qui vaut d'être volé, et qui est nommé dans son API publique :**
+
+- **`delayRender()` / `continueRender()`** — la composition dit elle-même au
+  rendeur « ne prends pas cette image, je ne suis pas prête », et `cancelRender()`
+  fait échouer le rendu bruyamment plutôt que de sortir une image fausse.
+  C'est **la même idée que le `compositionReadiness` d'HyperFrames, vue une
+  deuxième fois et mieux dessinée** : chez eux c'est explicite et à la main de
+  l'auteur, pas une heuristique du moteur. Deux projets indépendants qui
+  résolvent le même problème de la même façon, c'est le signal le plus fort de
+  cette veille — et la question « est-ce que `--generate` peut rendre une image
+  d'une vidéo pas encore décodée ? » reste ouverte chez nous.
+- **`freeze`** — ils en ont fait un composant de premier rang. Ça confirme la
+  ligne 53 du tableau, notée depuis Premiere et Final Cut : l'image figée est
+  un verbe attendu partout, pas une lubie.
+- `Series`, `Loop`, `spring`, `easing`, `Still`, `staticFile` : nos équivalents
+  existent déjà (l'enchaînement des `wait()`, les easings, `timestamp()`).
+
+**En une phrase :** rien à importer — la licence l'interdit et l'architecture
+ne nous va pas — mais c'est le projet à regarder quand on se demande à quoi
+ressemble une bonne API de vidéo-par-le-code, et il vient de confirmer une
+idée qu'on avait déjà croisée une fois.
 
 ---
 
