@@ -3152,6 +3152,47 @@ ApplicationWindow {
         return { ok: true, line: where.line, insert: element.n + ".hide(start=" + app.plain(where.start) + ")" };
     }
 
+    // ── A gap, typed or pulled ────────────────────────────────────────────
+    function writeWait(line, value) {
+        if (isNaN(value) || value < 0) {
+            source.say("a gap is a number of seconds");
+            return false;
+        }
+
+        const span = Shell.positionalSpan(source.text, line, "wait", 0, app.plain(value));
+        if (!span.ok) {
+            if (!app.offerConstant(line, "wait", 0, app.plain(value)))
+                source.say(span.message.length > 0 ? span.message
+                           : "could not write wait(" + app.plain(value) + ") on line " + line);
+            return false;
+        }
+
+        source.replaceRange(span.start, span.end, span.text);
+        app.executeScene();
+        return true;
+    }
+
+    // A gap's label, pulled: the gap ends where it was let go.
+    //
+    // Only its length is its own. Where a gap STARTS is wherever the work
+    // before it ended, and nothing writes that down — so moving a start is
+    // this same gesture on the gap before it, which is the one line that can
+    // give the time back.
+    function dragWait(line, seconds) {
+        const waits = liveScene.waits !== undefined ? liveScene.waits : [];
+        const mine = waits.find((one) => one.line === line);
+        if (mine === undefined)
+            return;
+
+        const kept = Math.max(0, seconds - mine.at);
+        if (kept < 0.02) {
+            source.say("a gap of no time is a line to delete, not a gap to pull");
+            return;
+        }
+        if (app.writeWait(line, kept))
+            source.say("wait(" + app.plain(kept) + ") on line " + line);
+    }
+
     // ── Off, without being gone ───────────────────────────────────────────
     // A commented-out line is how a person turns something off in a scene, and
     // it is the only way that survives being read back: the statement is still
@@ -4035,23 +4076,8 @@ ApplicationWindow {
         onTrimmed: (element, edge, seconds) => app.trimElement(element, edge, seconds)
         onShifted: (element, seconds) => app.moveElement(element, seconds)
         onAimChanged: app.aimTip(timeline.aim)
-        onWaitChanged: (line, seconds) => {
-            const value = parseFloat(seconds);
-            if (isNaN(value) || value < 0) {
-                source.say("a gap is a number of seconds");
-                return;
-            }
-
-            const span = Shell.positionalSpan(source.text, line, "wait", 0, value.toString());
-            if (!span.ok) {
-                if (!app.offerConstant(line, "wait", 0, value.toString()))
-                    source.say(span.message.length > 0 ? span.message : "could not write that wait");
-                return;
-            }
-
-            source.replaceRange(span.start, span.end, span.text);
-            app.executeScene();
-        }
+        onWaitChanged: (line, seconds) => app.writeWait(line, parseFloat(seconds))
+        onWaitDragged: (line, seconds) => app.dragWait(line, seconds)
 
         onScrubbed: (seconds) => {
             app.playing = false;

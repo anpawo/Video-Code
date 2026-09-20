@@ -173,21 +173,22 @@
     <span class="branch">main</span>
     <span class="chips">
       <span class="chip"><b>69</b> livrés</span>
-      <span class="chip"><b>15</b> à faire</span>
+      <span class="chip"><b>14</b> à faire</span>
       <span class="chip"><b>73</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">19 sept. · 23 h</span>
+    <span class="stamp">20 sept. · 12 h</span>
   </header>
 
   <div class="board">
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">26</span></h2>
+        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">27</span></h2>
         <ul class="rows">
           <li class="grp">Timeline & clips</li>
           <li class="hot" data-b="Tirer le corps d'un clip le déplace : ça écrit son .wait(n) devant son premier appel minuté, le change s'il existe, le retire à zéro. Le bord gauche revient : le clip apparaît plus tôt ou plus tard et sa fin ne bouge pas (le hide est compensé). Le bord droit est inchangé. Le clip suit la souris, aimanté ; Ctrl libère, Échap annule, un clic reste un clic.¦Les refus sont dits en mots : une constante propose de la changer, une vidéo ou un son ne se déplacent pas par un wait (ça décalerait l'image, pas le clip), rien à raccourcir s'il n'y a pas de wait. Testé par de vrais glissers sans fenêtre : test/timeline_drag_test.py.¦À ta souris : le seuil avant que le glisser parte, l'aimant de 8 px, les curseurs, attraper un clip de 0,4 s, et si les nombres aimantés comme 1.04 te vont dans le code. Limite connue : étirer par la gauche un clip qui a un hide fait deux ⌘Z. Relance l'app, le binaire a changé."><span class="id">37</span><span class="lbl">Glisser un clip, l'étirer par ses bords</span><span class="meta lock">ta souris</span></li>
+          <li class="hot" data-b="L'étiquette d'un trou (« wait 0.3s ») est sa poignée : on la tire de côté et le trou finit là où on lâche, aimanté ; un clic dessus ouvre toujours le champ où l'on tape le nombre. Refus en mots si ça tombe à zéro, et une constante propose toujours de changer sa ligne.¦Pas de poignée sur les bords de la bande : mesuré, un objet posé sur les pistes vole le survol des clips en dessous — et un trou commence pile là où un clip finit. Déplacer le DÉBUT d'un trou, c'est donc tirer l'étiquette du trou d'avant, la seule ligne qui puisse rendre du temps.¦À ta souris : l'étiquette attrapée du premier coup, et le fait qu'un clip ne se glisse plus depuis les ~50 px que son étiquette recouvre quand le volet est court."><span class="id">46</span><span class="lbl">Tirer un trou par son étiquette</span><span class="meta lock">ta souris</span></li>
           <li class="hot" data-b="Le trait blanc d'un bord tombe pile sur le bord du clip (mesuré : 637,67 = 637,67), et le suit pendant l'étirement. Au survol d'un bord et pendant un geste, une infobulle au style de Jarvis pointe le bord et montre la ligne qui changera, avec celle du dessus et celle du dessous ; la valeur suit la souris, un refus s'y lit avant de lâcher.¦Une seule fonction, planGesture, décide de l'édition ; l'aperçu et l'écriture la partagent — le test vérifie que l'infobulle affichait exactement ce que le relâcher écrit. Pour le bord gauche, seule la première édition est montrée (pas le hide compensé).¦À ta souris : si le trait à 30 % se voit assez sur un clip violet, si l'infobulle gêne pour viser, la pointe et le fondu de 250 ms. Pas de flou ni d'ombre derrière, contrairement à Jarvis."><span class="id">65</span><span class="lbl">Bord du clip exact, aperçu du code en direct</span><span class="meta lock">ta souris</span></li>
           <li class="hot" data-b="Tout ce qui se clique se voit au survol : clips (+6 % dans leur couleur), onglets, poignée des pistes, règle, champs des fiches, bouton d'envoi de l'agent — une seule teinte, Theme.hover, et un petit HoverTint.qml réutilisé. La sélection est adoucie : +10 % au lieu de +25 %, liseré dans la couleur du clip au lieu du blanc. L'Inspector n'est jamais vide : sans sélection, il montre la piste du haut (Échap y ramène).¦Les curseurs marchent enfin dans les volets (7444407) : une zone posée sur chaque volet imposait la flèche partout depuis le premier jour — double flèche sur les bords d'un clip, curseur texte dans le code, main sur la règle.¦À ta souris : si +5 % de survol te suffit, si un survol ne reste pas collé en vrai, et si la règle qui s'éclaire à chaque passage te va. Relance l'app.¦19 sept., après-midi : les rangées de l'Inspector s'éclairent et montrent la main, la ligne de code sous la souris s'éclaire, le champ de l'agent aussi — que le volet ait le focus ou non."><span class="id">64</span><span class="lbl">Survol partout, sélection adoucie, Inspector jamais vide</span><span class="meta lock">ta souris</span></li>
           <li class="hot" data-b="opacity(300), Square(cornerRadius=200) : le volet Code souligne la ligne en rouge et la barre est hachurée, dès le run. Dans l'Inspector, Entrée refuse et dit la borne en rouge. Transform montre position, scale, rotation, opacity, align avec leurs défauts en gris ; taper dans une rangée absente ajoute l'appel.¦Testé : test/bad_values_test.py. Relance l'app, ta souris."><span class="id">57</span><span class="lbl">Valeurs hors bornes refusées, soulignées</span><span class="meta lock">7997dfd · ta souris</span></li>
@@ -228,11 +229,11 @@
       </div>
 
       <div class="card todo">
-        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">7</span></h2>
+        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">6</span></h2>
         <ul class="rows">
           <li data-b="Une ligne repliée par outil lancé — son nom, ✓ ou ✗, dépliable sur ses arguments et son résultat — et le raisonnement en gris au-dessus de la réponse, comme ToolRunRow et ThinkingSummaryView chez Palmier.¦Aujourd'hui seules ses phrases s'affichent. Demandé le 17 sept."><span class="id">23</span><span class="lbl">Agent : ses étapes avant la réponse</span><span class="meta">ton œil</span></li>
           <li data-b="Au lieu de « Fait. », la réponse liste chaque modification en ligne:colonne, en liens : un clic met le caret dessus dans le volet Code.¦Les lignes viennent du diff qu'il laisse déjà. Demandé le 17 sept."><span class="id">25</span><span class="lbl">Agent : répond par les lignes changées, cliquables</span><span class="meta">ta souris</span></li>
-          <li data-b="Tirer le bord gauche d'une bande wait déplace son début, le bord droit sa fin ; la ligne wait(n) s'écrit en conséquence.¦Aujourd'hui seule la durée se tape dans la puce. Demandé le 17 sept."><span class="id">46</span><span class="lbl">Tirer un wait par ses bords</span><span class="meta">ton œil</span></li>
+
           <li data-b="Tape une valeur à l&#x27;instant du curseur, la ligne s&#x27;écrit. Le chrono d&#x27;After Effects."><span class="id">35</span><span class="lbl">Fiche chronomètre</span><span class="meta">ton œil</span></li>
           <li data-b="Un nombre qui évolue, et des objets qui le lisent.¦L'écriture existe (<code>attachTo</code>), il manque le verbe général.¦Lit une source pas encore tournée : d'où S1."><span class="id">36</span><span class="lbl">Valeur suivie + liaison</span><span class="meta">ton œil</span></li>
           <li class="hot" data-b="Coins 10 px, onglet capsule, champs gélule. Aucune couleur touchée.¦Branche feat/apple-shapes, avant/après dans le fil."><span class="id">38</span><span class="lbl">Formes plus proches du système</span><span class="meta lock">prêt, ton œil</span></li>

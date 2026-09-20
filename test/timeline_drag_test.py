@@ -116,6 +116,57 @@ try:
     original = lines()
     before = rows()
 
+    section("a gap's label is its handle")
+    # Pull the label sideways and the gap ends where you let go; click it and it
+    # is still the field you type into. A handle on the band's edge would sit
+    # over the clips — a gap starts exactly where one ends.
+    gaps = json.loads(probe("JSON.stringify(liveScene.waits)"))
+    check("the scene has the three gaps this fixture writes", len(gaps) == 3)
+
+    STAMPS = ("JSON.stringify((function(){ const out = {} ; function f(it) { for (const c of it.children) f(c) ; "
+              "if (it.text !== undefined && String(it.text).indexOf('wait ') === 0) "
+              "{ const p = it.mapToItem(null, it.width / 2, it.height / 2) ; out[String(it.text)] = [p.x, p.y] } } "
+              "f(timeline) ; return out })())")
+
+    def stampOf(gap: dict) -> list:
+        return json.loads(probe(STAMPS))["wait %.1fs" % gap["d"]]
+
+    def pullStamp(gap: dict, by: float) -> None:
+        where = stampOf(gap)
+        gesture(f"Drag:{where[0]},{where[1]},{where[0] + by * pps},{where[1]}")
+
+    pulled = gaps[1]
+
+    def gapOn(line: int) -> float:
+        """The number the `wait()` on that line now carries."""
+        return float(lines()[line].split("(")[1].split(")")[0])
+
+    was = gapOn(pulled["line"])
+    pullStamp(pulled, 0.5)
+    check(f"pulled right, the gap's own line is longer ({was} → {gapOn(gaps[1]['line'])})",
+          gapOn(pulled["line"]) > was)
+    check("and it says which line it wrote", probe(SAID).endswith("on line %d" % pulled["line"]))
+    while lines() != original:
+        probe("source.undo()")
+    probe("app.executeScene()")
+
+    # The long gap for this one: shortening a three-tenths gap cannot pass the
+    # drag threshold before it reaches zero at this zoom.
+    wide = gaps[0]
+    long = gapOn(wide["line"])
+    pullStamp(wide, -0.5)
+    check(f"pulled left, that gap's line is shorter ({long} → {gapOn(wide['line'])})",
+          gapOn(wide["line"]) < long)
+    while lines() != original:
+        probe("source.undo()")
+    probe("app.executeScene()")
+
+    where = stampOf(pulled)
+    gesture("Click:%s,%s" % (where[0], where[1]))
+    check("a click on the label still opens the field to type in",
+          probe("timeline.editingWait") == pulled["line"] and lines() == original)
+    gesture("Escape")
+
     section("the cursor says what the hand will do")
     # A MouseArea claims the arrow from birth, and every pane had one laid over
     # its whole content to take the keyboard: the arrow was all anyone saw, on a
@@ -238,7 +289,7 @@ try:
     drag("still", 1.0, 1.0)
     check("an element nothing starts has nothing to move",
           lines() == settled and probe(SAID).startswith("nothing says when still starts"))
-    drag("late", 0.2, -1.5)
+    drag("late", 0.05, -1.5)  # 0.05, not 0.2: a gap's label sits over that lane
     check("more than its wait holds — the wait() above holds the rest",
           lines() == settled and probe(SAID).startswith("nothing but 0.5s of .wait() to give back on line 21"))
     drag("early", 0.2, 1.0)

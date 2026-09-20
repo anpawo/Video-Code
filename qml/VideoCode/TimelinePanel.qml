@@ -249,6 +249,11 @@ Item {
     // clicking it is an edit to that line and nothing else — see Main.writeWait.
     signal waitChanged(int line, string seconds)
 
+    // A gap's label was pulled: the gap now ENDS at that moment. Where a gap
+    // starts is not its own to say — it is wherever the work before it ended —
+    // so moving a start is this same gesture on the gap before it.
+    signal waitDragged(int line, real seconds)
+
     // Which gap is being typed into, by line. Nothing else can be open at once:
     // two fields over a timeline is two answers to "what am I editing".
     property int editingWait: -1
@@ -1486,20 +1491,62 @@ Item {
                         onActiveFocusChanged: if (!activeFocus && gapStamp.editing) root.editingWait = -1;
                     }
 
+                    // The label is the gap's handle: click it to type the
+                    // number, pull it sideways to stretch the gap itself. Not
+                    // the band's edges — a handle laid over the lanes takes the
+                    // pointer from the clips under it, and a gap usually starts
+                    // exactly where a clip ends. Moving a gap's START is the
+                    // same gesture on the gap BEFORE it.
                     MouseArea {
                         id: stampMouse
                         anchors.fill: parent
                         anchors.margins: -3
                         hoverEnabled: true
                         enabled: !gapStamp.editing
-                        cursorShape: Qt.IBeamCursor
-                        onClicked: {
-                            root.editingWait = join.modelData.line;
-                            // The number alone, not the sentence: what you are
-                            // editing is the argument in the call.
-                            stampEntry.text = join.modelData.says.toFixed(2);
-                            stampEntry.forceActiveFocus();
-                            stampEntry.selectAll();
+                        cursorShape: pressed && pulled ? Qt.SizeHorCursor : Qt.IBeamCursor
+                        preventStealing: true
+
+                        property real anchorX: 0
+                        property bool pulled: false
+
+                        // The label keeps the press even where a short pane
+                        // lays it over a lane — handing it to the clip made the
+                        // gaps unreachable in the default layout, where all
+                        // three labels fall on one. The cost is small and
+                        // local: a clip is not dragged from the fifty pixels
+                        // its gap's label covers.
+                        onPressed: (mouse) => {
+                            anchorX = mapToItem(flick.contentItem, mouse.x, 0).x;
+                            pulled = false;
+                        }
+
+                        onPositionChanged: (mouse) => {
+                            if (!pressed)
+                                return;
+                            const px = mapToItem(flick.contentItem, mouse.x, 0).x - anchorX;
+                            if (!pulled && Math.abs(px) < Application.styleHints.startDragDistance)
+                                return;
+                            pulled = true;
+                            const ends = join.modelData.at + join.modelData.d;
+                            root.dropAt = ends + root.travel(ends, px, (mouse.modifiers & Qt.ControlModifier) !== 0, true);
+                        }
+
+                        onCanceled: { pulled = false; root.dropAt = -1; }
+
+                        onReleased: {
+                            const at = root.dropAt;
+                            root.dropAt = -1;
+                            if (!pulled) {
+                                root.editingWait = join.modelData.line;
+                                // The number alone, not the sentence: what you
+                                // are editing is the argument in the call.
+                                stampEntry.text = join.modelData.says.toFixed(2);
+                                stampEntry.forceActiveFocus();
+                                stampEntry.selectAll();
+                            } else if (at >= 0) {
+                                root.waitDragged(join.modelData.line, at);
+                            }
+                            pulled = false;
                         }
                     }
                 }

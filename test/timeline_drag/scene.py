@@ -19,3 +19,8 @@ wait(2)
 
 early.fadeIn()
 late = Square(side=0.4).position(y=-2).wait(0.5).fadeIn()
+
+# Two gaps in a row: the second one starts exactly where the first ends, which
+# is the only shape in which its left edge has time to take.
+wait(0.3)
+wait(0.4)
