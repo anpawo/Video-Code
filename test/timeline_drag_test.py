@@ -172,8 +172,9 @@ try:
 
     where = stampOf(pulled)
     gesture("Click:%s,%s" % (where[0], where[1]))
-    check("a click on the label still opens the field to type in",
-          probe("timeline.editingWait") == pulled["line"] and lines() == original)
+    opened = probe("timeline.editingWait")
+    check(f"a click on the label still opens the field to type in (opened {opened}, wanted {pulled['line']})",
+          opened == pulled["line"] and lines() == original)
     gesture("Escape")
 
     section("the cursor says what the hand will do")
@@ -216,7 +217,10 @@ try:
 
     section("a click is still a click")
     gesture("Click:%s,%s" % at("circle", 1.5))
-    check("it picks the clip", tell("state").get("selected", {}).get("line") == 11)
+    picked = tell("state").get("selected", {}).get("line")
+    UNDER = "(function () { const e = timeline.elementAtWindow(%s, %s) ; return e === null ? 'nothing' : e.n + ' line ' + e.line })()"
+    check(f"it picks the clip (picked {picked}, and the click landed on {probe(UNDER % at('circle', 1.5))})",
+          picked == 11)
     x, y = at("circle", 1.5)
     gesture(f"Drag:{x},{y},{x + 1},{y}")
     check("and a hand that trembles by a pixel has not dragged anything", lines() == original)
