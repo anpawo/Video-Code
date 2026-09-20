@@ -67,7 +67,16 @@ def probe(expression: str):
     """A QML expression, answered on the editor's stdout."""
     tell("key", f"spec=Eval:{expression}")
     with open(log.name) as out:
-        answers = [one for one in out.read().splitlines() if one.startswith("Probed the expression")]
+        said = out.read()
+    answers = [one for one in said.splitlines() if one.startswith("Probed the expression")]
+    # An unanswered probe used to raise IndexError on the line below, which says
+    # nothing about why — and the editor's own output, the one place that does,
+    # was being thrown away with the temporary file. Hand it over instead.
+    if not answers:
+        raise AssertionError(
+            f"the editor did not answer the probe `{expression}`.\n"
+            f"What it said instead:\n{said[-3000:] or '(nothing at all)'}"
+        )
     # By length, not by splitting on the arrow: an offer has one of its own.
     return json.loads(answers[-1][len("Probed the expression ") + len(expression) + 3 :])[0]
 
