@@ -487,9 +487,9 @@ Item {
                 opacity: row.faint ? 0.6 : 1
                 // Rich text cannot elide: a long value — a path — is drawn plain,
                 // its head cut, since the end is the part that names the file.
-                readonly property bool long: row.value.length > 20
-                textFormat: long ? Text.PlainText : Text.RichText
-                text: long ? row.value
+                readonly property bool overflows: row.value.length > 20
+                textFormat: overflows ? Text.PlainText : Text.RichText
+                text: overflows ? row.value
                            : root.painted(row.value)
                              + (row.kind === "percent" ? "<span style=\"color:" + Theme.inkFaint + "\">%</span>" : "")
                              + (row.choices.length > 0 ? "<span style=\"color:" + Theme.inkFaint + "\"> ▾</span>" : "")

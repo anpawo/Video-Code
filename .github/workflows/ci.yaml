@@ -228,7 +228,17 @@ jobs:
         run: |
           brew install --quiet ninja opencv ffmpeg freetype glslang \
                                molten-vk vulkan-headers vulkan-loader
-          python3 -m pip install --break-system-packages pybind11 -r requirements.txt
+
+      # setup-python, not the runner's own, for the same reason release.yaml
+      # says: one Python for pip and for CMake. And Homebrew's is externally
+      # managed (PEP 668), so the Qt action's own `pip install aqtinstall` died
+      # on it — this lane had not built since.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - run: pip install pybind11 -r requirements.txt
 
       - uses: jurplel/install-qt-action@v4
         with:
