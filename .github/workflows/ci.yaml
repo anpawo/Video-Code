@@ -354,9 +354,17 @@ jobs:
 
       # The one lane where every tool exists, so a skip here is a lie:
       # VC_REQUIRE_TOOLS turns "tool absent" back into a hard failure.
+      #
+      # offscreen for the same reason as the step above, and this is the only
+      # lane that needs saying so: the four tests that drive the editor start it
+      # themselves with `--serve`, and the two other lanes that run this script
+      # have no binary to start. Without it Qt defaults to xcb, finds no display
+      # and never comes up — which the tests can only report as "state did not
+      # answer within 30 s", 28 times over.
       - name: Full suite, with every tool present
         env:
           VC_REQUIRE_TOOLS: '1'
+          QT_QPA_PLATFORM: offscreen
         run: ./test/run_tests.sh
 
       # eg.py is the living showcase. Counting the frames is the point: the step
