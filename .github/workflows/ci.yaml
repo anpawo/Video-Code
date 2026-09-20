@@ -362,17 +362,18 @@ jobs:
       # and never comes up — which the tests can only report as "state did not
       # answer within 30 s", 28 times over.
       #
-      # And software rendering, because offscreen alone still leaves the lanes
-      # unplaced: the drag test forces a frame with `tell screenshot` before
-      # every gesture — grabWindow() — and with no GPU that frame never comes,
-      # so every lane sits on the first one. Measured on the runner: a click
-      # aimed at the circle selected line 7 while elementAtWindow, which is
-      # arithmetic and needs no layout, correctly said line 11.
+      # One test still fails here and is NOT fixed by an environment variable:
+      # timeline_drag's two `Click:` checks. The click reaches the right point —
+      # elementAtWindow, which is arithmetic and needs no layout, says "circle
+      # line 11" — but the press selects line 7, so the lanes the pointer hits
+      # are not where the arithmetic puts them. QT_QUICK_BACKEND=software was
+      # tried on 2026-09-20 and changed nothing, byte for byte, so the missing
+      # frame is not the cause either. Everything else in that file passes:
+      # the drags, the hovers, the edge lines, the tips.
       - name: Full suite, with every tool present
         env:
           VC_REQUIRE_TOOLS: '1'
           QT_QPA_PLATFORM: offscreen
-          QT_QUICK_BACKEND: software
         run: ./test/run_tests.sh
 
       # eg.py is the living showcase. Counting the frames is the point: the step
