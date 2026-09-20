@@ -10,10 +10,11 @@ import sys
 sys.path.insert(0, ".")
 
 import videocode.serialize as serialize  # noqa: E402
-from helpers import needsTool  # noqa: E402
+from helpers import needsFile, needsTool  # noqa: E402
 from videocode import Square, Video  # noqa: E402
 
-if not needsTool("ffprobe", "a clip's last image is counted off the file"):
+if not needsTool("ffprobe", "a clip's last image is counted off the file") \
+   or not needsFile("marius.mov", "the video this reads is not in the repository"):
     print("\033[32m\u2713\033[0m  skipped: no ffprobe here")
     sys.exit(0)
 

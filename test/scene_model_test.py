@@ -23,7 +23,7 @@ import tempfile
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
-from helpers import check, needsRenderer, needsTool, section, summary
+from helpers import check, needsFile, needsRenderer, needsTool, section, summary
 
 from videocode.serialize import execSource
 
@@ -425,7 +425,8 @@ with tempfile.TemporaryDirectory() as folder:
 section("--inspect prints the model the timeline is drawn from")
 # The agent pane's child edits the file and cannot see the timeline. This is
 # how it asks for one — the same model, out of the same binary, as JSON.
-if needsRenderer("--inspect is a flag of the renderer") and needsTool("ffprobe", "the fixture scene holds a video"):
+if needsRenderer("--inspect is a flag of the renderer") and needsTool("ffprobe", "the fixture scene holds a video") \
+   and needsFile("marius.mov", "the fixture scene reads a video the repository does not carry"):
     done = subprocess.run(["./video-code", "--inspect", "--file", FIXTURE],
                           capture_output=True, text=True, timeout=120)
     check("it exits clean", done.returncode == 0)
@@ -473,7 +474,8 @@ section("the brief in front of a question says what the author is looking at")
 # The fourth key moves the selected element to another file rather than
 # building a scene that imports one: the branch under test is the shell's, and
 # a second windowless run to reach it costs more than everything above.
-if needsRenderer("the brief is built by the chrome") and needsTool("ffprobe", "the fixture scene holds a video"):
+if needsRenderer("the brief is built by the chrome") and needsTool("ffprobe", "the fixture scene holds a video") \
+   and needsFile("marius.mov", "the fixture scene reads a video the repository does not carry"):
     shot = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
     shot.close()
     dock = tempfile.NamedTemporaryFile(suffix=".json", delete=False)

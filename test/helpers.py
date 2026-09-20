@@ -43,6 +43,18 @@ def needsTool(tool: str, why: str) -> bool:
     return False
 
 
+def needsFile(path: str, why: str) -> bool:
+    """
+    A file the test reads that the repository does not carry.
+
+    The videos are the author's own and `.gitignore` keeps them out, so a clean
+    checkout — every CI runner — has the tools but not the footage. Skipped and
+    said, like a missing tool, rather than an ffprobe that exits 1 on a path
+    that is not there.
+    """
+    return needsTool(path if path.startswith("./") else "./" + path, why)
+
+
 def needsRenderer(why: str) -> bool:
     """The compiled renderer, which is a tool like any other."""
     return needsTool("./video-code", why)

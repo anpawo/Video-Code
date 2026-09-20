@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
-from helpers import check, needsTool, section, summary
+from helpers import check, needsFile, needsTool, section, summary
 
 from videocode import Image, Video, UVMapping
 from videocode.context import Context
@@ -35,7 +35,8 @@ entry3 = Context.stack[img3.meta.index][-1]
 check("uvMapping conic", entry3["args"]["uvMapping"] == "conic")
 
 section("Video — uvMapping/uvAngle defaults and overrides")
-if not needsTool("ffprobe", "UV mapping is checked on a video"):
+if not needsTool("ffprobe", "UV mapping is checked on a video") \
+   or not needsFile("test.mp4", "the video this reads is not in the repository"):
     summary()
     sys.exit(0)
 
