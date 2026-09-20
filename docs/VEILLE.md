@@ -142,54 +142,86 @@ architecture nouvelle, aucune dépendance dans le moteur.
 
 ---
 
-## Remotion — ignorer, mais c'est la meilleure référence des quatre
+## Remotion — ne pas importer son code, mais prendre son principe
 
 `remotion-dev/remotion`, 59 854 étoiles, une version tous les deux ou trois
-jours depuis 2021. Le paquet `remotion` n'a **aucune dépendance**. C'est, de
-loin, le projet le plus mûr des quatre — et le plus proche de nous par
-l'intention : une vidéo est du code, et le code est la source de vérité.
+jours depuis 2021, zéro dépendance sur le paquet principal. De loin le plus
+mûr des quatre, et le plus proche de nous par l'intention.
 
-**Pourquoi on ne prend rien.** Deux raisons, et la première suffit.
+### Le principe, en une phrase
 
-1. **Sa licence l'interdit explicitement.** Ce n'est pas une licence OSI (`SEE
-   LICENSE IN LICENSE.md`, l'API GitHub dit `NOASSERTION`). Gratuit pour un
-   individu ou une société de 3 salariés au plus, licence payante au-delà —
-   mais surtout : « It is not allowed to copy or modify Remotion code for the
-   purpose of selling, renting, licensing, relicensing, or sublicensing your
-   own derivate of Remotion. » video-code est un outil de création vidéo qui
-   va être licencié (ligne 60). Copier son code, c'est précisément le cas
-   interdit.
-2. **Même famille d'architecture qu'HyperFrames** : React rendu image par
-   image dans un Chrome headless. On a un moteur Vulkan ; une image coûte des
-   millisecondes, pas un aller-retour navigateur.
+**Une vidéo est une fonction pure du numéro d'image vers une image.** Tout le
+reste en découle :
 
-**Le modèle de licence, lui, a déjà été jugé.** Le council du 17 sept. a
-examiné « le seuil façon Remotion » pour notre propre licence et l'a écarté :
-pas de société pour facturer, et le seuil tombe mal — un SaaS de trois
-personnes ne paierait rien, une grosse chaîne paierait. Verdict inchangé ;
-c'est noté ici pour que la question ne soit pas rouverte une troisième fois.
+- `useCurrentFrame()` est la *seule* source du temps. Pas d'horloge murale, pas
+  d'état accumulé.
+- `<Sequence from={30}>` ne déplace rien : il **décale le numéro d'image que
+  ses enfants reçoivent**. Composer dans le temps, c'est renommer l'entrée, pas
+  muter une timeline.
+- Parce que c'est pur, ils rendent les images **en parallèle dans plusieurs
+  onglets indépendants**. C'est le gain, et c'est pour ça que le principe est
+  tenu si strictement.
+- L'impôt à payer, écrit noir sur blanc dans leur page « flickering » : un
+  composant doit donner le même visuel à chaque appel, ne pas dépendre de
+  l'ordre de rendu, ne pas s'animer en pause, et ne pas tirer au hasard.
+- `delayRender()` / `continueRender()` / `cancelRender()` sont la seule façon
+  légale de n'être « pas prêt » : la fonction dit qu'elle ne peut pas encore
+  répondre, au lieu de répondre faux.
 
-**Ce qui vaut d'être volé, et qui est nommé dans son API publique :**
+### Ce que ça dit de notre architecture — et c'est plutôt bon
 
-- **`delayRender()` / `continueRender()`** — la composition dit elle-même au
-  rendeur « ne prends pas cette image, je ne suis pas prête », et `cancelRender()`
-  fait échouer le rendu bruyamment plutôt que de sortir une image fausse.
-  C'est **la même idée que le `compositionReadiness` d'HyperFrames, vue une
-  deuxième fois et mieux dessinée** : chez eux c'est explicite et à la main de
-  l'auteur, pas une heuristique du moteur. Deux projets indépendants qui
-  résolvent le même problème de la même façon, c'est le signal le plus fort de
-  cette veille — et la question « est-ce que `--generate` peut rendre une image
-  d'une vidéo pas encore décodée ? » reste ouverte chez nous.
-- **`freeze`** — ils en ont fait un composant de premier rang. Ça confirme la
-  ligne 53 du tableau, notée depuis Premiere et Final Cut : l'image figée est
-  un verbe attendu partout, pas une lubie.
-- `Series`, `Loop`, `spring`, `easing`, `Still`, `staticFile` : nos équivalents
-  existent déjà (l'enchaînement des `wait()`, les easings, `timestamp()`).
+Chez nous la scène est un programme Python **exécuté une seule fois**, de haut
+en bas, qui empile des statements ; `wait()` avance un curseur ; les images
+sont ensuite rendues depuis ce résultat cuit. Impératif-puis-cuit, là où
+Remotion est pur-par-image.
 
-**En une phrase :** rien à importer — la licence l'interdit et l'architecture
-ne nous va pas — mais c'est le projet à regarder quand on se demande à quoi
-ressemble une bonne API de vidéo-par-le-code, et il vient de confirmer une
-idée qu'on avait déjà croisée une fois.
+Conséquence : **toute la classe de bugs de leur page « flickering » ne peut pas
+nous arriver.** La scène ne tourne jamais par image, donc deux fils ne peuvent
+pas diverger. Leurs quatre règles sont l'impôt de React et du rendu parallèle,
+pas une loi universelle. Et leur `<Sequence>` — décaler le temps vu par un
+sous-arbre — on l'a déjà : `offset=` et `at=` dans `apply()`.
+
+### Le seul endroit où leur leçon nous vise vraiment
+
+Ils ont dû inventer `random(seed)` parce que `Math.random()` casse le rendu.
+Chez nous, vérifié le 2026-09-20 : **aucun tirage au hasard nulle part** —
+zéro `random` dans `videocode/`, dans les scènes, dans les templates, et
+aucune graine posée. On est déterministe *par absence*, pas par conception.
+
+Le jour où une scène éparpille des particules avec `random.uniform()`, elle
+sera cohérente dans une exécution (la scène ne tourne qu'une fois) mais
+**différente à la suivante** : les goldens se mettent à battre, et l'empreinte
+des 54 scènes — la barrière que `CLAUDE.md` désigne comme celle qui a attrapé
+ce que toutes les autres laissaient passer — commence à mentir. Une barrière
+qui bat finit désactivée.
+
+Ça ne demande pas de code aujourd'hui (personne n'en a besoin), mais ça demande
+de le savoir avant d'en avoir besoin. Ligne 69 du tableau.
+
+### Et la licence, correctement lue
+
+Elle n'est pas OSI (`SEE LICENSE IN LICENSE.md`, `NOASSERTION` côté API). Ce
+qu'elle interdit est précis : « copy or modify Remotion code **for the purpose
+of selling, renting, licensing, relicensing, or sublicensing your own derivate
+of Remotion** ». Donc :
+
+| | |
+|---|---|
+| L'utiliser, même commercialement | **permis** — la Free License couvre un individu, et video-code n'est pas une société |
+| Lire son code, comprendre son modèle, réimplémenter l'idée | **permis** — le droit d'auteur protège l'expression, pas l'idée |
+| Copier son code dans un outil vidéo qu'on licencie ensuite | **interdit**, et c'est ce que serait video-code le jour où la ligne 60 aboutit |
+
+Son modèle de licence à seuil (gratuit jusqu'à 3 salariés) avait déjà été
+examiné pour *notre* licence par le council du 17 sept. et écarté : pas de
+société pour facturer, et le seuil tombe mal. Noté ici pour que la question ne
+soit pas rouverte une troisième fois.
+
+**Donc :** on n'importe pas son code — l'architecture ne nous va pas de toute
+façon, React rendu image par image dans un Chrome headless quand on a un moteur
+Vulkan. Mais c'est le projet à lire quand on se demande à quoi ressemble une
+bonne API de vidéo-par-le-code, et il a confirmé deux choses : l'idée de
+« readiness » vue une deuxième fois, et `freeze` en verbe de premier rang, ce
+qui appuie la ligne 53.
 
 ---
 

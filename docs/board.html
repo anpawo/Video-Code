@@ -173,11 +173,11 @@
     <span class="branch">main</span>
     <span class="chips">
       <span class="chip"><b>69</b> livrés</span>
-      <span class="chip"><b>16</b> à faire</span>
+      <span class="chip"><b>17</b> à faire</span>
       <span class="chip"><b>73</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">20 sept. · 19 h</span>
+    <span class="stamp">20 sept. · 20 h</span>
   </header>
 
   <div class="board">
@@ -231,7 +231,7 @@
       </div>
 
       <div class="card todo">
-        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">7</span></h2>
+        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">8</span></h2>
         <ul class="rows">
           <li data-b="Une ligne repliée par outil lancé — son nom, ✓ ou ✗, dépliable sur ses arguments et son résultat — et le raisonnement en gris au-dessus de la réponse, comme ToolRunRow et ThinkingSummaryView chez Palmier.¦Aujourd'hui seules ses phrases s'affichent. Demandé le 17 sept."><span class="id">23</span><span class="lbl">Agent : ses étapes avant la réponse</span><span class="meta">ton œil</span></li>
           <li data-b="Au lieu de « Fait. », la réponse liste chaque modification en ligne:colonne, en liens : un clic met le caret dessus dans le volet Code.¦Les lignes viennent du diff qu'il laisse déjà. Demandé le 17 sept."><span class="id">25</span><span class="lbl">Agent : répond par les lignes changées, cliquables</span><span class="meta">ta souris</span></li>
@@ -241,6 +241,7 @@
           <li class="hot" data-b="Coins 10 px, onglet capsule, champs gélule. Aucune couleur touchée.¦Branche feat/apple-shapes, avant/après dans le fil."><span class="id">38</span><span class="lbl">Formes plus proches du système</span><span class="meta lock">prêt, ton œil</span></li>
           <li data-b="La fenêtre sans écran reçoit le focus, la photo attend les touches.¦Reste : <code>window.active</code> est faux sans fenêtre plateforme.¦Piste restante <code>QWindow::create()</code>, non tentée : elle pourrait afficher."><span class="id">39</span><span class="lbl">Raccourcis de fenêtre en headless</span><span class="meta">ton avis</span></li>
           <li data-b="Une passe qui lit la scène et dit ce qui cloche sans rendre une image : un clip qui commence après la fin, un wait négatif, un élément jamais visible.¦Idée prise à <code>hyperframes lint</code> (veille du 20 sept.) : moins cher qu'un golden, attrape une autre classe d'erreurs.¦Détail : docs/VEILLE.md."><span class="id">66</span><span class="lbl"><code>--lint</code> : la scène vérifiée sans rendu</span><span class="meta">ton œil</span></li>
+          <li data-b="Vérifié le 20 sept. : zéro tirage au hasard dans videocode/, les scènes et les templates, et aucune graine. On est déterministe par absence, pas par conception.¦Le jour où une scène éparpille des particules avec random.uniform(), elle sera cohérente dans une exécution mais différente à la suivante : les goldens battent, et l&#x27;empreinte des 54 scènes se met à mentir. Une barrière qui bat finit désactivée.¦Remotion a eu exactement ce problème et a répondu par un random(graine). Rien à coder tant que personne n&#x27;en a besoin — mais à savoir avant. Détail : docs/VEILLE.md."><span class="id">69</span><span class="lbl">Hasard : une graine avant qu&#x27;une scène en ait besoin</span><span class="meta">ton avis</span></li>
         </ul>
       </div>
 
