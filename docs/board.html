@@ -177,7 +177,7 @@
       <span class="chip"><b>73</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">20 sept. · 16 h</span>
+    <span class="stamp">20 sept. · 17 h</span>
   </header>
 
   <div class="board">
@@ -224,8 +224,10 @@
 
     <div class="col">
       <div class="card doing">
-        <h2>In progress <em>rien — les sessions attendent ton go</em> <span class="n">0</span></h2>
-        <ul class="rows"></ul>
+        <h2>In progress <em>la CI juge, rien à ta main</em> <span class="n">1</span></h2>
+        <ul class="rows">
+          <li data-b="Les 4 tests qui pilotent l&#x27;éditeur le lancent avec --serve ; sans DISPLAY, Qt prenait xcb et ne démarrait pas — 28 ✗ muets, rouge depuis le 16 sept.¦Correctif : QT_QPA_PLATFORM=offscreen sur la seule étape qui en a besoin, comme --check-chrome juste au-dessus. Reproduit sur le Mac en forçant une plateforme absente : mêmes 28 échecs.¦<code>3c7c677</code> — la CI dit si ça suffit."><span class="id">68</span><span class="lbl">CI Linux : la suite complète était rouge</span><span class="meta sha">3c7c677</span></li>
+        </ul>
       </div>
 
       <div class="card todo">
