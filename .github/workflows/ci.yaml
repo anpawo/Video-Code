@@ -361,10 +361,18 @@ jobs:
       # have no binary to start. Without it Qt defaults to xcb, finds no display
       # and never comes up — which the tests can only report as "state did not
       # answer within 30 s", 28 times over.
+      #
+      # And software rendering, because offscreen alone still leaves the lanes
+      # unplaced: the drag test forces a frame with `tell screenshot` before
+      # every gesture — grabWindow() — and with no GPU that frame never comes,
+      # so every lane sits on the first one. Measured on the runner: a click
+      # aimed at the circle selected line 7 while elementAtWindow, which is
+      # arithmetic and needs no layout, correctly said line 11.
       - name: Full suite, with every tool present
         env:
           VC_REQUIRE_TOOLS: '1'
           QT_QPA_PLATFORM: offscreen
+          QT_QUICK_BACKEND: software
         run: ./test/run_tests.sh
 
       # eg.py is the living showcase. Counting the frames is the point: the step

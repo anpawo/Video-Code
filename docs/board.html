@@ -177,7 +177,7 @@
       <span class="chip"><b>73</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">20 sept. · 17 h</span>
+    <span class="stamp">20 sept. · 18 h</span>
   </header>
 
   <div class="board">
@@ -226,7 +226,7 @@
       <div class="card doing">
         <h2>In progress <em>la CI juge, rien à ta main</em> <span class="n">1</span></h2>
         <ul class="rows">
-          <li data-b="Les 4 tests qui pilotent l&#x27;éditeur le lancent avec --serve ; sans DISPLAY, Qt prenait xcb et ne démarrait pas — 28 ✗ muets, rouge depuis le 16 sept.¦Correctif : QT_QPA_PLATFORM=offscreen sur la seule étape qui en a besoin, comme --check-chrome juste au-dessus. Reproduit sur le Mac en forçant une plateforme absente : mêmes 28 échecs.¦<code>3c7c677</code> — la CI dit si ça suffit."><span class="id">68</span><span class="lbl">CI Linux : la suite complète était rouge</span><span class="meta sha">3c7c677</span></li>
+          <li data-b="Rouge depuis le 16 sept. Trois causes empilées, deux réglées : la suite Linux ne posait aucune plateforme Qt (l&#x27;éditeur prenait xcb, sans écran, et ne démarrait pas) ; et stdout était entièrement tamponné sur glibc, donc le test qui lit l&#x27;éditeur VIVANT ne voyait qu&#x27;un fichier vide — macOS le vidait, d&#x27;où vert ici et rouge là-bas depuis toujours.¦De 4 fichiers rouges à 1, et de 28 ✗ à 2. Restent deux assertions, toutes deux sur un Click: synthétique sous offscreen ; les Drag: et les survols passent. Elles disent maintenant ce qu&#x27;elles voient sous le point cliqué.¦Je ne peux pas trancher depuis ce Mac : il n&#x27;a pas le greffon offscreen. <code>3c7c677</code> <code>ab3e246</code> <code>da08182</code>."><span class="id">68</span><span class="lbl">CI Linux : de 28 échecs à 2</span><span class="meta sha">da08182</span></li>
         </ul>
       </div>
 
