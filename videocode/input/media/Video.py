@@ -38,6 +38,24 @@ def _pixelToWorld(
     return (worldX, worldY)
 
 
+def _probe(args: list[str]) -> str:
+    """
+    What `ffprobe` answers, or a sentence saying it is not installed.
+
+    Raised rather than returned: a clip whose size nobody knows cannot be
+    placed. The bare FileNotFoundError this replaces named `ffprobe` and
+    nothing else — not what it was for, not how to get it.
+    """
+    try:
+        return subprocess.run(["ffprobe", "-v", "error", *args],
+                              capture_output=True, text=True, check=True).stdout.strip()
+    except FileNotFoundError as missing:
+        raise FileNotFoundError(
+            "`ffprobe` not found — install ffmpeg (`brew install ffmpeg`, "
+            "`apt install ffmpeg`) to read a video's size and length."
+        ) from missing
+
+
 class Video(Polygon):
     cppName = "Video"
     cppAttrs = Polygon.cppAttrs | {"filepath", "cuts", "speedRamps", "uvMapping", "uvAngle", "originFrame"}
@@ -137,12 +155,9 @@ class Video(Polygon):
         # other through the video's own proportions, neither given is its
         # natural frame size — the same rule as `Image`, for the same reason.
         if width is None or height is None:
-            out = subprocess.run(
-                ["ffprobe", "-v", "error", "-select_streams", "v:0",
-                 "-show_entries", "stream=width,height", "-of", "csv=p=0", filepath],
-                capture_output=True, text=True, check=True,
-            )
-            w, h = out.stdout.strip().split(",")
+            out = _probe(["-select_streams", "v:0", "-show_entries", "stream=width,height",
+                          "-of", "csv=p=0", filepath])
+            w, h = out.split(",")
             width, height = _fitToRatio(width, height, float(w), float(h))
 
         self.width = width
@@ -179,11 +194,8 @@ class Video(Polygon):
         # means the clip's last EFFECT, which ends long before the clip does.
         self._ownEnd: frame = 0
         if self.placed:
-            said = subprocess.run(
-                ["ffprobe", "-v", "error", "-select_streams", "v:0",
-                 "-show_entries", "stream=nb_frames", "-of", "csv=p=0", filepath],
-                capture_output=True, text=True, check=True,
-            ).stdout.strip()
+            said = _probe(["-select_streams", "v:0", "-show_entries", "stream=nb_frames",
+                           "-of", "csv=p=0", filepath])
             frames = int(said) if said.isdigit() else 0
             cut, seen = 0, 0
             for a, b in sorted((min(a, frames), min(b, frames)) for a, b in self.cuts):

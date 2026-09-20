@@ -2641,33 +2641,33 @@ Item {
                         model: family.modelData.items
 
                         Rectangle {
-                            id: chip
+                            id: fxChip
                             required property var modelData
                             width: label.implicitWidth + 18
                             height: 22
                             radius: 4
-                            color: pick.containsMouse ? Qt.alpha(root.fxHue, 0.14) : Theme.sunk
+                            color: fxPick.containsMouse ? Qt.alpha(root.fxHue, 0.14) : Theme.sunk
                             border.width: 1
-                            border.color: pick.containsMouse ? root.fxHue : Theme.edge
+                            border.color: fxPick.containsMouse ? root.fxHue : Theme.edge
 
                             Text {
                                 id: label
                                 anchors.centerIn: parent
-                                text: chip.modelData.name
-                                color: pick.containsMouse ? Theme.ink : Theme.inkDim
+                                text: fxChip.modelData.name
+                                color: fxPick.containsMouse ? Theme.ink : Theme.inkDim
                                 font.family: Theme.mono
                                 font.pixelSize: 11
                             }
 
                             MouseArea {
-                                id: pick
+                                id: fxPick
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 // Chosen, not applied. What it is set to and
                                 // where it lands are still open questions, and
                                 // an effect written into the scene the instant
                                 // you name it answers both of them for you.
-                                onClicked: root.pick(chip.modelData)
+                                onClicked: root.pick(fxChip.modelData)
                             }
                         }
                     }

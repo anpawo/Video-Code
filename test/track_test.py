@@ -34,7 +34,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
-from helpers import check, section, summary
+from helpers import check, needsTool, section, summary
 
 from videocode import *
 from videocode.input.media.Video import _pixelToWorld
@@ -68,6 +68,10 @@ def buildSyntheticVideo(path: str) -> None:
 
 
 FIXTURE = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False).name
+if not needsTool("ffprobe", "a clip's own track is read off the file"):
+    summary()
+    sys.exit(0)
+
 buildSyntheticVideo(FIXTURE)
 atexit.register(lambda: os.path.exists(FIXTURE) and os.remove(FIXTURE))
 

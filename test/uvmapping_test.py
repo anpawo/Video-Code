@@ -13,7 +13,7 @@ import sys
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
-from helpers import check, section, summary
+from helpers import check, needsTool, section, summary
 
 from videocode import Image, Video, UVMapping
 from videocode.context import Context
@@ -35,6 +35,10 @@ entry3 = Context.stack[img3.meta.index][-1]
 check("uvMapping conic", entry3["args"]["uvMapping"] == "conic")
 
 section("Video — uvMapping/uvAngle defaults and overrides")
+if not needsTool("ffprobe", "UV mapping is checked on a video"):
+    summary()
+    sys.exit(0)
+
 vid = Video("test.mp4", width=1, height=1)
 ventry = Context.stack[vid.meta.index][-1]
 check("default uvMapping is stretch", ventry["args"]["uvMapping"] == "stretch")

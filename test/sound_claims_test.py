@@ -112,9 +112,10 @@ section("what duck() writes, and what a sound says its length is")
 _resetContext()
 
 whole = Sound("test/test.wav")
-check(f"a sound is as long as its file ({whole.length():.2f}s of 2.00)", abs(whole.length() - 2.0) < 0.02)
-trimmed = Sound("test/test.wav", trimStart=0.5, trimEnd=1.5)
-check(f"trimmed, it is as long as the part that plays ({trimmed.length():.2f}s)", abs(trimmed.length() - 1.0) < 0.02)
+if needsTool("ffprobe", "how long a sound is comes from the file"):
+    check(f"a sound is as long as its file ({whole.length():.2f}s of 2.00)", abs(whole.length() - 2.0) < 0.02)
+    trimmed = Sound("test/test.wav", trimStart=0.5, trimEnd=1.5)
+    check(f"trimmed, it is as long as the part that plays ({trimmed.length():.2f}s)", abs(trimmed.length() - 1.0) < 0.02)
 check("a file that is not there is not a length", Sound("test/nothing-here.wav").length() == 0.0)
 
 _resetContext()

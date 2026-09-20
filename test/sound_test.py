@@ -143,7 +143,8 @@ def firstSilenceEnd(videoPath: str) -> float | None:
 
 
 section("Sound — rendered")
-if not needsRenderer("a delayed sound has to be heard in an actual muxed file"):
+if not needsRenderer("a delayed sound has to be heard in an actual muxed file") \
+   or not needsTool("ffmpeg", "a muxed file is ffmpeg's to write"):
     summary()
     sys.exit(0)
 
