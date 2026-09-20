@@ -173,11 +173,11 @@
     <span class="branch">main</span>
     <span class="chips">
       <span class="chip"><b>69</b> livrés</span>
-      <span class="chip"><b>14</b> à faire</span>
+      <span class="chip"><b>16</b> à faire</span>
       <span class="chip"><b>73</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">20 sept. · 12 h</span>
+    <span class="stamp">20 sept. · 16 h</span>
   </header>
 
   <div class="board">
@@ -229,7 +229,7 @@
       </div>
 
       <div class="card todo">
-        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">6</span></h2>
+        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">7</span></h2>
         <ul class="rows">
           <li data-b="Une ligne repliée par outil lancé — son nom, ✓ ou ✗, dépliable sur ses arguments et son résultat — et le raisonnement en gris au-dessus de la réponse, comme ToolRunRow et ThinkingSummaryView chez Palmier.¦Aujourd'hui seules ses phrases s'affichent. Demandé le 17 sept."><span class="id">23</span><span class="lbl">Agent : ses étapes avant la réponse</span><span class="meta">ton œil</span></li>
           <li data-b="Au lieu de « Fait. », la réponse liste chaque modification en ligne:colonne, en liens : un clic met le caret dessus dans le volet Code.¦Les lignes viennent du diff qu'il laisse déjà. Demandé le 17 sept."><span class="id">25</span><span class="lbl">Agent : répond par les lignes changées, cliquables</span><span class="meta">ta souris</span></li>
@@ -238,11 +238,12 @@
           <li data-b="Un nombre qui évolue, et des objets qui le lisent.¦L'écriture existe (<code>attachTo</code>), il manque le verbe général.¦Lit une source pas encore tournée : d'où S1."><span class="id">36</span><span class="lbl">Valeur suivie + liaison</span><span class="meta">ton œil</span></li>
           <li class="hot" data-b="Coins 10 px, onglet capsule, champs gélule. Aucune couleur touchée.¦Branche feat/apple-shapes, avant/après dans le fil."><span class="id">38</span><span class="lbl">Formes plus proches du système</span><span class="meta lock">prêt, ton œil</span></li>
           <li data-b="La fenêtre sans écran reçoit le focus, la photo attend les touches.¦Reste : <code>window.active</code> est faux sans fenêtre plateforme.¦Piste restante <code>QWindow::create()</code>, non tentée : elle pourrait afficher."><span class="id">39</span><span class="lbl">Raccourcis de fenêtre en headless</span><span class="meta">ton avis</span></li>
+          <li data-b="Une passe qui lit la scène et dit ce qui cloche sans rendre une image : un clip qui commence après la fin, un wait négatif, un élément jamais visible.¦Idée prise à <code>hyperframes lint</code> (veille du 20 sept.) : moins cher qu'un golden, attrape une autre classe d'erreurs.¦Détail : docs/VEILLE.md."><span class="id">66</span><span class="lbl"><code>--lint</code> : la scène vérifiée sans rendu</span><span class="meta">ton œil</span></li>
         </ul>
       </div>
 
       <div class="card todo">
-        <h2>To do · the rest <em>gros morceaux, rien ne les bloque</em> <span class="n">8</span></h2>
+        <h2>To do · the rest <em>gros morceaux, rien ne les bloque</em> <span class="n">9</span></h2>
         <ul class="rows">
           <li data-b="Council du 17 sept. (5 sièges, 3 voix sur 5, les 5 relecteurs d'accord) : PolyForm Noncommercial 1.0.0 sans un mot changé dans LICENSE, et LICENSE-EXCEPTION.md à côté. Deux permissions en plus : la vidéo publiée avec le crédit « made with mariusrousset.com/videocode », et les scènes, templates et code de l'agent qui restent à celui qui les écrit.¦À trancher par toi : une vidéo faite pour un client, permise ou accord. L'adresse du crédit est une redirection 307 posée dans ton site (dépôt portfolio, next.config.ts) : le jour où le dépôt déménage, une ligne à changer et les vieilles vidéos suivent. La licence doit renvoyer à « l'adresse du README », pas l'écrire en dur. « videocode » est pris sur GitHub, YouTube, .com (en vente) et .dev ; videocode.fr était libre le 17 sept. À faire avec : CLA selon le droit français, nom déposé à l'INPI, une heure d'avocat sur l'exception et le CLA. Si un binaire sort un jour : Qt et FFmpeg sont liés en statique ici, la LGPL demande qu'on puisse les remplacer.¦Avant de poser la licence : plus rien de chess.com dans l'arbre — le fou wb.png est devenu tinder-mail.png, ton icône de Jarvis (2 goldens et le gif du README refaits le 18 sept.). Elle porte le M de Gmail, qui est à Google : à toi de dire s'il reste. La licence court à partir d'un tag. Sortis du dépôt le 18 sept. : les 13 PNG de chess.com, le template chessboard, sa scène et python-chess (GPL-3). Détail : council/2026-09-17-143413/."><span class="id">60</span><span class="lbl">Licence : PolyForm NC + exception vidéo</span><span class="meta">ton choix</span></li>
           <li data-b="Une image du clip tous les 120 px, rendue par le moteur, comme Premiere et Palmier : un clip vidéo se reconnaît sans lire son nom.¦Vu chez Premiere, Palmier, noté le 17 sept."><span class="id">47</span><span class="lbl">Vignettes dans les clips vidéo</span><span class="meta">ton œil</span></li>
@@ -251,6 +252,7 @@
           <li data-b="Copie la ligne sous l'original avec un nom suffixé, et le clip apparaît sur sa voie. Premiere et Final Cut l'ont tous deux sur ⌘D.¦Vu chez Premiere, Final Cut, noté le 17 sept."><span class="id">50</span><span class="lbl">Dupliquer un clip, ⌘D</span><span class="meta">ta touche</span></li>
           <li data-b="timestamp(&quot;nom&quot;, color=…) colore le drapeau ; un volet liste les marqueurs, un clic y va. Le panneau Markers de Premiere.¦Vu chez Premiere, noté le 17 sept."><span class="id">52</span><span class="lbl">Marqueurs en couleur, et leur liste</span><span class="meta">ta souris</span></li>
           <li data-b="Un verbe sur Video qui tient une image n secondes, le film reprend après. Frame Hold de Premiere, Hold Frame de Final Cut ; utile pour poser une explication sur un plan.¦Vu chez Premiere, Final Cut, noté le 17 sept."><span class="id">53</span><span class="lbl">Image figée : freeze(at, duration)</span><span class="meta">ton œil</span></li>
+          <li data-b="Analyser une piste audio hors ligne et en sortir des <code>timestamp()</code> : caler une animation sur la musique sans compter les temps à la main.¦Seule case du catalogue de Palmier Pro qu&#x27;on ne coche pas et qui reste ouverte — le montage par transcription, lui, est refusé (ligne 42).¦Du timing, pas du montage parlé : aucune architecture nouvelle, rien de neuf dans le moteur. Veille du 20 sept., docs/VEILLE.md."><span class="id">67</span><span class="lbl">Temps de la musique : <code>beats()</code></span><span class="meta">ton choix</span></li>
           <li data-b="La scène sort comme un projet qu&#x27;on rouvre là-bas, pas seulement un MP4.¦À décider : FCPXML, EDL, OTIO ou plug-in, et lequel en premier."><span class="id">40</span><span class="lbl">Intégration CapCut / Premiere / AE</span><span class="meta">ton choix</span></li>
         </ul>
       </div>
