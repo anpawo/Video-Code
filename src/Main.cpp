@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <argparse/argparse.hpp>
 #include <csignal>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -438,6 +439,15 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+    // Line by line, because something is reading this while it is still being
+    // written. `--serve` is driven by a test that starts the editor, keeps it
+    // alive and reads its stdout for the answer to each probe. Redirected to a
+    // file, stdout is fully buffered on glibc, so the answer sat in a 4 KB
+    // buffer until the process exited and the reader saw an empty file —
+    // Linux only, since macOS flushed it. Cheap: this stream carries a handful
+    // of lines a run.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
+
     // Initialize the Python interpreter once for the whole process.
     // false = don't override Qt's signal handlers.
     // A shipped folder carries its own Python — `python/` beside the
