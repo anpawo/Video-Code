@@ -308,9 +308,9 @@ effect, with the file it lives in and a scene that exercises it — is
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE), with two permissions added in
-[LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md): the videos you make are yours to
-publish and monetise anywhere as long as they credit
+[PolyForm Noncommercial 1.0.0](LICENSE), with two permissions added on top of
+it: the videos you make are yours to publish and monetise anywhere as long as
+they credit
 
 > made with https://mariusrousset.com/videocode
 
