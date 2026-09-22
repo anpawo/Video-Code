@@ -305,3 +305,15 @@ decide, and how to re-baseline performance deliberately.
 The full list of what a scene can use — every input, transformation, shader and
 effect, with the file it lives in and a scene that exercises it — is
 [docs/FEATURES.md](docs/FEATURES.md). What changed, and when, is `git log`.
+
+## License
+
+[PolyForm Noncommercial 1.0.0](LICENSE), with two permissions added in
+[LICENSE-EXCEPTION.md](LICENSE-EXCEPTION.md): the videos you make are yours to
+publish and monetise anywhere as long as they credit
+
+> made with https://mariusrousset.com/videocode
+
+and your scenes, templates and agent-written code stay entirely yours. A video
+produced as paid work for a client needs permission first:
+<rousset.marius13@gmail.com>.
