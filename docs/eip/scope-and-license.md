@@ -23,31 +23,33 @@ déploiement (`GIT_SSH_PRIVATE_KEY`, dans les secrets GitHub Actions ; `GITHUB_T
 automatique fourni par GitHub). Le workflow du miroir lui-même,
 `cd-mirror.yaml`, est public comme le reste ; aucun secret dans l'historique.
 
-## 2. Licence : PolyForm Noncommercial 1.0.0 + deux permissions
+## 2. Licence : PolyForm Noncommercial 1.0.0 + trois permissions
 
-Fichier : `LICENSE` (SPDX `PolyForm-Noncommercial-1.0.0`), texte PolyForm intact, deux permissions ajoutées au-dessus, commits `af6e673` → `0b4b62b`
-(22–23/09/2026). Résumé dans `README.md` § License.
+Fichier : `LICENSE` (SPDX `PolyForm-Noncommercial-1.0.0`), texte PolyForm intact, trois permissions ajoutées au-dessus, commits `af6e673` → `0b4b62b`
+(22–23/09/2026), la troisième le 26/09. Résumé dans `README.md` § License.
 
 | Quelqu'un veut… | Réponse |
 |---|---|
 | Lire, cloner, modifier, redistribuer le code pour un usage personnel, éducatif, recherche, associatif | **Oui** (PolyForm NC) |
 | Publier une vidéo faite avec Video-Code, y compris monétisée (pub, sponsor, cours payant) | **Oui**, à condition du crédit « made with mariusrousset.com/videocode » — 30 jours pour le remettre s'il manque (permission 1) |
 | Garder ses scènes, templates et le code écrit par un agent IA sous sa propre licence, les vendre | **Oui**, le projet n'y réclame rien (permission 2) |
-| Produire une vidéo sur commande payée par un client | **Non sans accord** écrit préalable |
-| Intégrer Video-Code dans un produit ou service commercial (SaaS, plugin vendu, studio) | **Non** — c'est ce que la clause non commerciale interdit |
+| Produire une vidéo sur commande, intégrer Video-Code dans un produit ou service vendu | **Oui tant que le chiffre d'affaires** de l'entité (et de son groupe, 12 mois glissants) **est sous 100 000 €** (permission 3) |
+| Idem, au-dessus de 100 000 € de chiffre d'affaires | **Licence commerciale** : somme annuelle fixe par organisation, prix publié dans le README (1 000 €/an aujourd'hui), 90 jours pour la prendre après le franchissement |
 | Retirer la notice ou redistribuer sans les termes | **Non** (section Notices de PolyForm) |
 
 Pourquoi ce texte et pas un autre :
 
 - **Pas MIT/Apache** : elles autoriseraient un tiers à vendre l'outil tel quel. Le projet
   vise un modèle semi-ouvert (`docs/FEATURES_TODO.md` n° 60) où l'outil reste gratuit pour
-  les créateurs et l'exploitation commerciale se négocie.
+  les créateurs et les petites structures, et payant au-dessus d'un seuil de chiffre
+  d'affaires — modèle Unity/Unreal, seuil à 100 000 €. Une somme fixe plutôt que des
+  royalties : rien à déclarer, rien à auditer.
 - **Pas GPL/AGPL** : le copyleft ne bloque pas le commercial, il impose seulement d'ouvrir ;
   et il aurait contaminé les scènes des utilisateurs, ce que la permission 2 refuse
   explicitement.
 - **Pas un texte maison** : un brouillon de licence propre au projet (« VCL-1.1 ») a été
   abandonné pour un texte connu et déjà lu par les juristes ; les spécificités tiennent dans
-  deux permissions courtes.
+  trois permissions courtes.
 - Conséquence assumée : **ce n'est pas « open source » au sens de l'OSI** (la clause non
   commerciale l'exclut). Le mot juste est *source ouverte, usage non commercial*.
 

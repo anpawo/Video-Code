@@ -5,7 +5,7 @@ Required Notice: Copyright Marius Rousset (https://mariusrousset.com/videocode)
 
 Video-Code is licensed under the PolyForm Noncommercial License 1.0.0, printed
 below word for word. That license alone would make a monetised video a
-commercial use, which would empty the tool of its purpose. The two permissions
+commercial use, which would empty the tool of its purpose. The three permissions
 here are granted by Marius Rousset on top of it. They add to the license; they
 take nothing away from it, and they change nothing in its text.
 
@@ -24,9 +24,9 @@ published.
 If you forget the credit, you have not lost anything: you have 30 days from a
 written notice to put it back, and this permission continues.
 
-**Not covered: a video made as paid work for someone else.** If a client pays
-you to produce a video, ask first: <rousset.marius13@gmail.com>. This permission
-covers what you publish under your own name, not a video produced to order.
+**Not covered: a video made as paid work for someone else.** This permission
+covers what you publish under your own name. A video produced to order is
+business use, which permission 3 covers.
 
 ## 2. The scenes, templates and agent code you write
 
@@ -37,9 +37,31 @@ them, and the noncommercial terms below do not reach them.
 
 Whoever runs your scene still needs their own license to Video-Code itself.
 
+## 3. Business use under 100 000 EUR of revenue
+
+Using Video-Code in the course of business -- a video produced to order for a
+client, the tool inside a service or a product you sell -- is a permitted
+purpose for as long as your revenue stays under 100 000 EUR.
+
+Your revenue is the gross revenue -- turnover, not profit -- of you and of
+every organisation you control or that controls you, added together over the
+last twelve months, every currency converted at the rate of the day. All of it
+counts, not only the part Video-Code helped earn. You judge it yourself; no one
+will ask for your books.
+
+The credit of permission 1 applies to every video you publish under this
+permission too.
+
+Above the threshold you need a commercial license. Its price is a fixed yearly
+sum per organisation, published under "License" in `README.md` -- there for the
+same reason the credit address is: so it can change without this text
+changing. Write to <rousset.marius13@gmail.com> to take one. Crossing the
+threshold gives you 90 days to do so, and nothing you did before stays in
+question.
+
 ## Duration
 
-These two permissions are irrevocable, except for someone who breaks the terms
+These three permissions are irrevocable, except for someone who breaks the terms
 below and does not fix it within the 32 days that license allows.
 
 ---
