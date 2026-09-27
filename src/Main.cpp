@@ -367,6 +367,17 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
     QCoreApplication::setApplicationName(QStringLiteral("Video-Code"));
     QGuiApplication::setApplicationDisplayName(QStringLiteral("Video-Code"));
 
+#if defined(__linux__)
+    // The preview draws into an X window (VulkanWidget: xcb surface only). A
+    // system Qt — Arch's — also ships the Wayland plugin and picks it in a
+    // Wayland session, and the preview then has no surface at all. XWayland is
+    // there whenever DISPLAY is, so the X plugin is asked for, unless someone
+    // already chose a platform.
+    if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM") && !qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY")
+        && !qEnvironmentVariableIsEmpty("DISPLAY"))
+        qputenv("QT_QPA_PLATFORM", "xcb");
+#endif
+
     QApplication app(argc, argv);
     quitOnSignal(app);
     // The Dock tile and ⌘-Tab on macOS, the window and taskbar icon elsewhere.
@@ -466,6 +477,21 @@ int main(int argc, char *argv[])
     for (auto at = beside.find('\''); at != std::string::npos; at = beside.find('\'', at + 2))
         beside.insert(at, "\\");
     py::exec("import sys; sys.path.insert(0, ''); sys.path.insert(1, '" + beside + "')");
+    // An activated virtualenv is where `pip install -r requirements.txt` put
+    // what a scene imports — on Arch it is the only place pip may write. But an
+    // embedded interpreter takes its prefix from this binary, not from the
+    // `python3` on PATH, so it never sees the venv on its own: every scene died
+    // on `No module named 'typing_extensions'`. addsitedir, not a bare path
+    // insert, so the venv's .pth files are honoured too.
+    if (const char *venv = std::getenv("VIRTUAL_ENV")) {
+        py::dict scope;
+        scope["venv"] = venv;
+        py::exec(
+            "import site, sys\n"
+            "site.addsitedir(f'{venv}/lib/python{sys.version_info[0]}.{sys.version_info[1]}/site-packages')",
+            py::globals(), scope
+        );
+    }
 
     // Suppress the spurious Qt/macOS fullscreen position warning
     // Message: "qt.qpa.window: Window position QRect(-1,0 1470x826) outside any known screen, using primary screen"

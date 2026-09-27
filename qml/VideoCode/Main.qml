@@ -3223,7 +3223,9 @@ ApplicationWindow {
         // call would land inside it and the scene would stop running.
         const text = lines[element.line - 1];
         const code = text.replace(/\s+#.*$/, "");
-        const next = code.trimEnd() + "." + write + text.slice(code.length);
+        // A regex, not trimEnd(): that is ES2019, and Qt's JS engine does not
+        // have it — the call threw and nothing was ever added.
+        const next = code.replace(/\s+$/, "") + "." + write + text.slice(code.length);
         if (!source.replaceRange(offset, offset + text.length, next))
             return;
         app.executeScene();

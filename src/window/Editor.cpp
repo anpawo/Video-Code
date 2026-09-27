@@ -362,6 +362,11 @@ void VC::Editor::configureGraphicsApi()
     // Nothing to do, but worth saying out loud: without Qt's Vulkan support the
     // renderer and the chrome can never share a device, whatever we measure.
     VC_SLOG("[editor] this Qt has no Vulkan support; Quick uses the platform default\n");
+#elif defined(__linux__)
+    // Linux's default is OpenGL, and on an NVIDIA card under XWayland there is
+    // no GLX context to be had: the chrome aborted before its first frame. The
+    // preview already needs Vulkan, so the chrome asks for it too.
+    qputenv("QSG_RHI_BACKEND", "vulkan");
 #endif
 }
 
