@@ -1952,7 +1952,8 @@ ApplicationWindow {
             if (name.length === 0)
                 source.say(fx.call + " is written as an expression — edit the line itself");
             else
-                app.writeOn(fx.line, fx.call, name, value, fx.file);
+                app.writeOn(fx.line, fx.call, name, value, fx.file,
+                            elementCard.element !== null ? elementCard.element.cls : "");
         }
         onEffectJumped: (fx) => app.revealLine(fx.line)
         onSays: (sentence) => source.say(sentence)
@@ -2671,7 +2672,7 @@ ApplicationWindow {
     function writeArgument(element, call, name, value) {
         if (element === null || element.line === undefined)
             return false;
-        return app.writeOn(element.line, call, name, value, element.file);
+        return app.writeOn(element.line, call, name, value, element.file, element.cls);
     }
 
     // The same edit, addressed by line rather than by element: an effect knows
@@ -2706,8 +2707,10 @@ ApplicationWindow {
         return true;
     }
 
-    function writeOn(line, call, name, value, file) {
-        return app.carryOut(app.planOn(line, call, name, value, file));
+    // `owner`, the element's class when it is known, lets the shell find a
+    // value the line gives by position: `Text("Merci")` says `text` with no name.
+    function writeOn(line, call, name, value, file, owner) {
+        return app.carryOut(app.planOn(line, call, name, value, file, owner));
     }
 
     // An edit decided without being made: `{ ok, line, start, end, text }` for
@@ -2716,14 +2719,14 @@ ApplicationWindow {
     // refusal — with the constant's own line to offer when a name stood in the
     // way. Decided apart from the write so that the timeline's tip can show
     // the very edit the release will make, before anything is written.
-    function planOn(line, call, name, value, file) {
+    function planOn(line, call, name, value, file, owner) {
         if (line === undefined || line <= 0 || call === undefined || call.length === 0)
             return { ok: false, message: "" };
         const foreign = app.foreignLine(file);
         if (foreign.length > 0)
             return { ok: false, message: foreign };
 
-        const span = Shell.argumentSpan(source.text, line, call, name, value);
+        const span = Shell.argumentSpan(source.text, line, call, name, value, owner !== undefined ? owner : "");
         if (!span.ok)
             // Where and what, not just that: "could not write start" names
             // nothing anyone can go and look at.
@@ -3237,7 +3240,7 @@ ApplicationWindow {
         const line = element.line;
         if (Shell.readArgument(source.text, line, call, name).length > 0
             || Shell.readPositional(source.text, line, call, at).length === 0)
-            return app.writeOn(line, call, name, value, element.file);
+            return app.writeOn(line, call, name, value, element.file, element.cls);
         if (!app.ownsLine(element.file))
             return false;
 

@@ -1056,15 +1056,18 @@ namespace
 
 QVariantMap VC::Editor::argumentSpan(
     const QString& source, int line, const QString& call, const QString& name, const QString& value,
-    int occurrence
+    const QString& owner, int occurrence
 )
 {
     try {
         py::gil_scoped_acquire hold;
         const py::module       edit = py::module::import("videocode.edit");
+        const int              slot = py::module::import("videocode.serialize")
+                                          .attr("parameterSlot")(owner.toStdString(), call.toStdString(), name.toStdString())
+                                          .cast<int>();
         return spanAnswer(edit.attr("argumentSpan")(
             source.toStdString(), line, call.toStdString(), name.toStdString(), value.toStdString(),
-            occurrence
+            occurrence, slot
         ));
     } catch (const py::error_already_set&) {
     }

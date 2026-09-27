@@ -327,9 +327,14 @@ namespace VC
         // text wholesale wiped the undo history, and ⌘Z after a gesture did
         // nothing. Through the document, a gesture lands in the same history as
         // typing and takes one ⌘Z to undo.
+        //
+        // `owner` is the class of the element the call is about: with it the
+        // name is looked up in the call's signature, and a value the line gives
+        // by position — `Text("Merci")`, `rotateBy(180)` — is rewritten where it
+        // stands instead of being given a second time by name.
         Q_INVOKABLE QVariantMap argumentSpan(
             const QString& source, int line, const QString& call, const QString& name,
-            const QString& value, int occurrence = 0
+            const QString& value, const QString& owner = QString(), int occurrence = 0
         );
 
         // positionalSpan() — the same as argumentSpan(), for an argument written
