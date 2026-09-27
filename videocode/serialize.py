@@ -875,6 +875,49 @@ def inputSignature(className: str) -> list[dict]:
         return []
 
 
+def parameterSlot(owner: str, call: str, name: str) -> int:
+    """
+    Where `name` stands when a call passes it without its name, or -1.
+
+    `Text("Merci")` and `rotateBy(180)` say `text` and `degree` by position,
+    and an edit addressed by name has to find them there. Not `inputSignature`'s
+    order: that one leaves out `start` and the `_` parameters, which still take
+    a slot. -1 for a name that can only be given by keyword, and for a call
+    this cannot find.
+
+    `call` is a class (`Text`), a method of `owner` (`rotateBy` on `Circle`),
+    or a function the scene language exposes (`wait`).
+    """
+    import inspect
+
+    import videocode
+
+    target = getattr(videocode, owner, None) if owner else None
+    fn = getattr(target, call, None) if inspect.isclass(target) else None
+    if fn is None:
+        fn = getattr(videocode, call, None)
+        if inspect.isclass(fn):
+            fn = fn.__init__
+    if not callable(fn):
+        return -1
+
+    try:
+        parameters = list(inspect.signature(fn).parameters.values())
+    except (TypeError, ValueError):
+        return -1
+
+    slot = 0
+    for parameter in parameters:
+        if parameter.kind not in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD):
+            return -1
+        if parameter.name == "self":
+            continue
+        if parameter.name == name:
+            return slot
+        slot += 1
+    return -1
+
+
 def enumValues(name: str) -> list[str]:
     """
     What an argument of this type accepts, spelled the way a scene writes it.

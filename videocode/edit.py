@@ -296,6 +296,7 @@ def argumentSpan(
     name: str,
     value: str,
     occurrence: int = 0,
+    index: int = -1,
 ) -> tuple[int, int, str] | str | None:
     """
     The same edit as `setArgument`, expressed as a range and what to put in it.
@@ -310,6 +311,12 @@ def argumentSpan(
     `None` when the call is not there, which is a refusal, not an empty edit. A
     sentence when the value written is one the gesture may not replace — see
     `_kept` — because that refusal is one the person has to hear.
+
+    `index` is the slot the signature gives `name`, when the caller knows it.
+    `Text("Merci")` writes `text` without its name, and appending `text="Hi"`
+    beside it gives the call the same argument twice: the scene stops running
+    and the edit looks like it did nothing. A value already standing in that
+    slot is rewritten where it stands.
     """
     node = _pick(source, line, call, occurrence)
     if node is None:
@@ -322,6 +329,13 @@ def argumentSpan(
         if source[start:end] == value:
             return None
         return _kept(source, keyword.value, value) or (start, end, value)
+
+    # Behind a `*rest` no slot can be counted, so nothing there is rewritten.
+    if 0 <= index < len(node.args) and not any(isinstance(a, ast.Starred) for a in node.args[: index + 1]):
+        start, end = _span(source, node.args[index])
+        if source[start:end] == value:
+            return None
+        return _kept(source, node.args[index], value) or (start, end, value)
 
     start, end = _span(source, node)
     closing = source.rfind(")", start, end)

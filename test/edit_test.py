@@ -137,6 +137,36 @@ if span is not None:
 check("the same value is no span at all", argumentSpan(SOURCE, 10, "rotateBy", "duration", "1.5") is None)
 check("a call that is not there is refused", argumentSpan(SOURCE, 10, "moveBy", "x", "1") is None)
 
+section("argumentSpan — a name the line gives by position is rewritten there")
+span = argumentSpan(SOURCE, 6, "Video", "filepath", '"take2.mp4"', index=0)
+check("a span was given", span is not None)
+if span is not None:
+    start, end, text = span
+    check("it replaces the file, nothing more", SOURCE[start:end] == '"shot.mp4"' and text == '"take2.mp4"')
+    edited = SOURCE[:start] + text + SOURCE[end:]
+    check("no second filepath is added", line(edited, 6) == 'clip = Video("take2.mp4", startFrame=10)  # keep the comment')
+    check("every other line is untouched", untouched(SOURCE, edited, 6))
+
+span = argumentSpan(SOURCE, 10, "rotateBy", "degree", "90", index=0)
+check("an effect's positional argument too", span is not None and SOURCE[span[0]:span[1]] == "180" and span[2] == "90")
+check("the same value is no span at all", argumentSpan(SOURCE, 6, "Video", "filepath", '"shot.mp4"', index=0) is None)
+check("a keyword written on the line still wins",
+      argumentSpan(SOURCE, 6, "Video", "startFrame", "20", index=0) == (SOURCE.index("10)"), SOURCE.index("10)") + 2, "20"))
+check("a slot the line does not fill is added by name",
+      argumentSpan(SOURCE, 6, "Video", "cuts", "[]", index=1) == (SOURCE.index(")  # keep"), SOURCE.index(")  # keep"), ", cuts=[]"))
+check("a name is still kept", isinstance(argumentSpan("wait(PAUSE)\n", 1, "wait", "duration", "0.5", index=0), str))
+check("no slot is counted behind a *rest",
+      argumentSpan("f(*rest, 1)\n", 1, "f", "b", "2", index=1) == (10, 10, ", b=2"))
+
+section("parameterSlot — where a name stands without its name")
+from videocode.serialize import parameterSlot
+
+check("Text's text is its first slot", parameterSlot("", "Text", "text") == 0)
+check("a later parameter keeps its place", parameterSlot("", "Video", "width") == 5)
+check("a method of the owner, self not counted", parameterSlot("Circle", "rotateBy", "degree") == 0)
+check("a keyword-only one has no slot", parameterSlot("Circle", "rotateBy", "duration") == -1)
+check("a call nobody knows has no slot", parameterSlot("", "noSuchCall", "x") == -1)
+
 section("broken source is refused, not mangled")
 broken = "square = Square(side=\n"
 edit = setArgument(broken, 1, "Square", "side", "2")
