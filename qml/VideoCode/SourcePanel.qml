@@ -972,14 +972,19 @@ Item {
 
     // Say something for a moment. The panel's one channel for news that has no
     // other home: a save refused, a rename that touched files you cannot see.
-    function say(what) { notice.say(what); }
+    function say(what) { notice.say(what); spoke(what, null); }
 
     // The same strip, with something to do about it. A refusal that only says
     // no leaves the person to go and make the edit by hand; when there IS an
     // edit the gesture may make, the sentence is the button. It stays a little
     // longer than a plain notice and goes on its own like one: an offer that
     // waits for an answer is a dialog, and this is a drag that missed.
-    function offer(what, act) { notice.offer(what, act); }
+    function offer(what, act) { notice.offer(what, act); spoke(what, act); }
+
+    // Whatever the strip was just given, for a panel that asked for the edit
+    // while this pane is behind another tab: the strip alone is then said to
+    // nobody. `act` is the offer's action, or null.
+    signal spoke(string what, var act)
 
     // Something happened that you cannot see, said briefly and then gone.
     // A rename rewrites files nobody is looking at; a permanent strip for that

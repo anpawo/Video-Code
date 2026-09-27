@@ -109,6 +109,11 @@ Item {
     // The same two entry points as the card, so the shell talks to both alike.
     function open(what, where) { element = what; }
 
+    // What became of an edit asked for here, when it was not what was typed:
+    // `1 * RATIO` kept, a line of another file. `act`, when given, is the edit
+    // that IS allowed instead, and the sentence is its button.
+    function tell(what, act) { notice.show(what, act); }
+
     // The name just given, so the element is found again under it once the
     // scene has run: matched by index AND name, a renamed one would be lost.
     property string renamedTo: ""
@@ -281,6 +286,63 @@ Item {
                 out += span(t, Theme.inkDim);
         }
         return out;
+    }
+
+    onElementChanged: if (element === null) notice.hide()
+
+    // The code pane's notice, said again where the edit was asked for. Over the
+    // bottom of the rows rather than in a row of its own, so nothing moves
+    // under the pointer; it goes on its own, and sooner when it is only news.
+    Rectangle {
+        id: notice
+        visible: false
+        z: 5
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: 12 }
+        height: said.implicitHeight + 14
+        radius: 8
+        color: Theme.panel
+        border.width: 1
+        border.color: act !== null ? Theme.live : Theme.edge
+
+        property var act: null
+
+        function show(what, action) {
+            act = action !== undefined ? action : null;
+            said.text = what;
+            said.color = act !== null ? Theme.live : /added$/.test(what) ? Theme.ok : Theme.warn;
+            visible = true;
+            fade.interval = act !== null ? 7000 : 4000;
+            fade.restart();
+        }
+        function hide() {
+            visible = false;
+            act = null;
+        }
+
+        Text {
+            id: said
+            anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 10 }
+            wrapMode: Text.Wrap
+            font.family: Theme.mono
+            font.pixelSize: 11
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: notice.act !== null ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: {
+                const act = notice.act;
+                notice.hide();
+                if (act !== null)
+                    act();
+            }
+        }
+
+        Timer {
+            id: fade
+            onTriggered: notice.hide()
+        }
     }
 
     Text {

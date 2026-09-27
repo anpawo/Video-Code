@@ -4103,12 +4103,34 @@ ApplicationWindow {
         playhead: app.playhead
         buffer: source.text
         baseDir: source.path.length > 0 ? source.path.substring(0, source.path.lastIndexOf("/")) : ""
-        onArgumentWritten: (element, call, name, value) => app.writeArgument(element, call, name, value)
-        onMetadataAdded: (element, write) => app.addMetadata(element, write)
-        onMetadataWritten: (element, call, name, at, value) => app.writeMetadata(element, call, name, at, value)
+        onArgumentWritten: (element, call, name, value) => app.fromInspector(() => app.writeArgument(element, call, name, value))
+        onMetadataAdded: (element, write) => app.fromInspector(() => app.addMetadata(element, write))
+        onMetadataWritten: (element, call, name, at, value) => app.fromInspector(() => app.writeMetadata(element, call, name, at, value))
         onJumpRequested: (element) => app.revealLine(element.line)
-        onRenamed: (element, name) => app.renameElement(element, name)
+        onRenamed: (element, name) => app.fromInspector(() => app.renameElement(element, name))
         onSays: (sentence) => source.say(sentence)
+    }
+
+    // An edit asked for in the Inspector answers in the Inspector. Every
+    // refusal on the way — a name kept, a line of another file, the constant
+    // offered instead — is said by the code pane, and with the Inspector in
+    // front that pane is behind a tab: the field closed, nothing changed, and
+    // nothing said why. What the pane says during the edit is said here too.
+    property bool inspectorAsking: false
+    function fromInspector(write) {
+        app.inspectorAsking = true;
+        try {
+            write();
+        } finally {
+            app.inspectorAsking = false;
+        }
+    }
+    Connections {
+        target: source
+        function onSpoke(what, act) {
+            if (app.inspectorAsking)
+                inspector.tell(what, act);
+        }
     }
 
     // One click on a clip fills the Inspector and brings its tab forward —
