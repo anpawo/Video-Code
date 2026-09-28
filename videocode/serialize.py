@@ -492,8 +492,11 @@ def sceneModel() -> dict:
         firstSeen = -1
         lastSeen = total - 1
         wasVisible = False
-        for frame in frames:
-            for key, shader in entry[frame].items():
+        # Frame 0 is walked even with no key on it: an element made with nothing
+        # applied is on screen from the start (one made later is hidden there by
+        # its placement). Without it a music track began at its first fade.
+        for frame in sorted({0, *frames}):
+            for key, shader in entry.get(frame, {}).items():
                 args = shader.get("args", {})
                 if "opacity" in args:
                     opacity = args["opacity"]
