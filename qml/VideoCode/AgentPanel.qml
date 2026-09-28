@@ -6,7 +6,8 @@
 // on the right (Properties, Effects) moves to the element you click.
 //
 // Only what it says is shown, not the tools it runs: the check on its work is the
-// diff it leaves in the code pane.
+// diff it leaves in the code pane, and the answer ends on the lines it changed,
+// each a link to its place there.
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -16,6 +17,9 @@ Item {
     id: root
 
     signal sent(string text)
+    // A changed line was clicked: its line and column once the turn is taken,
+    // and its line in the coloured view shown until then. All 1-based.
+    signal revealed(int line, int column, int shown)
 
     // The conversation, as it happens. Built by appending to a plain list
     // rather than by a model class: a turn is a handful of entries, and what
@@ -51,6 +55,66 @@ Item {
             root.edit(root.turn, { body: root.log[root.turn].body.concat([line]) });
     }
 
+    // The changes a turn left, from the rows of its diff, one per run of
+    // changed lines: where the run is once taken (`line`, `column` — the first
+    // character that differs from the line it replaces), where it is in the
+    // coloured view (`shown`, the first green line, else the first red one),
+    // and what it now reads.
+    function changesOf(rows) {
+        const out = [];
+        let shown = 0, kept = 0;
+        for (let i = 0; i < rows.length;) {
+            if (rows[i].kind === "same") {
+                ++shown; ++kept; ++i;
+                continue;
+            }
+            const was = [], now = [];
+            let first = -1, firstGreen = -1;
+            for (; i < rows.length && rows[i].kind !== "same"; ++i) {
+                ++shown;
+                if (first < 0)
+                    first = shown;
+                if (rows[i].kind === "add") {
+                    if (firstGreen < 0)
+                        firstGreen = shown;
+                    now.push(rows[i].text);
+                } else {
+                    was.push(rows[i].text);
+                }
+            }
+            let column = 0;
+            if (now.length > 0 && was.length > 0)
+                while (column < now[0].length && now[0][column] === was[0][column])
+                    ++column;
+            out.push({ line: kept + 1, column: column + 1, shown: firstGreen > 0 ? firstGreen : first,
+                       text: (now.length > 0 ? now[0] : was[0]).trim(), removed: now.length === 0 });
+            kept += now.length;
+        }
+        return out;
+    }
+
+    // Written under the answer that made them, as links: "Done." says nothing
+    // about where to look, and these are where to look.
+    function noteChanges(changes) {
+        if (changes.length === 0)
+            return;
+        let at = root.log.length - 1;
+        while (at >= 0 && root.log[at].who !== "agent")
+            --at;
+        if (at < 0)
+            return;
+        const shorten = (text) => (text.length > 60 ? text.slice(0, 57) + "…" : text).replace(/`/g, "'");
+        const lines = changes.map((c) => "- [" + c.line + ":" + c.column + "](line:" + c.line + ":" + c.column + ":" + c.shown + ") "
+                                         + (c.removed ? "removed " : "") + "`" + shorten(c.text) + "`");
+        root.edit(at, { body: root.log[at].body.concat([{ kind: "changes", text: lines.join("\n") }]) });
+    }
+
+    function reveal(link) {
+        const parts = link.split(":");
+        if (parts.length === 4 && parts[0] === "line")
+            root.revealed(Number(parts[1]), Number(parts[2]), Number(parts[3]));
+    }
+
     function finish() {
         if (root.turn < 0)
             return;
@@ -83,6 +147,8 @@ Item {
                 root.say("— " + error);
             root.finish();
         }
+
+        function onChanged() { root.noteChanges(root.changesOf(Agent.diff())); }
 
         function onFailed(why) {
             root.say(why);
@@ -163,6 +229,8 @@ Item {
                                 font.pixelSize: 12
                                 lineHeight: 1.4
                                 wrapMode: Text.WordWrap
+                                onLinkActivated: (link) => root.reveal(link)
+                                HoverHandler { cursorShape: parent.hoveredLink.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor }
                             }
                         }
 

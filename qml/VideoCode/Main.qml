@@ -4190,6 +4190,9 @@ ApplicationWindow {
         id: agent
         visible: false
         onSent: (text) => Agent.ask(app.agentBrief() + text)
+        // Until the turn is taken the buffer shows both sides, so the line to
+        // go to is the one in that view.
+        onRevealed: (line, column, shown) => source.jump(source.path, (source.diffRows.length > 0 ? shown : line) - 1, column - 1)
     }
 
     // The scene, edited here and understood by a language server of our own.
