@@ -159,6 +159,16 @@ void setParserArgument(argparse::ArgumentParser &p)
         );
 
     p
+        .add_argument("--lint")
+        .flag()
+        .help(
+            "Run --file without rendering and print what is wrong with it, one "
+            "`file:line: error|warning: message [rule]` per line: the scene failing to run, a Sound "
+            "starting on or after the last frame, a write before frame 0, an element never on screen "
+            "or only on the last frame, and the warnings the editor shows. Exits 1 if any line is an error."
+        );
+
+    p
         .add_argument("--update-golden")
         .flag()
         .help("With --visual-test, (re)write the golden images instead of comparing against them.");
@@ -297,17 +307,23 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
     // __main__ prints the baked stack instead — one entry per input per frame,
     // seventeen thousand lines for a scene of two shapes — which nothing can
     // read. This is the model the timeline is drawn from, and it is small.
-    if (parser.get<bool>("--inspect")) {
+    const bool lint = parser.get<bool>("--lint");
+    if (lint || parser.get<bool>("--inspect")) {
         const std::string path = parser.get<std::string>("--file");
         std::ifstream     in(path);
         if (!in) {
-            std::cerr << "--inspect: cannot read " << path << "\n";
+            std::cerr << (lint ? "--lint" : "--inspect") << ": cannot read " << path << "\n";
             return EXIT_FAILURE;
         }
         const std::string source((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-        const py::dict    result = py::module::import("videocode.serialize")
-                                       .attr("execSource")(source, path)
-                                       .cast<py::dict>();
+        if (lint) {
+            const py::tuple said = py::module::import("videocode.serialize").attr("lintSource")(source, path).cast<py::tuple>();
+            std::cout << said[0].cast<std::string>() << std::flush;
+            return said[1].cast<int>();
+        }
+        const py::dict result = py::module::import("videocode.serialize")
+                                    .attr("execSource")(source, path)
+                                    .cast<py::dict>();
         if (!result["ok"].cast<bool>()) {
             std::cerr << path << ":" << result["line"].cast<int>() + 1 << ": "
                       << result["message"].cast<std::string>() << "\n";

@@ -991,6 +991,32 @@ tiles there are. A scene that named its moments has already said which ones
 matter, and spreading evenly across it spends tiles on stillness: eight even
 samples of the tour draw the same picture twice.
 
+### A scene checked without rendering — `--lint`
+
+```bash
+./video-code --lint --file scene.py
+# scene.py:6: error: Sound starts at 6.00 s but the film is 1.03 s long, … [sound-after-end]
+```
+
+Runs the scene and says what is wrong with it, one
+`file:line: error|warning: message [rule]` per line, without drawing a frame.
+Exit 1 if any line is an error; warnings alone exit 0. The rules:
+
+| Rule | Severity | What it catches |
+|---|---|---|
+| `scene-error` | error | the scene does not run — a negative `wait()` is one |
+| `sound-after-end` | error | a `Sound` starting on or after the last frame: the mix is cut at the film's end |
+| `before-start` | error | a write before frame 0, which the renderer skips, or a negative `Sound` delay |
+| `never-visible` | warning | hidden or at opacity 0 on every frame |
+| `last-frame-only` | warning | made after the final `wait()`, so on screen for one frame |
+| `bad-value`, `contended-key`, `backdated-write` | as in the editor | what the Code pane already underlines |
+
+The same findings reach the editor, underlined in the Code pane and hatched on
+the clip — except `last-frame-only`, which every line typed at the end of a
+scene is until its `wait()` is. From Python it is
+`videocode.serialize.lintSource(source, path)`, which returns the text and the
+exit code.
+
 ### Reading the editor from outside — `tell verify`
 
 ```bash
