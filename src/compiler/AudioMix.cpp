@@ -215,6 +215,9 @@ namespace VC::Audio
 
     AudioArgs buildAudioArgs(const std::vector<std::unique_ptr<IInput>>& inputs, const std::string& audioCodec, std::optional<std::pair<double, double>> window, size_t frames)
     {
+        // a sound longer than the film would otherwise stretch the file past its last frame
+        if (!window)
+            window = std::pair{0.0, static_cast<double>(frames) / Config::SCENE_FRAMERATE};
         const AudioGraph graph = buildAudioGraph(inputs, window, frames, 1);
         if (graph.count == 0)
             return {"", " -an", 0};
