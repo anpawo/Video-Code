@@ -324,6 +324,11 @@ def plan(sets: list[str], data: str, output: str) -> list[dict]:
                 f"Name the files by a column that differs, or leave the {{}} out to number them."
             )
         seen[render["output"]] = i
+
+    # "out/{team}/{name}.mp4" makes its folders as it goes — one per team is
+    # not something to create by hand first. Only now, once nothing is refused.
+    for render in renders:
+        Path(render["output"]).parent.mkdir(parents=True, exist_ok=True)
     return renders
 
 

@@ -6,6 +6,7 @@
 */
 
 #include <pybind11/embed.h>
+#include <pybind11/stl.h>
 #include <sys/socket.h>
 
 #include <QApplication>
@@ -239,6 +240,24 @@ void setParserArgument(argparse::ArgumentParser &p)
         );
 
     p
+        .add_argument("--set")
+        .append()
+        .default_value(std::vector<std::string>{})
+        .help(
+            "Give the scene's param(\"key\", default) a value: --set name=Ada --set score=12. Read as the "
+            "default's type (a number, true/false, a colour \"#ff8800\"). A key no param() reads is refused — "
+            "a typo would render the default. Works with --generate, --lint and --editor."
+        );
+
+    p
+        .add_argument("--data")
+        .help(
+            "With --generate, render the scene once per row of this .csv (a header line, then rows) or .json "
+            "(a list of objects), each column a param(). Name the files from the rows: --generate \"out/{name}.mp4\"; "
+            "without a {column} they are numbered. An empty cell leaves the param() its default."
+        );
+
+    p
         .add_argument("--sheet")
         .scan<'i', int>()
         .help(
@@ -317,7 +336,9 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
         }
         const std::string source((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
         if (lint) {
-            const py::tuple said = py::module::import("videocode.serialize").attr("lintSource")(source, path).cast<py::tuple>();
+            const py::tuple said = py::module::import("videocode.serialize")
+                                       .attr("lintSource")(source, path, parser.get<std::vector<std::string>>("--set"), parser.present("--data").value_or(""))
+                                       .cast<py::tuple>();
             std::cout << said[0].cast<std::string>() << std::flush;
             return said[1].cast<int>();
         }
@@ -345,6 +366,10 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
         std::cerr << "video-code: --for writes one file per shape, so it needs --generate.\n";
         return EXIT_FAILURE;
     }
+    if (parser.is_used("--data") && !parser.is_used("--generate")) {
+        std::cerr << "video-code: --data writes one file per row, so it needs --generate (or --lint, to check the rows).\n";
+        return EXIT_FAILURE;
+    }
 
     // Generate the video (headless — no window, no Qt event loop)
     if (parser.is_used("--generate")) {
@@ -356,17 +381,20 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
         const std::vector<Config> configs = VC::makeConfigs(parser);
         for (const Config &config : configs) {
             VC::applyScreenSize(config.screenWidth, config.screenHeight);
+            VC::applyParams(config);
 
             VC::Compiler compiler(parser, config);
             if (const int status = compiler.generateVideo(); status != EXIT_SUCCESS) {
                 // Stopping, and saying what was not made: carrying on would
-                // repeat the same failure once per shape, and finishing quietly
-                // would leave a set of files that looks complete and is not.
+                // repeat the same failure once per shape or row, and finishing
+                // quietly would leave a set of files that looks complete and is not.
                 if (&config != &configs.back())
-                    std::cerr << std::format("video-code: {} failed, so the shapes after it were not rendered.\n", config.shapeNote);
+                    std::cerr << std::format("video-code: {} failed, so the {} renders after it were not made.\n", config.shapeNote, &configs.back() - &config);
                 return status;
             }
         }
+        if (parser.is_used("--data"))
+            std::cerr << py::module_::import("videocode.params").attr("unreadColumns")().cast<std::string>();
         return EXIT_SUCCESS;
     }
 
@@ -413,6 +441,11 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
         // flag on the line always outranks the environment it inherited.
         if (parser.is_used("--file"))
             qputenv("VC_SCENE_FILE", QByteArray::fromStdString(parser.get<std::string>("--file")));
+
+        // --set previews one set of values — a row of the batch, say — in the
+        // editor, and reaches the export it launches through the environment.
+        if (parser.is_used("--set"))
+            VC::applyParams(VC::makeConfigs(parser).front());
 
         VC::Editor editor;
         editor.setHeadless(checksChrome);

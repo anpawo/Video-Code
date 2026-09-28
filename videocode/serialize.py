@@ -1206,7 +1206,21 @@ def execSource(source: str, filepath: str) -> dict:
     }
 
 
-def lintSource(source: str, filepath: str) -> tuple[str, int]:
+def _lintOnce(source: str, filepath: str) -> set[tuple]:
+    """One run's findings, as (file, line, severity, message, rule)."""
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        report = execSource(source, filepath)
+        if not report["ok"]:
+            message = report["message"]
+            if message.startswith("ParamError: "):
+                return {(filepath, report["line"] + 1, "error", message.removeprefix("ParamError: "), "param")}
+            return {(filepath, report["line"] + 1, "error", message, "scene-error")}
+        found = _reportContendedKeys() + _reportBackdatedWrites() + _reportBadValues() + _reportLint(json.loads(report["scene"]))
+    return {(w["file"], w["sourceLine"], "error" if w.get("severity") == 1 else "warning", w["message"], w["rule"])
+            for w in found}
+
+
+def lintSource(source: str, filepath: str, sets: list[str] | None = None, data: str = "") -> tuple[str, int]:
     """
     `--lint`: run a scene without rendering it and say what is wrong with it, one
     `file:line: error|warning: message [rule]` per line, and 1 if any is an error.
@@ -1215,15 +1229,35 @@ def lintSource(source: str, filepath: str) -> tuple[str, int]:
     are swallowed, since the reporters run twice here — once in `execSource`,
     for the editor's filtered list, and once more unfiltered, which is cheap:
     they only read `Context`, which still holds this run.
+
+    With `--set`/`--data` the scene runs once per row, given that row, so a
+    required param() nobody gave, a --set key nothing reads and a cell that
+    does not read as its parameter's type are all found without a frame being
+    rendered. A finding every row shares is said once.
     """
-    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
-        report = execSource(source, filepath)
-        if not report["ok"]:
-            return f"{filepath}:{report['line'] + 1}: error: {report['message']} [scene-error]\n", 1
-        found = _reportContendedKeys() + _reportBackdatedWrites() + _reportBadValues() + _reportLint(json.loads(report["scene"]))
-    said = sorted({(w["file"], w["sourceLine"], "error" if w.get("severity") == 1 else "warning", w["message"], w["rule"])
-                   for w in found})
-    return "".join(f"{f}:{n}: {s}: {m} [{r}]\n" for f, n, s, m, r in said), int(any(s == "error" for _, _, s, _, _ in said))
+    said: set[tuple] = set()
+    if sets or data:
+        try:
+            rows = params.plan(sets or [], data, "lint.mp4")
+        except params.ParamError as error:
+            return f"{filepath}: error: {error} [param]\n", 1
+        before = os.environ.get("VC_PARAMS")
+        try:
+            for row in rows:
+                params.provide(row["params"])
+                said |= _lintOnce(source, filepath)
+        finally:
+            if before is None:
+                os.environ.pop("VC_PARAMS", None)
+            else:
+                os.environ["VC_PARAMS"] = before
+        unread = params.unreadColumns().removeprefix("video-code: warning: ").strip()
+        if unread:
+            said.add((filepath, 1, "warning", unread, "unread-column"))
+    else:
+        said = _lintOnce(source, filepath)
+    lines = sorted(said)
+    return "".join(f"{f}:{n}: {s}: {m} [{r}]\n" for f, n, s, m, r in lines), int(any(s == "error" for _, _, s, _, _ in lines))
 
 
 def serializeScene(filepath: str) -> str:
