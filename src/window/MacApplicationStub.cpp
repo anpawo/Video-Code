@@ -18,3 +18,12 @@ bool VC::prefersReducedMotion()
 {
     return false;
 }
+
+void VC::bringToFront()
+{
+}
+
+bool VC::sendMenuKey(const QString&)
+{
+    return false;
+}

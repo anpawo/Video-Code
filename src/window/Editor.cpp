@@ -162,39 +162,14 @@ void VC::Editor::buildMenuBar()
     QTimer::singleShot(0, this, [this, file] { fillFileMenu(file); });
 
     // ── The order of the menus IS the order they are added in ──────────────
-    // System first, then the dock, then the guide: what you SET, then what you
-    // ARRANGE, then what you READ. The application menu is not part of this —
-    // macOS always keeps it leftmost, whatever we do.
+    // The dock, its theme, its keys, then the guide: what you ARRANGE, then how
+    // it LOOKS and ANSWERS, then what you READ. The application menu is not part
+    // of this — macOS always keeps it leftmost, whatever we do.
     //
-    // Two menus rather than one long one because a legend and a preference
-    // answer different questions, and mixing them makes both harder to find.
-    QMenu* system = _menuBar->addMenu(QStringLiteral("System"));
-
-    // Every key the application answers to, and where you change them.  ⌘/
-    // because that is where the rest of the world put it, and because a list of
-    // shortcuts that itself needs a shortcut nobody knows is a list nobody reads.
-    auto* keys = system->addAction(QStringLiteral("Keyboard Shortcuts"));
-    keys->setShortcut(QKeySequence(QStringLiteral("Ctrl+/")));
-    connect(keys, &QAction::triggered, this, &Editor::shortcutsRequested);
-
-    _codeThemesMenu = system->addMenu(QStringLiteral("Code theme"));
-
-    // Beside the shortcuts board and the code theme, because all three are the
-    // same question: how this window looks and answers to you. It was under
-    // Guide, which is for what the chrome MEANS, not for what you can change.
-    //
-    // "Show Colors" rather than "Colors…": the ellipsis is the macOS way of
-    // saying a window follows, but the verb says it in a word instead of in a
-    // convention, and it is the name the system gives its own colour panel —
-    // with the same key.
-    auto* colors = system->addAction(QStringLiteral("Show Colors"));
-    colors->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+C")));
-    connect(colors, &QAction::triggered, this, &Editor::colorsRequested);
-
-    // Settings is NOT repeated here.  Qt recognises the title and macOS moves
-    // any such item into the application menu next to About and Quit, which is
-    // where a Mac user looks for it — a second one would either vanish or, if
-    // renamed to escape the rule, sit in the wrong place on purpose.
+    // Each its own menu, and no submenu deeper than one: Qt's Cocoa bridge never
+    // attaches a submenu nested inside another submenu, so when these lived under
+    // System › Dock display, Layout, Docks and Load display were empty items to
+    // macOS — and ⌘1..4, which live in Layout, were keys it had never heard of.
 
     // Named for what it holds rather than borrowed from every other application:
     // everything in here is about the dock — which arrangement, which panes,
@@ -204,11 +179,7 @@ void VC::Editor::buildMenuBar()
     // A panel dragged somewhere silly or closed by accident has to be
     // recoverable from a place that does not depend on finding that panel again
     // — which the dock's own ⋯ menu does.
-    // Sous System, et pas à côté : où sont les volets et comment ils sont
-    // rangés est un réglage de la fenêtre, comme le thème du code juste
-    // au-dessus. Une barre de menus qui met chaque réglage à un étage différent
-    // fait chercher deux fois.
-    QMenu* view = system->addMenu(QStringLiteral("Dock display"));
+    QMenu* view = _menuBar->addMenu(QStringLiteral("Dock"));
 
     // Layout first: which arrangement you are in decides where everything else
     // is, so it reads before the list of what is in it.
@@ -242,8 +213,32 @@ void VC::Editor::buildMenuBar()
     auto* reset = view->addAction(QStringLiteral("Reset UI"));
     connect(reset, &QAction::triggered, this, &Editor::dockResetRequested);
 
+    QMenu* theme = _menuBar->addMenu(QStringLiteral("Theme"));
+    _codeThemesMenu = theme->addMenu(QStringLiteral("Code theme"));
+
+    // "Show Colors" rather than "Colors…": the ellipsis is the macOS way of
+    // saying a window follows, but the verb says it in a word instead of in a
+    // convention, and it is the name the system gives its own colour panel —
+    // with the same key.
+    auto* colors = theme->addAction(QStringLiteral("Show Colors"));
+    colors->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+C")));
+    connect(colors, &QAction::triggered, this, &Editor::colorsRequested);
+
+    // Settings is NOT repeated in any of these.  Qt recognises the title and
+    // macOS moves any such item into the application menu next to About and
+    // Quit, which is where a Mac user looks for it — a second one would either
+    // vanish or, if renamed to escape the rule, sit in the wrong place on purpose.
+
+    // Every key the application answers to, and where you change them.  ⌘/
+    // because that is where the rest of the world put it, and because a list of
+    // shortcuts that itself needs a shortcut nobody knows is a list nobody reads.
+    QMenu* keyboard = _menuBar->addMenu(QStringLiteral("Keys"));
+    auto*  keys = keyboard->addAction(QStringLiteral("Keyboard Shortcuts"));
+    keys->setShortcut(QKeySequence(QStringLiteral("Ctrl+/")));
+    connect(keys, &QAction::triggered, this, &Editor::shortcutsRequested);
+
     // Guide is kept and left empty on purpose. It is where what the chrome
-    // MEANS will go — the legend moved to System because it became something
+    // MEANS will go — the legend moved to Keys because it became something
     // you change rather than something you read. macOS greys the title of a
     // menu with nothing in it, which is the honest picture: the place exists,
     // it holds nothing yet.
@@ -595,6 +590,11 @@ QString VC::Editor::layoutPath()
 bool VC::Editor::reducedMotion() const
 {
     return prefersReducedMotion();
+}
+
+void VC::Editor::bringToFront() const
+{
+    VC::bringToFront();
 }
 
 void VC::Editor::saveLayout(const QString& json) const
@@ -1826,6 +1826,12 @@ void VC::Editor::pressKey(const QString& spec)
     // to be open before anything is aimed at it and wrong for everything else:
     // "change the arrangement, THEN pin it as the default" cannot be said any
     // other way, and that order is the whole meaning of the gesture.
+    // "Menu:1" — ⌘1 through the native menu bar, the only road it takes on macOS.
+    if (spec.startsWith("Menu:")) {
+        std::cout << std::format("Probed the menu key ⌘{} → {}\n", spec.mid(5).toStdString(), sendMenuKey(spec.mid(5)) ? "taken" : "nobody");
+        return;
+    }
+
     if (spec.startsWith("Panel:")) {
         const QString which = spec.mid(6);
         if (which == QStringLiteral("settings"))

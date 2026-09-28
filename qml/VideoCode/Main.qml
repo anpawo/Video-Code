@@ -1621,6 +1621,33 @@ ApplicationWindow {
         }
     }
 
+    // Launched from a terminal, the shell came up on screen while the TERMINAL
+    // stayed the frontmost application. macOS gives the menu bar, the ⌘ keys and
+    // the cursor to whoever is frontmost, so ⌘1..4 did nothing (every Shortcut
+    // here is a Qt.WindowShortcut, which needs `active`) and no MouseArea could
+    // turn the pointer into a splitter arrow — the window looked focused all the
+    // same, because Qt's requestActivate() only makes it key. It stayed that way
+    // until something else raised the app: switching a Space, or the Dock
+    // changing display.
+    //
+    // On the first swapped frame rather than on completion: the application can
+    // only be raised once it has a window on screen to raise.
+    property bool raised: false
+
+    onFrameSwapped: {
+        if (raised || Shell.headless)
+            return;
+        raised = true;
+        // The application first, the window second. Reversed, makeKeyWindow
+        // runs while the process is still in the background, where AppKit
+        // ignores it, and the activation that follows picks the key window and
+        // the first responder on its own — which is how the menu bar came up
+        // right while ⌘1..4 stayed dead: a native menu item has no target, so
+        // Cocoa looks for one up the responder chain from the focused view.
+        Shell.bringToFront();
+        requestActivate();
+    }
+
     Component.onCompleted: {
         // The scene is a file on disk before it is anything else: a language
         // server reasons about files, and so does every jump to a definition.

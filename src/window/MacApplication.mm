@@ -7,6 +7,8 @@
 
 #include "window/MacApplication.hpp"
 
+#include <QHash>
+
 #import <AppKit/AppKit.h>
 
 // The bold title next to the Apple is not something Qt can set, and three
@@ -46,5 +48,35 @@ bool VC::prefersReducedMotion()
 {
     @autoreleasepool {
         return [[NSWorkspace sharedWorkspace] accessibilityDisplayShouldReduceMotion];
+    }
+}
+
+void VC::bringToFront()
+{
+    @autoreleasepool {
+        [NSApp activateIgnoringOtherApps:YES];
+    }
+}
+
+bool VC::sendMenuKey(const QString& key)
+{
+    // The virtual key codes of the digit row: Qt's menu delegate reads the key
+    // code as well as the characters when it asks the focus object first.
+    static const QHash<QString, unsigned short> codes = {
+        {"1", 18}, {"2", 19}, {"3", 20}, {"4", 21}, {"5", 23}, {"6", 22}, {"7", 26}, {"8", 28}, {"9", 25}
+    };
+    @autoreleasepool {
+        NSString* chars = key.toNSString();
+        NSEvent*  event = [NSEvent keyEventWithType:NSEventTypeKeyDown
+                                          location:NSZeroPoint
+                                     modifierFlags:NSEventModifierFlagCommand
+                                         timestamp:0
+                                      windowNumber:0
+                                           context:nil
+                                        characters:chars
+                       charactersIgnoringModifiers:chars
+                                         isARepeat:NO
+                                           keyCode:codes.value(key, 0)];
+        return [[NSApp mainMenu] performKeyEquivalent:event];
     }
 }

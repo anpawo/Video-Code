@@ -129,6 +129,12 @@ namespace VC
 
         Q_INVOKABLE bool reducedMotion() const;
 
+        // bringToFront() — raise the application, once the window is on screen.
+        // See VC::bringToFront(): requestActivate() alone leaves the process
+        // behind whatever launched it, and macOS then keeps the cursor and the
+        // ⌘ keys for that other application.
+        Q_INVOKABLE void bringToFront() const;
+
         Q_INVOKABLE void saveLayout(const QString& json) const;
 
         // loadLayout() — the arrangement from last time, or an empty string,
