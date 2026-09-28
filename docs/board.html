@@ -172,21 +172,22 @@
     <h1>Chantier Video-Code</h1>
     <span class="branch">main</span>
     <span class="chips">
-      <span class="chip"><b>73</b> livrés</span>
-      <span class="chip"><b>13</b> à faire</span>
+      <span class="chip"><b>74</b> livrés</span>
+      <span class="chip"><b>14</b> à faire</span>
       <span class="chip"><b>83</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">28 sept. · 18h</span>
+    <span class="stamp">28 sept. · 19h</span>
   </header>
 
   <div class="board">
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">33</span></h2>
+        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">34</span></h2>
         <ul class="rows">
           <li class="grp">Timeline & clips</li>
+          <li class="hot" data-issue="346" data-b="./video-code --lint --file scene.py: one file:line: error|warning: message [rule] per finding, exit 1 on an error, without drawing a frame. Rules: the scene not running (a negative wait), a Sound starting on or after the last frame, a write before frame 0, an element never on screen, one only on the last frame — plus the editor&#x27;s three warnings, which never reached the command line.¦Swept over the 68 scenes of the suite: one finding, a true one (sound.py:10). Documented in docs/FEATURES.md.¦The findings also reach the editor with no editor change: underlined in the Code pane, clip hatched with a ⚠ — seen windowless on the timeline.¦Yours, after relaunching the app: a buffer with Circle().opacity(0) then wait(1) — orange underline on the Circle line, hatched Circle clip; Text(&quot;hello&quot;).hide() hatches only the first glyph&#x27;s bar, enough?"><span class="id">66</span><span class="lbl"><code>--lint</code>: the scene checked without rendering</span><span class="meta">bed5709 · ton œil</span></li>
           <li class="hot" data-issue="185" data-fix="c997fd1" data-b="Tirer le corps d'un clip le déplace : ça écrit son .wait(n) devant son premier appel minuté, le change s'il existe, le retire à zéro. Le bord gauche revient : le clip apparaît plus tôt ou plus tard et sa fin ne bouge pas (le hide est compensé). Le bord droit est inchangé. Le clip suit la souris, aimanté ; Ctrl libère, Échap annule, un clic reste un clic.¦Les refus sont dits en mots : une constante propose de la changer, une vidéo ou un son ne se déplacent pas par un wait (ça décalerait l'image, pas le clip), rien à raccourcir s'il n'y a pas de wait. Testé par de vrais glissers sans fenêtre : test/timeline_drag_test.py.¦À ta souris : le seuil avant que le glisser parte, l'aimant de 8 px, les curseurs, attraper un clip de 0,4 s, et si les nombres aimantés comme 1.04 te vont dans le code. Limite connue : étirer par la gauche un clip qui a un hide fait deux ⌘Z. Relance l'app, le binaire a changé."><span class="id">37</span><span class="lbl">Glisser un clip, l'étirer par ses bords</span><span class="meta lock">ta souris</span></li>
           <li class="hot" data-issue="180" data-fix="d3d84fd" data-b="L'étiquette d'un trou (« wait 0.3s ») est sa poignée : on la tire de côté et le trou finit là où on lâche, aimanté ; un clic dessus ouvre toujours le champ où l'on tape le nombre. Refus en mots si ça tombe à zéro, et une constante propose toujours de changer sa ligne.¦Pas de poignée sur les bords de la bande : mesuré, un objet posé sur les pistes vole le survol des clips en dessous — et un trou commence pile là où un clip finit. Déplacer le DÉBUT d'un trou, c'est donc tirer l'étiquette du trou d'avant, la seule ligne qui puisse rendre du temps.¦À ta souris : l'étiquette attrapée du premier coup, et le fait qu'un clip ne se glisse plus depuis les ~50 px que son étiquette recouvre quand le volet est court."><span class="id">46</span><span class="lbl">Tirer un trou par son étiquette</span><span class="meta lock">ta souris</span></li>
           <li class="hot" data-fix="e022614" data-issue="337" data-b="Le trait blanc d'un bord tombe pile sur le bord du clip (mesuré : 637,67 = 637,67), et le suit pendant l'étirement. Au survol d'un bord et pendant un geste, une infobulle au style de Jarvis pointe le bord et montre la ligne qui changera, avec celle du dessus et celle du dessous ; la valeur suit la souris, un refus s'y lit avant de lâcher.¦Une seule fonction, planGesture, décide de l'édition ; l'aperçu et l'écriture la partagent — le test vérifie que l'infobulle affichait exactement ce que le relâcher écrit. Pour le bord gauche, seule la première édition est montrée (pas le hide compensé).¦À ta souris : si le trait à 30 % se voit assez sur un clip violet, si l'infobulle gêne pour viser, la pointe et le fondu de 250 ms. Pas de flou ni d'ombre derrière, contrairement à Jarvis."><span class="id">65</span><span class="lbl">Bord du clip exact, aperçu du code en direct</span><span class="meta lock">ta souris</span></li>
@@ -230,16 +231,16 @@
 
     <div class="col">
       <div class="card doing">
-        <h2>In progress <em>en cours ici</em> <span class="n">2</span></h2>
+        <h2>In progress <em>ce qui reste demande un Linux</em> <span class="n">1</span></h2>
         <ul class="rows">
-          <li data-issue="346" data-b="Une passe qui lit la scène et dit ce qui cloche sans rendre une image : un clip qui commence après la fin, un wait négatif, un élément jamais visible.¦Idée prise à <code>hyperframes lint</code> (veille du 20 sept.) : moins cher qu'un golden, attrape une autre classe d'erreurs.¦Détail : docs/VEILLE.md."><span class="id">66</span><span class="lbl"><code>--lint</code> : la scène vérifiée sans rendu</span><span class="meta">ton œil</span></li>
           <li data-issue="345" data-b="Rouge depuis le 16 sept. Trois causes empilées, deux réglées : la suite Linux ne posait aucune plateforme Qt (l&#x27;éditeur prenait xcb, sans écran, et ne démarrait pas) ; et stdout était entièrement tamponné sur glibc, donc le test qui lit l&#x27;éditeur VIVANT ne voyait qu&#x27;un fichier vide — macOS le vidait, d&#x27;où vert ici et rouge là-bas depuis toujours.¦De 4 fichiers rouges à 1, et de 28 ✗ à 2. Restent les deux Click: de timeline_drag : le clic tombe au bon endroit (elementAtWindow dit « circle line 11 ») mais la ligne 7 est sélectionnée — les voies visées ne sont pas là où l&#x27;arithmétique les met. Les Drag:, les survols, les bords et les infobulles du même fichier passent.¦QT_QUICK_BACKEND=software essayé le 20 sept. : identique à l&#x27;octet près, ce n&#x27;est donc pas l&#x27;image manquante. Je ne peux pas creuser depuis ce Mac, qui n&#x27;a pas le greffon offscreen : il faut un Linux. <code>3c7c677</code> <code>ab3e246</code>."><span class="id">68</span><span class="lbl">CI Linux : de 28 échecs à 2</span><span class="meta lock">ton avis</span></li>
         </ul>
       </div>
 
       <div class="card todo">
-        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">5</span></h2>
+        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">6</span></h2>
         <ul class="rows">
+          <li data-issue="365" data-b="The backdated-write warning (a start= that opens behind a line written above it) has been false since S1: both line orders now bake the same film, yet one of them warns. The detector must stay — it triggers the S1 replay — but its words must change or go.¦Found by the --lint design, 28 Sept.: --lint prints it on docs/by-example/features/deferred_base.py:71 and :78, a scene written to show that order no longer matters."><span class="id">80</span><span class="lbl">The backdated-write warning is stale</span><span class="meta">bug</span></li>
           <li data-issue="176" data-b="Une ligne repliée par outil lancé — son nom, ✓ ou ✗, dépliable sur ses arguments et son résultat — et le raisonnement en gris au-dessus de la réponse, comme ToolRunRow et ThinkingSummaryView chez Palmier.¦Aujourd'hui seules ses phrases s'affichent. Demandé le 17 sept."><span class="id">23</span><span class="lbl">Agent : ses étapes avant la réponse</span><span class="meta">ton œil</span></li>
 
           <li data-issue="182" data-b="Tape une valeur à l&#x27;instant du curseur, la ligne s&#x27;écrit. Le chrono d&#x27;After Effects."><span class="id">35</span><span class="lbl">Fiche chronomètre</span><span class="meta">ton œil</span></li>
