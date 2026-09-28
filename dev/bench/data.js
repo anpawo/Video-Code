@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790591191830,
+  "lastUpdate": 1790612138511,
   "repoUrl": "https://github.com/anpawo/Video-Code",
   "entries": {
     "Benchmark": [
@@ -259,6 +259,65 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/anpawo/Video-Code/commit/9e4429615fbf1e416a4e376484fa70009a958f48"
         },
         "date": 1790591191437,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bake/applyCalls",
+            "value": 21767,
+            "unit": "count"
+          },
+          {
+            "name": "bake/entries",
+            "value": 18980,
+            "unit": "count"
+          },
+          {
+            "name": "bake/inputs",
+            "value": 564,
+            "unit": "count"
+          },
+          {
+            "name": "render/msPerFrame",
+            "value": 6.5429,
+            "unit": "ms"
+          },
+          {
+            "name": "render/total",
+            "value": 2.4732,
+            "unit": "s"
+          },
+          {
+            "name": "render/load",
+            "value": 0.5103,
+            "unit": "s"
+          },
+          {
+            "name": "render/peakRss",
+            "value": 461.2031,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rousset.marius13@gmail.com",
+            "name": "marius rousset",
+            "username": "anpawo"
+          },
+          "committer": {
+            "email": "rousset.marius13@gmail.com",
+            "name": "marius rousset",
+            "username": "anpawo"
+          },
+          "distinct": true,
+          "id": "ced60e7f4e361c36e62502d77fa69fae6a3c466d",
+          "message": "board: the renderer crash, frame hold, LoL hook and agent's changed lines landed\n\nThe crash (#77) leaves the board; the three features stay under Needs your\ncheck with their commits, for an eye or a mouse. fadeIn's hidden and\nwaitFor(clip.end) were on main and asked only a go: they leave too. The\nREADME gif joins the checks.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-09-28T18:13:32+02:00",
+          "tree_id": "6456b3c351b9d79226e9cf479a2a69bc0b92d189",
+          "url": "https://github.com/anpawo/Video-Code/commit/ced60e7f4e361c36e62502d77fa69fae6a3c466d"
+        },
+        "date": 1790612137627,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
