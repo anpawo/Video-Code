@@ -228,6 +228,69 @@ qui appuie la ligne 53.
 *Écrit le 2026-09-20. Tout ce qui est chiffré ici a été mesuré ce jour-là ;
 la cadence de publication d'HyperFrames, en particulier, vieillira vite.*
 
+---
+
+## Un lecteur à nous — ne pas faire un lecteur, faire ce qui est branché sur video-code
+
+Regardé le 2026-09-28, parce qu'Aperçu n'anime pas un GIF (il en montre les
+images comme des pages ; QuickTime refuse le GIF, le WebM et le MKV — testés).
+Verdict : **ignorer** le lecteur généraliste, **à creuser** les trois choses
+que personne ne fait. Ligne 79 du tableau.
+
+**Déjà fait, gratuit, inutile à refaire :**
+
+| Besoin | Outil | Licence |
+|---|---|---|
+| Tout lire (GIF, WebM, MKV), image suivante/précédente, boucle A-B, vitesse | IINA | GPL-3, appli séparée |
+| Numéro d'image, zoom sans lissage, pipette, comparer deux vidéos (côte à côte, volet, différence) | mrv2 | BSD-3 |
+| Volet à la souris sur deux vidéos synchronisées, différence en couleurs, scores | video-compare (`brew install video-compare`) | GPL-2, programme séparé |
+| Voir un GIF sans rien installer | Quick Look (espace dans le Finder), ou `ffplay -loop 0 x.gif` | — |
+
+Les chapitres sont déjà là : le moteur écrit les `timestamp()` comme chapitres
+du MP4, et IINA ou mpv les lisent.
+
+**Ce que personne ne fait** (non trouvé — une absence ne se prouve pas) :
+
+- **L'image vers les lignes Python qui la dessinent**, surlignées pendant la
+  lecture. Motion Canvas et Remotion ne vont que d'un élément à la ligne qui
+  l'a créé, et en JS.
+- **Comparer deux vidéos et trancher le golden** — accepter réécrit la
+  référence. Ça existe pour des captures fixes (BackstopJS, Argos, Chromatic),
+  pas pour la vidéo, ni dans un lecteur.
+- **Le contrôle avant envoi dans une seule vue** : sonie contre une cible,
+  zones des applis, noirs et silences marqués sur la timeline — aujourd'hui
+  trois ou quatre outils (Resolve, LosslessCut, safezone, QC Buddy), et aucun
+  ne remonte d'un défaut au code.
+
+**Les chiffres à ne pas inventer :**
+
+- « −14 LUFS YouTube » n'est pas officiel : YouTube, TikTok et Instagram ne
+  publient rien ; le chiffre vient d'un article de 2018. Officiels : Spotify
+  −14 LUFS (pic −1 dBTP), Apple Podcasts −16 LKFS. La cible sera un réglage.
+- Zones : Meta Reels 14 % en haut, 35 % en bas, 6 % de chaque côté ; le calque
+  vertical de Google (1080×1920) réserve 288 px en haut, 672 en bas, 48 à
+  gauche, 192 à droite. Le « 10/25/10 » qui circule pour Shorts le contredit.
+
+**Ce qu'on réutiliserait :** le FFmpeg déjà dans `vcpkg_installed` (LGPL, à
+lier en dynamique et sans x264/x265) lit tout et mesure sonie, noirs, silences,
+images figées, PSNR et SSIM. Le lecteur OpenCV actuel saute à l'image exacte
+sur nos MP4 (62 sur 62) mais n'ouvre ni WebM ni MKV, et d'un GIF ne lit que la
+première image ; le passer sur FFmpeg changerait le décodeur, donc peut-être
+les goldens et l'empreinte. QtAVPlayer (MIT) est un lecteur Qt/QML sur FFmpeg,
+sans port vcpkg. mrv2/tlRender (BSD-3) sont le code de comparaison à lire.
+
+**À éviter :** libmpv (GPL par défaut, OpenGL seulement), Qt Multimedia (pas de
+pas à pas ni d'arrière), QMovie (un saut non séquentiel échoue sur un GIF),
+libVLC (l'image précédente attend la 4.0), GStreamer (lourd, sortie OpenGL).
+
+Sources principales : github.com/ggarra13/mrv2, github.com/pixop/video-compare,
+iina.io, support.apple.com/guide/preview/view-an-animated-gifs-frames-prvw1016/mac,
+motioncanvas.io/docs/time-events/, remotion.dev/elements/overlays/social-safe-zones,
+github.com/reelsmith/safezone, github.com/bavc/qctools,
+support.spotify.com/us/artists/article/loudness-normalization/,
+facebook.com/business/ads-guide/update/image/instagram-reels,
+github.com/valbok/QtAVPlayer.
+
 ## Reference reels for the videos to make — shortlist of 2026-09-27
 
 Eight Instagram reels kept as references for the videos made with video-code, ranked.
