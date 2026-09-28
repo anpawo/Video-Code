@@ -12,7 +12,6 @@ MEDIA = "videos/lol/media/tahm-kench"
 
 tutorial(
     champion="Tahm Kench",
-    role="Top",
     intro=f"{MEDIA}/intro.mp4",
     sections=[
         Section("Advanced Combo", [

@@ -1,9 +1,9 @@
 """
-The League of Legends tutorial, as a template: an intro card, the champion's clips grouped in
-sections with captions, one music track under all of it. A champion's video is only data:
+The League of Legends tutorial, as a template: a hook, the champion's clips grouped in sections
+with captions, one music track under all of it. A champion's video is only data:
 
     tutorial(
-        champion="Tahm Kench", role="Top",
+        champion="Tahm Kench",
         intro="media/tahm-kench/intro.mp4",
         sections=[
             Section("Advanced Combo", [
@@ -17,8 +17,10 @@ A clip or an intro given no file plays a blank of `seconds`, labelled with its s
 whole video can be laid out before any footage exists.
 
 Modelled on "Focus on : Tahm Kench Top" (youtu.be/3hwarq5CSCU): no voice, the tips are captions
-at the foot of the frame, each section is a chapter of the video. Clips inside a section are
-joined by `clipTransition`, sections by `sectionTransition`.
+at the foot of the frame, each section is a chapter of the video. It opens on the hook — one clip
+of play under the music, no title card, and near its end one line saying what the video will
+teach — then dips to black into the first section. Clips inside a section are joined by
+`clipTransition`, sections by `sectionTransition`.
 """
 
 import os
@@ -27,7 +29,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from videocode import *
-from videocode.template.effect.other.transitions import dipToBlack, filmBurn, flash, whipPan
+from videocode.template.effect.other.transitions import dipToBlack, flash, whipPan
 
 INK = WHITE
 DIM = rgba(200, 204, 214)
@@ -46,6 +48,8 @@ class Clip:
     captions: list[tuple[sec, str]] = field(default_factory=list)
     seconds: sec = 6.0  # the blank's length, when there is no file yet
     hold: sec = 3.0
+    # (second in the clip, seconds): the image stops there, to explain it, then plays on
+    holds: list[tuple[sec, sec]] = field(default_factory=list)
 
 
 @dataclass
@@ -68,28 +72,25 @@ def blank(seconds: sec) -> str:
     return path
 
 
-def footage(path: str | None, seconds: sec, slot: str | None = None) -> Video:
-    clip = Video(path or blank(seconds), width=W, height=H)
+def footage(path: str | None, seconds: sec, slot: str | None = None, holds: list[tuple[sec, sec]] = []) -> Video:
+    clip = Video(path or blank(seconds), width=W, height=H, holds=holds)
     if path is None and slot:
         Text(text=slot, fontSize=0.4, fillColor=DIM).position(0, 0.2) \
-            .fadeIn(duration=0.3).wait(max(seconds - 0.6, 0)).fadeOut(duration=0.3)
+            .fadeIn(duration=0.3).wait(max(seconds + sum(d for _, d in holds) - 0.6, 0)).fadeOut(duration=0.3)
     return clip
 
 
 def caption(text: str, at: sec, until: sec) -> None:
-    Text(text=text, fontSize=0.3, fillColor=INK).position(0, -3.85) \
-        .wait(at).fadeIn(duration=0.15).wait(max(until - at - 0.3, 0)).fadeOut(duration=0.15)
+    # one Text per line, each centred: a multi-line Text lines up on its left edge
+    lines = text.split("\n")
+    for k, line in enumerate(lines):
+        Text(text=line, fontSize=0.3, fillColor=INK).position(0, -3.85 + 0.42 * (len(lines) - 1 - k)) \
+            .wait(at).fadeIn(duration=0.15).wait(max(until - at - 0.3, 0)).fadeOut(duration=0.15)
 
 
 def sectionTag(title: str) -> None:
     tag = Text(text=title.upper(), fontSize=0.3, fillColor=ACCENT)
     tag.position(-W / 2 + 0.5 + tag.width / 2, H / 2 - 0.5).wait(0.3).fadeIn(duration=0.3).wait(2.2).fadeOut(duration=0.3)
-
-
-def titles(champion: str, role: str, seconds: sec) -> None:
-    for text, size, color, y in (("FOCUS ON", 0.34, ACCENT, 1.3), (champion.upper(), 1.3, INK, 0.2), (f"{role} · tips and tricks", 0.34, DIM, -0.9)):
-        Text(text=text, fontSize=size, fillColor=color, bold=size > 1).position(0, y) \
-            .fadeIn(duration=0.5).wait(max(seconds - 1.2, 0)).fadeOut(duration=0.4)
 
 
 def until(second: sec) -> None:
@@ -101,11 +102,12 @@ def until(second: sec) -> None:
 
 def tutorial(
     champion: str,
-    role: str,
     sections: list[Section],
     music: str | None = None,
     intro: str | None = None,
-    introSeconds: sec = 4,
+    introSeconds: sec = 12,  # the blank's length, when there is no hook clip yet
+    hook: str | None = None,
+    hookSeconds: sec = 4.5,
     musicVolume: float = 0.5,
     outro: str = "and stay safe",
     clipTransition: Transition = whipPan,
@@ -115,20 +117,21 @@ def tutorial(
     track = Sound(music, volume=musicVolume) if music else None
     d = transitionSeconds
 
-    # the intro opens the first chapter: YouTube drops every chapter when one is under ten seconds
-    timestamp(sections[0].title)
-    shown = footage(intro, introSeconds + d)
-    Rectangle(width=W, height=H, fillColor=SHADE, strokeColor=TRANSPARENT).opacity(140).wait(introSeconds).fadeOut(duration=d)
-    titles(champion, role, introSeconds)
+    # The hook is its own chapter, as in the original, where it runs 28 s: YouTube drops every
+    # chapter when one is under ten seconds, so a hook that short would cost all of them.
+    timestamp("Intro")
+    shown = footage(intro, introSeconds, "HOOK · your best play")
+    said = hook if hook is not None else f"today, we will find out\nhow to carry with {champion}"
+    caption(said, max(shown.end - hookSeconds, 0), shown.end - d)
 
     for n, section in enumerate(sections):
         for i, clip in enumerate(section.clips):
-            until(introSeconds if not n and not i else shown.end - d)
-            if n and not i:
+            until(shown.end - d)
+            if not i:
                 timestamp(section.title)
-            incoming = footage(clip.path, clip.seconds, f"CLIP · {section.title} {i + 1}").hide()
-            join = filmBurn if not n and not i else sectionTransition if not i else clipTransition
-            join(shown, incoming, duration=d if join is not filmBurn else 2 * d)
+            incoming = footage(clip.path, clip.seconds, f"CLIP · {section.title} {i + 1}", clip.holds).hide()
+            join = dipToBlack if not n and not i else sectionTransition if not i else clipTransition
+            join(shown, incoming, duration=d)
             if not i:
                 sectionTag(section.title)
             times = [t for t, _ in clip.captions]

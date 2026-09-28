@@ -9,11 +9,10 @@ from videos.lol.tutorial import Clip, Section, tutorial
 
 tutorial(
     champion="Champion",
-    role="Role",
     sections=[
         Section("Advanced Combo", [
             Clip(captions=[(0.8, "the combo, key by key"), (3.5, "when it works, and when it does not")]),
-            Clip(captions=[(0.8, "the same combo with flash")]),
+            Clip(captions=[(0.8, "the same combo with flash")], holds=[(2.0, 1.5)]),
         ]),
         Section("Laning Phase", [
             Clip(captions=[(0.8, "the first three levels")]),
