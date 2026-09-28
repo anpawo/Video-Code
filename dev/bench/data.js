@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790613879038,
+  "lastUpdate": 1790614434273,
   "repoUrl": "https://github.com/anpawo/Video-Code",
   "entries": {
     "Benchmark": [
@@ -377,6 +377,65 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/anpawo/Video-Code/commit/d5e4d8f1f60e11579f66bc9218b40b87124872f2"
         },
         "date": 1790613877343,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bake/applyCalls",
+            "value": 21767,
+            "unit": "count"
+          },
+          {
+            "name": "bake/entries",
+            "value": 18980,
+            "unit": "count"
+          },
+          {
+            "name": "bake/inputs",
+            "value": 564,
+            "unit": "count"
+          },
+          {
+            "name": "render/msPerFrame",
+            "value": 6.5429,
+            "unit": "ms"
+          },
+          {
+            "name": "render/total",
+            "value": 2.4732,
+            "unit": "s"
+          },
+          {
+            "name": "render/load",
+            "value": 0.5103,
+            "unit": "s"
+          },
+          {
+            "name": "render/peakRss",
+            "value": 461.2031,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rousset.marius13@gmail.com",
+            "name": "marius rousset",
+            "username": "anpawo"
+          },
+          "committer": {
+            "email": "rousset.marius13@gmail.com",
+            "name": "marius rousset",
+            "username": "anpawo"
+          },
+          "distinct": true,
+          "id": "43266ed37cb87042811bfacb40727b8c482fb5d1",
+          "message": "Revert \"probe: a click moves on the spot between press and release\"\n\nThis reverts commit 181eaad. On the Linux runner it fixed neither of\ntimeline_drag's two Click: checks and broke four more: CI went from 2 failures\n(run 36408958368) to 6 (run 36449531410) — the release now writes an edit, so\nthe move turns the click into a drag there. The commit's claim that the clicks\npass came from a debug run, not the full suite. Row 68 stays in progress.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-09-28T18:44:27+02:00",
+          "tree_id": "dfac083e091f11b9c95977202bc08046a28be821",
+          "url": "https://github.com/anpawo/Video-Code/commit/43266ed37cb87042811bfacb40727b8c482fb5d1"
+        },
+        "date": 1790614433340,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
