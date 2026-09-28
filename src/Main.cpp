@@ -373,8 +373,7 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
     // Wayland session, and the preview then has no surface at all. XWayland is
     // there whenever DISPLAY is, so the X plugin is asked for, unless someone
     // already chose a platform.
-    if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM") && !qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY")
-        && !qEnvironmentVariableIsEmpty("DISPLAY"))
+    if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM") && !qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY") && !qEnvironmentVariableIsEmpty("DISPLAY"))
         qputenv("QT_QPA_PLATFORM", "xcb");
 #endif
 
