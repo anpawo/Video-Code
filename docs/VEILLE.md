@@ -234,8 +234,10 @@ la cadence de publication d'HyperFrames, en particulier, vieillira vite.*
 
 Regardé le 2026-09-28, parce qu'Aperçu n'anime pas un GIF (il en montre les
 images comme des pages ; QuickTime refuse le GIF, le WebM et le MKV — testés).
-Verdict : **ignorer** le lecteur généraliste, **à creuser** les trois choses
-que personne ne fait. Ligne 79 du tableau.
+Verdict : **ignorer**. La preview de video-code est déjà le lecteur de revue ;
+il ne manquait qu'un moyen de regarder un GIF, et IINA le fait — installé et
+réglé par défaut pour .gif, .webm et .mkv le même jour. Ligne 79, en « Won't do ».
+Les trois manques ci-dessous restent notés au cas où.
 
 **Déjà fait, gratuit, inutile à refaire :**
 
