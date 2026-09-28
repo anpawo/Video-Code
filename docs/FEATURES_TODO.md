@@ -187,6 +187,14 @@ Ce que Premiere, Final Cut et Palmier Pro ont et que nous n'avons pas, trié par
 | 52 | Marqueurs en couleur, et leur liste | Premiere | timestamp("nom", color=…) colore le drapeau ; un volet liste les marqueurs, un clic y va. Le panneau Markers de Premiere. |
 | 53 | Image figée : `Video(holds=[(at, seconds)])` — fait, à vérifier | Premiere, Final Cut | Tient l'image `at` pendant `seconds`, le clip reprend de cette image ; le clip et `end` s'allongent d'autant, son propre son se tait pendant la tenue. Pas `freeze()` : `freeze(n)` met déjà toute la scène en pause. Testé par `test/video_hold_test.py`. |
 
+### I — Un lecteur à nous, noté le 28 sept.
+
+Aperçu d'Apple n'anime pas un GIF : il en montre les images comme des pages. Pas urgent.
+
+| # | Idée | Venue de | Pourquoi |
+|---|---|---|---|
+| 79 | Lecteur maison : `./video-code --view <fichier>` | Aperçu, QuickTime | Ouvre tout ce que FFmpeg lit, dans l'éditeur qui a déjà l'aperçu, la timeline et le pas image par image. Ce que seul le nôtre ferait : un rendu à côté de son golden (côte à côte, volet, carte des différences), les lignes de la scène derrière l'image sous la tête de lecture, et les contrôles avant envoi (sonie contre −14 LUFS, zones sûres Shorts/TikTok). Un lecteur généraliste n'en vaut pas la peine : IINA existe, gratuit. |
+
 ### G — Licence, noté le 17 sept.
 
 Le dépôt n'a jamais eu de fichier de licence. Numéros du tableau.
