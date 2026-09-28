@@ -58,7 +58,7 @@ def _probe(args: list[str]) -> str:
 
 class Video(Polygon):
     cppName = "Video"
-    cppAttrs = Polygon.cppAttrs | {"filepath", "cuts", "speedRamps", "uvMapping", "uvAngle", "originFrame"}
+    cppAttrs = Polygon.cppAttrs | {"filepath", "cuts", "speedRamps", "holds", "uvMapping", "uvAngle", "originFrame"}
 
     def __init__(
         self,
@@ -74,6 +74,7 @@ class Video(Polygon):
         strokeWidth: wufloat = 0,
         uvMapping: UVMapping = UVMapping.STRETCH,
         uvAngle: wufloat = 0,
+        holds: list[tuple[sec, sec]] = [],
     ) -> None:
         """
         `cuts` are ranges of source-video frames to skip during playback —
@@ -113,6 +114,15 @@ class Video(Polygon):
         rate math (only by where the ramp's source anchor sits) — ramps
         aren't expected to straddle a cut in practice.
 
+        `holds` are `(at, seconds)` pairs, a frame hold: the image `at` seconds
+        into the clip stays on screen for `seconds`, then the clip plays on from
+        that same image — nothing is skipped, the clip gets longer by the hold,
+        and `end` says so. `at` counts the clip as cuts and speed ramps leave it,
+        before any hold. The clip's own sound is silent over the hold. For the
+        moment you stop on to explain it:
+
+            Video("fight.mp4", holds=[(3.2, 2.0)])     # stops on 3.2 s for 2 s
+
         `uvMapping` controls how the texture is wrapped onto the shape —
         see the `UVMapping` enum for the mode semantics; `uvAngle` (degrees)
         rotates the angular origin of the polar modes.
@@ -149,6 +159,11 @@ class Video(Polygon):
                     f"got overlapping segments ({aStart}, {aEnd}) and ({bStart}, {bEnd})"
                 )
         self.speedRamps = speedRamps
+
+        for at, seconds in holds:
+            if at < 0 or seconds <= 0:
+                raise ValueError(f"Video holds are (at >= 0, seconds > 0), got ({at}, {seconds})")
+        self.holds = sorted((round(at * FRAMERATE), round(seconds * FRAMERATE)) for at, seconds in holds)
 
         # A shape needs both numbers, so ffprobe answers (metadata only, no
         # frame decode) whenever one is missing: one dimension given fixes the
@@ -203,7 +218,7 @@ class Video(Polygon):
                 if b > a:
                     cut, seen = cut + b - a, b
             if frames > cut:
-                self._ownEnd = self.originFrame + frames - cut
+                self._ownEnd = self.originFrame + frames - cut + sum(n for _, n in self.holds)
                 Context.lastEverAffectedFrame = max(Context.lastEverAffectedFrame, self._ownEnd)
 
     @property

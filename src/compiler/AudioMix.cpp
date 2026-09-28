@@ -36,18 +36,14 @@ namespace VC::Audio
     // speed and the sound follows with atempo.
     // ponytail: atempo floors at 0.5, so a source above 60 fps fails the mux;
     // neither speed ramps nor a paused VIDEOS clock (freeze) reach the sound.
-    std::string videoAudioChain(const Video& v, size_t ffmpegInput, size_t track)
+    // The kept source audio, retimed, written to [out] with `tail` as its last filters.
+    std::string cutChain(const Video& v, size_t ffmpegInput, const std::string& out, const std::string& tail)
     {
         double      fps = v.sourceFps() > 0.0 ? v.sourceFps() : Config::SCENE_FRAMERATE;
-        std::string tempo = fps != Config::SCENE_FRAMERATE ? std::format(",atempo={}", Config::SCENE_FRAMERATE / fps) : "";
-
-        if (v._origin > 0) {
-            long long ms = std::llround(static_cast<double>(v._origin) * 1000.0 / Config::SCENE_FRAMERATE);
-            tempo += std::format(",adelay={0}|{0}", ms);
-        }
+        std::string tempo = (fps != Config::SCENE_FRAMERATE ? std::format(",atempo={}", Config::SCENE_FRAMERATE / fps) : "") + tail;
 
         if (v.cuts().empty())
-            return std::format("[{}:a]anull{}[a{}];", ffmpegInput, tempo, track);
+            return std::format("[{}:a]anull{}[{}];", ffmpegInput, tempo, out);
 
         // Kept ranges in source seconds; an end of -1 runs to the end of the file.
         std::vector<std::pair<double, double>> keep;
@@ -65,19 +61,55 @@ namespace VC::Audio
         };
 
         if (keep.empty())
-            return std::format("[{}:a]atrim=end=0{}[a{}];", ffmpegInput, tempo, track);
+            return std::format("[{}:a]atrim=end=0{}[{}];", ffmpegInput, tempo, out);
         if (keep.size() == 1)
-            return std::format("[{}:a]{}{}[a{}];", ffmpegInput, trim(keep[0]), tempo, track);
+            return std::format("[{}:a]{}{}[{}];", ffmpegInput, trim(keep[0]), tempo, out);
 
         std::string chain = std::format("[{}:a]asplit={}", ffmpegInput, keep.size());
         for (size_t k = 0; k < keep.size(); ++k)
-            chain += std::format("[s{}_{}]", track, k);
+            chain += std::format("[s{}_{}]", out, k);
         chain += ";";
         for (size_t k = 0; k < keep.size(); ++k)
-            chain += std::format("[s{}_{}]{}[k{}_{}];", track, k, trim(keep[k]), track, k);
+            chain += std::format("[s{}_{}]{}[k{}_{}];", out, k, trim(keep[k]), out, k);
         for (size_t k = 0; k < keep.size(); ++k)
-            chain += std::format("[k{}_{}]", track, k);
-        chain += std::format("concat=n={}:v=0:a=1{}[a{}];", keep.size(), tempo, track);
+            chain += std::format("[k{}_{}]", out, k);
+        chain += std::format("concat=n={}:v=0:a=1{}[{}];", keep.size(), tempo, out);
+        return chain;
+    }
+
+    std::string videoAudioChain(const Video& v, size_t ffmpegInput, size_t track)
+    {
+        std::string delay;
+        if (v._origin > 0) {
+            long long ms = std::llround(static_cast<double>(v._origin) * 1000.0 / Config::SCENE_FRAMERATE);
+            delay = std::format(",adelay={0}|{0}", ms);
+        }
+
+        const auto& holds = v.holds();
+        if (holds.empty())
+            return cutChain(v, ffmpegInput, std::format("a{}", track), delay);
+
+        // A held picture holds the sound too: silence over the held frames, cut
+        // into the track after the cuts and the retime — where one second of
+        // audio is one second of the clip as it plays — and before the delay.
+        const std::string played = std::format("p{}", track);
+        std::string       chain = cutChain(v, ffmpegInput, played, "");
+        chain += std::format("[{}]asplit={}", played, holds.size() + 1);
+        for (size_t k = 0; k <= holds.size(); ++k)
+            chain += std::format("[hs{}_{}]", track, k);
+        chain += ";";
+        for (size_t k = 0; k <= holds.size(); ++k) {
+            const double from = k == 0 ? 0.0 : holds[k - 1].first / Config::SCENE_FRAMERATE;
+            chain += std::format("[hs{}_{}]atrim=start={}", track, k, from);
+            if (k < holds.size())
+                chain += std::format(":end={},asetpts=PTS-STARTPTS,apad=pad_dur={}", holds[k].first / Config::SCENE_FRAMERATE, holds[k].second / Config::SCENE_FRAMERATE);
+            else
+                chain += ",asetpts=PTS-STARTPTS";
+            chain += std::format("[hg{}_{}];", track, k);
+        }
+        for (size_t k = 0; k <= holds.size(); ++k)
+            chain += std::format("[hg{}_{}]", track, k);
+        chain += std::format("concat=n={}:v=0:a=1{}[a{}];", holds.size() + 1, delay, track);
         return chain;
     }
 

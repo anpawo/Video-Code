@@ -185,7 +185,7 @@ Ce que Premiere, Final Cut et Palmier Pro ont et que nous n'avons pas, trié par
 | 50 | Dupliquer un clip, ⌘D | Premiere, Final Cut | Copie la ligne sous l'original avec un nom suffixé, et le clip apparaît sur sa voie. Premiere et Final Cut l'ont tous deux sur ⌘D. |
 | 51 | Zoom « tout voir », ⇧Z | Premiere, Final Cut | Le curseur revient à 100 % d'une touche, la scène entière tient dans le volet. Shift+Z dans Premiere et Final Cut. |
 | 52 | Marqueurs en couleur, et leur liste | Premiere | timestamp("nom", color=…) colore le drapeau ; un volet liste les marqueurs, un clic y va. Le panneau Markers de Premiere. |
-| 53 | Image figée : freeze(at, duration) | Premiere, Final Cut | Un verbe sur Video qui tient une image n secondes, le film reprend après. Frame Hold de Premiere, Hold Frame de Final Cut ; utile pour poser une explication sur un plan. |
+| 53 | Image figée : `Video(holds=[(at, seconds)])` — fait, à vérifier | Premiere, Final Cut | Tient l'image `at` pendant `seconds`, le clip reprend de cette image ; le clip et `end` s'allongent d'autant, son propre son se tait pendant la tenue. Pas `freeze()` : `freeze(n)` met déjà toute la scène en pause. Testé par `test/video_hold_test.py`. |
 
 ### G — Licence, noté le 17 sept.
 

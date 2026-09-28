@@ -36,10 +36,14 @@ public:
 
     const std::vector<std::pair<size_t, size_t>>& cuts() const { return _cuts; }
 
+    // Where the picture holds: (playback frame, frames held), sorted. The sound
+    // is silent over the same frames so the two stay together after a hold.
+    const std::vector<std::pair<size_t, size_t>>& holds() const { return _holds; }
+
     double sourceFps() const { return _video.get(cv::CAP_PROP_FPS); }
 
     size_t _nbFrame{0};
-    size_t _playbackLength{0}; // _nbFrame minus all cut ranges — what Core sees as this Video's contribution to the timeline
+    size_t _playbackLength{0}; // _nbFrame minus all cut ranges, plus every hold — what Core sees as this Video's contribution to the timeline
     size_t _origin{0};         // the film frame the script put this clip on: playback counts from there, not from frame 0
 
 protected:
@@ -63,6 +67,7 @@ private:
 
     size_t mapToSourceIndex(size_t playbackIndex) const;
     size_t mapCutsOnly(size_t playbackIndex) const;
+    size_t unhold(size_t playbackIndex) const;
 
     cv::VideoCapture                       _video;
     cv::Mat                                _currentFrame;
@@ -71,4 +76,5 @@ private:
     std::function<void(const cv::Mat&)>    _reupload;
     std::vector<std::pair<size_t, size_t>> _cuts;       // sorted, merged, non-overlapping [start, end) ranges of source frames to skip
     std::vector<SpeedRamp>                 _speedRamps; // sorted, non-overlapping playback-space ranges with a non-default rate
+    std::vector<std::pair<size_t, size_t>> _holds;      // (playback frame, frames held), sorted by frame
 };
