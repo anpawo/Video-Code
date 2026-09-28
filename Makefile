@@ -17,6 +17,7 @@ VCPKG_FLAGS		= \
 	-DCMAKE_TOOLCHAIN_FILE=$$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake \
 	-DVCPKG_INSTALLED_DIR=$(PWD)/vcpkg_installed \
 	-DVCPKG_OVERLAY_PORTS=$(PWD)/vcpkg-overlay-ports \
+	-DVCPKG_INSTALL_OPTIONS="--clean-buildtrees-after-build;--clean-packages-after-build" \
 	-DWITH_FFMPEG=ON
 
 DEBUG_FLAG		=	-DDEBUG=ON
