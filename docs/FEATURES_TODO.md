@@ -193,7 +193,7 @@ Aperçu d'Apple n'anime pas un GIF : il en montre les images comme des pages. Pa
 
 | # | Idée | Venue de | Pourquoi |
 |---|---|---|---|
-| 79 | Lecteur maison : `./video-code --view <fichier>` | Aperçu, QuickTime | Ouvre tout ce que FFmpeg lit, dans l'éditeur qui a déjà l'aperçu, la timeline et le pas image par image. Ce que seul le nôtre ferait : un rendu à côté de son golden (côte à côte, volet, carte des différences), les lignes de la scène derrière l'image sous la tête de lecture, et les contrôles avant envoi (sonie contre −14 LUFS, zones sûres Shorts/TikTok). Un lecteur généraliste n'en vaut pas la peine : IINA existe, gratuit. |
+| 79 | Lecteur maison : `./video-code --view <fichier>` | Aperçu, QuickTime | Ouvre tout ce que FFmpeg lit, dans l'éditeur qui a déjà l'aperçu, la timeline et le pas image par image. Ce que seul le nôtre ferait : un rendu à côté de son golden (côte à côte, volet, carte des différences), les lignes de la scène derrière l'image sous la tête de lecture, et les contrôles avant envoi (sonie contre −14 LUFS, zones sûres Shorts/TikTok). Un lecteur généraliste n'en vaut pas la peine : IINA, mrv2 et video-compare existent, gratuits ; recherche du 28 sept. dans `docs/VEILLE.md`. |
 
 ### G — Licence, noté le 17 sept.
 
