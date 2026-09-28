@@ -1792,16 +1792,9 @@ void VC::Editor::clickAt(const QPointF& pos)
     if (!window)
         return;
 
-    // A move on the spot between the two, as a hand gives. Without it, on the
-    // Linux offscreen platform, the release never reached the area the press
-    // went to — the label did not open, the clip was not picked — while macOS
-    // delivered it. Measured on the CI runner 2026-09-28: the same two clicks
-    // sent with the move in between pass there.
     QMouseEvent press(QEvent::MouseButtonPress, pos, window->mapToGlobal(pos), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
-    QMouseEvent still(QEvent::MouseMove, pos, window->mapToGlobal(pos), Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
     QMouseEvent release(QEvent::MouseButtonRelease, pos, window->mapToGlobal(pos), Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
     QCoreApplication::sendEvent(window, &press);
-    QCoreApplication::sendEvent(window, &still);
     QCoreApplication::sendEvent(window, &release);
     std::cout << std::format("Probed a click at ({}, {})\n", pos.x(), pos.y());
 }
