@@ -837,6 +837,9 @@ QImage VC::Editor::renderFrame(int index, int width, int height)
         }
         _renderWidth = width;
         _renderHeight = height;
+        // The pane changed size — a layout switch, a splitter — and the clips'
+        // textures lived in the renderer just thrown away: the preview went black.
+        _scene->requeueTextures();
     }
 
     // Every frame, not only when the renderer is built.

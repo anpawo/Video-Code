@@ -76,6 +76,11 @@ namespace VC
             std::function<void(VkDescriptorSet, const cv::Mat&)> reuploadFn = {}
         );
 
+        ///< Queue every Image/Video for the next uploadTextures(), not only the
+        ///< ones the last execution rebuilt: a new renderer holds none of the old
+        ///< one's textures, and their descriptors died with it.
+        void requeueTextures();
+
         ///< Time control
         void pause();
 
