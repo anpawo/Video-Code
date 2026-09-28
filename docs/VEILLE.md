@@ -227,3 +227,23 @@ qui appuie la ligne 53.
 
 *Écrit le 2026-09-20. Tout ce qui est chiffré ici a été mesuré ce jour-là ;
 la cadence de publication d'HyperFrames, en particulier, vieillira vite.*
+
+## Reference reels for the videos to make — shortlist of 2026-09-27
+
+Eight Instagram reels kept as references for the videos made with video-code, ranked.
+Nothing to build from them yet.
+
+**Caveats.** The summaries come from captions and transcripts: nobody has watched the reels.
+Authors were resolved with yt-dlp on 2026-09-27, but one link opened in a browser showed
+unrelated adult content instead of the Darkvex reel: treat every link as unverified in a
+browser, and never open one in a window to check it. The full set tagged video-code (9 more
+reels, 5 YouTube videos) is in `~/self/reels-analysis/projects/video-code.md` and
+`~/self/reels-analysis/graph.jsonl`.
+
+| # | What it shows | Reels (author) |
+|---|---|---|
+| 1 | Opus 5.5 makes motion design by writing code (Three.js / Canvas / WebGL, SVG / CSS / React) that a renderer then plays — the same approach as video-code. The viral showreel comes from a multi-step pipeline, not a single prompt. | [DdvsUg_ziaX](https://www.instagram.com/reel/DdvsUg_ziaX/) (Darkvex AI) · [DdxE5CERFVd](https://www.instagram.com/reel/DdxE5CERFVd/) (Nawras Kader) · [DdwCXaQIHNU](https://www.instagram.com/reel/DdwCXaQIHNU/) (Grafigator) |
+| 2 | HyperFrames, HeyGen's open-source video agent: the closest open-source project to compare against (see the HyperFrames section above). | [Ddb8HEiCifJ](https://www.instagram.com/reel/Ddb8HEiCifJ/) (Sebastian Hardy — a carousel of 5 AI news items, HyperFrames is one) |
+| 3 | Palmier Pro, a macOS editor whose MCP server lets Claude Code edit the timeline (see the Palmier Pro section above). | [DaO2cHXJJUP](https://www.instagram.com/reel/DaO2cHXJJUP/) (Brody, brodyautomates) |
+| 4 | Transitions to reproduce: film burn, mask glitch, flash, hand over the lens, whip pan; plus three simple motion-design transitions. | [Da0d8suu6kJ](https://www.instagram.com/reel/Da0d8suu6kJ/) (Anderson Tai) · [Dcq_NcWvW-K](https://www.instagram.com/reel/Dcq_NcWvW-K/) (François Deverre) |
+| 5 | A 6-step process for scripting content (Stanley app): for choosing what the videos are about. | [DdXDuy6BNOS](https://www.instagram.com/reel/DdXDuy6BNOS/) (Nick Tarmossin) |
