@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+import videocode.constants as _constants
+from videocode.color import RadialGradient
 from videocode.constants import *
+from videocode.shader.fragmentShader.blur import blur as _blur
 from videocode.shader.fragmentShader.brightness import brightness as _brightness
 from videocode.shader.fragmentShader.crop import crop as _crop
+from videocode.shader.fragmentShader.glitch import glitch as _glitch
+from videocode.shader.vertexShader.blendMode import BlendMode
 from videocode.shader.vertexShader.hide import hide as _hide
 from videocode.shader.vertexShader.opacity import opacity as _opacity
 from videocode.shader.vertexShader.position import position as _position
@@ -120,14 +125,134 @@ def dipToBlack(
 
         dipToBlack(sceneA, sceneB, duration=0.8)
     """
+    _dipThrough(outgoing, incoming, -255.0, start, duration, easing)
+
+
+def flash(
+    outgoing: Input,
+    incoming: Input,
+    *,
+    start: sec = 0,
+    duration: sec = 0.4,
+    easing: easing = Easing.InOut,
+) -> None:
+    """
+    Flash: `outgoing` burns up to white, and `incoming` comes down out of it —
+    `dipToBlack` through white, the camera-flash cut of an edit that wants a
+    beat to land.
+
+        flash(clipA, clipB, duration=0.3)
+    """
+    _dipThrough(outgoing, incoming, 255.0, start, duration, easing)
+
+
+def _dipThrough(outgoing: Input, incoming: Input, level: float, start: sec, duration: sec, easing: easing) -> None:
     half = duration / 2
-    for b, i in easing.rangeIdx(0.0, -255.0, half):
+    for b, i in easing.rangeIdx(0.0, level, half):
         outgoing.apply(_brightness(int(b)), start=start + i * SINGLE_FRAME)
     outgoing.apply(_hide(), start=start + half)
 
-    incoming.apply(_show(), start=start + half).apply(_brightness(-255), start=start + half)
-    for b, i in easing.rangeIdx(-255.0, 0.0, half):
+    incoming.apply(_show(), start=start + half).apply(_brightness(int(level)), start=start + half)
+    for b, i in easing.rangeIdx(level, 0.0, half):
         incoming.apply(_brightness(int(b)), start=start + half + i * SINGLE_FRAME)
+
+
+def whipPan(
+    outgoing: Input,
+    incoming: Input,
+    *,
+    direction: Direction = Direction.LEFT,
+    distance: maybe[wnumber] = None,
+    blurStrength: unumber = 31,
+    start: sec = 0,
+    duration: sec = 0.35,
+    easing: easing = Easing.InOut,
+) -> None:
+    """
+    Whip pan: a `push` a whole frame wide (`distance` defaults to the frame's
+    width) and fast, both inputs smeared by a blur that peaks at the cut — the
+    swish pan, where the camera snaps between two shots too fast to read.
+
+    There is no motion blur between frames (docs/FEATURES_TODO.md §5): the
+    smear is a plain blur, strong enough at that speed to read as one. Both
+    inputs' CURRENT positions are the resting spots, as for `push`.
+
+        whipPan(clipA, clipB, direction=Direction.LEFT, duration=0.3)
+    """
+    push(outgoing, incoming, direction=direction, distance=distance or _constants.WORLD_WIDTH, start=start, duration=duration, easing=easing)
+    half = duration / 2
+    odd = lambda s: 2 * int(s / 2) + 1  # blur takes an odd kernel; 1 is no blur
+    for s, i in easing.rangeIdx(1.0, blurStrength, half):
+        outgoing.apply(_blur(odd(s)), start=start + i * SINGLE_FRAME)
+    incoming.apply(_blur(odd(blurStrength)), start=start)
+    for s, i in easing.rangeIdx(blurStrength, 1.0, half):
+        incoming.apply(_blur(odd(s)), start=start + half + i * SINGLE_FRAME)
+
+
+def glitchCut(
+    outgoing: Input,
+    incoming: Input,
+    *,
+    amount: percent = 4,
+    start: sec = 0,
+    duration: sec = 0.4,
+    seed: number = 7,
+) -> None:
+    """
+    Glitch cut: `outgoing` tears into sideways slices, the cut lands in the
+    middle of the tear, and `incoming` tears back into place — the "mask
+    glitch" of short-form edits. `seed` is fixed so the same scene always
+    tears the same way.
+
+        glitchCut(clipA, clipB, amount=6, duration=0.3)
+    """
+    half = duration / 2
+    outgoing.apply(_glitch(amount=amount, seed=seed), start=start, duration=half)
+    outgoing.apply(_hide(), start=start + half)
+    incoming.apply(_show(), start=start + half)
+    incoming.apply(_glitch(amount=amount, seed=seed + 1), start=start + half, duration=half)
+
+
+def filmBurn(
+    outgoing: Input,
+    incoming: Input,
+    *,
+    color: rgba = rgba(255, 128, 32),
+    start: sec = 0,
+    duration: sec = 0.8,
+    easing: easing = Easing.InOut,
+) -> Input:
+    """
+    Film burn: a warm glow blooms across the frame, whites it out at the cut,
+    and leaves `incoming` behind as it fades — the light leak of a reel
+    burning through at the end of a roll.
+
+    The glow is a radial gradient ADDED over everything, drifting left to
+    right; it is returned in case its layer has to move. The cut itself is
+    hard, hidden under the glow's brightest frames.
+
+        filmBurn(clipA, clipB, duration=1.0)
+    """
+    from videocode.input.shape.Rectangle import Rectangle
+
+    glow = Rectangle(
+        width=_constants.WORLD_WIDTH * 1.6,
+        height=_constants.WORLD_HEIGHT * 1.6,
+        fillColor=RadialGradient((rgba(255, 244, 220), 0), (color, 40), (rgba(color.r, color.g, color.b, 0), 100)),
+        strokeColor=TRANSPARENT,
+    ).blendMode(BlendMode.ADD).opacity(0)
+
+    half = duration / 2
+    for o, i in easing.rangeIdx(0.0, 255.0, half):
+        glow.apply(_opacity(o), start=start + i * SINGLE_FRAME)
+    for o, i in easing.rangeIdx(255.0, 0.0, half):
+        glow.apply(_opacity(o), start=start + half + i * SINGLE_FRAME)
+    drift = _constants.WORLD_WIDTH / 3
+    for x, i in Easing.Linear.rangeIdx(-drift, drift, duration):
+        glow.apply(_position(x, 0), start=start + i * SINGLE_FRAME)
+    outgoing.apply(_hide(), start=start + half)
+    incoming.apply(_show(), start=start + half)
+    return glow
 
 
 def zoomThrough(
