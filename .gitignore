@@ -72,3 +72,4 @@ webimage/
 temp/
 dist/
 test/tour_music.wav
+videos/*/media/
