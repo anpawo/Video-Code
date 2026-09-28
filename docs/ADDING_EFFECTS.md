@@ -221,6 +221,17 @@ Export it from `videocode/shader/_shaders.py` (star import).
 - **`--visual-test --update-golden` rewrites EVERY golden**, including cases
   that were legitimately failing. After generating goldens for a new scene,
   `git checkout -- test/visual/golden/` then `git add` only the new files.
+- **Nothing a golden covers may draw an unseeded random number.** A scene is
+  executed once per render, so `random.uniform()` inside one is consistent
+  within a run and different on the next: the golden starts failing for no
+  reason and the bake digest starts reporting a change nobody made. The cost is
+  not the red run, it is that a gate which cries wolf gets turned off. A scene
+  that genuinely needs scattering seeds its own generator with a fixed number
+  written in the scene file (`random.Random(1234)`), so the same file always
+  draws the same picture. The `shake` note above is the same rule stated for
+  effect offsets. Nothing in the tree draws a random number today (checked
+  2026-09-20), which is why this is written before someone needs it rather
+  than after a golden flaps.
 - **Colors can't ride push constants.** `shaderParams()` only picks numeric
   args — an `rgba` attribute is silently skipped. Flatten colors to float
   attributes in `__init__` (see `duotone.py`: `darkB/darkG/darkR/...`,
