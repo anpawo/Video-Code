@@ -14,6 +14,7 @@ sys.path.append(".")
 
 from videocode.context import *
 from videocode import *
+from videocode import params
 
 
 def _resetContext():
@@ -79,6 +80,10 @@ def _resetContext():
     from videocode.input.Camera import camera as _camera
 
     _camera._reset()
+
+    # And the parameters it asked for, which are checked against those it was
+    # given once the run is over.
+    params.startRun()
 
 
 def _oneLine(hit: dict) -> str:
@@ -409,6 +414,7 @@ def execScene(filepath: str) -> None:
     else:
         scope = _runUntilStable(code, scope, lambda: _sceneScope(_resetContext()))
 
+    params.checkRun()
     _applyBackground(scope)
     _reportContendedKeys()
     _reportBackdatedWrites()
@@ -1143,6 +1149,7 @@ def execSource(source: str, filepath: str) -> dict:
         _besideScene(filepath)
         code = compile(source, filepath, "exec")
         scope = _runUntilStable(code, scope, lambda: _sceneScope(_resetContext()))
+        params.checkRun()
         _applyBackground(scope)
         # Collected as well as printed. These two ran on every keystroke in the
         # editor and spoke only to stderr, which the editor does not read — the
