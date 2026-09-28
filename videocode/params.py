@@ -141,10 +141,11 @@ def _as(raw: Any, default: Any) -> Any:
         return raw if isinstance(raw, str) else json.dumps(raw)
     if isinstance(default, Enum):
         # By name first — `Align.LEFT` is written `LEFT` — then by value.
+        members = type(default)
         try:
-            return kind[str(raw).strip()]
+            return members[str(raw).strip()]
         except KeyError:
-            return kind(raw)
+            return members(raw)
 
     from videocode.color import rgba
 
