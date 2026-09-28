@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790612138511,
+  "lastUpdate": 1790613879038,
   "repoUrl": "https://github.com/anpawo/Video-Code",
   "entries": {
     "Benchmark": [
@@ -318,6 +318,65 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/anpawo/Video-Code/commit/ced60e7f4e361c36e62502d77fa69fae6a3c466d"
         },
         "date": 1790612137627,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bake/applyCalls",
+            "value": 21767,
+            "unit": "count"
+          },
+          {
+            "name": "bake/entries",
+            "value": 18980,
+            "unit": "count"
+          },
+          {
+            "name": "bake/inputs",
+            "value": 564,
+            "unit": "count"
+          },
+          {
+            "name": "render/msPerFrame",
+            "value": 6.5429,
+            "unit": "ms"
+          },
+          {
+            "name": "render/total",
+            "value": 2.4732,
+            "unit": "s"
+          },
+          {
+            "name": "render/load",
+            "value": 0.5103,
+            "unit": "s"
+          },
+          {
+            "name": "render/peakRss",
+            "value": 461.2031,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rousset.marius13@gmail.com",
+            "name": "marius rousset",
+            "username": "anpawo"
+          },
+          "committer": {
+            "email": "rousset.marius13@gmail.com",
+            "name": "marius rousset",
+            "username": "anpawo"
+          },
+          "distinct": true,
+          "id": "d5e4d8f1f60e11579f66bc9218b40b87124872f2",
+          "message": "board: --lint in progress; our own viewer noted as a to-do (79)\n\nPreview does not play a GIF, which is how the idea came up. What only a\nviewer of ours would do — a render next to its golden, the scene lines behind\nthe frame, delivery checks — is in FEATURES_TODO I. Not urgent.\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>",
+          "timestamp": "2026-09-28T18:42:26+02:00",
+          "tree_id": "d78d521162121fa1777000ba1d2e39a1fc994e8b",
+          "url": "https://github.com/anpawo/Video-Code/commit/d5e4d8f1f60e11579f66bc9218b40b87124872f2"
+        },
+        "date": 1790613877343,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
