@@ -561,7 +561,7 @@ bool VC::VulkanHeadlessRenderer::createPipeline()
 bool VC::VulkanHeadlessRenderer::createGeometryBuffers()
 {
     auto fm = [this](uint32_t f, VkMemoryPropertyFlags p) { return findMemoryType(f, p); };
-    return makeBuffer(m_device, sizeof(Vertex) * 262144, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, m_vertexBuffer, m_vertexMemory, fm) && makeBuffer(m_device, sizeof(uint32_t) * 262144, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, m_indexBuffer, m_indexMemory, fm);
+    return makeBuffer(m_device, sizeof(Vertex) * m_geomCapacity, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, m_vertexBuffer, m_vertexMemory, fm) && makeBuffer(m_device, sizeof(uint32_t) * m_geomCapacity, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, m_indexBuffer, m_indexMemory, fm);
 }
 
 // ===========================================================================
@@ -882,6 +882,7 @@ void VC::VulkanHeadlessRenderer::setMeshes(const std::vector<Mesh>& meshes)
     // VulkanWidget, see EffectResolver.hpp.
     resolveEffectParams(m_meshes);
 
+    growGeometryBuffers(m_device, std::max(m_vertices.size(), m_indices.size()), m_geomCapacity, m_vertexBuffer, m_vertexMemory, m_indexBuffer, m_indexMemory, [this] { return createGeometryBuffers(); });
     m_geomDirty = true;
 
     if (!m_effectMeshIndices.empty())

@@ -125,6 +125,7 @@ namespace VC
         VkDeviceMemory m_vertexMemory = VK_NULL_HANDLE;
         VkBuffer       m_indexBuffer = VK_NULL_HANDLE;
         VkDeviceMemory m_indexMemory = VK_NULL_HANDLE;
+        size_t         m_geomCapacity = 262144; // vertices, and indices, each buffer holds
 
         // ── Commands ──────────────────────────────────────────────────────────
         VkCommandPool   m_commandPool = VK_NULL_HANDLE;

@@ -1,5 +1,5 @@
 {
-  "repeatedLines": 1675,
+  "repeatedLines": 1668,
   "repetitions": 117,
   "deadNames": 19,
   "clones": {
@@ -75,7 +75,6 @@
       "9c2b697645f8f55b": [30, 2, "m_vertices.clear();"],
       "6b80e559bc52b62e": [26, 3, "VkPipelineVertexInputStateCreateInfo vi{};"],
       "fb28f09c1255aa1a": [25, 2, "if (vkAllocateDescriptorSets(m_device, &ai, &m_thirdSrcSet) != VK_SUCCESS) return false;"],
-      "ee36433015aea3e5": [24, 2, "m_meshDrawInfos.push_back(info);"],
       "ea85a5dbd476efad": [23, 4, "VkShaderModule vert = createShaderModule(vertSpv);"],
       "c2adb66cc75075d8": [22, 2, "VkImageMemoryBarrier bs[2]{};"],
       "ae174a9008b64cfe": [21, 2, "inPing = !inPing;"],
@@ -83,6 +82,7 @@
       "2cef3f06b178ad36": [19, 2, "std::string key = mathPipelineKey(path);"],
       "bd3dc9c9a26eebd8": [19, 2, "auto srcSlotIt = meshPosToSlot.find(srcMeshIt->second);"],
       "6c465a72df4736a2": [17, 2, "if (m_glowCombine.pipeline) vkDestroyPipeline(m_device, m_glowCombine.pipeline, nullptr);"],
+      "b7bea4bd39145c5b": [17, 2, "m_geomDirty = true;"],
       "0161d4c32dabc8d6": [15, 2, "if (vkAllocateDescriptorSets(m_device, &ai, &set) != VK_SUCCESS) return false;"],
       "1cf1d88db508502a": [15, 2, "VkGraphicsPipelineCreateInfo cis[kBlendModeCount]{};"],
       "6aa435418ff817ba": [15, 4, "att.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;"],

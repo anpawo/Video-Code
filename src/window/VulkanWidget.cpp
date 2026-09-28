@@ -245,6 +245,7 @@ void VC::VulkanWidget::setMeshes(const std::vector<Mesh>& meshes)
     // headless renderer, see EffectResolver.hpp.
     resolveEffectParams(m_meshes);
 
+    growGeometryBuffers(m_device, std::max(m_vertices.size(), m_indices.size()), m_geomCapacity, m_vertexBuffer, m_vertexMemory, m_indexBuffer, m_indexMemory, [this] { return createVertexBuffer() && createIndexBuffer(); });
     m_geomDirty = true;
 
     if (!m_effectMeshIndices.empty())
@@ -1209,13 +1210,10 @@ uint32_t VC::VulkanWidget::findMemoryType(uint32_t filter, VkMemoryPropertyFlags
 
 // ============================================================================
 // Step 10: createVertexBuffer / createIndexBuffer
-//   Fixed-capacity HOST_VISIBLE | HOST_COHERENT buffers.  Actual geometry is
-//   uploaded each frame via setMeshes() → recordCommandBuffer().
-//   65536 vertices × 32 bytes = 2 MB; 65536 indices × 2 bytes = 128 KB.
+//   HOST_VISIBLE | HOST_COHERENT buffers of m_geomCapacity entries, grown by
+//   setMeshes() → growGeometryBuffers(). Actual geometry is uploaded each
+//   frame via recordCommandBuffer().
 // ============================================================================
-
-static constexpr VkDeviceSize MAX_VERTEX_BUFFER_SIZE = sizeof(Vertex) * 262144;
-static constexpr VkDeviceSize MAX_INDEX_BUFFER_SIZE = sizeof(uint32_t) * 262144;
 
 static bool createBuffer(
     VkDevice                                                 device,
@@ -1257,14 +1255,14 @@ static bool createBuffer(
 
 bool VC::VulkanWidget::createVertexBuffer()
 {
-    return createBuffer(m_device, MAX_VERTEX_BUFFER_SIZE, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, m_vertexBuffer, m_vertexMemory, [this](uint32_t f, VkMemoryPropertyFlags p) {
+    return createBuffer(m_device, sizeof(Vertex) * m_geomCapacity, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, m_vertexBuffer, m_vertexMemory, [this](uint32_t f, VkMemoryPropertyFlags p) {
         return findMemoryType(f, p);
     });
 }
 
 bool VC::VulkanWidget::createIndexBuffer()
 {
-    return createBuffer(m_device, MAX_INDEX_BUFFER_SIZE, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, m_indexBuffer, m_indexMemory, [this](uint32_t f, VkMemoryPropertyFlags p) {
+    return createBuffer(m_device, sizeof(uint32_t) * m_geomCapacity, VK_BUFFER_USAGE_INDEX_BUFFER_BIT, m_indexBuffer, m_indexMemory, [this](uint32_t f, VkMemoryPropertyFlags p) {
         return findMemoryType(f, p);
     });
 }
