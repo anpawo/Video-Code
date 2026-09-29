@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1790618257764,
+  "lastUpdate": 1790640896178,
   "repoUrl": "https://github.com/anpawo/Video-Code",
   "entries": {
     "Benchmark": [
@@ -613,6 +613,65 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/anpawo/Video-Code/commit/01d1fe128d484a01154dfbfd1ce8caf4fc7fc61f"
         },
         "date": 1790618257060,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "bake/applyCalls",
+            "value": 21767,
+            "unit": "count"
+          },
+          {
+            "name": "bake/entries",
+            "value": 18980,
+            "unit": "count"
+          },
+          {
+            "name": "bake/inputs",
+            "value": 564,
+            "unit": "count"
+          },
+          {
+            "name": "render/msPerFrame",
+            "value": 6.5429,
+            "unit": "ms"
+          },
+          {
+            "name": "render/total",
+            "value": 2.4732,
+            "unit": "s"
+          },
+          {
+            "name": "render/load",
+            "value": 0.5103,
+            "unit": "s"
+          },
+          {
+            "name": "render/peakRss",
+            "value": 461.2031,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "hippolytelefer@gmail.com",
+            "name": "Hippolyte lefer",
+            "username": "Hip-po"
+          },
+          "committer": {
+            "email": "hippolytelefer@gmail.com",
+            "name": "Hippolyte lefer",
+            "username": "Hip-po"
+          },
+          "distinct": false,
+          "id": "092d44075d852728e7908a37b16d75a160a08838",
+          "message": "board: 43 checks, not 46 (81)",
+          "timestamp": "2026-09-29T01:55:21+02:00",
+          "tree_id": "0b12815420e51f7262ca8ba218ce35a8b4b8f674",
+          "url": "https://github.com/anpawo/Video-Code/commit/092d44075d852728e7908a37b16d75a160a08838"
+        },
+        "date": 1790640895207,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
