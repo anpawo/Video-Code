@@ -393,6 +393,22 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
         qputenv("QT_QPA_PLATFORM", "xcb");
 #endif
 
+#ifdef __APPLE__
+    // The Dock tile, the ⌘-Tab entry and the name beside the Apple come from
+    // the bundle a process was launched from, and a bare executable has none:
+    // macOS drew the generic "exec" tile whatever setWindowIcon() was given.
+    // Video-Code.app, beside the binary, is that bundle; its executable is a
+    // link back to this file, so going through it changes what the system
+    // calls the process and nothing else. Only for a run that shows a window.
+    if (!checksChrome && !parser.get<bool>("--check-widget")) {
+        char       self[4096];
+        uint32_t   size = sizeof self;
+        const auto bundled = VC::executableDir() / "Video-Code.app" / "Contents" / "MacOS" / "video-code";
+        if (_NSGetExecutablePath(self, &size) == 0 && std::string_view(self).find(".app/Contents/MacOS/") == std::string_view::npos && std::filesystem::exists(bundled))
+            execv(bundled.c_str(), argv);
+    }
+#endif
+
     QApplication app(argc, argv);
     quitOnSignal(app);
     // The Dock tile and ⌘-Tab on macOS, the window and taskbar icon elsewhere.
