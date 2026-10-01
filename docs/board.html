@@ -172,8 +172,8 @@
     <h1>Chantier Video-Code</h1>
     <span class="branch">main</span>
     <span class="chips">
-      <span class="chip"><b>81</b> livrés</span>
-      <span class="chip"><b>13</b> à faire</span>
+      <span class="chip"><b>82</b> livrés</span>
+      <span class="chip"><b>14</b> à faire</span>
       <span class="chip"><b>87</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
@@ -184,7 +184,7 @@
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">28</span></h2>
+        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">27</span></h2>
         <ul class="rows">
           <li class="grp">Timeline & clips</li>
           <li class="hot" data-issue="185" data-fix="458e873" data-b="A dragged or stretched clip moves ALONE: the gap after it gives the time back, so nothing after that gap moves, and the clip stops where the gap has nothing left. Hold ⌘ to push everything after it instead. Nothing snaps unless ⇧ is held.¦Why it pushed: a gap starts when the last thing before it has ended. A clip with slack before that moment moves freely; past it, the gap is shortened by what the move cost — measured on the run, not predicted. The writes are one ⌘Z, the left edge with a hide included.¦A gap written as a name (wait(GAP)) cannot give time back: the clip stops there and the code pane says ⌘ pushes instead. test/timeline_drag_test.py drives all of it windowless.¦Yours: does alone-by-default feel right, the stop at the gap&#x27;s end, ⇧ as the snap key, and free numbers like 0.47 in your code."><span class="id">37</span><span class="lbl">A clip moves alone · ⌘ pushes · ⇧ snaps</span><span class="meta lock">458e873 · ta souris</span></li>
@@ -214,7 +214,6 @@
           <li class="grp">Clavier & volets</li>
           <li class="hot" data-issue="354" data-b="Two workflows on new issues: claude-issue-triage labels it from the repo's own labels; claude-dedupe-issues checks it against the open issues and, if it repeats one, copies onto the original (as a comment) whatever it adds, then closes it at once — no grace period, no reactions.¦The close step refuses to run until the copy was made; the closing comment tells the author to reopen if it is not the same issue.¦Checked here: actionlint and shellcheck pass, the scripts run against a fake gh.¦Yours: run claude setup-token, then gh secret set CLAUDE_CODE_OAUTH_TOKEN -R anpawo/Video-Code, commit and push, open a test issue."><span class="id">70</span><span class="lbl">Claude triages and dedupes the issues</span><span class="meta lock">secret + push</span></li>
           <li class="hot" data-issue="343" data-b="L'audit du lundi devient une routine Claude Code, sur ton abonnement : plus de workflow GitHub, de clé API ni de validateur (d7bd600). Chaque lundi 8 h, elle lit les doublons et l'index des fonctions, ouvre au plus 3 PR en brouillon sur des branches claude/audit-* — seulement pour une suppression dont elle a fait passer les tests — et t'envoie un mail, aucun si rien ne vaut ton temps.¦Bloqué : ton compte Claude n'est pas relié à GitHub, donc la routine ne peut pas être enregistrée. Tape /web-setup dans Claude Code (ou claude.ai/connect-github), puis dis « vas-y » : je la crée et je la lance une fois pour vérifier.¦Le garde-fou local existe déjà : le pre-commit refuse un nouveau doublon, une erreur de types, une API sans doc ni test, un QML qui ne charge pas."><span class="id">63</span><span class="lbl">Audit du lundi : une routine Claude Code</span><span class="meta lock">/web-setup</span></li>
-          <li class="hot" data-issue="344" data-fix="d520259" data-b="New logo, asked for on 1 Oct.: only a play triangle, holding a star of three branches that each reach the middle of a side — the idea of Jarvis&#x27;s icon. Same purple, #8F84D3.¦assets/logo/videocode.svg is the source; scripts/logo.sh redraws videocode.png, icon.png and the app&#x27;s icon from it.¦The Dock: macOS takes the tile from the bundle a process was launched from, so a run that opens a window enters Video-Code.app first (cf5d378). Checked from here: macOS reports the new icon and the name &quot;Video-Code&quot; for the process.¦Yours: the shape itself — the star&#x27;s thickness, the triangle&#x27;s — in the Dock at its real size and at the top of the README. Not done: the lockup with its text, and replacing tinder-mail.png."><span class="id">62</span><span class="lbl">New logo: a triangle holding a three-branch star</span><span class="meta lock">d520259 · ton œil</span></li>
           <li class="hot" data-fix="8115936" data-issue="368" data-b="⌘Z undid the code from anywhere; ⌘Y only answered with the caret in the Code pane. It now redoes from the timeline and the Inspector too, beside ⇧⌘Z.¦The windowless probe cannot reach Qt&#x27;s shortcut table: your key.¦Yours: drag a clip, ⌘Z, ⌘Y, with the pointer still on the timeline."><span class="id">82</span><span class="lbl">⌘Y redoes from any pane</span><span class="meta lock">8115936 · ta touche</span></li>
           <li class="hot" data-issue="218" data-b="Deux volets différents peuvent tenir la même touche. Tab libéré.¦Transport global mais listé sous timeline : à trancher."><span class="id">30</span><span class="lbl">Une touche par volet</span><span class="meta">ton œil</span></li>
           <li data-issue="329" data-b="Deux appels vers des fonctions inexistantes supprimés.¦Détache un volet, regarde la console."><span class="id">31</span><span class="lbl">Détacher un volet sans erreur</span><span class="meta">ta souris</span></li>
@@ -233,9 +232,10 @@
       </div>
 
       <div class="card todo">
-        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">6</span></h2>
+        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">7</span></h2>
         <ul class="rows">
           <li data-issue="365" data-b="The backdated-write warning (a start= that opens behind a line written above it) has been false since S1: both line orders now bake the same film, yet one of them warns. The detector must stay — it triggers the S1 replay — but its words must change or go.¦Found by the --lint design, 28 Sept.: --lint prints it on docs/by-example/features/deferred_base.py:71 and :78, a scene written to show that order no longer matters."><span class="id">80</span><span class="lbl">The backdated-write warning is stale</span><span class="meta">bug</span></li>
+          <li data-issue="369" data-b="Left over from the logo row, which he validated on 1 Oct.: the lockup — the mark with &quot;videocode&quot; written beside it — and the README&#x27;s example scene showing the logo instead of tinder-mail.png.¦The mark is assets/logo/videocode.svg; scripts/logo.sh draws its rasters."><span class="id">83</span><span class="lbl">Logo: the lockup with its name, and the README example on it</span><span class="meta">ton œil</span></li>
           <li data-issue="176" data-b="Une ligne repliée par outil lancé — son nom, ✓ ou ✗, dépliable sur ses arguments et son résultat — et le raisonnement en gris au-dessus de la réponse, comme ToolRunRow et ThinkingSummaryView chez Palmier.¦Aujourd'hui seules ses phrases s'affichent. Demandé le 17 sept."><span class="id">23</span><span class="lbl">Agent : ses étapes avant la réponse</span><span class="meta">ton œil</span></li>
 
           <li data-issue="182" data-b="Tape une valeur à l&#x27;instant du curseur, la ligne s&#x27;écrit. Le chrono d&#x27;After Effects."><span class="id">35</span><span class="lbl">Fiche chronomètre</span><span class="meta">ton œil</span></li>
