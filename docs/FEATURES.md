@@ -925,6 +925,7 @@ Two coordinate spaces, on purpose, and they are NOT interchangeable:
 | `zoomTo(x, y, zoom, ...)` | `camera.py` | Zooms AND reframes so `(x, y)` lands at the frame centre |
 | `snapZoom(x, y, zoom, hold, attack, release)` | `camera.py` | Violent in, hold, ease back — returns exactly to the origin |
 | `travelling(fromX, fromY, toX, toY, zoom, ...)` | `camera.py` | Zoom set once, then a pan from one point to another |
+| `reframe()` | `camera.py` | Snaps position/scale back to `(0, 0)` / `(1, 1)` — the camera moves are stateful, a reel chaining them resets between two |
 | `impact(x, y, zoom, amplitude, frequency, ...)` | `impact.py` | Punch + decaying rumble as ONE effect (two effects would fight over `position`) |
 | `whipPan(toX, toY, zoom, blur, ...)` | `whipPan.py` | Fast throw with a blur envelope — **degraded**: the blur is isotropic, there is no directional motion-blur shader |
 | `spotlightOn(x, y, radius, softness, darkness, ...)` | `spotlightOn.py` | Round pool of light on a frame point, everything else dimmed |
@@ -947,6 +948,16 @@ Sampling is nearest-frame with no blending at any rate, so `ralenti` is a
 slow motion, not an interpolated one — there is no optical-flow retiming in
 the engine.
 
+`decimate(first, frames, ratio)` (also `retime.py`) is the one retiming helper
+that builds `cuts=` rather than `speedRamps=`: a scene is always 30 fps and the
+engine reads one source frame per scene frame, so a 60 fps source plays at half
+speed unless every other frame is cut (`ratio = sourceFps / FRAMERATE`).
+
+**Footage helpers** — what a reel needs before the first camera move:
+`probeVideo(path)` (`utils/probe.py`) returns `(width, height, fps)` through
+`ffprobe`, and `containSize(w, h)` (`effect/framing.py`) returns the world size
+that fits a source in the frame without stretching or cropping.
+
 **Shared ramp** (`effect/ramp.py`) — `dipAndReturn(peak, start, duration,
 fade)` yields the `(value, time)` pairs a grade follows: rise over `fade`,
 hold, fall back over `fade`. It emits one pair **per frame through the hold**,
@@ -955,7 +966,8 @@ plateau emitted once left the middle of the window with no shader at all, and
 a 2 s `spotlightOn` was visible for 0.35 s, gone for 1.3 s, then visible
 again. `spotlightOn`, `zoneFocus` and `desaturate` all go through it.
 
-**Example**: `chess_montage.py` (the named reel),
+**Example**: `chess_montage.py` (the named reel), `montage.py` (the game
+itself: real moves, camera only),
 `test/visual/scenes/montage_camera.py`, `montage_grade.py`.
 
 **Transitions** (`transitions.py`) — plain functions animating TWO inputs at

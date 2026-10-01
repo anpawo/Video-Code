@@ -47,6 +47,26 @@ def punchIn(
     return _apply
 
 
+def reframe() -> Effect:
+    """
+    Snap back to the original framing — position `(0, 0)`, scale `(1, 1)`.
+
+    `zoomTo`, `travelling`, `punchIn` and `snapZoom` (but the last) are
+    STATEFUL: they leave the camera where they brought it. A reel chaining
+    them must say so, or each move starts from the previous one's framing.
+    Pose it just before the next move, with `at=`:
+
+        clip.apply(zoomTo(x=0.4, y=0.2), at=5)
+        clip.apply(reframe(), at=6)
+    """
+
+    def _apply(input: Input) -> Generator[IShader, Any, None]:
+        yield _position(0, 0).at(start=0)
+        yield _scale(1, 1).at(start=0)
+
+    return _apply
+
+
 def zoomTo(
     *,
     x: number = 0.5,

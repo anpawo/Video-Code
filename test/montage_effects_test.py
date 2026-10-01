@@ -7,28 +7,32 @@ Assertion-based tests for the montage effects pack:
 - whipPan — position throw with a blur that peaks mid-move
 - spotlightOn / zoneFocus — the frame-UV spotlight shader binding
 - desaturate / glitchBurst / vignetteBeat / scope
-- retime — the speedRamp builders that are NOT effects
+- retime — the speedRamp builders that are NOT effects, and decimate (60 -> 30 fps cuts)
+- containSize, reframe, probeVideo — the footage helpers a reel starts from
 Run directly: `python3 test/montage_effects_test.py`
 """
 
+import subprocess
 import sys
+import tempfile
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
 from helpers import check, section, summary
 
 from videocode import *
-from videocode.template.effect.framing import framePosition, mediaBox
+from videocode.template.effect.framing import containSize, framePosition, mediaBox
 from videocode.template.effect.ramp import dipAndReturn
-from videocode.template.effect.other.camera import punchIn, snapZoom, travelling, zoomTo
+from videocode.template.effect.other.camera import punchIn, reframe, snapZoom, travelling, zoomTo
 from videocode.template.effect.other.desaturate import desaturate
 from videocode.template.effect.other.glitchBurst import glitchBurst
 from videocode.template.effect.other.impact import impact
-from videocode.template.effect.other.retime import accelere, freezeFrame, ralenti, rewind
+from videocode.template.effect.other.retime import accelere, decimate, freezeFrame, ralenti, rewind
 from videocode.template.effect.other.scope import scope, unscope
 from videocode.template.effect.other.spotlightOn import spotlightOn, zoneFocus
 from videocode.template.effect.other.vignetteIn import vignetteBeat, vignetteIn
 from videocode.template.effect.other.whipPan import whipPan
+from videocode.utils.probe import probeVideo
 
 
 def framesWith(index: int, key: str) -> dict[int, dict]:
@@ -286,6 +290,54 @@ check("a zero-length window still spans one frame", ralenti(at=1, duration=0)[1]
 # A Video accepts them as-is — that is the whole contract.
 ramps = [ralenti(at=0, duration=1), accelere(at=2, duration=1), freezeFrame(at=4, duration=1)]
 check("Video accepts the builders' output", all(isinstance(r, tuple) and len(r) == 3 for r in ramps))
+
+# ---------------------------------------------------------------------------
+section("decimate — one source frame out of `ratio`")
+
+def keptFrames(first: int, frames: int, ratio: float) -> list[int]:
+    cuts = decimate(first, frames, ratio)
+    end = first + round((frames - 1) * ratio) + 1
+    return [f for f in range(first, end) if not any(a <= f < b for a, b in cuts)]
+
+check("a 60 fps source keeps every other frame", keptFrames(100, 10, 2.0) == list(range(100, 120, 2)))
+check("as many frames kept as scene frames asked", len(keptFrames(0, 90, 2.0)) == 90)
+check("ratio 1 cuts nothing", decimate(5, 20, 1.0) == [])
+check("a fractional ratio still keeps one per scene frame", len(keptFrames(0, 50, 2.5)) == 50)
+check("cuts are ordered and never overlap",
+      all(a < b for a, b in decimate(0, 40, 2.0)) and decimate(0, 40, 2.0) == sorted(decimate(0, 40, 2.0)))
+
+# ---------------------------------------------------------------------------
+section("containSize — fits the frame, never stretched")
+
+wide = containSize(WORLD_WIDTH * 2, WORLD_HEIGHT)
+check("a source wider than the frame is limited by width", abs(wide.x - WORLD_WIDTH) < 1e-6)
+tall = containSize(1322, 1526)
+check("a tall source is limited by height", abs(tall.y - WORLD_HEIGHT) < 1e-6 and tall.x < WORLD_WIDTH)
+check("aspect ratio preserved", abs(tall.x / tall.y - 1322 / 1526) < 1e-6)
+
+# ---------------------------------------------------------------------------
+section("reframe — back to the original framing")
+
+rf = Rectangle(width=1, height=1)
+rf.apply(zoomTo(x=0.2, y=0.8, zoom=2.0, duration=0.5))
+rf.apply(reframe(), at=1)
+check("reframe poses position (0, 0)", last(framesWith(rf.meta.index, "Position")) == {"x": 0, "y": 0} or
+      tuple(last(framesWith(rf.meta.index, "Position")).values())[:2] == (0, 0))
+check("reframe poses scale (1, 1)", tuple(last(framesWith(rf.meta.index, "Scale")).values())[:2] == (1, 1))
+
+# ---------------------------------------------------------------------------
+section("probeVideo — size and average frame rate")
+
+with tempfile.TemporaryDirectory() as tmp:
+    clipPath = f"{tmp}/probe.mp4"
+    made = subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=c=black:s=64x48:r=25:d=1", "-pix_fmt", "yuv420p", clipPath],
+        capture_output=True,
+    )
+    if made.returncode == 0:
+        check("probeVideo reads width, height and fps", probeVideo(clipPath) == (64.0, 48.0, 25.0))
+    else:
+        print("  (ffmpeg unavailable — probeVideo not exercised)")
 
 # ---------------------------------------------------------------------------
 summary()

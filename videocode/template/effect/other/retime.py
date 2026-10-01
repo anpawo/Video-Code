@@ -74,3 +74,35 @@ def freezeFrame(*, at: sec, duration: sec) -> tuple[frame, frame, float]:
 def rewind(*, at: sec, duration: sec, rate: number = -2.0) -> tuple[frame, frame, float]:
     """Play the window backwards — negative `rate`, `-1` for real time."""
     return speedRamp(at=at, duration=duration, rate=rate)
+
+
+def decimate(first: frame, frames: int, ratio: float) -> list[tuple[frame, frame]]:
+    """
+    The `cuts=` that keep one SOURCE frame out of `ratio`, starting at `first`,
+    for `frames` frames of scene.
+
+    The engine consumes ONE source frame per scene frame and a scene is always
+    30 fps, so a 60 fps source plays at half speed unless frames are thrown
+    away. `speedRamp` cannot do it — it changes the rate but not the length the
+    clip claims; only `cuts` shorten it. `ratio` is `sourceFps / FRAMERATE`.
+
+    The end of the clip is `first + round((frames - 1) * ratio) + 1`:
+
+        ratio = fps / FRAMERATE
+        end = first + round((frames - 1) * ratio) + 1
+        Video("game.mov", startFrame=first, endFrame=end,
+              cuts=decimate(first, frames, ratio))
+    """
+    kept = {first + round(i * ratio) for i in range(frames)}
+    last = first + round((frames - 1) * ratio) + 1
+    spans: list[tuple[frame, frame]] = []
+    f = first
+    while f < last:
+        if f in kept:
+            f += 1
+            continue
+        gap = f
+        while f < last and f not in kept:
+            f += 1
+        spans.append((gap, f))
+    return spans

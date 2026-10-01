@@ -15,6 +15,9 @@ from __future__ import annotations
 #   2. Where must the input sit so that a given point of it lands dead
 #      centre of the frame, at a given zoom?
 #
+# `containSize` is the third question, asked BEFORE any camera move: how big
+# must the media be to fit the frame at all.
+#
 # Coordinates are FRACTIONS of the input's own box — (0, 0) top-left,
 # (1, 1) bottom-right, y downward, like every image editor. That keeps the
 # templates media-agnostic: "zoom on 0.42 / 0.61" means the same thing for a
@@ -75,3 +78,17 @@ def framePosition(input: Input, x: number, y: number, zoom: number) -> v2[number
     offsetY = (0.5 - y) * box.y * scale.y * zoom
     # Put the centre of the frame on that point: centre + offset == 0.
     return v2(-offsetX, -offsetY)
+
+
+def containSize(sourceWidth: number, sourceHeight: number) -> v2[number, number]:
+    """
+    The world size at which a source of `sourceWidth` x `sourceHeight` FITS
+    the frame — "contain": never stretched, never cropped.
+
+    What the media does not cover stays transparent, so put a filled
+    rectangle at a lower `zIndex` behind it if you want bars rather than a
+    hole. Pass the result as `width=` / `height=` of a `Video` or `Image`;
+    the camera moves then read it back through `mediaBox`.
+    """
+    factor = min(WORLD_WIDTH / sourceWidth, WORLD_HEIGHT / sourceHeight)
+    return v2(sourceWidth * factor, sourceHeight * factor)
