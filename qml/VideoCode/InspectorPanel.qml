@@ -91,8 +91,16 @@ Item {
         if (isNaN(value))
             return "";
         if ((span[0] !== null && value < span[0]) || (span[1] !== null && value > span[1]))
-            return bare + " is " + (span[1] !== null ? span[0] + "–" + span[1] : "≥ " + span[0]);
+            return span[1] !== null ? span[0] + "–" + span[1] : "≥ " + span[0];
         return "";
+    }
+    // The nearest value the type allows, for one it refuses.
+    function nearest(kind, text) {
+        const span = bounds[String(kind).replace(/^maybe\[(.*)\]$/, "$1")];
+        let value = Number(String(text).trim());
+        if (isNaN(value))
+            value = Number(Shell.evalText(String(text)));
+        return String(span[0] !== null && value < span[0] ? span[0] : span[1]);
     }
 
     function isPathKind(name, kind) {
@@ -374,8 +382,6 @@ Item {
         // A file: a button beside the value opens the system chooser.
         property bool isPath: false
         signal committed(string text)
-        // What the last Enter was refused for, until the text changes.
-        property string trouble: ""
         function beginEdit() { field.forceActiveFocus(); field.selectAll(); }
 
         width: parent !== null ? parent.width : 0
@@ -436,9 +442,9 @@ Item {
 
         Text {
             anchors { left: labelText.right; leftMargin: 8; verticalCenter: parent.verticalCenter }
-            visible: row.trouble.length > 0 || (over.containsMouse && row.kind.length > 0)
-            text: row.trouble.length > 0 ? row.trouble : root.kindLabel(row.kind)
-            color: row.trouble.length > 0 ? Theme.bad : Theme.inkFaint
+            visible: over.containsMouse && row.kind.length > 0
+            text: root.kindLabel(row.kind)
+            color: Theme.inkFaint
             font.family: Theme.mono
             font.pixelSize: 10
         }
@@ -537,7 +543,7 @@ Item {
             readonly property bool lit: row.editable && (over.hovered || field.activeFocus)
             color: lit ? Theme.sunk : "transparent"
             border.width: 1
-            border.color: row.trouble.length > 0 ? Theme.bad : field.activeFocus ? Theme.live : lit ? Theme.edge : "transparent"
+            border.color: field.activeFocus ? Theme.live : lit ? Theme.edge : "transparent"
 
             // The coloured reading, under a field that only shows its own text
             // while it is being written in.
@@ -574,19 +580,30 @@ Item {
                 selectByMouse: true
                 readOnly: !row.editable
                 clip: true
-                onTextEdited: row.trouble = ""
+                // A value past what the type allows is written as the nearest
+                // one it does, and the bound is said: refusing left the field
+                // red and the hand to do the arithmetic.
+                // Said after the write, which has its own sentence to say:
+                // the bound is the one worth reading.
                 onAccepted: {
                     const why = root.problem(row.kind, text);
-                    if (why.length > 0) {
-                        row.trouble = why;
-                        return;
-                    }
+                    if (why.length > 0)
+                        text = root.nearest(row.kind, text);
                     if (text !== row.value)
                         row.committed(text);
+                    if (why.length > 0)
+                        root.tell(row.label + " is " + why + " — set to " + text, null);
                     focus = false;
                 }
-                // Left without Enter: back to what the file says.
-                onActiveFocusChanged: if (!activeFocus) text = Qt.binding(() => row.value)
+                // Left without Enter: back to what the file says — unless what
+                // was typed is out of bounds, which is fixed the same as on Enter.
+                onActiveFocusChanged: {
+                    if (activeFocus)
+                        return;
+                    if (root.problem(row.kind, text).length > 0)
+                        accepted();
+                    text = Qt.binding(() => row.value);
+                }
 
                 // The word under the caret, and the file's names that start with it.
                 readonly property string word: {
