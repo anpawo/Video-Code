@@ -736,8 +736,8 @@ void VC::Editor::fillFileMenu(QMenu* file)
 
     // Export lives in File beside the two Opens, because that is where a person
     // looks for "make me the file" — not in a panel they have to find first.
+    // No key of its own: ⌘E is one macOS already answers.
     auto* exportVideo = file->addAction(QStringLiteral("Export Video…"));
-    exportVideo->setShortcut(QKeySequence(QStringLiteral("Ctrl+E")));
     connect(exportVideo, &QAction::triggered, this, [this] { Q_EMIT exportRequested(); });
 
     auto* openFolder = file->addAction(QStringLiteral("Open Folder…"));

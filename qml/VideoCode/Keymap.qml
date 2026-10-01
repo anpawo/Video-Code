@@ -52,7 +52,7 @@ QtObject {
         { id: "find",        label: "Find in this file",  where: "Code",
           says: ["⏎ and ⇧⏎ walk the matches; the count says which one."] },
 
-        { id: "redo",        label: "Redo",               where: "Code", scope: "code" },
+        { id: "redo",        label: "Redo",               where: "Code" },
         { id: "moveUp",      label: "Move the line up",   where: "Code", scope: "code" },
         { id: "moveDown",    label: "Move the line down", where: "Code", scope: "code" },
         { id: "deleteWord",  label: "Delete the word right", where: "Code", scope: "code",

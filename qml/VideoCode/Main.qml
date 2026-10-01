@@ -3895,8 +3895,10 @@ ApplicationWindow {
                 source.undo();
         }
     }
+    // Redo the same way, on the key the board lists as well as the system's
+    // own ⇧⌘Z: ⌘Y only answered with the caret in the code.
     Shortcut {
-        sequences: [StandardKey.Redo]
+        sequences: [StandardKey.Redo, Keymap.sequence("redo")]
         enabled: !shortcuts.visible && !source.editorHasFocus
         onActivated: {
             const it = activeFocusItem;
