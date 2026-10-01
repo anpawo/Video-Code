@@ -6,10 +6,12 @@
 */
 
 #include <pybind11/embed.h>
+#include <pybind11/stl.h>
 #include <sys/socket.h>
 
 #include <QApplication>
 #include <QGuiApplication>
+#include <QIcon>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QLocalSocket>
@@ -20,14 +22,13 @@
 #include <algorithm>
 #include <argparse/argparse.hpp>
 #include <csignal>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
 #include <format>
 #include <fstream>
-#include <nlohmann/json.hpp>
 #include <opencv2/core/utils/logger.hpp>
-#include <opencv2/opencv.hpp>
 
 #include "compiler/Compiler.hpp"
 #include "core/ScreenSize.hpp"
@@ -159,6 +160,16 @@ void setParserArgument(argparse::ArgumentParser &p)
         );
 
     p
+        .add_argument("--lint")
+        .flag()
+        .help(
+            "Run --file without rendering and print what is wrong with it, one "
+            "`file:line: error|warning: message [rule]` per line: the scene failing to run, a Sound "
+            "starting on or after the last frame, a write before frame 0, an element never on screen "
+            "or only on the last frame, and the warnings the editor shows. Exits 1 if any line is an error."
+        );
+
+    p
         .add_argument("--update-golden")
         .flag()
         .help("With --visual-test, (re)write the golden images instead of comparing against them.");
@@ -226,6 +237,24 @@ void setParserArgument(argparse::ArgumentParser &p)
             "tiktok (1080x1920), square (1080x1080) — writing one file per shape, its name in "
             "the filename. Each one RE-RUNS the scene in that frame, so the scene lays itself "
             "out for it (Split.AUTO, W/H, TOP_SIDE); nothing is cropped or scaled."
+        );
+
+    p
+        .add_argument("--set")
+        .append()
+        .default_value(std::vector<std::string>{})
+        .help(
+            "Give the scene's param(\"key\", default) a value: --set name=Ada --set score=12. Read as the "
+            "default's type (a number, true/false, a colour \"#ff8800\"). A key no param() reads is refused — "
+            "a typo would render the default. Works with --generate, --lint and --editor."
+        );
+
+    p
+        .add_argument("--data")
+        .help(
+            "With --generate, render the scene once per row of this .csv (a header line, then rows) or .json "
+            "(a list of objects), each column a param(). Name the files from the rows: --generate \"out/{name}.mp4\"; "
+            "without a {column} they are numbered. An empty cell leaves the param() its default."
         );
 
     p
@@ -297,17 +326,25 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
     // __main__ prints the baked stack instead — one entry per input per frame,
     // seventeen thousand lines for a scene of two shapes — which nothing can
     // read. This is the model the timeline is drawn from, and it is small.
-    if (parser.get<bool>("--inspect")) {
+    const bool lint = parser.get<bool>("--lint");
+    if (lint || parser.get<bool>("--inspect")) {
         const std::string path = parser.get<std::string>("--file");
         std::ifstream     in(path);
         if (!in) {
-            std::cerr << "--inspect: cannot read " << path << "\n";
+            std::cerr << (lint ? "--lint" : "--inspect") << ": cannot read " << path << "\n";
             return EXIT_FAILURE;
         }
         const std::string source((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-        const py::dict    result = py::module::import("videocode.serialize")
-                                       .attr("execSource")(source, path)
-                                       .cast<py::dict>();
+        if (lint) {
+            const py::tuple said = py::module::import("videocode.serialize")
+                                       .attr("lintSource")(source, path, parser.get<std::vector<std::string>>("--set"), parser.present("--data").value_or(""))
+                                       .cast<py::tuple>();
+            std::cout << said[0].cast<std::string>() << std::flush;
+            return said[1].cast<int>();
+        }
+        const py::dict result = py::module::import("videocode.serialize")
+                                    .attr("execSource")(source, path)
+                                    .cast<py::dict>();
         if (!result["ok"].cast<bool>()) {
             std::cerr << path << ":" << result["line"].cast<int>() + 1 << ": "
                       << result["message"].cast<std::string>() << "\n";
@@ -329,6 +366,10 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
         std::cerr << "video-code: --for writes one file per shape, so it needs --generate.\n";
         return EXIT_FAILURE;
     }
+    if (parser.is_used("--data") && !parser.is_used("--generate")) {
+        std::cerr << "video-code: --data writes one file per row, so it needs --generate (or --lint, to check the rows).\n";
+        return EXIT_FAILURE;
+    }
 
     // Generate the video (headless — no window, no Qt event loop)
     if (parser.is_used("--generate")) {
@@ -340,17 +381,20 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
         const std::vector<Config> configs = VC::makeConfigs(parser);
         for (const Config &config : configs) {
             VC::applyScreenSize(config.screenWidth, config.screenHeight);
+            VC::applyParams(config);
 
             VC::Compiler compiler(parser, config);
             if (const int status = compiler.generateVideo(); status != EXIT_SUCCESS) {
                 // Stopping, and saying what was not made: carrying on would
-                // repeat the same failure once per shape, and finishing quietly
-                // would leave a set of files that looks complete and is not.
+                // repeat the same failure once per shape or row, and finishing
+                // quietly would leave a set of files that looks complete and is not.
                 if (&config != &configs.back())
-                    std::cerr << std::format("video-code: {} failed, so the shapes after it were not rendered.\n", config.shapeNote);
+                    std::cerr << std::format("video-code: {} failed, so the {} renders after it were not made.\n", config.shapeNote, &configs.back() - &config);
                 return status;
             }
         }
+        if (parser.is_used("--data"))
+            std::cerr << py::module_::import("videocode.params").attr("unreadColumns")().cast<std::string>();
         return EXIT_SUCCESS;
     }
 
@@ -367,8 +411,36 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
     QCoreApplication::setApplicationName(QStringLiteral("Video-Code"));
     QGuiApplication::setApplicationDisplayName(QStringLiteral("Video-Code"));
 
+#if defined(__linux__)
+    // The preview draws into an X window (VulkanWidget: xcb surface only). A
+    // system Qt — Arch's — also ships the Wayland plugin and picks it in a
+    // Wayland session, and the preview then has no surface at all. XWayland is
+    // there whenever DISPLAY is, so the X plugin is asked for, unless someone
+    // already chose a platform.
+    if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM") && !qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY") && !qEnvironmentVariableIsEmpty("DISPLAY"))
+        qputenv("QT_QPA_PLATFORM", "xcb");
+#endif
+
+#ifdef __APPLE__
+    // The Dock tile, the ⌘-Tab entry and the name beside the Apple come from
+    // the bundle a process was launched from, and a bare executable has none:
+    // macOS drew the generic "exec" tile whatever setWindowIcon() was given.
+    // Video-Code.app, beside the binary, is that bundle; its executable is a
+    // link back to this file, so going through it changes what the system
+    // calls the process and nothing else. Only for a run that shows a window.
+    if (!checksChrome && !parser.get<bool>("--check-widget")) {
+        char       self[4096];
+        uint32_t   size = sizeof self;
+        const auto bundled = VC::executableDir() / "Video-Code.app" / "Contents" / "MacOS" / "video-code";
+        if (_NSGetExecutablePath(self, &size) == 0 && std::string_view(self).find(".app/Contents/MacOS/") == std::string_view::npos && std::filesystem::exists(bundled))
+            execv(bundled.c_str(), argv);
+    }
+#endif
+
     QApplication app(argc, argv);
     quitOnSignal(app);
+    // The Dock tile and ⌘-Tab on macOS, the window and taskbar icon elsewhere.
+    app.setWindowIcon(QIcon(QString::fromStdString(VC::resourceDir(SHADER_DIR, "assets/shaders") + "/../logo/icon.png")));
 
     // Needs a QApplication (a QWidget cannot exist without one) and nothing
     // else — no event loop, no editor chrome, and no window on the desktop.
@@ -385,6 +457,11 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
         // flag on the line always outranks the environment it inherited.
         if (parser.is_used("--file"))
             qputenv("VC_SCENE_FILE", QByteArray::fromStdString(parser.get<std::string>("--file")));
+
+        // --set previews one set of values — a row of the batch, say — in the
+        // editor, and reaches the export it launches through the environment.
+        if (parser.is_used("--set"))
+            VC::applyParams(VC::makeConfigs(parser).front());
 
         VC::Editor editor;
         editor.setHeadless(checksChrome);
@@ -437,6 +514,15 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
+    // Line by line, because something is reading this while it is still being
+    // written. `--serve` is driven by a test that starts the editor, keeps it
+    // alive and reads its stdout for the answer to each probe. Redirected to a
+    // file, stdout is fully buffered on glibc, so the answer sat in a 4 KB
+    // buffer until the process exited and the reader saw an empty file —
+    // Linux only, since macOS flushed it. Cheap: this stream carries a handful
+    // of lines a run.
+    std::setvbuf(stdout, nullptr, _IOLBF, 0);
+
     // Initialize the Python interpreter once for the whole process.
     // false = don't override Qt's signal handlers.
     // A shipped folder carries its own Python — `python/` beside the
@@ -455,6 +541,21 @@ int main(int argc, char *argv[])
     for (auto at = beside.find('\''); at != std::string::npos; at = beside.find('\'', at + 2))
         beside.insert(at, "\\");
     py::exec("import sys; sys.path.insert(0, ''); sys.path.insert(1, '" + beside + "')");
+    // An activated virtualenv is where `pip install -r requirements.txt` put
+    // what a scene imports — on Arch it is the only place pip may write. But an
+    // embedded interpreter takes its prefix from this binary, not from the
+    // `python3` on PATH, so it never sees the venv on its own: every scene died
+    // on `No module named 'typing_extensions'`. addsitedir, not a bare path
+    // insert, so the venv's .pth files are honoured too.
+    if (const char *venv = std::getenv("VIRTUAL_ENV")) {
+        py::dict scope;
+        scope["venv"] = venv;
+        py::exec(
+            "import site, sys\n"
+            "site.addsitedir(f'{venv}/lib/python{sys.version_info[0]}.{sys.version_info[1]}/site-packages')",
+            py::globals(), scope
+        );
+    }
 
     // Suppress the spurious Qt/macOS fullscreen position warning
     // Message: "qt.qpa.window: Window position QRect(-1,0 1470x826) outside any known screen, using primary screen"

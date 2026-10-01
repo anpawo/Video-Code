@@ -1,17 +1,17 @@
-# Chainload toolchain used by the overlay triplet so vcpkg builds every
-# dependency with GCC 13 instead of the system default (GCC 15), which fails
-# to compile ports like libxcrypt under -Werror.
+# Handed to vcpkg by vcpkg-overlay-triplets/x64-linux.cmake, so that every port
+# is built with GCC 13 rather than the distro's default: a GCC 15 stops on
+# -Werror in several of the older ports, libxcrypt among them.
 #
-# VCPKG_CHAINLOAD_TOOLCHAIN_FILE *replaces* vcpkg's stock toolchain, so we must
-# re-inherit it — otherwise we lose -fPIC (breaks static libs linked into .so
-# modules like libffi -> libatk-bridge.so), the correct CMAKE_SYSTEM_PROCESSOR,
-# and CMAKE_CROSSCOMPILING OFF. We set the compiler first; linux.cmake only
-# assigns a compiler inside its cross-compile branch (skipped on a native
-# x86_64 build), so our choice survives.
+# A chainload toolchain stands in for vcpkg's own, it is not layered on top of
+# it. Without the include at the end there is no -fPIC (and a static libffi then
+# refuses to go into libatk-bridge.so), no CMAKE_SYSTEM_PROCESSOR, and
+# CMAKE_CROSSCOMPILING is left unset. The compiler is named first: linux.cmake
+# only picks one on its cross-compiling path, which a native x86_64 build never
+# takes, so the choice made here stands.
 set(CMAKE_C_COMPILER /usr/bin/gcc-13)
 set(CMAKE_CXX_COMPILER /usr/bin/g++-13)
 
-if(NOT DEFINED _VCPKG_ROOT_DIR)
+if(NOT _VCPKG_ROOT_DIR)
     set(_VCPKG_ROOT_DIR "$ENV{VCPKG_ROOT}")
 endif()
 include("${_VCPKG_ROOT_DIR}/scripts/toolchains/linux.cmake")

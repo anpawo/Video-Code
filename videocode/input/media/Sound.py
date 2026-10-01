@@ -143,9 +143,9 @@ class Sound(Input):
     `beats()` is unaffected: it reads the SOURCE file and returns
     source-relative seconds, for `start=` on effects, not on the `Sound`.
 
-    A sound whose delay lands past the end of the scene still lengthens the
-    output by its tail — the mux has no `-shortest`. The cursor only makes that
-    easier to reach; it is not new.
+    A Sound does not make the film longer: the mix is cut at the film's last
+    frame (`buildAudioArgs`, src/compiler/AudioMix.cpp), so a sound that starts
+    on or after it is not heard — `--lint` says so.
     """
 
     cppName = "Sound"

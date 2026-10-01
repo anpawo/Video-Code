@@ -20,6 +20,7 @@
 #include <fstream>
 #include <functional>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -35,6 +36,19 @@
 inline void pushCamera(VkCommandBuffer cb, VkPipelineLayout layout, const Camera2D& camera)
 {
     vkCmdPushConstants(cb, layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Camera2D), &camera);
+}
+
+// Whether a physical device lists an extension by that name. A device extension
+// is requested only when it is listed: MoltenVK insists on
+// VK_KHR_portability_subset, and a native driver refuses a device created with
+// it — the same call cannot be right for both without asking first.
+inline bool deviceHasExtension(VkPhysicalDevice device, std::string_view name)
+{
+    uint32_t count = 0;
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr);
+    std::vector<VkExtensionProperties> listed(count);
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &count, listed.data());
+    return std::ranges::any_of(listed, [&](const VkExtensionProperties& e) { return e.extensionName == name; });
 }
 
 // Explicit image memory barrier between effect passes.
@@ -82,6 +96,24 @@ inline void runOneShot(VkDevice device, VkCommandPool pool, VkQueue queue, const
     vkQueueSubmit(queue, 1, &si, VK_NULL_HANDLE);
     vkQueueWaitIdle(queue);
     vkFreeCommandBuffers(device, pool, 1, &cb);
+}
+
+// The geometry buffers hold `capacity` vertices, and as many indices. A frame
+// that needs more doubles them instead of writing past their end; the old pair
+// goes only once the device is idle, as the last frame may still draw from it.
+inline void growGeometryBuffers(VkDevice device, size_t need, size_t& capacity, VkBuffer& vertexBuffer, VkDeviceMemory& vertexMemory, VkBuffer& indexBuffer, VkDeviceMemory& indexMemory, const std::function<bool()>& create)
+{
+    if (need <= capacity) return;
+
+    vkDeviceWaitIdle(device);
+    vkDestroyBuffer(device, vertexBuffer, nullptr);
+    vkFreeMemory(device, vertexMemory, nullptr);
+    vkDestroyBuffer(device, indexBuffer, nullptr);
+    vkFreeMemory(device, indexMemory, nullptr);
+    while (capacity < need)
+        capacity *= 2;
+    if (!create())
+        throw std::runtime_error("could not allocate the geometry buffers for this frame");
 }
 
 inline std::string loadEffectShader(const std::string& folder, const std::string& file)

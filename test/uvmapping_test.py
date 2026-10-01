@@ -13,28 +13,33 @@ import sys
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
-from helpers import check, section, summary
+from helpers import check, needsFile, needsTool, section, summary
 
 from videocode import Image, Video, UVMapping
 from videocode.context import Context
 
 section("Image — uvMapping/uvAngle defaults")
-img = Image("wb.png", width=1, height=1)
+img = Image("tinder-mail.png", width=1, height=1)
 entry = Context.stack[img.meta.index][-1]
 check("default uvMapping is stretch", entry["args"]["uvMapping"] == "stretch")
 check("default uvAngle is 0", entry["args"]["uvAngle"] == 0)
 
 section("Image — uvMapping/uvAngle overrides")
-img2 = Image("wb.png", width=1, height=1, uvMapping=UVMapping.RADIAL, uvAngle=45)
+img2 = Image("tinder-mail.png", width=1, height=1, uvMapping=UVMapping.RADIAL, uvAngle=45)
 entry2 = Context.stack[img2.meta.index][-1]
 check("uvMapping radial", entry2["args"]["uvMapping"] == "radial")
 check("uvAngle 45", entry2["args"]["uvAngle"] == 45)
 
-img3 = Image("wb.png", width=1, height=1, uvMapping=UVMapping.CONIC)
+img3 = Image("tinder-mail.png", width=1, height=1, uvMapping=UVMapping.CONIC)
 entry3 = Context.stack[img3.meta.index][-1]
 check("uvMapping conic", entry3["args"]["uvMapping"] == "conic")
 
 section("Video — uvMapping/uvAngle defaults and overrides")
+if not needsTool("ffprobe", "UV mapping is checked on a video") \
+   or not needsFile("test.mp4", "the video this reads is not in the repository"):
+    summary()
+    sys.exit(0)
+
 vid = Video("test.mp4", width=1, height=1)
 ventry = Context.stack[vid.meta.index][-1]
 check("default uvMapping is stretch", ventry["args"]["uvMapping"] == "stretch")

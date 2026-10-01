@@ -30,4 +30,22 @@ namespace VC
     // application by application. False off macOS, where Qt offers nothing to
     // read it from.
     bool prefersReducedMotion();
+
+    // bringToFront() — make this the FRONTMOST application, not merely the key
+    // window.
+    //
+    // Qt's QWindow::requestActivate() is not enough: QCocoaWindow's
+    // implementation is makeFirstResponder + makeKeyWindow and nothing else, so
+    // a process launched from a terminal draws a key-looking window while the
+    // terminal stays frontmost. macOS gives the menu bar, the key events and
+    // the CURSOR to the frontmost application, so in that state ⌘-shortcuts do
+    // nothing and no MouseArea can change the pointer. Only this raises it.
+    // No-op off macOS, where a window that is activated is already in front.
+    void bringToFront();
+
+    // sendMenuKey() — ⌘<key> handed to the native menu bar the way AppKit hands
+    // it a key equivalent, true when an item took it. For a windowless run: a
+    // synthetic QKeyEvent never reaches the menu bar, which is where ⌘1..4 live.
+    // False off macOS.
+    bool sendMenuKey(const QString& key);
 } // namespace VC

@@ -1,0 +1,24 @@
+## Where the Council Agrees
+- **The agent never gates** (all five). Same commit, same verdict is something an LLM cannot promise; "nothing blocks a push" stays true. Only the deterministic script can turn a run red.
+- **Weekly, never on a push or a PR** (platform, security, principal, test). On a public repo this removes the injection surface in one move — no PR text in the prompt, no secret near a fork — and costs about $4 a month instead of about $100.
+- **Read-only agent, metered key** (platform, security, principal): `Read,Grep,Glob` only, no shell, no network tool, no GitHub token; a capped API key in one step, `--bare` so the repo's CLAUDE.md is not loaded as orders; a second, LLM-free step does the posting. It pushes nothing.
+- **Fix the ratchet before adding anything** (principal, test): record clone IDENTITIES, not three integers — today one clone can be swapped for another unnoticed — and read QML and GLSL. Both reject jscpd as a second definition of "clone".
+- **Deliberate twins are data** (principal, test): a file listing the pairs with the owner's reason. Still counted, exempt from refactor proposals; a rejected finding becomes an entry, which is the agent's memory.
+- **No agent has an opinion on speed** (performance, test, principal). What CI can say honestly is whether a number EXISTS: the last perf row measures 96587a7 (6 Sept.), 25 engine commits ago.
+
+## Where the Council Clashes
+- **`workflow_dispatch` or not.** Platform drops it (a dispatched run executes the dispatched ref's workflow file, main is unprotected); security and principal keep it. Reviewers checked: `nightly.yaml` does have dispatch, and the comment platform cited is about a self-hosted runner. Settled by platform's OTHER idea: the key lives in a GitHub Environment restricted to `main`, so a dispatch from any other ref gets no secret. Dispatch stays — a job that cannot be run by hand cannot be debugged.
+- **One rolling issue or one issue per finding.** Platform, principal, security: one issue edited in place, quiet. Test: one per finding, keyed on a stable ID, closed = rejected. Reviewers broke the tie: editing an issue body notifies nobody. One issue per finding, at most three new ones a run.
+- **A perf section in the agent, or none.** Performance: four structural patterns on the engine diff, phrased as questions ending in the command that answers them, on a four-week trial. Test and principal: nothing. Kept as performance framed it — it is the only part of "still optimised" an agent can honestly hold, and its own author gave it an expiry date.
+
+## Blind Spots the Council Caught
+- **The agent would never see a semantic clone** (4 of 5 reviewers). Every design fed it only what the verbatim detector already finds, and the gate forbids those from growing: from week two it re-reads the same ~68 repetitions that `--list` prints for free. The one thing only an LLM can find never becomes a candidate — and the test seat's 0.6 text-similarity filter would have thrown out its own seeded fixture. Fix: a deterministic INDEX of every function (name, signature, first docstring line, file:line), with the ones added or changed since the last run marked; the agent looks there for two functions doing one job, then reads the bodies.
+- **The findings never reach the owner** (3 of 5). Everyone treated CLAUDE.md's board order as a hazard to strip; nobody routed a finding to the one page he keeps open. CI cannot publish the board, so the bridge is the label: open `audit` issues are To-do rows the next local session adds, closed ones are Won't-do with the closing comment as the reason.
+- **The identity ratchet goes red exactly when he does the right thing** (1 reviewer): fixing a bug in BOTH twins creates new hashes. Inside a declared twin pair the rule is therefore growth, not identity — and a clone that VANISHES from a pair is printed, because that is what a fix applied to one side only looks like. The drift check, for free.
+- **The existing script undercounts** (test seat, confirmed by 4 reviewers; one measured 16 of 155 runs, 359 lines): overlapping hot windows merge into one run whose hash matches nothing, and it is dropped.
+
+## The Recommendation
+Build the principal engineer's design — 4 of 5 reviewers picked it — with the test engineer's validator and stable IDs, the security engineer's two-step job, the platform engineer's environment-restricted key and provider-side cap, and the performance engineer's staleness check. Then add what only the review round saw: the function index that gives the agent something a script cannot find, and the `audit` label as the bridge to the board. The chairman overrules the majority on one point: one issue per finding, not a rolling one.
+
+## The One Thing to Do First
+Fix `test/repetition_check.py` — identities instead of counts, the merged-run bug, QML and GLSL — because every other piece reads its output, and today it is undercounting.

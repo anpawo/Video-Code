@@ -18,6 +18,7 @@ Contract:
 Run directly: `python3 test/pivot_about_test.py`
 """
 
+import math
 import sys
 
 sys.path.insert(0, ".")
@@ -105,19 +106,30 @@ check("an axis nobody claimed does not drag the leaf along it", near(oneAxis.met
 section("Text — the anchor grouping After Effects has and this engine did not")
 
 
+def ink(l) -> v2:
+    """
+    The centre of what a letter DRAWS: its position is the pen (align (0, 0)),
+    and the glyph lies right of it and above, turned with the letter.
+    """
+    off = l._pivot()
+    rad = math.radians(-l.meta.rotation)
+    return v2(l.meta.position.x + off.x * math.cos(rad) - off.y * math.sin(rad), l.meta.position.y + off.x * math.sin(rad) + off.y * math.cos(rad))
+
+
 def implied(text: str, mode, degree=180):
     """
     Where each letter turned around, recovered from the motion itself.
 
     A half-turn about P maps x to 2P - x, so the midpoint of a letter's before
     and after IS the pivot it used — without asking the implementation what it
-    thinks it did.
+    thinks it did. Measured on the ink, not the pen: the pen is a corner, and a
+    corner of a turned glyph is on the other side of it.
     """
     t = Text(text)
     t.anchor = mode
-    before = [v2(*l.meta.position) for l in t.inputs]
+    before = [ink(l) for l in t.inputs]
     t.rotateBy(degree, duration=0.4)
-    after = [v2(*l.meta.position) for l in t.inputs]
+    after = [ink(l) for l in t.inputs]
     return t, [(round((a.x + b.x) / 2, 9), round((a.y + b.y) / 2, 9)) for a, b in zip(before, after)], before, after
 
 
@@ -141,9 +153,9 @@ section("about still wins over the anchor grouping")
 
 t = Text("ab cd")
 t.anchor = Anchor.CHARACTER
-before = [v2(*l.meta.position) for l in t.inputs]
+before = [ink(l) for l in t.inputs]
 t.rotateBy(180, about=v2(0.0, 0.0), duration=0.4)
-after = [v2(*l.meta.position) for l in t.inputs]
+after = [ink(l) for l in t.inputs]
 check("a placed point is an answer, not a question about the content", all(near(a.x, -b.x) and near(a.y, -b.y) for a, b in zip(before, after)))
 
 section("the emitted frame carries its pivot as a number, never a re-read")

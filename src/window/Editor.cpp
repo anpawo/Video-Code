@@ -14,6 +14,7 @@
 #include <pybind11/embed.h>
 #include <unistd.h>
 
+#include <QColorDialog>
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -161,39 +162,14 @@ void VC::Editor::buildMenuBar()
     QTimer::singleShot(0, this, [this, file] { fillFileMenu(file); });
 
     // ── The order of the menus IS the order they are added in ──────────────
-    // System first, then the dock, then the guide: what you SET, then what you
-    // ARRANGE, then what you READ. The application menu is not part of this —
-    // macOS always keeps it leftmost, whatever we do.
+    // The dock, its theme, its keys, then the guide: what you ARRANGE, then how
+    // it LOOKS and ANSWERS, then what you READ. The application menu is not part
+    // of this — macOS always keeps it leftmost, whatever we do.
     //
-    // Two menus rather than one long one because a legend and a preference
-    // answer different questions, and mixing them makes both harder to find.
-    QMenu* system = _menuBar->addMenu(QStringLiteral("System"));
-
-    // Every key the application answers to, and where you change them.  ⌘/
-    // because that is where the rest of the world put it, and because a list of
-    // shortcuts that itself needs a shortcut nobody knows is a list nobody reads.
-    auto* keys = system->addAction(QStringLiteral("Keyboard Shortcuts"));
-    keys->setShortcut(QKeySequence(QStringLiteral("Ctrl+/")));
-    connect(keys, &QAction::triggered, this, &Editor::shortcutsRequested);
-
-    _codeThemesMenu = system->addMenu(QStringLiteral("Code theme"));
-
-    // Beside the shortcuts board and the code theme, because all three are the
-    // same question: how this window looks and answers to you. It was under
-    // Guide, which is for what the chrome MEANS, not for what you can change.
-    //
-    // "Show Colors" rather than "Colors…": the ellipsis is the macOS way of
-    // saying a window follows, but the verb says it in a word instead of in a
-    // convention, and it is the name the system gives its own colour panel —
-    // with the same key.
-    auto* colors = system->addAction(QStringLiteral("Show Colors"));
-    colors->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+C")));
-    connect(colors, &QAction::triggered, this, &Editor::colorsRequested);
-
-    // Settings is NOT repeated here.  Qt recognises the title and macOS moves
-    // any such item into the application menu next to About and Quit, which is
-    // where a Mac user looks for it — a second one would either vanish or, if
-    // renamed to escape the rule, sit in the wrong place on purpose.
+    // Each its own menu, and no submenu deeper than one: Qt's Cocoa bridge never
+    // attaches a submenu nested inside another submenu, so when these lived under
+    // System › Dock display, Layout, Docks and Load display were empty items to
+    // macOS — and ⌘1..4, which live in Layout, were keys it had never heard of.
 
     // Named for what it holds rather than borrowed from every other application:
     // everything in here is about the dock — which arrangement, which panes,
@@ -203,11 +179,7 @@ void VC::Editor::buildMenuBar()
     // A panel dragged somewhere silly or closed by accident has to be
     // recoverable from a place that does not depend on finding that panel again
     // — which the dock's own ⋯ menu does.
-    // Sous System, et pas à côté : où sont les volets et comment ils sont
-    // rangés est un réglage de la fenêtre, comme le thème du code juste
-    // au-dessus. Une barre de menus qui met chaque réglage à un étage différent
-    // fait chercher deux fois.
-    QMenu* view = system->addMenu(QStringLiteral("Dock display"));
+    QMenu* view = _menuBar->addMenu(QStringLiteral("Dock"));
 
     // Layout first: which arrangement you are in decides where everything else
     // is, so it reads before the list of what is in it.
@@ -241,8 +213,32 @@ void VC::Editor::buildMenuBar()
     auto* reset = view->addAction(QStringLiteral("Reset UI"));
     connect(reset, &QAction::triggered, this, &Editor::dockResetRequested);
 
+    QMenu* theme = _menuBar->addMenu(QStringLiteral("Theme"));
+    _codeThemesMenu = theme->addMenu(QStringLiteral("Code theme"));
+
+    // "Show Colors" rather than "Colors…": the ellipsis is the macOS way of
+    // saying a window follows, but the verb says it in a word instead of in a
+    // convention, and it is the name the system gives its own colour panel —
+    // with the same key.
+    auto* colors = theme->addAction(QStringLiteral("Show Colors"));
+    colors->setShortcut(QKeySequence(QStringLiteral("Ctrl+Shift+C")));
+    connect(colors, &QAction::triggered, this, &Editor::colorsRequested);
+
+    // Settings is NOT repeated in any of these.  Qt recognises the title and
+    // macOS moves any such item into the application menu next to About and
+    // Quit, which is where a Mac user looks for it — a second one would either
+    // vanish or, if renamed to escape the rule, sit in the wrong place on purpose.
+
+    // Every key the application answers to, and where you change them.  ⌘/
+    // because that is where the rest of the world put it, and because a list of
+    // shortcuts that itself needs a shortcut nobody knows is a list nobody reads.
+    QMenu* keyboard = _menuBar->addMenu(QStringLiteral("Keys"));
+    auto*  keys = keyboard->addAction(QStringLiteral("Keyboard Shortcuts"));
+    keys->setShortcut(QKeySequence(QStringLiteral("Ctrl+/")));
+    connect(keys, &QAction::triggered, this, &Editor::shortcutsRequested);
+
     // Guide is kept and left empty on purpose. It is where what the chrome
-    // MEANS will go — the legend moved to System because it became something
+    // MEANS will go — the legend moved to Keys because it became something
     // you change rather than something you read. macOS greys the title of a
     // menu with nothing in it, which is the honest picture: the place exists,
     // it holds nothing yet.
@@ -361,6 +357,11 @@ void VC::Editor::configureGraphicsApi()
     // Nothing to do, but worth saying out loud: without Qt's Vulkan support the
     // renderer and the chrome can never share a device, whatever we measure.
     VC_SLOG("[editor] this Qt has no Vulkan support; Quick uses the platform default\n");
+#elif defined(__linux__)
+    // Linux's default is OpenGL, and on an NVIDIA card under XWayland there is
+    // no GLX context to be had: the chrome aborted before its first frame. The
+    // preview already needs Vulkan, so the chrome asks for it too.
+    qputenv("QSG_RHI_BACKEND", "vulkan");
 #endif
 }
 
@@ -591,6 +592,11 @@ bool VC::Editor::reducedMotion() const
     return prefersReducedMotion();
 }
 
+void VC::Editor::bringToFront() const
+{
+    VC::bringToFront();
+}
+
 void VC::Editor::saveLayout(const QString& json) const
 {
     QFile file(layoutPath());
@@ -730,8 +736,8 @@ void VC::Editor::fillFileMenu(QMenu* file)
 
     // Export lives in File beside the two Opens, because that is where a person
     // looks for "make me the file" — not in a panel they have to find first.
+    // No key of its own: ⌘E is one macOS already answers.
     auto* exportVideo = file->addAction(QStringLiteral("Export Video…"));
-    exportVideo->setShortcut(QKeySequence(QStringLiteral("Ctrl+E")));
     connect(exportVideo, &QAction::triggered, this, [this] { Q_EMIT exportRequested(); });
 
     auto* openFolder = file->addAction(QStringLiteral("Open Folder…"));
@@ -831,6 +837,9 @@ QImage VC::Editor::renderFrame(int index, int width, int height)
         }
         _renderWidth = width;
         _renderHeight = height;
+        // The pane changed size — a layout switch, a splitter — and the clips'
+        // textures lived in the renderer just thrown away: the preview went black.
+        _scene->requeueTextures();
     }
 
     // Every frame, not only when the renderer is built.
@@ -1055,15 +1064,18 @@ namespace
 
 QVariantMap VC::Editor::argumentSpan(
     const QString& source, int line, const QString& call, const QString& name, const QString& value,
-    int occurrence
+    const QString& owner, int occurrence
 )
 {
     try {
         py::gil_scoped_acquire hold;
         const py::module       edit = py::module::import("videocode.edit");
+        const int              slot = py::module::import("videocode.serialize")
+                                          .attr("parameterSlot")(owner.toStdString(), call.toStdString(), name.toStdString())
+                                          .cast<int>();
         return spanAnswer(edit.attr("argumentSpan")(
             source.toStdString(), line, call.toStdString(), name.toStdString(), value.toStdString(),
-            occurrence
+            occurrence, slot
         ));
     } catch (const py::error_already_set&) {
     }
@@ -1081,6 +1093,21 @@ QVariantMap VC::Editor::positionalSpan(
         return spanAnswer(edit.attr("positionalSpan")(
             source.toStdString(), line, call.toStdString(), index, value.toStdString(), occurrence
         ));
+    } catch (const py::error_already_set&) {
+    }
+    return QVariantMap{{"ok", false}, {"start", 0}, {"end", 0}, {"text", QString()}, {"message", QString()}};
+}
+
+QVariantMap VC::Editor::waitLinkSpan(
+    const QString& source, int line, const QStringList& calls, double seconds
+)
+{
+    try {
+        py::gil_scoped_acquire hold;
+        py::list               names;
+        for (const QString& call : calls)
+            names.append(call.toStdString());
+        return spanAnswer(py::module::import("videocode.edit").attr("waitLinkSpan")(source.toStdString(), line, names, seconds));
     } catch (const py::error_already_set&) {
     }
     return QVariantMap{{"ok", false}, {"start", 0}, {"end", 0}, {"text", QString()}, {"message", QString()}};
@@ -1198,6 +1225,31 @@ QStringList VC::Editor::enumValues(const QString& name)
     } catch (const py::error_already_set&) {
     }
     return found;
+}
+
+QString VC::Editor::pickColor(const QString& hex)
+{
+    const QColor picked = QColorDialog::getColor(QColor(hex), nullptr, QStringLiteral("Choose a colour"));
+    return picked.isValid() ? picked.name() : QString();
+}
+
+QString VC::Editor::pickFile(const QString& near)
+{
+    const QFileInfo at(near);
+    const QString   start = at.isDir() ? near : at.absolutePath();
+    return QFileDialog::getOpenFileName(nullptr, QStringLiteral("Choose a file"), start);
+}
+
+QString VC::Editor::evalText(const QString& expression)
+{
+    try {
+        py::gil_scoped_acquire hold;
+        const py::module       scope = py::module::import("videocode");
+        const py::object       value = py::eval(expression.toStdString(), scope.attr("__dict__"));
+        return QString::fromStdString(py::str(value).cast<std::string>());
+    } catch (const py::error_already_set&) {
+        return {};
+    }
 }
 
 QVariantList VC::Editor::inputParams(const QString& className)
@@ -1475,6 +1527,10 @@ static QString findFfmpeg()
 void VC::Editor::bakeAudio()
 {
     if (_bake != nullptr) {
+        // Unhooked before it is killed: its `finished` would otherwise fire
+        // from inside the destructor, into a slot that reads `_bake` — by then
+        // null, or the NEXT process.
+        disconnect(_bake, nullptr, this, nullptr);
         _bake->kill();
         _bake->deleteLater();
         _bake = nullptr;
@@ -1524,9 +1580,11 @@ void VC::Editor::bakeAudio()
 
     _bake = new QProcess(this);
     _bake->setProcessChannelMode(QProcess::SeparateChannels);
-    connect(_bake, &QProcess::finished, this, [this, wav](int code, QProcess::ExitStatus status) {
-        const QString said = QString::fromUtf8(_bake->readAllStandardError()).trimmed().section('\n', -1);
-        _bake->deleteLater();
+    connect(_bake, &QProcess::finished, this, [this, wav, bake = _bake](int code, QProcess::ExitStatus status) {
+        if (bake != _bake)
+            return;
+        const QString said = QString::fromUtf8(bake->readAllStandardError()).trimmed().section('\n', -1);
+        bake->deleteLater();
         _bake = nullptr;
         if (status != QProcess::NormalExit || code != 0) {
             QFile::remove(wav);
@@ -1771,6 +1829,12 @@ void VC::Editor::pressKey(const QString& spec)
     // to be open before anything is aimed at it and wrong for everything else:
     // "change the arrangement, THEN pin it as the default" cannot be said any
     // other way, and that order is the whole meaning of the gesture.
+    // "Menu:1" — ⌘1 through the native menu bar, the only road it takes on macOS.
+    if (spec.startsWith("Menu:")) {
+        std::cout << std::format("Probed the menu key ⌘{} → {}\n", spec.mid(5).toStdString(), sendMenuKey(spec.mid(5)) ? "taken" : "nobody");
+        return;
+    }
+
     if (spec.startsWith("Panel:")) {
         const QString which = spec.mid(6);
         if (which == QStringLiteral("settings"))
@@ -1821,8 +1885,9 @@ void VC::Editor::pressKey(const QString& spec)
         const QStringList at = spec.mid(5).split(',', Qt::SkipEmptyParts);
         if (at.size() >= 4) {
             // Anything after the four numbers is a flag: "hold" to keep the
-            // button down at the end, "cmd" to drag with the modifier held —
-            // which is a different gesture, not the same one done differently.
+            // button down at the end, "cmd" or "shift" to drag with the
+            // modifier held — which is a different gesture, not the same one
+            // done differently.
             bool                  hold = false;
             Qt::KeyboardModifiers modifiers = Qt::NoModifier;
             for (int i = 4; i < at.size(); ++i) {
@@ -1831,6 +1896,8 @@ void VC::Editor::pressKey(const QString& spec)
                     hold = true;
                 else if (flag == QStringLiteral("cmd"))
                     modifiers |= Qt::ControlModifier;
+                else if (flag == QStringLiteral("shift"))
+                    modifiers |= Qt::ShiftModifier;
             }
             dragProbe(QPointF(at[0].toDouble(), at[1].toDouble()), QPointF(at[2].toDouble(), at[3].toDouble()), hold, modifiers);
         }
@@ -1930,7 +1997,10 @@ void VC::Editor::hoverAt(const QPointF& pos)
 
     QMouseEvent move(QEvent::MouseMove, pos, window->mapToGlobal(pos), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
     QCoreApplication::sendEvent(window, &move);
-    std::cout << std::format("Probed a hover at ({}, {})\n", pos.x(), pos.y());
+    // The cursor is the one thing a screenshot cannot show, and it is how a
+    // handle says what it does before it is pressed. Qt's own number: 0 the
+    // arrow, 4 the text caret, 6 the horizontal resize, 18 the closed hand.
+    std::cout << std::format("Probed a hover at ({}, {}) cursor {}\n", pos.x(), pos.y(), static_cast<int>(window->cursor().shape()));
 }
 
 void VC::Editor::dragProbe(const QPointF& from, const QPointF& to, bool hold, Qt::KeyboardModifiers modifiers)

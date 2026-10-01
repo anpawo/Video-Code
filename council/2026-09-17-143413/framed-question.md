@@ -1,0 +1,15 @@
+DÉCISION. Quelle licence publier pour Video-Code, parmi quatre options :
+  1. VCL-1.1, texte maison : usage non commercial libre ; tout usage commercial exige un accord négocié avec l'auteur ; exception : publier des vidéos en ligne, même monétisées ou sponsorisées, est permis sans accord si chaque vidéo porte le crédit « video made with @videocode » (à l'écran, ou en description avec lien) ; 30 jours pour réparer un crédit oublié ; licence révocable seulement sur faute non corrigée ; contributions sous CLA façon Qt (le contributeur garde son copyright, donne une licence irrévocable avec droit de relicencier) ; droit français.
+  2. PolyForm Noncommercial 1.0.0 (texte standard rédigé par des avocats) + la même exception vidéo créditée greffée dessus.
+  3. Seuil façon Remotion : gratuit pour les particuliers et les structures de 3 personnes ou moins, licence payante au-delà, sans notion de « usage commercial ».
+  4. Double licence façon Qt : GPL/AGPL gratuite + licence commerciale payante pour qui ne veut pas du copyleft.
+
+LE PRODUIT. Video-Code : logiciel de montage vidéo où la scène s'écrit en Python et se rend par un moteur C++/Vulkan, avec un éditeur Qt/QML (timeline, inspector, agent IA). Concurrents proches : Manim (MIT), Motion Canvas (MIT), Remotion (licence à seuil). Cible : créateurs de vidéos explicatives, YouTube en premier. ~79 000 lignes. Dépôt public sur GitHub depuis 2024, SANS aucun fichier de licence à ce jour. Aucun utilisateur payant, aucun revenu, pas de société : un seul développeur, étudiant, en France.
+
+FAITS.
+- Auteur principal : 98,6 % des lignes actuelles. Trois anciens co-auteurs détiennent ~1 060 lignes (surtout de la doc). DÉCISION DÉJÀ PRISE, à ne pas re-débattre : ces lignes seront supprimées puis réécrites ; l'historique git reste tel quel.
+- Dépendances : Qt 6 (LGPL-3, modules LGPL seulement), FFmpeg (build LGPL), OpenCV (Apache-2), protobuf/pybind11/glslang (BSD), nlohmann-json/argparse (MIT), FreeType (FTL), curl, miniaudio. Un template d'échecs importe python-chess (GPL-3) : il a été sorti de la licence et donné en MIT-0. Les 13 PNG de pièces d'échecs du dépôt viennent de chess.com et devront être remplacés.
+- Une vidéo produite avec le logiciel n'est pas une œuvre dérivée du logiciel : le copyleft ne touche pas les vidéos.
+- Objectifs de l'auteur, dans ses mots : rester seul propriétaire ; que n'importe qui puisse l'utiliser gratuitement pour ses vidéos YouTube, monétisées comprises, contre un crédit visible ; que les entreprises qui s'en servent pour gagner de l'argent autrement (SaaS, prestation, produit payant) passent par un accord avec lui ; pouvoir accepter des contributions sans perdre la main.
+
+ENJEU. Une licence se change difficilement une fois des utilisateurs et contributeurs arrivés : les versions déjà publiées restent sous l'ancienne. Trop stricte ou trop étrange, personne n'adopte l'outil face à Manim et Motion Canvas en MIT. Trop lâche, un tiers l'emballe et le revend. Mal rédigée, elle est inapplicable en droit français et l'auteur n'a pas les moyens d'un procès. Dire laquelle des quatre (ou quelle variante) et pourquoi.

@@ -23,11 +23,14 @@ import tempfile
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
-from helpers import check, needsRenderer, section, summary
+from helpers import check, needsFile, needsRenderer, needsTool, section, summary
 
 from videocode.serialize import execSource
 
 FPS = 30
+# Its own copy, frozen: the scene.py at the root is the one being worked on, and
+# this test pins lines, waits and a length.
+FIXTURE = "test/scene_model/scene.py"
 
 
 def model(source: str) -> dict:
@@ -422,8 +425,9 @@ with tempfile.TemporaryDirectory() as folder:
 section("--inspect prints the model the timeline is drawn from")
 # The agent pane's child edits the file and cannot see the timeline. This is
 # how it asks for one — the same model, out of the same binary, as JSON.
-if needsRenderer("--inspect is a flag of the renderer"):
-    done = subprocess.run(["./video-code", "--inspect", "--file", "scene.py"],
+if needsRenderer("--inspect is a flag of the renderer") and needsTool("ffprobe", "the fixture scene holds a video") \
+   and needsFile("marius.mov", "the fixture scene reads a video the repository does not carry"):
+    done = subprocess.run(["./video-code", "--inspect", "--file", FIXTURE],
                           capture_output=True, text=True, timeout=120)
     check("it exits clean", done.returncode == 0)
     # Read defensively, so a binary that has no --inspect fails these checks
@@ -470,12 +474,13 @@ section("the brief in front of a question says what the author is looking at")
 # The fourth key moves the selected element to another file rather than
 # building a scene that imports one: the branch under test is the shell's, and
 # a second windowless run to reach it costs more than everything above.
-if needsRenderer("the brief is built by the chrome"):
+if needsRenderer("the brief is built by the chrome") and needsTool("ffprobe", "the fixture scene holds a video") \
+   and needsFile("marius.mov", "the fixture scene reads a video the repository does not carry"):
     shot = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
     shot.close()
     dock = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
     dock.close()
-    env = dict(os.environ, VC_SCENE_FILE="scene.py", VC_SETTLE="11000", VC_DOCK_FILE=dock.name,
+    env = dict(os.environ, VC_SCENE_FILE=FIXTURE, VC_SETTLE="11000", VC_DOCK_FILE=dock.name,
                VC_KEYS=";".join([
                    "Eval:agentBrief()",
                    "Eval:selectedIndex = 0",
@@ -495,7 +500,10 @@ if needsRenderer("the brief is built by the chrome"):
         check("a block the question follows",
               clean.startswith("<editor>\n") and clean.endswith("</editor>\n\n"))
         check("the file, and the caret in it", "/scene.py · caret on line 1\n" in clean)
-        check("nothing selected is said, not left out", "\nselected: nothing\n" in clean)
+        # Never "nothing" on a scene that has something: with no clip picked,
+        # the top lane is the selection (Main.holdSelection).
+        check("the top lane stands in for a selection nobody made",
+              "\nselected: Square at line 8 — " in clean)
         check("the playhead against the length", "\nplayhead: 0.00 s of 8.47 s\n" in clean)
         # The base scene's two competing `moveBy` lines are commented out, so
         # what this proves now is the CLEAN wording. Nothing anywhere exercises

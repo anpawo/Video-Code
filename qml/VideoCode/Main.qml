@@ -197,6 +197,22 @@ ApplicationWindow {
         ? shownScene.elements[selectedIndex]
         : null
 
+    // Something is always selected once the scene has something: an empty
+    // Inspector was a panel that answered nothing, asked on 19 Sept. So when the
+    // selection is gone — Escape, a first run, a re-run that dropped the element
+    // — it lands on the top lane as the timeline draws it, and Escape now means
+    // "back to the first", not "nothing". Filled quietly: only a click brings
+    // the Inspector's tab forward. Called later, not at once: the lanes' order
+    // is itself re-derived from the scene that just changed.
+    function holdSelection() {
+        const lanes = timeline.lanesOrder;
+        if (selectedElement !== null || lanes.length === 0)
+            return;
+        selectedIndex = lanes[0];
+        inspector.open(selectedElement, Qt.rect(0, 0, 0, 0));
+    }
+    onSelectedElementChanged: Qt.callLater(holdSelection)
+
     // ── The dock ──────────────────────────────────────────────────────────
     // Panels are created once, below, and never move house: a slot is told which
     // keys it holds and reparents those items into itself. Everything about the
@@ -207,6 +223,7 @@ ApplicationWindow {
         "preview": preview,
         "timeline": timeline,
         "agent": agent,
+        "inspector": inspector,
         "code": source
     })
 
@@ -221,6 +238,7 @@ ApplicationWindow {
         "preview": "Preview",
         "timeline": "Timeline",
         "agent": "Agent",
+        "inspector": "Inspector",
         "code": "Code"
     })
 
@@ -246,7 +264,7 @@ ApplicationWindow {
         codeShown = shown.indexOf("code") >= 0;
     }
 
-    readonly property var panelKeys: ["media", "library", "preview", "timeline", "agent", "code"]
+    readonly property var panelKeys: ["media", "library", "preview", "timeline", "agent", "inspector", "code"]
 
     property var tree: defaultTree()
 
@@ -1603,6 +1621,33 @@ ApplicationWindow {
         }
     }
 
+    // Launched from a terminal, the shell came up on screen while the TERMINAL
+    // stayed the frontmost application. macOS gives the menu bar, the ⌘ keys and
+    // the cursor to whoever is frontmost, so ⌘1..4 did nothing (every Shortcut
+    // here is a Qt.WindowShortcut, which needs `active`) and no MouseArea could
+    // turn the pointer into a splitter arrow — the window looked focused all the
+    // same, because Qt's requestActivate() only makes it key. It stayed that way
+    // until something else raised the app: switching a Space, or the Dock
+    // changing display.
+    //
+    // On the first swapped frame rather than on completion: the application can
+    // only be raised once it has a window on screen to raise.
+    property bool raised: false
+
+    onFrameSwapped: {
+        if (raised || Shell.headless)
+            return;
+        raised = true;
+        // The application first, the window second. Reversed, makeKeyWindow
+        // runs while the process is still in the background, where AppKit
+        // ignores it, and the activation that follows picks the key window and
+        // the first responder on its own — which is how the menu bar came up
+        // right while ⌘1..4 stayed dead: a native menu item has no target, so
+        // Cocoa looks for one up the responder chain from the focused view.
+        Shell.bringToFront();
+        requestActivate();
+    }
+
     Component.onCompleted: {
         // The scene is a file on disk before it is anything else: a language
         // server reasons about files, and so does every jump to a definition.
@@ -1934,7 +1979,8 @@ ApplicationWindow {
             if (name.length === 0)
                 source.say(fx.call + " is written as an expression — edit the line itself");
             else
-                app.writeOn(fx.line, fx.call, name, value, fx.file);
+                app.writeOn(fx.line, fx.call, name, value, fx.file,
+                            elementCard.element !== null ? elementCard.element.cls : "");
         }
         onEffectJumped: (fx) => app.revealLine(fx.line)
         onSays: (sentence) => source.say(sentence)
@@ -2494,17 +2540,21 @@ ApplicationWindow {
             || source.path.length === 0 || file === source.path;
     }
 
+    function foreignLine(file) {
+        return app.fromOpenFile(file) ? "" : String(file).split("/").pop() + " wrote that line — open it to change it there";
+    }
+
     function ownsLine(file) {
-        if (app.fromOpenFile(file))
-            return true;
-        source.say(String(file).split("/").pop() + " wrote that line — open it to change it there");
-        return false;
+        const foreign = app.foreignLine(file);
+        if (foreign.length > 0)
+            source.say(foreign);
+        return foreign.length === 0;
     }
 
     function writeArgument(element, call, name, value) {
         if (element === null || element.line === undefined)
             return false;
-        return app.writeOn(element.line, call, name, value, element.file);
+        return app.writeOn(element.line, call, name, value, element.file, element.cls);
     }
 
     // The same edit, addressed by line rather than by element: an effect knows
@@ -2539,21 +2589,48 @@ ApplicationWindow {
         return true;
     }
 
-    function writeOn(line, call, name, value, file) {
-        if (line === undefined || line <= 0 || call === undefined || call.length === 0)
-            return false;
-        if (!app.ownsLine(file))
-            return false;
+    // `owner`, the element's class when it is known, lets the shell find a
+    // value the line gives by position: `Text("Merci")` says `text` with no name.
+    function writeOn(line, call, name, value, file, owner) {
+        return app.carryOut(app.planOn(line, call, name, value, file, owner));
+    }
 
-        const span = Shell.argumentSpan(source.text, line, call, name, value);
-        if (!span.ok) {
-            if (!app.offerConstant(line, call, name, value))
-                source.say(span.message.length > 0 ? span.message : "could not write " + name);
+    // An edit decided without being made: `{ ok, line, start, end, text }` for
+    // a range of the buffer and what replaces it, `{ ok, line, insert }` for a
+    // statement written under a line, `{ ok: false, message, offer }` for a
+    // refusal — with the constant's own line to offer when a name stood in the
+    // way. Decided apart from the write so that the timeline's tip can show
+    // the very edit the release will make, before anything is written.
+    function planOn(line, call, name, value, file, owner) {
+        if (line === undefined || line <= 0 || call === undefined || call.length === 0)
+            return { ok: false, message: "" };
+        const foreign = app.foreignLine(file);
+        if (foreign.length > 0)
+            return { ok: false, message: foreign };
+
+        const span = Shell.argumentSpan(source.text, line, call, name, value, owner !== undefined ? owner : "");
+        if (!span.ok)
+            // Where and what, not just that: "could not write start" names
+            // nothing anyone can go and look at.
+            return {
+                ok: false, offer: { line: line, call: call, key: name, value: value },
+                message: span.message.length > 0 ? span.message
+                         : "could not write " + name + "=" + value + " on " + call + "(), line " + line
+            };
+        return { ok: true, line: line, start: span.start, end: span.end, text: span.text };
+    }
+
+    function carryOut(plan) {
+        if (!plan.ok) {
+            const offer = plan.offer;
+            if (!(offer !== undefined && app.offerConstant(offer.line, offer.call, offer.key, offer.value))
+                && plan.message.length > 0)
+                source.say(plan.message);
             return false;
         }
-        if (!source.replaceRange(span.start, span.end, span.text))
+        if (!(plan.insert !== undefined ? source.insertAfterLine(plan.line, plan.insert)
+                                         : source.replaceRange(plan.start, plan.end, plan.text)))
             return false;
-
         app.executeScene();
         return true;
     }
@@ -2672,6 +2749,139 @@ ApplicationWindow {
         source.say(name + " at " + (target / fps).toFixed(1) + "s");
     }
 
+    // ── A clip in the hand, alone unless ⌘ pushes ─────────────────────────
+    //
+    // The scene is sequential: a clip that ends later starts every gap after
+    // it later, and the whole film follows. That is what ⌘ asks for. Without
+    // it the clip moves ALONE — the first gap that moved gives the time back,
+    // so nothing after that gap is touched — and it stops where that gap has
+    // nothing left.
+    //
+    // Measured on the run rather than worked out: whether a `hide` pushes
+    // depends on where the scene's clock stood when its line ran, and a first
+    // `.wait()` costs a frame more than it says. So the edit is written, the
+    // gaps are read again, and what the first of them lost is written back.
+    // The several writes are then folded into one, for one ⌘Z.
+    function gesture(element, edge, value, push) {
+        const before = source.text;
+        const fps = execFps > 0 ? execFps : 30;
+        const was = (liveScene.waits !== undefined ? liveScene.waits : [])
+                    .map((gap) => ({ at: Math.round(gap.at * fps), frames: Math.round(gap.d * fps) }));
+        const write = (to) => edge === "body" ? app.moveElement(element, to) : app.trimElement(element, edge, to);
+
+        write(value);
+        if (source.text === before || push)
+            return app.asOneEdit(before);
+
+        // More than the gap holds: as far as it goes, and no further. Asked
+        // again rather than computed once — a `.wait()` counts whole frames.
+        let owed = app.owedBy(was);
+        for (let tries = 0; owed !== null && owed.left < 0 && tries < 3; ++tries) {
+            value += owed.left / fps;
+            const went = edge === "body" ? value : value - element.l - (edge === "out" ? element.d : 0);
+            app.rewind(before);
+            if (went < 0.02) {
+                app.executeScene();
+                source.say("the wait() on line " + owed.line + " has no time left to give — ⌘ pushes what follows instead");
+                return;
+            }
+            write(value);
+            owed = source.text === before ? null : app.owedBy(was);
+        }
+        if (owed !== null) {
+            const span = owed.left < 0 ? { ok: false }
+                       : Shell.positionalSpan(source.text, owed.line, "wait", 0, app.plain(Math.ceil(owed.left / fps * 100 - 1e-6) / 100));
+            if (!span.ok) {
+                app.rewind(before);
+                app.executeScene();
+                source.say("the wait() on line " + owed.line + " cannot give that time back — ⌘ pushes what follows instead");
+                return;
+            }
+            source.replaceRange(span.start, span.end, span.text);
+            app.executeScene();
+        }
+        app.asOneEdit(before);
+    }
+
+    // The first gap a write moved, and the frames it would have left once it
+    // has given the move back. Null when no gap moved: nothing was pushed.
+    function owedBy(was) {
+        const fps = execFps > 0 ? execFps : 30;
+        const now = liveScene.waits !== undefined ? liveScene.waits : [];
+        if (now.length !== was.length)
+            return null;
+        for (let i = 0; i < now.length; ++i) {
+            const moved = Math.round(now[i].at * fps) - was[i].at;
+            if (moved !== 0)
+                return { line: now[i].line, left: was[i].frames - moved };
+        }
+        return null;
+    }
+
+    // The gap that follows a line, or null. The waits are in the film's order.
+    function gapAfter(line) {
+        const found = (liveScene.waits !== undefined ? liveScene.waits : []).find((gap) => gap.line > line);
+        return found !== undefined ? found : null;
+    }
+
+    // The gap a clip would push by ending later, and the slack it has before
+    // it does: a gap starts when the LAST thing before it has ended, so a clip
+    // that ends early can go that far without moving anything. Null when no
+    // gap follows, or when the clip's end is not its clock's to move — a left
+    // edge whose `hide` is told the old moment again.
+    function gapBehind(element, edge, line) {
+        const gap = app.gapAfter(line);
+        const points = element.points !== undefined ? element.points : [];
+        if (gap === null || (edge === "in" && points.some((point) => point.call === "hide")))
+            return null;
+        // Where the element's own clock stands: the end of the last thing it does.
+        const clock = element.effects.reduce((most, fx) => Math.max(most, fx.l + fx.d), 0);
+        return { gap: gap, slack: Math.max(0, gap.at - clock) };
+    }
+
+    // How far a clip can be taken later on its own: its slack, then what the
+    // gap behind it holds. A right edge is not held back here — whether a
+    // `hide` pushes at all is the run's to say, see gesture.
+    function roomAfter(element, edge) {
+        if (edge === "out")
+            return Infinity;
+        const plan = app.planGesture(element, edge, edge === "body" ? 0.1 : element.l + 0.1);
+        const behind = plan.ok ? app.gapBehind(element, edge, plan.line) : null;
+        if (behind === null)
+            return Infinity;
+        return behind.slack + (app.gapSpan(behind.gap).ok ? behind.gap.d : 0);
+    }
+
+    // Where a gap's number is written, if it is a number: a name is not the
+    // gesture's to change. Asked with another value than the one it holds —
+    // the same one is no edit, and is answered as a refusal.
+    function gapSpan(gap) {
+        return Shell.positionalSpan(source.text, gap.line, "wait", 0, app.plain(gap.d + 1));
+    }
+
+    function rewind(to) {
+        for (let guard = 0; source.text !== to && guard < 4; ++guard)
+            source.undo();
+    }
+
+    // What a gesture wrote in several steps, as one entry of the undo stack:
+    // taken back, then written again as the single range that differs.
+    function asOneEdit(before) {
+        const after = source.text;
+        if (after === before)
+            return;
+        app.rewind(before);
+        const now = source.text;
+        let head = 0;
+        while (head < now.length && head < after.length && now[head] === after[head])
+            ++head;
+        let tail = 0;
+        while (tail < now.length - head && tail < after.length - head
+               && now[now.length - 1 - tail] === after[after.length - 1 - tail])
+            ++tail;
+        source.replaceRange(head, now.length - tail, after.slice(head, after.length - tail));
+    }
+
     // ── Trimming: where a clip stops ──────────────────────────────────────
     //
     // One meaning for every kind, because the timeline only ever draws one
@@ -2688,7 +2898,193 @@ ApplicationWindow {
     function trimElement(element, edge, seconds) {
         if (element === null || element.line === undefined || element.line <= 0)
             return;
-        hideAt(element, seconds);
+        if (edge === "out") {
+            hideAt(element, seconds);
+            return;
+        }
+
+        // The left edge is a move whose END stays put. An end the film gives —
+        // nothing hides the element — did not follow the clock and needs
+        // nothing; a `hide(start=…)` counts from the clock that just moved, so
+        // it is told the old moment again. Asked of the scene as it is AFTER
+        // the move, because only a run knows where that line's cursor now is.
+        const end = element.l + element.d;
+        const now = app.shiftClock(element, seconds - element.l, app.planGesture(element, edge, seconds));
+        if (now === null)
+            return;
+        const fps = execFps > 0 ? execFps : 30;
+        if (now.points.some((point) => point.call === "hide") && Math.abs(now.l + now.d - end) * fps > 0.5) {
+            // A hide that could not be rewritten has said why; that stands.
+            const before = source.text;
+            hideAt(now, end);
+            if (source.text === before)
+                return;
+        }
+        source.say(now.n + " now starts at " + now.l.toFixed(1) + "s");
+    }
+
+    // ── Moving: when a clip starts ────────────────────────────────────────
+    //
+    // A clip starts where its element's own clock stood when the first thing
+    // that takes time was written, and the word that moves that clock is
+    // `.wait()`. So a drag writes one — or changes the one already there — in
+    // front of that call: `title.wait(0.5).fadeIn()`. Everything the element
+    // does afterwards counts from the same clock and follows on its own, which
+    // is what makes it a move and not a retiming of one effect.
+    //
+    // A video does not follow its clock: its frames play from where the scene
+    // stood when the line made it. Waiting would delay its entrance over a
+    // picture that kept running — a slip, shown as a move — so the body of a
+    // media clip refuses, while its left edge, which MEANS that, does not.
+    function moveElement(element, by) {
+        const now = app.shiftClock(element, by, app.planGesture(element, "body", by));
+        if (now !== null)
+            source.say(now.n + " now starts at " + now.l.toFixed(1) + "s");
+    }
+
+    // What a clip gesture would write — the one decision behind the release
+    // (trimElement, moveElement) and the lines lit beforehand (aimCode).
+    // `value` is what the timeline hands over: the moment for an edge, the
+    // distance for the body.
+    function planGesture(element, edge, value) {
+        if (element === null || element.line === undefined || element.line <= 0)
+            return { ok: false, message: "" };
+        if (edge === "out")
+            return app.planHide(element, value);
+        if (edge === "in")
+            return app.planClock(element, value - element.l);
+        if (element.kind === "video" || element.kind === "sound")
+            return {
+                ok: false,
+                message: element.n + " plays from where line " + element.line
+                         + " stands in the scene — nothing to move but that line, or the wait() above it"
+            };
+        return app.planClock(element, value);
+    }
+
+    // What a hand on a clip lights in the code pane: the line the release will
+    // write — as it will read, once the clip is held — or the refusal, while
+    // the button is still down. Asked of `planGesture`, so it shows the edit
+    // the release makes, and the buffer is never touched. Alone, the gap that
+    // gives the time back is lit too: that line changes with it. Two things
+    // only a run can know are not in it: a `.wait()` the scene ignores (taken
+    // back on release, see shiftClock) and the `hide` a moved left edge is
+    // told again (trimElement).
+    function aimCode(aim) {
+        if (aim === null) {
+            source.aimed = [];
+            return;
+        }
+        // Hovered, nothing is pulled yet: planned a tenth further, which is the
+        // line a drag would touch, and any refusal a drag would meet.
+        const nudged = aim.edge === "body" ? 0.1 : aim.at + 0.1;
+        const plan = app.planGesture(aim.element, aim.edge, aim.held ? aim.value : nudged);
+        if (!plan.ok) {
+            const named = plan.offer !== undefined
+                          ? Shell.constantOffer(source.text, plan.offer.line, plan.offer.call, plan.offer.key, plan.offer.value)
+                          : { ok: false };
+            source.aimed = [{
+                line: plan.offer !== undefined ? plan.offer.line : aim.element.line, from: 0, to: 0, text: "", refused: true,
+                note: named.ok ? named.name + " is a name — let go and its own line is offered: " + named.name + " → " + plan.offer.value
+                    : plan.message.length > 0 ? plan.message : "nothing to write"
+            }];
+            return;
+        }
+
+        const rows = [];
+        if (plan.insert === undefined) {
+            const head = source.text.slice(0, plan.start).split("\n");
+            const from = head[head.length - 1].length;
+            const reads = source.text.split("\n")[head.length - 1];
+            rows.push({
+                line: head.length, from: from, to: from + (aim.held ? plan.text.length : plan.end - plan.start),
+                text: aim.held ? reads.slice(0, from) + plan.text + reads.slice(from + plan.end - plan.start) : "",
+                note: "", refused: false
+            });
+        } else {
+            // A statement of its own: said beside the line it goes under.
+            rows.push({ line: plan.line, from: 0, to: 0, text: "", note: aim.held ? plan.insert : "", refused: false });
+        }
+
+        // Lit only when it WILL change: past the slack the clip has before it
+        // is the last thing to end, and not for a left edge whose end a hide
+        // keeps in place.
+        const behind = aim.push || aim.edge === "out" ? null : app.gapBehind(aim.element, aim.edge, plan.line);
+        const went = !aim.held ? 0.05 : aim.edge === "body" ? aim.value : aim.value - aim.element.l;
+        if (behind !== null && went > behind.slack) {
+            const gap = behind.gap;
+            const span = app.gapSpan(gap);
+            const column = span.ok ? source.text.slice(0, span.start).split("\n").pop().length : 0;
+            rows.push({
+                line: gap.line, from: column, to: span.ok ? column + span.end - span.start : 0, text: "", refused: !span.ok,
+                note: span.ok ? "" : "a name cannot give the time back — ⌘ pushes what follows"
+            });
+        }
+        source.aimed = rows;
+    }
+
+    // The write, then what the run made of it. A `wait()` or a `waitFor()`
+    // between the element and its first effect sets the clock AFTER the
+    // `.wait()` did: the clip stays where it was, and the line has gained a word
+    // that does nothing. That word is taken back — code the editor wrote and
+    // the scene ignores is the one thing worse than a refusal. Answers the
+    // element as the new run has it, or null.
+    function shiftClock(element, by, plan) {
+        if (!app.carryOut(plan) || execState !== "fresh")
+            return null;
+
+        // Most of the way is a move: `.wait()` counts whole frames, and a fade
+        // is seen a frame after it starts, so the last frame is not promised.
+        const now = liveScene.elements.find((one) => one.index === element.index);
+        if (now !== undefined && (now.l - element.l) / by > 0.5)
+            return now;
+
+        source.undo();
+        app.executeScene();
+        source.say("could not move " + element.n + " — a wait() above it sets its clock later than that");
+        return null;
+    }
+
+    function planClock(element, by) {
+        const foreign = app.foreignLine(element.file);
+        if (foreign.length > 0)
+            return { ok: false, message: foreign };
+        const fps = execFps > 0 ? execFps : 30;
+        const mine = element.effects.filter((fx) => fx.line > 0 && app.fromOpenFile(fx.file));
+
+        // Placed by a drop: `hide()`, then `show(start=…)`. The show already
+        // says when, in a number — that number moves.
+        for (const fx of mine) {
+            const written = fx.call === "show" ? parseFloat(Shell.readArgument(source.text, fx.line, "show", "start")) : NaN;
+            if (isNaN(written))
+                continue;
+            if (written + by < 0)
+                return { ok: false, message: "that is before " + element.n + " reaches this line" };
+            return app.planOn(fx.line, "show", "start", app.plain(written + by), fx.file);
+        }
+
+        // The first thing that takes TIME. `.opacity(0)` and `.position()` are
+        // written on a frame and stay on it; a wait in front of them would
+        // leave the element standing there, opaque, for as long as it waits.
+        const timed = mine.filter((fx) => fx.d * fps > 1.5).sort((a, b) => a.l - b.l);
+        if (timed.length === 0)
+            return { ok: false, message: "nothing says when " + element.n + " starts — it is there from its first line. Give it a fadeIn() and drag that" };
+
+        // `apply(popIn())` is a call the scene cannot name; the link is `apply`.
+        const line = timed[0].line;
+        const calls = timed.filter((fx) => fx.line === line).map((fx) => fx.call.length > 0 ? fx.call : "apply");
+        const span = Shell.waitLinkSpan(source.text, line, calls, by);
+        if (!span.ok) {
+            // `.wait(PAUSE)`: the name stays, and its own line is offered —
+            // worth what it is worth now, plus the drag.
+            const named = Shell.constantOffer(source.text, line, "wait", 0, "0");
+            const next = named.ok ? parseFloat(source.text.slice(named.start, named.end)) + by : -1;
+            return {
+                ok: false, offer: next > 0 ? { line: line, call: "wait", key: 0, value: app.plain(next) } : undefined,
+                message: span.message.length > 0 ? span.message : "could not move " + element.n + " — nothing on line " + line + " to wait in front of"
+            };
+        }
+        return { ok: true, line: line, start: span.start, end: span.end, text: span.text };
     }
 
     // Where a statement about this element has to go if it is to happen at a
@@ -2739,16 +3135,21 @@ ApplicationWindow {
     }
 
     function hideAt(element, seconds) {
-        if (!app.ownsLine(element.file))
-            return;
+        const fps = execFps > 0 ? execFps : 30;
+        if (app.carryOut(app.planHide(element, seconds)))
+            source.say(element.n + " now ends at " + (Math.round(seconds * fps) / fps).toFixed(1) + "s");
+    }
+
+    function planHide(element, seconds) {
+        const foreign = app.foreignLine(element.file);
+        if (foreign.length > 0)
+            return { ok: false, message: foreign };
 
         const fps = execFps > 0 ? execFps : 30;
         const target = Math.round(seconds * fps);
         const points = element.points !== undefined ? element.points : [];
-        if (points.length === 0) {
-            source.say("nothing in the scene says when " + element.n + " happens");
-            return;
-        }
+        if (points.length === 0)
+            return { ok: false, message: "nothing in the scene says when " + element.n + " happens" };
 
         // One end, not a queue of them: an element already told to hide is told
         // a different moment.
@@ -2756,35 +3157,65 @@ ApplicationWindow {
             if (written.call !== "hide")
                 continue;
             const moment = (target - written.cursor) / fps;
-            if (moment < 0) {
-                source.say("that is before " + element.n + " reaches this line");
-                return;
-            }
-            if (app.writeOn(written.line, "hide", "start", app.plain(moment), written.file))
-                source.say(element.n + " now ends at " + (target / fps).toFixed(1) + "s");
-            return;
+            if (moment < 0)
+                return { ok: false, message: "that is before " + element.n + " reaches this line" };
+            return app.planOn(written.line, "hide", "start", app.plain(moment), written.file);
         }
 
         const where = app.pointFor(element, target);
-        if (where === null) {
-            source.say("that is before " + element.n + " is finished moving");
-            return;
-        }
+        if (where === null)
+            return { ok: false, message: "that is before " + element.n + " is finished moving" };
 
         // The name has to be a name. An element built inline — `Square(...)`
         // with nothing on the left of an `=` — is called after its class here,
         // and `Square.hide()` is a statement about the class.
         const lines = source.text.split("\n");
         const declaration = element.line <= lines.length ? lines[element.line - 1] : "";
-        if (!new RegExp("^\\s*" + element.n + "\\s*=").test(declaration)) {
-            source.say("give it a name first — " + element.cls + "(...) on its own cannot be told to hide");
-            return;
+        if (!new RegExp("^\\s*" + element.n + "\\s*=").test(declaration))
+            return { ok: false, message: "give it a name first — " + element.cls + "(...) on its own cannot be told to hide" };
+
+        return { ok: true, line: where.line, insert: element.n + ".hide(start=" + app.plain(where.start) + ")" };
+    }
+
+    // ── A gap, typed or pulled ────────────────────────────────────────────
+    function writeWait(line, value) {
+        if (isNaN(value) || value < 0) {
+            source.say("a gap is a number of seconds");
+            return false;
         }
 
-        if (!source.insertAfterLine(where.line, element.n + ".hide(start=" + app.plain(where.start) + ")"))
-            return;
+        const span = Shell.positionalSpan(source.text, line, "wait", 0, app.plain(value));
+        if (!span.ok) {
+            if (!app.offerConstant(line, "wait", 0, app.plain(value)))
+                source.say(span.message.length > 0 ? span.message
+                           : "could not write wait(" + app.plain(value) + ") on line " + line);
+            return false;
+        }
+
+        source.replaceRange(span.start, span.end, span.text);
         app.executeScene();
-        source.say(element.n + " now ends at " + (target / fps).toFixed(1) + "s");
+        return true;
+    }
+
+    // A gap's label, pulled: the gap ends where it was let go.
+    //
+    // Only its length is its own. Where a gap STARTS is wherever the work
+    // before it ended, and nothing writes that down — so moving a start is
+    // this same gesture on the gap before it, which is the one line that can
+    // give the time back.
+    function dragWait(line, seconds) {
+        const waits = liveScene.waits !== undefined ? liveScene.waits : [];
+        const mine = waits.find((one) => one.line === line);
+        if (mine === undefined)
+            return;
+
+        const kept = Math.max(0, seconds - mine.at);
+        if (kept < 0.02) {
+            source.say("a gap of no time is a line to delete, not a gap to pull");
+            return;
+        }
+        if (app.writeWait(line, kept))
+            source.say("wait(" + app.plain(kept) + ") on line " + line);
     }
 
     // ── Off, without being gone ───────────────────────────────────────────
@@ -2814,7 +3245,9 @@ ApplicationWindow {
         // call would land inside it and the scene would stop running.
         const text = lines[element.line - 1];
         const code = text.replace(/\s+#.*$/, "");
-        const next = code.trimEnd() + "." + write + text.slice(code.length);
+        // A regex, not trimEnd(): that is ES2019, and Qt's JS engine does not
+        // have it — the call threw and nothing was ever added.
+        const next = code.replace(/\s+$/, "") + "." + write + text.slice(code.length);
         if (!source.replaceRange(offset, offset + text.length, next))
             return;
         app.executeScene();
@@ -2831,7 +3264,7 @@ ApplicationWindow {
         const line = element.line;
         if (Shell.readArgument(source.text, line, call, name).length > 0
             || Shell.readPositional(source.text, line, call, at).length === 0)
-            return app.writeOn(line, call, name, value, element.file);
+            return app.writeOn(line, call, name, value, element.file, element.cls);
         if (!app.ownsLine(element.file))
             return false;
 
@@ -2880,9 +3313,25 @@ ApplicationWindow {
     // servent. Un élément dont les lignes sont dans un autre document est refusé
     // pour la raison qui refuse déjà tous les gestes sur lui : le numéro de ligne
     // n'est pas celui de ce document.
-    function renameElement(one) {
+    function renameElement(one, wanted) {
         if (one === null || one === undefined || !fromOpenFile(one.file)) {
             source.say("those lines are in another file");
+            return;
+        }
+        // Named already — from the Inspector's field — the rename happens
+        // where you are; otherwise the box opens in the code.
+        if (wanted !== undefined) {
+            // Renamed, the Inspector follows the element under its new name and
+            // the scene runs again — nothing should move, and the timeline says
+            // the new name.
+            const ok = source.renameTo(one.line, one.n, wanted, (touched) => {
+                if (touched > 0) {
+                    inspector.follow(wanted);
+                    app.executeScene();
+                }
+            });
+            if (!ok)
+                source.say("no name to rename on line " + one.line);
             return;
         }
         showPanel("code");
@@ -3038,7 +3487,7 @@ ApplicationWindow {
                 return {
                     range: { start: { line: w.line, character: 0 },
                              end:   { line: w.line, character: 200 } },
-                    severity: 2,
+                    severity: w.severity !== undefined ? w.severity : 2,
                     source: "execute",
                     message: w.message
                 };
@@ -3046,6 +3495,7 @@ ApplicationWindow {
             liveScene = buildLiveScene(JSON.parse(answer.scene), flaws);
             // Anything looking at the scene has to be looking at THIS one.
             elementCard.rebind(liveScene.elements);
+            inspector.rebind(liveScene.elements);
             execInputs = parseInt(answer.inputs);
             execFrames = parseInt(answer.frames);
             execFps = answer.fps !== undefined ? parseInt(answer.fps) : execFps;
@@ -3430,6 +3880,34 @@ ApplicationWindow {
         enabled: Agent.revertable && !shortcuts.visible
         onActivated: app.undoAgentEdit()
     }
+    // ⌘Z from any other pane undoes the code: whatever wrote the file — the
+    // Inspector, a gesture on the timeline, a rename — went through the
+    // document, so the editor's stack holds it. A field being typed in keeps
+    // its own undo. With the caret in the editor, the editor already answers.
+    Shortcut {
+        sequences: [StandardKey.Undo]
+        enabled: !Agent.revertable && !shortcuts.visible && !source.editorHasFocus
+        onActivated: {
+            const it = activeFocusItem;
+            if (it && typeof it.undo === "function" && it.canUndo)
+                it.undo();
+            else
+                source.undo();
+        }
+    }
+    // Redo the same way, on the key the board lists as well as the system's
+    // own ⇧⌘Z: ⌘Y only answered with the caret in the code.
+    Shortcut {
+        sequences: [StandardKey.Redo, Keymap.sequence("redo")]
+        enabled: !shortcuts.visible && !source.editorHasFocus
+        onActivated: {
+            const it = activeFocusItem;
+            if (it && typeof it.redo === "function" && it.canRedo)
+                it.redo();
+            else
+                source.redo();
+        }
+    }
 
     // Play, pause, or start over.
     //
@@ -3617,30 +4095,19 @@ ApplicationWindow {
         openedName: elementCard.element !== null && elementCard.element.n !== undefined
                     ? elementCard.element.n : ""
         onElementOpened: (element, where) => elementCard.open(element, where)
+        onElementInspected: (element) => app.inspect(element)
         onRenameRequested: (element) => app.renameElement(element)
         // Scrubbing stops playback: the two are the same control, and a playhead
         // that keeps running away from where you put it is not a scrub.
         // A gap edited on the timeline is one number rewritten in the file: the
         // wait carries the line it was written on, and `wait(0.3)` writes its
         // seconds without a name, so the span comes from the positional writer.
-        onTrimmed: (element, edge, seconds) => app.trimElement(element, edge, seconds)
-        onWaitChanged: (line, seconds) => {
-            const value = parseFloat(seconds);
-            if (isNaN(value) || value < 0) {
-                source.say("a gap is a number of seconds");
-                return;
-            }
-
-            const span = Shell.positionalSpan(source.text, line, "wait", 0, value.toString());
-            if (!span.ok) {
-                if (!app.offerConstant(line, "wait", 0, value.toString()))
-                    source.say(span.message.length > 0 ? span.message : "could not write that wait");
-                return;
-            }
-
-            source.replaceRange(span.start, span.end, span.text);
-            app.executeScene();
-        }
+        onTrimmed: (element, edge, seconds, push) => app.gesture(element, edge, seconds, push)
+        onShifted: (element, seconds, push) => app.gesture(element, "body", seconds, push)
+        roomFor: (element, edge) => app.roomAfter(element, edge)
+        onAimChanged: app.aimCode(timeline.aim)
+        onWaitChanged: (line, seconds) => app.writeWait(line, parseFloat(seconds))
+        onWaitDragged: (line, seconds) => app.dragWait(line, seconds)
 
         onScrubbed: (seconds) => {
             app.playing = false;
@@ -3652,12 +4119,78 @@ ApplicationWindow {
         markOut: app.markOut
         snapPoints: app.snapPoints
         onElementPicked: (index) => app.selectedIndex = index
+        onLanesOrderChanged: Qt.callLater(app.holdSelection)
+    }
+
+    // The clip you clicked, as rows in the dock — the Inspector of Palmier Pro
+    // and Final Cut: what it is, what its line says, what it is worth now.
+    InspectorPanel {
+        id: inspector
+        visible: false
+        playhead: app.playhead
+        buffer: source.text
+        baseDir: source.path.length > 0 ? source.path.substring(0, source.path.lastIndexOf("/")) : ""
+        onArgumentWritten: (element, call, name, value) => app.fromInspector(() => app.writeArgument(element, call, name, value))
+        onMetadataAdded: (element, write) => app.fromInspector(() => app.addMetadata(element, write))
+        onMetadataWritten: (element, call, name, at, value) => app.fromInspector(() => app.writeMetadata(element, call, name, at, value))
+        onJumpRequested: (element) => app.revealLine(element.line)
+        onRenamed: (element, name) => app.fromInspector(() => app.renameElement(element, name))
+        onSays: (sentence) => source.say(sentence)
+    }
+
+    // An edit asked for in the Inspector answers in the Inspector. Every
+    // refusal on the way — a name kept, a line of another file, the constant
+    // offered instead — is said by the code pane, and with the Inspector in
+    // front that pane is behind a tab: the field closed, nothing changed, and
+    // nothing said why. What the pane says during the edit is said here too.
+    property bool inspectorAsking: false
+    function fromInspector(write) {
+        app.inspectorAsking = true;
+        try {
+            write();
+        } finally {
+            app.inspectorAsking = false;
+        }
+    }
+    Connections {
+        target: source
+        function onSpoke(what, act) {
+            if (app.inspectorAsking)
+                inspector.tell(what, act);
+        }
+    }
+
+    // One click on a clip fills the Inspector and brings its tab forward —
+    // beside the Agent when the layout has never held one.
+    function inspect(element) {
+        inspector.open(element, Qt.rect(0, 0, 0, 0));
+        if (slotHolding("inspector") === -1) {
+            const stage = slotHolding("preview");
+            if (stage === -1) {
+                openPanel("inspector", slotHolding("agent"));
+            } else {
+                // Beside the preview, five sevenths as wide: the proportion
+                // asked for on 16 Sept.
+                dockTab("inspector", stage, "right");
+                const next = copy(tree);
+                const hit = findNode(next, slotHolding("inspector"));
+                if (hit && hit.parent && hit.parent.nodes.length === 2) {
+                    hit.parent.nodes[1 - hit.index].size = 7 / 12;
+                    hit.node.size = 5 / 12;
+                    settle(next);
+                }
+            }
+        }
+        showPanel("inspector");
     }
 
     AgentPanel {
         id: agent
         visible: false
         onSent: (text) => Agent.ask(app.agentBrief() + text)
+        // Until the turn is taken the buffer shows both sides, so the line to
+        // go to is the one in that view.
+        onRevealed: (line, column, shown) => source.jump(source.path, (source.diffRows.length > 0 ? shown : line) - 1, column - 1)
     }
 
     // The scene, edited here and understood by a language server of our own.
@@ -3827,6 +4360,12 @@ ApplicationWindow {
         sequence: Keymap.sequence("clearMarks")
         enabled: app.keyFree("clearMarks")
         onActivated: app.clearMarks()
+    }
+    // ⇧Z: the whole scene in the pane, 100 % — Premiere's and Final Cut's key.
+    Shortcut {
+        sequence: Keymap.sequence("zoomFit")
+        enabled: app.keyFree("zoomFit")
+        onActivated: timeline.zoomToFit()
     }
     Shortcut {
         sequence: "Escape"

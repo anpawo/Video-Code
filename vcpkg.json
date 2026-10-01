@@ -1,8 +1,17 @@
 {
   "name": "video-code",
-  "version-string": "1.0.0",
+  "version": "1.0.0",
   "dependencies": [
+    "argparse",
+    "curl",
+    "earcut-hpp",
+    "ffmpeg",
+    "freetype",
+    "glslang",
+    "miniaudio",
+    "nlohmann-json",
     "opencv4",
+    "protobuf",
     {
       "name": "qtbase",
       "default-features": false,
@@ -14,20 +23,11 @@
       "platform": "linux"
     },
     "qtdeclarative",
-    "nlohmann-json",
-    "argparse",
-    "ffmpeg",
-    "protobuf",
-    "curl",
-    "glslang",
     "vulkan",
     {
       "name": "vulkan-loader",
       "features": ["xcb"],
       "platform": "linux"
-    },
-    "freetype",
-    "earcut-hpp",
-    "miniaudio"
+    }
   ]
 }

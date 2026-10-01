@@ -19,7 +19,7 @@ printf '\n%s\n%s\n%s\n%s\n%s\n' \
 
 # gif file
 ffmpeg -i output.mp4 \
-  -vf "fps=20,scale=960:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" \
+  -vf "fps=8,scale=560:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=48[p];[s1][p]paletteuse=dither=bayer:bayer_scale=2" \
   "$README_GIF" -y
 
 # concatenate the files

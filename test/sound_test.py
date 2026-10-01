@@ -143,7 +143,8 @@ def firstSilenceEnd(videoPath: str) -> float | None:
 
 
 section("Sound — rendered")
-if not needsRenderer("a delayed sound has to be heard in an actual muxed file"):
+if not needsRenderer("a delayed sound has to be heard in an actual muxed file") \
+   or not needsTool("ffmpeg", "a muxed file is ffmpeg's to write"):
     summary()
     sys.exit(0)
 
@@ -261,6 +262,20 @@ if needsRenderer("a video's sound has to be heard in an actual muxed file") and 
         slow = renderVideoScene(tmp, "slow", f"Video({clip60!r})")
         silenceEnd = firstSilenceEnd(slow)
         check(f"a 60 fps source is retimed with its picture: tone at 2.0s (measured {silenceEnd})", silenceEnd is not None and abs(silenceEnd - 2.0) < 0.1)
+
+# ── a sound longer than the film ─────────────────────────────────────────────
+# The mux took the longest stream: a 2-minute music under a 45 s film made a
+# 2-minute file, the last frame held on screen until the music ran out.
+section("A sound longer than the film ends with the film")
+if needsRenderer("the file's length has to be read back") and needsTool("ffprobe", "reading the muxed streams back"):
+    with tempfile.TemporaryDirectory() as tmp:
+        scenePath = os.path.join(tmp, "long.py")
+        outputPath = os.path.join(tmp, "long.mp4")
+        with open(scenePath, "w", encoding="utf-8") as file:
+            file.write(f"from videocode import *\nSound({WAV!r})\nwait(1)\n")
+        renderScene(scenePath, outputPath)
+        duration = audioDuration(outputPath)
+        check(f"a 2 s sound under a 1 s film is cut at 1 s (measured {duration})", duration is not None and abs(duration - 1.0) < 0.05)
 
 # ── summary ──────────────────────────────────────────────────────────────────
 summary()

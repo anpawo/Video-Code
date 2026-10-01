@@ -8,13 +8,12 @@ from videocode.ty import unumber
 
 class grain(FragmentShader):
     """
-    Grain is a filter simulates the texture of analog film.
+    Film-grain noise mixed into the image.
 
-    The amount should be >= 0 and <= 1.
+    - `amount`: 0 (unchanged) .. 1 (heaviest grain).
+
+    Example: `video.apply(grain(0.2), duration=3)`
     """
 
-    def __init__(
-        self,
-        amount: unumber,
-    ):
+    def __init__(self, amount: unumber = 0):
         self.amount = amount

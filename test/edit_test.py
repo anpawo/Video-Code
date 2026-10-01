@@ -24,6 +24,7 @@ from videocode.edit import (
     removeArgument,
     removeCallSpan,
     setArgument,
+    waitLinkSpan,
 )
 
 SOURCE = '''#!/usr/bin/env python3
@@ -136,6 +137,36 @@ if span is not None:
 check("the same value is no span at all", argumentSpan(SOURCE, 10, "rotateBy", "duration", "1.5") is None)
 check("a call that is not there is refused", argumentSpan(SOURCE, 10, "moveBy", "x", "1") is None)
 
+section("argumentSpan — a name the line gives by position is rewritten there")
+span = argumentSpan(SOURCE, 6, "Video", "filepath", '"take2.mp4"', index=0)
+check("a span was given", span is not None)
+if span is not None:
+    start, end, text = span
+    check("it replaces the file, nothing more", SOURCE[start:end] == '"shot.mp4"' and text == '"take2.mp4"')
+    edited = SOURCE[:start] + text + SOURCE[end:]
+    check("no second filepath is added", line(edited, 6) == 'clip = Video("take2.mp4", startFrame=10)  # keep the comment')
+    check("every other line is untouched", untouched(SOURCE, edited, 6))
+
+span = argumentSpan(SOURCE, 10, "rotateBy", "degree", "90", index=0)
+check("an effect's positional argument too", span is not None and SOURCE[span[0]:span[1]] == "180" and span[2] == "90")
+check("the same value is no span at all", argumentSpan(SOURCE, 6, "Video", "filepath", '"shot.mp4"', index=0) is None)
+check("a keyword written on the line still wins",
+      argumentSpan(SOURCE, 6, "Video", "startFrame", "20", index=0) == (SOURCE.index("10)"), SOURCE.index("10)") + 2, "20"))
+check("a slot the line does not fill is added by name",
+      argumentSpan(SOURCE, 6, "Video", "cuts", "[]", index=1) == (SOURCE.index(")  # keep"), SOURCE.index(")  # keep"), ", cuts=[]"))
+check("a name is still kept", isinstance(argumentSpan("wait(PAUSE)\n", 1, "wait", "duration", "0.5", index=0), str))
+check("no slot is counted behind a *rest",
+      argumentSpan("f(*rest, 1)\n", 1, "f", "b", "2", index=1) == (10, 10, ", b=2"))
+
+section("parameterSlot — where a name stands without its name")
+from videocode.serialize import parameterSlot
+
+check("Text's text is its first slot", parameterSlot("", "Text", "text") == 0)
+check("a later parameter keeps its place", parameterSlot("", "Video", "width") == 5)
+check("a method of the owner, self not counted", parameterSlot("Circle", "rotateBy", "degree") == 0)
+check("a keyword-only one has no slot", parameterSlot("Circle", "rotateBy", "duration") == -1)
+check("a call nobody knows has no slot", parameterSlot("", "noSuchCall", "x") == -1)
+
 section("broken source is refused, not mangled")
 broken = "square = Square(side=\n"
 edit = setArgument(broken, 1, "Square", "side", "2")
@@ -218,6 +249,62 @@ section("removeCallSpan — what it refuses")
 check("a call that is not there", removeCallSpan(SOURCE, 10, "moveBy") is None)
 check("the call that MADE the element", removeCallSpan(SOURCE, 5, "Square") is None)
 check("broken source", removeCallSpan("square.fadeIn(\n", 1, "fadeIn") is None)
+
+# ── Moving a clip ──────────────────────────────────────────────────────────
+def moved(source: str, number: int, calls: list[str], seconds: float) -> str:
+    """The line after the move, or the refusal itself when there is one."""
+    span = waitLinkSpan(source, number, calls, seconds)
+    if not isinstance(span, tuple):
+        return repr(span)
+    start, end, text = span
+    edited = source[:start] + text + source[end:]
+    compile(edited, "scene.py", "exec")
+    return line(edited, number) if untouched(source, edited, number) else "another line moved"
+
+
+MOVES = """PAUSE = 0.5
+title = Text("Bonjour à tous").fadeIn()
+square = Square(side=1).opacity(0).scaleTo(2).rotateBy(90)
+late = Circle(radius=1).wait(0.5).fadeIn()
+named = Circle(radius=1).wait(PAUSE).fadeIn()
+square.fadeIn().wait(1).fadeOut()
+Square(side=1).fadeIn()
+label = (Text("multi")
+         .fadeIn())
+"""
+
+section("waitLinkSpan — a chain with no wait gains one, in front of what takes time")
+check("straight after the constructor when the first link is the timed one — accents before it included",
+      moved(MOVES, 2, ["fadeIn"], 0.5) == 'title = Text("Bonjour à tous").wait(0.5).fadeIn()')
+check("AFTER a link written on a frame: `.opacity(0)` must not wait",
+      moved(MOVES, 3, ["scaleTo", "rotateBy"], 1) == "square = Square(side=1).opacity(0).wait(1).scaleTo(2).rotateBy(90)")
+check("the leftmost timed link, whatever order they are named in",
+      moved(MOVES, 3, ["rotateBy", "scaleTo"], 1) == moved(MOVES, 3, ["scaleTo", "rotateBy"], 1))
+check("a statement with nothing on its left",
+      moved(MOVES, 7, ["fadeIn"], 1.25) == "Square(side=1).wait(1.25).fadeIn()")
+check("a statement about a name", moved(MOVES, 6, ["fadeIn"], 2) == "square.wait(2).fadeIn().wait(1).fadeOut()")
+check("a chain broken over two lines", moved(MOVES, 8, ["fadeIn"], 0.3) == 'label = (Text("multi").wait(0.3)')
+check("written the way a person types it: 1, not 1.0", ".wait(1)." in moved(MOVES, 3, ["scaleTo"], 1.0))
+
+section("waitLinkSpan — a wait already there is the same decision: its number changes")
+check("later", moved(MOVES, 4, ["fadeIn"], 0.2) == "late = Circle(radius=1).wait(0.7).fadeIn()")
+check("sooner", moved(MOVES, 4, ["fadeIn"], -0.3) == "late = Circle(radius=1).wait(0.2).fadeIn()")
+check("at zero the link goes — `.wait(0)` says nothing",
+      moved(MOVES, 4, ["fadeIn"], -0.5) == "late = Circle(radius=1).fadeIn()")
+check("a frame or two past zero is still zero — the edge snaps to what is SEEN, a frame after the fade starts",
+      moved(MOVES, 4, ["fadeIn"], -0.56) == "late = Circle(radius=1).fadeIn()")
+check("only the wait IN FRONT of the timed link: the hold between a fade in and a fade out is not it",
+      moved(MOVES, 6, ["fadeOut"], 0.5) == "square.fadeIn().wait(1.5).fadeOut()")
+
+section("waitLinkSpan — what it refuses, in words")
+check("more than the wait holds", moved(MOVES, 4, ["fadeIn"], -0.7).startswith("'nothing but 0.5s of .wait() to give back on line 4"))
+check("sooner, with no wait to shorten", moved(MOVES, 2, ["fadeIn"], -0.5).startswith("'nothing to shorten: no .wait() in front of fadeIn()"))
+check("a name keeps its name", moved(MOVES, 5, ["fadeIn"], 0.5) == repr("PAUSE is a name, not a number — change PAUSE itself"))
+check("and the shell can offer the name's own line instead", constantOffer(MOVES, 5, "wait", 0, "1") == ("PAUSE", 8, 11, "1", 1))
+check("a line that holds no chain", waitLinkSpan(MOVES, 1, ["fadeIn"], 0.5) is None)
+check("a chain with none of those calls", waitLinkSpan(MOVES, 2, ["moveBy"], 0.5) is None)
+check("a line the file does not have — it belongs to another file", waitLinkSpan(MOVES, 40, ["fadeIn"], 0.5) is None)
+check("broken source", waitLinkSpan("title = Text(\n", 1, ["fadeIn"], 0.5) is None)
 
 # ── Accents ────────────────────────────────────────────────────────────────
 section("non-ASCII on the line — bytes are not characters")

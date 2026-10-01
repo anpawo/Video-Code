@@ -69,7 +69,7 @@ QtObject {
             return {
                 t: "x", id: "a-root", dir: "h", size: 1, nodes: [
                     { t: "s", id: "a-stage", keys: ["preview"], current: 0, size: 0.63 },
-                    { t: "s", id: "a-chat", keys: ["agent", "code", "media", "timeline"], current: 0, size: 0.37 }
+                    { t: "s", id: "a-chat", keys: ["agent", "inspector", "code", "media", "timeline"], current: 0, size: 0.37 }
                 ]
             };
 
@@ -91,7 +91,13 @@ QtObject {
                         // dragged to in use, and then kept.
                         t: "x", id: "c-top", dir: "h", size: 0.63, nodes: [
                             { t: "s", id: "c-code", keys: ["code", "agent"], current: 0, size: 0.456 },
-                            { t: "s", id: "c-stage", keys: ["preview"], current: 0, size: 0.544 }
+                            {
+                                // The inspector beside the preview, five sevenths as wide.
+                                t: "x", id: "c-stage", dir: "h", size: 0.544, nodes: [
+                                    { t: "s", id: "c-view", keys: ["preview"], current: 0, size: 7 / 12 },
+                                    { t: "s", id: "c-look", keys: ["inspector"], current: 0, size: 5 / 12 }
+                                ]
+                            }
                         ]
                     },
                     { t: "s", id: "c-time", keys: ["timeline", "media"], current: 0, size: 0.37 }
@@ -128,7 +134,7 @@ QtObject {
             t: "x", id: "e-root", dir: "v", size: 1, nodes: [
                 {
                     t: "x", id: "e-top", dir: "h", size: 0.63, nodes: [
-                        { t: "s", id: "e-media", keys: ["media", "agent"], current: 0, size: 0.22 },
+                        { t: "s", id: "e-media", keys: ["media", "inspector", "agent"], current: 0, size: 0.22 },
                         { t: "s", id: "e-stage", keys: ["preview"], current: 0, size: 0.78 }
                     ]
                 },

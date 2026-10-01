@@ -3,7 +3,7 @@
 Make a folder that runs on another Mac.
 
     python3 scripts/bundle.py            # → dist/video-code-macos-arm64/
-    python3 scripts/bundle.py --zip      # …and dist/video-code-macos-arm64.zip
+    python3 scripts/bundle.py --archive      # …and dist/video-code-macos-arm64.tar.xz
 
 The built binary points at this machine: libpython from pyenv, MoltenVK from
 Homebrew, shaders and QML in the checkout, the stdlib where pyenv keeps it.
@@ -73,7 +73,8 @@ def is_macho(path: Path) -> bool:
 
 def copy_tree(src: Path, dst: Path, skip: set[str] | frozenset[str] = frozenset()) -> None:
     def ignore(_directory: str, names: list[str]) -> set[str]:
-        return {n for n in names if n in skip or n.endswith(".pyc")}
+        # Qt's macOS plugins each carry a .dSYM beside them: 56 of v0.1.0's 220 MB.
+        return {n for n in names if n in skip or n.endswith((".pyc", ".dSYM"))}
 
     shutil.copytree(src, dst, ignore=ignore, symlinks=False)
 
@@ -132,6 +133,9 @@ def relocate(bundle: Path, lib_dir: Path) -> None:
                 shutil.copy2(src, target)
                 os.chmod(target, 0o755)
                 sh("install_name_tool", "-id", f"@rpath/{name}", str(target))
+                # A copy whose own deps are all system ones is never `changed`
+                # below, and would keep the signature the -id just broke.
+                sh("codesign", "-f", "-s", "-", str(target))
                 origin[target] = src
                 queue.append(target)
             rel = os.path.relpath(target, macho.parent)
@@ -216,7 +220,7 @@ def smoke(bundle: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--zip", action="store_true")
+    parser.add_argument("--archive", action="store_true")
     parser.add_argument("--no-smoke", action="store_true")
     args = parser.parse_args()
 
@@ -303,9 +307,12 @@ def main() -> None:
 
     if not args.no_smoke:
         smoke(DIST)
-    if args.zip:
-        archive = shutil.make_archive(str(DIST), "zip", DIST.parent, DIST.name)
-        print(f"zip: {archive} ({Path(archive).stat().st_size // 1_000_000} MB)")
+    if args.archive:
+        # xz, not zip: the same folder is a third smaller (measured: 145 MB of
+        # dylibs and Python, 45 MB zipped, 31 MB here), and tar reads it on both
+        # platforms. What it costs is a couple of minutes on the runner.
+        archive = shutil.make_archive(str(DIST), "xztar", DIST.parent, DIST.name)
+        print(f"archive: {archive} ({Path(archive).stat().st_size // 1_000_000} MB)")
 
 
 README = """Video-Code — a folder that runs

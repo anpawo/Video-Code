@@ -6,7 +6,8 @@
 // on the right (Properties, Effects) moves to the element you click.
 //
 // Only what it says is shown, not the tools it runs: the check on its work is the
-// diff it leaves in the code pane.
+// diff it leaves in the code pane, and the answer ends on the lines it changed,
+// each a link to its place there.
 pragma ComponentBehavior: Bound
 
 import QtQuick
@@ -16,6 +17,9 @@ Item {
     id: root
 
     signal sent(string text)
+    // A changed line was clicked: its line and column once the turn is taken,
+    // and its line in the coloured view shown until then. All 1-based.
+    signal revealed(int line, int column, int shown)
 
     // The conversation, as it happens. Built by appending to a plain list
     // rather than by a model class: a turn is a handful of entries, and what
@@ -51,6 +55,66 @@ Item {
             root.edit(root.turn, { body: root.log[root.turn].body.concat([line]) });
     }
 
+    // The changes a turn left, from the rows of its diff, one per run of
+    // changed lines: where the run is once taken (`line`, `column` — the first
+    // character that differs from the line it replaces), where it is in the
+    // coloured view (`shown`, the first green line, else the first red one),
+    // and what it now reads.
+    function changesOf(rows) {
+        const out = [];
+        let shown = 0, kept = 0;
+        for (let i = 0; i < rows.length;) {
+            if (rows[i].kind === "same") {
+                ++shown; ++kept; ++i;
+                continue;
+            }
+            const was = [], now = [];
+            let first = -1, firstGreen = -1;
+            for (; i < rows.length && rows[i].kind !== "same"; ++i) {
+                ++shown;
+                if (first < 0)
+                    first = shown;
+                if (rows[i].kind === "add") {
+                    if (firstGreen < 0)
+                        firstGreen = shown;
+                    now.push(rows[i].text);
+                } else {
+                    was.push(rows[i].text);
+                }
+            }
+            let column = 0;
+            if (now.length > 0 && was.length > 0)
+                while (column < now[0].length && now[0][column] === was[0][column])
+                    ++column;
+            out.push({ line: kept + 1, column: column + 1, shown: firstGreen > 0 ? firstGreen : first,
+                       text: (now.length > 0 ? now[0] : was[0]).trim(), removed: now.length === 0 });
+            kept += now.length;
+        }
+        return out;
+    }
+
+    // Written under the answer that made them, as links: "Done." says nothing
+    // about where to look, and these are where to look.
+    function noteChanges(changes) {
+        if (changes.length === 0)
+            return;
+        let at = root.log.length - 1;
+        while (at >= 0 && root.log[at].who !== "agent")
+            --at;
+        if (at < 0)
+            return;
+        const shorten = (text) => (text.length > 60 ? text.slice(0, 57) + "…" : text).replace(/`/g, "'");
+        const lines = changes.map((c) => "- [" + c.line + ":" + c.column + "](line:" + c.line + ":" + c.column + ":" + c.shown + ") "
+                                         + (c.removed ? "removed " : "") + "`" + shorten(c.text) + "`");
+        root.edit(at, { body: root.log[at].body.concat([{ kind: "changes", text: lines.join("\n") }]) });
+    }
+
+    function reveal(link) {
+        const parts = link.split(":");
+        if (parts.length === 4 && parts[0] === "line")
+            root.revealed(Number(parts[1]), Number(parts[2]), Number(parts[3]));
+    }
+
     function finish() {
         if (root.turn < 0)
             return;
@@ -84,6 +148,8 @@ Item {
             root.finish();
         }
 
+        function onChanged() { root.noteChanges(root.changesOf(Agent.diff())); }
+
         function onFailed(why) {
             root.say(why);
             root.finish();
@@ -91,129 +157,114 @@ Item {
     }
 
     ScrollView {
+        id: scroll
         anchors { left: parent.left; right: parent.right; top: parent.top; bottom: composer.top }
         clip: true
 
         Column {
             width: root.width
-            spacing: 14
-            padding: 12
+            spacing: 20
+            // The newest line is the one being read: keep the bottom in view.
+            onHeightChanged: scroll.contentItem.contentY = Math.max(0, height - scroll.height)
+            topPadding: 12
+            bottomPadding: 8
+            leftPadding: 16
+            rightPadding: 16
 
             Repeater {
                 model: root.log
 
-                // The question and the answer in two soft tints: down a long
-                // column, where one exchange ends and the next begins is what the
-                // eye looks for first.
-                Rectangle {
+                // The question sits on the right in a soft pill; the answer is
+                // bare text on the left, the way Palmier Pro draws its chat —
+                // where each side is on the page says who spoke, so no badge
+                // and no frame has to.
+                Item {
                     id: msg
                     required property var modelData
-                    readonly property color tint: msg.modelData.who === "me" ? Theme.inkDim : Theme.ai
-                    width: root.width - 24
-                    height: row.implicitHeight + 20
-                    radius: Theme.radius
-                    color: Qt.alpha(msg.tint, 0.08)
-                    border.width: 1
-                    border.color: Qt.alpha(msg.tint, 0.22)
+                    readonly property bool mine: msg.modelData.who === "me"
+                    readonly property real avail: root.width - 32
+                    width: avail
+                    height: mine ? pill.height : answer.implicitHeight
 
-                    Row {
-                        id: row
-                        x: 10
-                        y: 10
-                        width: parent.width - 20
-                        spacing: 9
+                    Rectangle {
+                        id: pill
+                        visible: msg.mine
+                        anchors.right: parent.right
+                        width: Math.min(mineText.implicitWidth + 28, msg.avail - 48)
+                        height: mineText.implicitHeight + 16
+                        radius: 14
+                        color: Qt.alpha(Theme.ink, 0.08)
 
-                        Rectangle {
-                            width: 21; height: 21
-                            radius: 4
-                            color: msg.modelData.who === "me" ? Theme.rail : Qt.rgba(0.416, 0.651, 0.878, 0.133)
-                            border.width: 1
-                            border.color: msg.modelData.who === "me" ? Theme.edge : Qt.rgba(0.416, 0.651, 0.878, 0.333)
+                        Text {
+                            id: mineText
+                            x: 14
+                            y: 8
+                            width: parent.width - 28
+                            text: msg.mine ? msg.modelData.body.map(b => b.text).join("\n") : ""
+                            color: Theme.ink
+                            font.family: Theme.ui
+                            font.pixelSize: 12
+                            lineHeight: 1.4
+                            wrapMode: Text.WordWrap
+                        }
+                    }
 
+                    Column {
+                        id: answer
+                        visible: !msg.mine
+                        width: parent.width
+                        spacing: 10
+
+                        Repeater {
+                            model: msg.mine ? [] : msg.modelData.body
+
+                            // The agent answers in Markdown.
                             Text {
-                                anchors.centerIn: parent
-                                text: msg.modelData.who === "me" ? "ME" : "AI"
-                                color: msg.modelData.who === "me" ? Theme.inkDim : Theme.ai
-                                font.family: Theme.mono
-                                font.pixelSize: 9
-                                font.weight: Font.Bold
+                                required property var modelData
+                                width: answer.width
+                                text: modelData.text
+                                textFormat: Text.MarkdownText
+                                color: Theme.ink
+                                font.family: Theme.ui
+                                font.pixelSize: 12
+                                lineHeight: 1.4
+                                wrapMode: Text.WordWrap
+                                onLinkActivated: (link) => root.reveal(link)
+                                HoverHandler { cursorShape: parent.hoveredLink.length > 0 ? Qt.PointingHandCursor : Qt.ArrowCursor }
                             }
                         }
 
-                        Column {
-                            id: lines
-                            width: parent.width - 30
-                            // Level with the badge on one line; a taller answer runs down from its top.
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 6
-
-                            Row {
-                                visible: msg.modelData.started > 0
-                                spacing: 8
-
-                                // A Canvas, not QtQuick.Shapes: see KeyGlyph.qml.
-                                Canvas {
-                                    id: spinner
-                                    width: 10
-                                    height: 10
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    antialiasing: true
-                                    visible: msg.modelData.started > 0 && msg.modelData.ended === 0
-                                    onPaint: {
-                                        const ctx = getContext("2d");
-                                        ctx.reset();
-                                        ctx.strokeStyle = Theme.ai;
-                                        ctx.lineWidth = 1.5;
-                                        ctx.lineCap = "round";
-                                        ctx.beginPath();
-                                        ctx.arc(5, 5, 3.75, 0, Math.PI * 1.5);
-                                        ctx.stroke();
-                                    }
-
-                                    RotationAnimator on rotation {
-                                        from: 0
-                                        to: 360
-                                        duration: 900
-                                        loops: Animation.Infinite
-                                        running: spinner.visible && !Theme.reducedMotion
-                                    }
-                                }
-
-                                // Blue while the agent works, faint once it is done.
-                                Text {
-                                    text: msg.modelData.started > 0 ? root.elapsed(msg.modelData) : ""
-                                    color: msg.modelData.ended > 0 ? Theme.inkFaint : Theme.ai
-                                    font.family: Theme.mono
-                                    font.pixelSize: 10
-                                }
+                        // Three dots breathing in turn while it works; the time
+                        // it took, faint, once it is done.
+                        Row {
+                            id: dots
+                            visible: msg.modelData.started > 0 && msg.modelData.ended === 0
+                            spacing: 5
+                            property int phase: 0
+                            Timer {
+                                interval: 280
+                                repeat: true
+                                running: dots.visible && !Theme.reducedMotion
+                                onTriggered: dots.phase = (dots.phase + 1) % 3
                             }
-
                             Repeater {
-                                model: msg.modelData.body
-
-                                Column {
-                                    id: block
-                                    required property var modelData
-                                    // Not `parent.width`: a delegate has no parent yet
-                                    // when its bindings first run.
-                                    width: lines.width
-                                    spacing: 0
-
-                                    // The agent answers in Markdown; what the author
-                                    // typed is shown as typed.
-                                    Text {
-                                        visible: block.modelData.kind === "text"
-                                        width: parent.width
-                                        text: block.modelData.kind === "text" ? block.modelData.text : ""
-                                        textFormat: msg.modelData.who === "agent" ? Text.MarkdownText : Text.PlainText
-                                        color: Theme.ink
-                                        font.family: Theme.ui
-                                        font.pixelSize: 12
-                                        lineHeight: 1.4
-                                        wrapMode: Text.WordWrap
-                                    }
+                                model: 3
+                                Rectangle {
+                                    required property int index
+                                    width: 5; height: 5; radius: 2.5
+                                    color: Theme.inkDim
+                                    opacity: dots.phase === index ? 1 : 0.25
+                                    Behavior on opacity { NumberAnimation { duration: 250 } }
                                 }
                             }
+                        }
+
+                        Text {
+                            visible: msg.modelData.ended > 0
+                            text: msg.modelData.ended > 0 ? root.elapsed(msg.modelData) : ""
+                            color: Theme.inkFaint
+                            font.family: Theme.mono
+                            font.pixelSize: 10
                         }
                     }
                 }
@@ -234,51 +285,93 @@ Item {
         anchors.fill: parent
         z: 50
         acceptedButtons: Qt.LeftButton
+        cursorShape: undefined // it hands the press back; the cursor is not its to say either
         onPressed: (mouse) => {
             input.forceActiveFocus();
             mouse.accepted = false;
         }
     }
 
-    // No rule between what you read and what you write. A line there says the two
-    // are separate places; they are one conversation, and the field's own border
-    // is already enough to say "type here" — which is how every chat worth using
-    // draws it.
-    Rectangle {
+    // No rule between what you read and what you write: one conversation, and
+    // the field's own rounded edge already says "type here".
+    Item {
         id: composer
         anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
-        height: 44
-        color: "transparent"
+        height: 84
 
-        TextField {
-            id: input
+        Rectangle {
+            id: box
             anchors.fill: parent
-            anchors.margins: 8
-            placeholderText: Agent.busy ? "Working…" : "Ask for an edit…"
-            color: Theme.ink
-            font.family: Theme.ui
-            font.pixelSize: 12
-            background: Rectangle {
-                color: Theme.sunk
-                radius: Theme.radiusSmall
-                border.width: 1
-                border.color: input.activeFocus ? Theme.live : Theme.edge
+            anchors.margins: 10
+            anchors.topMargin: 4
+            radius: 20
+            color: Theme.rail
+            border.width: 1
+            border.color: input.activeFocus ? Qt.alpha(Theme.live, 0.55) : Theme.edge
+
+            TextField {
+                id: input
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                height: 36
+                leftPadding: 14
+                rightPadding: 14
+                topPadding: 10
+                placeholderText: Agent.busy ? "Working…" : "Ask for an edit…"
+                placeholderTextColor: Theme.inkFaint
+                color: Theme.ink
+                font.family: Theme.ui
+                font.pixelSize: 12
+                background: null
+                enabled: !Agent.busy
+                onAccepted: root.ask(text)
             }
-            enabled: !Agent.busy
-            onAccepted: {
-                if (text.length === 0)
-                    return;
-                root.append({ who: "me", body: [{ kind: "text", text: text }] });
-                // The answer's block opens before a word of it: with the tools
-                // hidden, its counter is what says the agent is working.
-                root.now = Date.now();
-                root.append({ who: "agent", body: [], started: root.now, ended: 0 });
-                root.turn = root.log.length - 1;
-                // The shell asks, not the pane: it prefixes what the author is
-                // looking at, and only it knows.
-                root.sent(text);
-                text = "";
+
+            // After the field, so it hears the pointer before the field keeps
+            // it; before the send button, which has its own.
+            HoverTint {}
+
+            // Send, as a round button; stop while it works.
+            Rectangle {
+                id: send
+                anchors { right: parent.right; bottom: parent.bottom; margins: 7 }
+                width: 24; height: 24; radius: 12
+                readonly property bool canSend: !Agent.busy && input.text.length > 0
+                color: Agent.busy ? Qt.alpha(Theme.ink, 0.12) : Theme.ai
+                opacity: Agent.busy || canSend ? 1 : 0.45
+
+                Text {
+                    anchors.centerIn: parent
+                    anchors.verticalCenterOffset: Agent.busy ? 0 : -0.5
+                    text: Agent.busy ? "■" : "↑"
+                    color: Agent.busy ? Theme.ink : Theme.ground
+                    font.family: Theme.ui
+                    font.pixelSize: Agent.busy ? 9 : 13
+                    font.weight: Font.Bold
+                }
+
+                HoverTint {}
+
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Agent.busy ? Agent.interrupt() : root.ask(input.text)
+                }
             }
         }
+    }
+
+    function ask(text) {
+        if (text.length === 0 || Agent.busy)
+            return;
+        root.append({ who: "me", body: [{ kind: "text", text: text }] });
+        // The answer's block opens before a word of it: with the tools
+        // hidden, its dots are what say the agent is working.
+        root.now = Date.now();
+        root.append({ who: "agent", body: [], started: root.now, ended: 0 });
+        root.turn = root.log.length - 1;
+        // The shell asks, not the pane: it prefixes what the author is
+        // looking at, and only it knows.
+        root.sent(text);
+        input.text = "";
     }
 }

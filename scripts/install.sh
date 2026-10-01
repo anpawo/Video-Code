@@ -10,11 +10,12 @@ case "$(uname -s)-$(uname -m)" in
     *) echo "no prebuilt Video-Code for $(uname -s) $(uname -m) - build it: docs/user/user.md" >&2; exit 1 ;;
 esac
 
-command -v unzip >/dev/null || { echo "unzip is missing (sudo apt install unzip)" >&2; exit 1; }
+# bsdtar on macOS reads xz by itself; GNU tar on Linux calls the xz binary.
+[ "$(uname -s)" = Darwin ] || command -v xz >/dev/null || { echo "xz is missing (sudo apt install xz-utils)" >&2; exit 1; }
 command -v ffmpeg >/dev/null || {
     echo "ffmpeg is missing." >&2
     echo "  macOS:  brew install ffmpeg" >&2
-    echo "  Ubuntu: sudo apt install ffmpeg mesa-vulkan-drivers libvulkan1 libopengl0 libegl1 libglx0 libxkbcommon0" >&2
+    echo "  Ubuntu: sudo apt install ffmpeg mesa-vulkan-drivers libvulkan1 libopengl0 libegl1 libglx0 libxkbcommon0 libopencv-imgcodecs406t64 libopencv-videoio406t64" >&2
     exit 1
 }
 
@@ -23,8 +24,8 @@ dir=${1:-./video-code}
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-curl -fL --progress-bar "https://github.com/anpawo/Video-Code/releases/latest/download/$name.zip" -o "$tmp/$name.zip"
-unzip -q "$tmp/$name.zip" -d "$tmp"
+curl -fL --progress-bar "https://github.com/anpawo/Video-Code/releases/latest/download/$name.tar.xz" -o "$tmp/$name.tar.xz"
+tar -xJf "$tmp/$name.tar.xz" -C "$tmp"
 mv "$tmp/$name" "$dir"
 [ "$(uname -s)" != Darwin ] || xattr -dr com.apple.quarantine "$dir"   # not notarised
 

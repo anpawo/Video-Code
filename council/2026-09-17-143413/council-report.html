@@ -1,0 +1,450 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Council Verdict: 2026-09-17</title>
+<style>
+ :root {
+ --paper: #fafaf7;
+ --ink: #141413;
+ --ink-soft: #4b4b47;
+ --ink-mute: #8a8a83;
+ --rule: #e5e3dc;
+ --accent: #1e3a5f;
+ --accent-soft: #e8eef5;
+ --sans: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+ --serif: "Iowan Old Style", "Iowan", ui-serif, Georgia, Cambria, "Times New Roman", serif;
+ --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+ }
+ * { box-sizing: border-box; }
+ html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+ body { font-family: var(--serif); font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+ .wrap { max-width: 780px; margin: 0 auto; padding: 64px 32px 96px; }
+
+ .eyebrow {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.22em;
+ text-transform: uppercase;
+ color: var(--accent);
+ font-weight: 600;
+ margin: 0 0 16px;
+ }
+ h1.question {
+ font-family: var(--serif);
+ font-weight: 500;
+ font-size: 34px;
+ line-height: 1.25;
+ letter-spacing: -0.01em;
+ margin: 0 0 20px;
+ color: var(--ink);
+ }
+ .meta {
+ font-family: var(--sans);
+ font-size: 13px;
+ color: var(--ink-mute);
+ margin: 0 0 56px;
+ border-bottom: 1px solid var(--rule);
+ padding-bottom: 28px;
+ }
+
+ section.verdict {
+ background: var(--accent-soft);
+ border-left: 3px solid var(--accent);
+ padding: 36px 40px;
+ margin: 0 0 56px;
+ border-radius: 2px;
+ }
+ section.verdict h2 {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.22em;
+ text-transform: uppercase;
+ color: var(--accent);
+ margin: 0 0 24px;
+ font-weight: 600;
+ }
+ section.verdict h3 {
+ font-family: var(--sans);
+ font-size: 14px;
+ font-weight: 600;
+ color: var(--ink);
+ margin: 28px 0 8px;
+ letter-spacing: 0;
+ }
+ section.verdict h3:first-of-type { margin-top: 0; }
+ section.verdict p, section.verdict ul { margin: 0 0 8px; }
+ section.verdict ul { padding-left: 20px; }
+ section.verdict li { margin-bottom: 6px; }
+ section.verdict .recommendation {
+ font-size: 19px;
+ line-height: 1.5;
+ margin-top: 4px;
+ }
+ section.verdict .one-thing {
+ font-family: var(--serif);
+ font-style: italic;
+ font-size: 18px;
+ border-top: 1px solid rgba(30, 58, 95, 0.2);
+ padding-top: 20px;
+ margin-top: 28px;
+ }
+
+ .round-label {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.22em;
+ text-transform: uppercase;
+ color: var(--ink-mute);
+ font-weight: 600;
+ margin: 0 0 16px;
+ padding-top: 16px;
+ border-top: 1px solid var(--rule);
+ }
+
+ details {
+ border-bottom: 1px solid var(--rule);
+ padding: 20px 0;
+ }
+ details[open] { padding-bottom: 28px; }
+ summary {
+ cursor: pointer;
+ list-style: none;
+ font-family: var(--sans);
+ font-weight: 500;
+ font-size: 15px;
+ color: var(--ink);
+ display: flex;
+ align-items: baseline;
+ gap: 12px;
+ user-select: none;
+ }
+ summary::-webkit-details-marker { display: none; }
+ summary::before {
+ content: "+";
+ font-family: var(--mono);
+ color: var(--accent);
+ font-weight: 400;
+ font-size: 16px;
+ transition: transform 160ms ease;
+ display: inline-block;
+ width: 12px;
+ }
+ details[open] summary::before { content: "−"; }
+ .advisor-kind {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.16em;
+ text-transform: uppercase;
+ color: var(--ink-mute);
+ margin-left: 4px;
+ }
+ details .body {
+ margin-top: 16px;
+ padding-left: 24px;
+ color: var(--ink-soft);
+ font-size: 16px;
+ line-height: 1.65;
+ }
+ details .body p { margin: 0 0 12px; }
+ details .body p:last-child { margin-bottom: 0; }
+
+ footer {
+ margin-top: 80px;
+ padding-top: 24px;
+ border-top: 1px solid var(--rule);
+ font-family: var(--sans);
+ font-size: 12px;
+ color: var(--ink-mute);
+ line-height: 1.6;
+ }
+ footer code {
+ font-family: var(--mono);
+ background: rgba(30, 58, 95, 0.08);
+ padding: 1px 6px;
+ border-radius: 3px;
+ color: var(--ink);
+ font-size: 11px;
+ }
+
+ @media (max-width: 640px) {
+ .wrap { padding: 40px 20px 64px; }
+ h1.question { font-size: 26px; }
+ section.verdict { padding: 28px 24px; }
+ }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+ <p class="eyebrow">Council Verdict</p>
+ <h1 class="question">Quelle licence pour video-code — texte maison VCL-1.1, PolyForm Noncommercial + exception vidéo créditée, seuil façon Remotion, ou double copyleft façon Qt ? (Les ~1 060 lignes des co-auteurs seront supprimées puis réécrites : déjà décidé.)</h1>
+ <p class="meta">17 septembre 2026, 14 h 34 &nbsp;·&nbsp; 5 advisors · 5 peer reviewers</p>
+
+ <section class="verdict">
+ <h2>Synthesis</h2>
+
+ <h3>Where the council agrees</h3>
+ <ul>
+<li><strong>Option 2, trois voix sur cinq.</strong> L'avocat PI, le juriste conformité et le créateur YouTube choisissent PolyForm Noncommercial avec l'exception vidéo. Les cinq relecteurs ont désigné la réponse de l'avocat comme la plus forte, sans savoir de qui elle venait.</li>
+<li><strong>Le texte maison VCL-1.1 est rejeté par les cinq.</strong> Les scanners le classent « licence inconnue » et les entreprises le refusent d'office (juriste). Un contrat d'adhésion flou se lit contre celui qui l'a écrit, art. 1190 (avocat). Le créateur ne saurait pas l'expliquer à un sponsor. Le mainteneur et le fondateur disent la même chose : le juriste d'en face ferme l'onglet et prend Manim.</li>
+<li><strong>PolyForm reste intact, l'exception va dans un fichier à part.</strong> L'avocat et le juriste le disent chacun de leur côté ; le mainteneur le dit à l'envers : une ligne ajoutée au texte en refait un texte maison.</li>
+<li><strong>Le pire état est celui d'aujourd'hui.</strong> Sans fichier de licence, le créateur repart sans installer. Tout est réservé, donc n'importe quel choix est une ouverture et rien n'oblige à attendre (avocat, juriste, créateur).</li>
+<li><strong>Les 13 PNG de chess.com sortent avant de poser la licence</strong>, pas après (avocat, juriste).</li>
+<li><strong>« Une vidéo faite pour un client » doit être tranché noir sur blanc</strong> (mainteneur, créateur) : c'est la première question que tout le monde posera.</li>
+</ul>
+
+ <h3>Where the council clashes</h3>
+ <ul>
+<li><strong>Le crédit obligatoire.</strong> Le mainteneur : une clause qu'on ne peut pas faire respecter ne protège rien et fait fuir les gens honnêtes ; mieux vaut un carton de fin activé par défaut. Le fondateur : le crédit est l'actif principal, de la distribution gratuite chez la cible exacte. Le créateur : une ligne en description ne gêne pas, il le fait déjà pour la musique. Les deux côtés se tiennent : le crédit vaut cher, et personne ne peut le faire respecter par la force.</li>
+<li><strong>AGPL contre non-commercial.</strong> Le mainteneur : sous AGPL le contributeur reçoit quelque chose en échange, et les empaqueteurs acceptent le texte. L'avocat : une vidéo n'étant pas une œuvre dérivée, un prestataire exploite l'AGPL sans rien devoir, et la GPL interdit d'imposer un crédit sur les sorties. L'AGPL sert les contributeurs, le non-commercial sert les objectifs que l'auteur a écrits.</li>
+<li><strong>Le seuil façon Remotion.</strong> Le fondateur le défend seul. Les cinq relecteurs l'ont désigné comme le plus gros angle mort : pas de société pour facturer, un SaaS de trois personnes qui revend le logiciel ne paie rien, et une grosse chaîne YouTube paie — l'inverse exact des deux objectifs.</li>
+</ul>
+
+ <h3>Blind spots the council caught</h3>
+ <ul>
+<li><strong>Le statut des scènes (5 relecteurs sur 5).</strong> Une scène est du code Python qui importe la bibliothèque. Aucune des quatre options ne dit si un créateur peut publier, partager ou vendre ses scènes et ses templates, ni à qui est le code écrit par l'agent. Manim vit de ce partage. Sous AGPL ces scripts seraient contaminés ; sous PolyForm, vendre un template est un usage commercial.</li>
+<li><strong>Le nom « videocode » n'est pas déposé (3 sur 5).</strong> Tout le crédit repose dessus. Contre un tiers qui réemballe le logiciel, un dépôt à l'INPI protège mieux qu'une clause, pour bien moins cher qu'un procès.</li>
+<li><strong>Le sens unique (1 sur 5).</strong> Une licence stricte peut s'assouplir plus tard vers l'AGPL ou le MIT ; l'inverse est impossible. Dans le doute, commencer strict.</li>
+<li><strong>Le crédit n'a pas de levier YouTube (1 sur 5).</strong> La vidéo n'étant pas une œuvre dérivée, aucun retrait de plateforme n'est possible pour un crédit manquant. Le levier de l'avocat ne vaut que contre qui redistribue ou héberge le logiciel.</li>
+<li><strong>Vérifié par le président pendant la séance.</strong> Qt et FFmpeg sont liés en statique sur cette machine (<code>libQt6Core.a</code>, <code>libavcodec.a</code>) : l'alerte du juriste est réelle, et elle ne concerne que le jour où un binaire est distribué. Le dépôt a 1 fork et 4 étoiles : la question du mainteneur a sa réponse, personne n'a rien à réclamer.</li>
+</ul>
+
+ <h3>The recommendation</h3>
+ <p class="recommendation">Option 2, en variante, et je suis la majorité : <code>LICENSE</code> contient PolyForm Noncommercial 1.0.0 sans un mot changé, et un fichier <code>LICENSE-EXCEPTION.md</code> ajoute deux permissions. La première est l'exception vidéo créditée, avec le cas « vidéo pour un client » écrit noir sur blanc. La seconde règle l'angle mort des cinq : les scènes, templates et le code écrit par l'agent appartiennent à celui qui les écrit, qui en fait ce qu'il veut. On commence strict parce que c'est le seul sens qui se rattrape. Le CLA s'écrit selon le droit français (droits listés, durée légale, gratuité dite, accord contribution par contribution), et le nom se dépose à l'INPI. Le texte de l'exception et du CLA mérite une heure d'avocat : c'est le seul endroit où une erreur ne se rattrape pas.</p>
+
+ <p class="one-thing"><strong>Do first:</strong> Sortir de <code>HEAD</code> ce qui n'est pas à toi — les 1 060 lignes des co-auteurs (ligne 59 du tableau) et les 13 PNG de chess.com — puis poser un tag : la licence court à partir de ce tag.</p>
+ </section>
+
+ <p class="round-label">Round 1: Advisors</p>
+
+ <details>
+ <summary>The Contrarian <span class="advisor-kind">downside lens</span></summary>
+ <div class="body"><p><em>Siège : mainteneur open source sceptique</em></p>
+<p><strong>Option 4, en AGPL-3.0 + licence commerciale. Et renoncer au crédit obligatoire.</strong></p>
+<p>Les options 1 et 2 cassent sur la frontière du « commercial » :</p>
+<ul>
+<li>Un freelance qui monte une vidéo sponsorisée pour la chaîne d'un client fait-il une vidéo publiée (permise) ou une prestation (accord requis) ?</li>
+<li>Même question pour un prof sur un MOOC payant, ou une université.</li>
+<li>Chaque cas flou devient un mail à un étudiant seul.</li>
+<li>Dans le doute, le juriste d'en face répond « non, prenez Manim ».</li>
+<li>Greffer une exception sur PolyForm redonne un texte maison : l'avantage « rédigé par des avocats » disparaît dès la première ligne ajoutée.</li>
+</ul>
+<p>Le crédit obligatoire ne se fait pas respecter :</p>
+<ul>
+<li>L'auteur ne peut pas auditer YouTube.</li>
+<li>Il n'a pas les moyens d'un procès.</li>
+<li>Une clause jamais appliquée ne protège rien et fait seulement fuir les gens honnêtes.</li>
+</ul>
+<p>Le CLA posé sur du non-commercial tue les contributions :</p>
+<ul>
+<li>Le contributeur travaille gratuitement sur un code que seul l'auteur a le droit de vendre.</li>
+<li>Sous AGPL, il reçoit au moins le copyleft en échange : c'est le marché de Qt, et il est connu.</li>
+<li>Un texte non reconnu par l'OSI ferme aussi Homebrew-core et Debian, et oblige les juristes d'entreprise à le relire à la main.</li>
+</ul>
+<p>L'option 3 suppose de vérifier des effectifs. Sans société ni facturation, c'est du théâtre.</p>
+<p>Le scénario « un tiers l'emballe et le revend » est imaginaire aujourd'hui :</p>
+<ul>
+<li>79 000 lignes de C++/Vulkan/Qt, zéro utilisateur.</li>
+<li>Le vrai danger est l'obscurité, face à deux concurrents en MIT.</li>
+<li>L'AGPL couvre déjà le seul cas crédible : le SaaS doit publier son code ou négocier, sans qu'il faille définir « commercial ».</li>
+</ul>
+<p>Ce que l'auteur perd est le crédit imposé. À la place :</p>
+<ul>
+<li>Un carton de fin activé par défaut, désactivable.</li>
+<li>Une demande polie dans le README.</li>
+<li>Le crédit viendra de l'adoption plus sûrement que d'une clause.</li>
+</ul>
+<p>Reste une question non posée : après deux ans de dépôt public sans licence, qui a déjà forké ? Il faut le vérifier avant de publier quoi que ce soit.</p></div>
+ </details>
+
+ <details>
+ <summary>The First Principles Thinker <span class="advisor-kind">reframe lens</span></summary>
+ <div class="body"><p><em>Siège : avocat en propriété intellectuelle, droit français</em></p>
+<p>La question est mal posée. Sans fichier LICENSE, tout est aujourd'hui réservé, donc vous ne serez jamais en position plus forte. Le texte sortant n'est pas non plus l'irréversible. Seul titulaire des droits, vous pouvez relicencier les versions futures quand vous voulez. La vraie question est de savoir quel levier vous avez avec 0 € de budget contentieux. Il y en a deux. Le premier est le retrait de plateforme (GitHub, YouTube). Le second est le réflexe de conformité du juriste d'entreprise. Les deux ne réagissent qu'à un texte reconnu.</p>
+<p><strong>Je choisis l'option 2, en variante.</strong></p>
+<ul>
+<li><strong>Texte.</strong> Gardez PolyForm Noncommercial 1.0.0 intact. Placez l'exception vidéo dans un fichier séparé de « permission additionnelle », sur le modèle de la Classpath Exception. Un standard retouché n'est plus un standard.</li>
+<li><strong>Contre VCL-1.1.</strong> Selon l'art. 1190 du Code civil, le contrat d'adhésion s'interprète contre son rédacteur. Chaque flou sur « usage commercial » jouera donc contre vous. PolyForm prévoit déjà 32 jours pour réparer, ce qui rend vos 30 jours maison inutiles.</li>
+<li><strong>L'option 4 rate l'objectif.</strong> Les vidéos ne sont pas des œuvres dérivées, donc un SaaS ou un prestataire exploite l'AGPL sans rien vous devoir. La GPL interdit aussi d'imposer un crédit sur les sorties.</li>
+<li><strong>L'option 3 aussi.</strong> Un auteur seul ne peut pas vérifier le seuil de 3 personnes, et elle ne prévoit aucun crédit.</li>
+<li><strong>Sanction.</strong> Depuis l'arrêt Cass. 1re civ., 5 oct. 2022 (Entr'ouvert c/ Orange), le dépassement d'une licence de logiciel ouvre l'action en contrefaçon, et pas seulement la responsabilité contractuelle.</li>
+</ul>
+<p><strong>L'irréversible est le CLA.</strong> C'est là que L131-3 s'applique.</p>
+<ul>
+<li><strong>Droits cédés.</strong> Énumérez reproduction, adaptation, distribution et sous-licence, pour le monde entier.</li>
+<li><strong>Durée.</strong> Écrivez « durée légale des droits », jamais « perpétuel ». L'art. 1210 rend un engagement perpétuel résiliable à tout moment.</li>
+<li><strong>Gratuité.</strong> Stipulez-la expressément (L122-7).</li>
+<li><strong>Portée.</strong> Recueillez le consentement contribution par contribution, jamais pour l'avenir en bloc. L131-1 frappe de nullité la cession globale d'œuvres futures.</li>
+</ul>
+<p><strong>Trois finitions.</strong></p>
+<ul>
+<li>Faites courir la licence à partir d'un tag. Les commits antérieurs contiennent du code tiers que vous ne pouvez pas licencier.</li>
+<li>Retirez les 13 PNG de chess.com avant de publier la licence.</li>
+<li>Envoyez toute mise en demeure par lettre recommandée électronique, qui coûte quelques euros et donne une date opposable. Joignez une traduction française informative pour les consommateurs.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>The Expansionist <span class="advisor-kind">upside lens</span></summary>
+ <div class="body"><p><em>Siège : fondateur d'un outil dev semi-ouvert</em></p>
+<p>Option 3, élargie : le seuil façon Remotion, avec le crédit obligatoire en dessous du seuil et un rachat du crédit au-dessus. C'est la seule des quatre sur laquelle se construit une entreprise.</p>
+<p><strong>« Usage commercial » est invérifiable, un effectif ne l'est pas.</strong> Personne ne signe un accord « à négocier avec l'auteur ». Un juriste d'entreprise qui lit l'option 1 ou 2 referme l'onglet et prend Manim. Un seuil de 3 personnes et un prix affiché passent en note de frais par carte bancaire, sans réunion. Remotion vit de ça.</p>
+<p><strong>Le crédit est l'actif principal, et la question le traite en contrepartie mineure.</strong> « video made with @videocode » sur chaque vidéo YouTube, c'est de la distribution gratuite auprès de la cible exacte, comme le « Sent from my iPhone ». Une chaîne à 500 000 abonnés qui l'affiche vaut plus que n'importe quelle licence d'entreprise la première année. Je le rends donc obligatoire pour tout le palier gratuit. Je le rends retirable dans le palier payant : les agences et les marques paieront uniquement pour ne pas l'afficher.</p>
+<p><strong>Ce que le seuil débloque et qu'un texte maison ferme.</strong></p>
+<ul>
+<li><strong>Financement et rachat.</strong> Un investisseur ou un acquéreur audite la propriété intellectuelle en une heure si le modèle est connu, avec un CLA propre et 98,6 % des lignes à un seul auteur. Sur un texte maison en droit français, l'audit dure des semaines.</li>
+<li><strong>Produit hébergé.</strong> Le moteur C++/Vulkan permet du rendu cloud, une API de génération de vidéos et l'agent IA facturé à l'usage. La clause qui compte interdit de proposer Video-Code en service concurrent. Celle qui vise « le commercial » ne protège pas ce marché.</li>
+<li><strong>Palier éducation.</strong> C'est le terrain de Manim, et un établissement signe sans discuter.</li>
+</ul>
+<p>L'option 4 donne à AWS le droit d'héberger le logiciel. Les options 1 et 2 visent des entreprises qui ne viendront jamais négocier.</p>
+<p>À publier avec la licence : une grille de prix, même à 0 client. Le prix affiché fait partie de la licence.</p></div>
+ </details>
+
+ <details>
+ <summary>The Outsider <span class="advisor-kind">fresh-eyes lens</span></summary>
+ <div class="body"><p><em>Siège : créateur YouTube, l'utilisateur visé</em></p>
+<p>J'arrive sur le dépôt, je cherche « License » dans la colonne de droite de GitHub. Aujourd'hui : rien. Donc je pars. Pas de licence = je n'ai le droit de rien, et j'ai déjà perdu une vidéo sur une réclamation. C'est ça le vrai problème, pas le choix entre quatre textes.</p>
+<p>Mon tri en deux minutes :</p>
+<ul>
+<li><strong>Option 4 (GPL/AGPL)</strong> : « copyleft », « AGPL » — je ne sais pas ce que ça veut dire pour MES vidéos. La phrase « une vidéo n'est pas une œuvre dérivée » est évidente pour l'auteur, invisible pour moi. J'ai peur, je pars chez Manim.</li>
+<li><strong>Option 3 (seuil 3 personnes)</strong> : je suis seul, puis j'ai un monteur, un miniaturiste, un freelance. Ils comptent ? Ma chaîne grandit et je deviens hors-la-loi sans le savoir. Non.</li>
+<li><strong>Option 1 (texte maison)</strong> : « révocable », « accord négocié », « droit français », « CLA ». Un texte que personne d'autre n'utilise, écrit par un étudiant : mon sponsor ou mon client demandera « c'est quoi cette licence ? » et je n'aurai pas de réponse.</li>
+<li><strong>Option 2</strong> : PolyForm a un nom, une page web, je peux envoyer un lien. Je prends celle-là.</li>
+</ul>
+<p>Le crédit ne me gêne pas : une ligne en description, je le fais déjà pour la musique. Mais trois trous qui me feraient fuir :</p>
+<ul>
+<li><strong>Vidéo pour un client</strong> : c'est une « prestation » ou une « vidéo publiée en ligne » ? Les deux. Tranchez-le noir sur blanc.</li>
+<li><strong>TikTok/Instagram</strong> : pas de description avec lien cliquable. Crédit à l'écran obligatoire sur chaque short ? Dites-le.</li>
+<li><strong>Sponsor qui refuse un logo tiers à l'image</strong> : la description suffit-elle toujours ?</li>
+</ul>
+<p>Et surtout : mettez en haut du README trois lignes en français simple — « YouTube monétisé : oui, gratuit, créditez. Vidéo client : oui/non. Revendre le logiciel : contactez-moi. » Je ne lirai jamais la licence. Je lirai ces trois lignes.</p>
+<p>Option 2, avec ce résumé.</p></div>
+ </details>
+
+ <details>
+ <summary>The Executor <span class="advisor-kind">Monday-morning lens</span></summary>
+ <div class="body"><p><em>Siège : juriste conformité open source</em></p>
+<p>Option 2, et elle se pose lundi matin en une demi-journée.</p>
+<p>L'option 1 (VCL-1.1) rate sur un point mécanique. Un texte maison donne <code>NOASSERTION</code> sur GitHub, « unknown licence » dans FOSSA, Snyk ou ScanCode, donc un refus automatique dans toute structure dotée d'un scanner. Chaque clause inédite en droit français est une clause que vous devrez défendre seul. PolyForm Noncommercial 1.0.0 a un identifiant SPDX officiel (<code>PolyForm-Noncommercial-1.0.0</code>), que les outils et les juristes reconnaissent.</p>
+<p>Pour greffer l'exception sans casser le texte :</p>
+<ul>
+<li><code>LICENSE</code> contient le texte PolyForm intact, pas un mot changé. Si vous le modifiez, vous perdez le droit au nom.</li>
+<li><code>LICENSE-EXCEPTION.md</code> contient la permission additionnelle (vidéos publiées avec le crédit, délai de 30 jours), rédigée comme une permission en plus et jamais comme une restriction.</li>
+<li>Les en-têtes portent <code>SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 WITH LicenseRef-VideoCode-video-exception</code>.</li>
+<li>PolyForm prévoit déjà 32 jours pour réparer une violation, donc n'ajoutez aucune clause de révocation.</li>
+<li>Le droit français passe par une phrase dans l'exception et dans l'accord commercial, pas par une retouche du texte standard.</li>
+</ul>
+<p>Le reste de la journée :</p>
+<ul>
+<li><code>THIRD-PARTY-NOTICES.md</code>, qui liste Qt, FFmpeg, FreeType et les autres.</li>
+<li><code>CONTRIBUTING.md</code> et CLA Assistant, une GitHub App gratuite qui se branche en 20 minutes. Un DCO ne suffit pas, car il ne donne aucun droit de relicencier.</li>
+</ul>
+<p>Deux choses vont vraiment prendre du temps.</p>
+<p>1. <strong>La LGPL sur les binaires.</strong> Il faut Qt et FFmpeg en liaison dynamique, remplaçables par l'utilisateur. Il faut aussi les textes LGPL-3 et GPL-3 joints, une offre des sources, et aucune clause interdisant la rétro-ingénierie nécessaire au débogage. PolyForm n'en contient pas, un texte maison en contiendrait par accident. Vérifiez que vcpkg ne lie pas Qt en statique sur macOS : c'est le cas à surveiller.</p>
+<p>2. <strong>Les 13 PNG de chess.com.</strong> Tant qu'ils sont dans <code>HEAD</code>, vous publiez sous votre licence des fichiers qui ne vous appartiennent pas. Remplacez-les avant de poser <code>LICENSE</code>, pas après.</p>
+<p>L'option 3 demande une grille tarifaire et une société que vous n'avez pas. L'option 4 est la seule alternative propre, mais l'AGPL ne dit rien du crédit vidéo, qui est votre exigence numéro un.</p>
+<p>Dernier point : sans fichier de licence depuis 2024, le dépôt est aujourd'hui « tous droits réservés ». N'importe quel choix est une ouverture, et personne ne peut invoquer une version antérieure plus permissive. Vous n'avez donc aucune raison d'attendre.</p></div>
+ </details>
+
+ <p class="round-label">Round 2: Peer review</p>
+
+ <details>
+ <summary>Reviewer 1</summary>
+ <div class="body"><p><strong>1. Réponse la plus forte : C.</strong></p>
+<ul>
+<li>C'est la seule qui raisonne à partir du vrai levier d'un auteur sans budget contentieux : le retrait de plateforme et le réflexe de conformité des juristes d'entreprise.</li>
+<li>C'est aussi la seule qui identifie le CLA comme le point irréversible, avec les articles à respecter (L131-1, L131-3, 1210).</li>
+<li>Elle ajoute deux points que les autres n'ont pas : l'arrêt Entr'ouvert c/ Orange, et une licence qui court à partir d'un tag.</li>
+<li>D est son complément opérationnel, avec moins de fond juridique.</li>
+</ul>
+<p><strong>2. Plus gros angle mort : E.</strong></p>
+<ul>
+<li>E affirme qu'un effectif est vérifiable. Un étudiant seul ne peut rien auditer.</li>
+<li>E construit une grille de prix, un palier payant et un rachat du crédit sans société. Elle ne dit jamais qui facture, sous quel statut, ni avec quelle TVA.</li>
+<li>La contrainte « pas de société, aucun revenu » figurait pourtant dans la question.</li>
+</ul>
+<p><strong>3. Ce que les cinq ont manqué.</strong></p>
+<ul>
+<li><strong>Les scènes.</strong> Elles sont du code Python qui importe la bibliothèque. La vidéo n'est pas une œuvre dérivée, mais le script et les templates le sont peut-être. Personne ne dit si un créateur peut publier, partager ou vendre ses scènes et templates. Or c'est ainsi que l'outil peut se diffuser face à Manim.</li>
+<li><strong>La marque.</strong> Le crédit repose sur « @videocode », un nom ni déposé ni réservé. Contre un tiers qui réemballe le logiciel, un dépôt INPI protège mieux qu'une clause de licence, pour un coût modeste.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 2</summary>
+ <div class="body"><p>1. <strong>C.</strong> C est la seule à dire ce qui est vraiment irréversible : le CLA, pas le texte de licence, puisqu'un titulaire unique peut relicencier les versions futures. Elle donne les articles à respecter (L131-1, L131-3, 1210) et les deux leviers utilisables sans budget : le retrait de plateforme et l'action en contrefaçon. Elle fait aussi partir la licence d'un tag. D est la meilleure sur l'exécution, mais ne justifie pas pourquoi l'option 2 tient juridiquement.</p>
+<p>2. <strong>E.</strong> Un seuil payant suppose une entité qui facture, avec TVA, contrat et grille de prix. L'auteur est étudiant, sans société. E déclare aussi un effectif « vérifiable » sans dire comment un auteur seul le vérifierait. Enfin, E contredit l'objectif déclaré : YouTube gratuit quelle que soit la taille de la structure.</p>
+<p>3. <strong>Deux manques communs aux cinq réponses.</strong></p>
+<ul>
+<li><strong>Le statut des scripts de scène.</strong> La vidéo n'est pas une œuvre dérivée, mais le script Python de l'utilisateur importe la bibliothèque. Aucune option ne dit si l'utilisateur peut le publier, ou vendre des templates. Sous AGPL, ce script est probablement contaminé ; sous PolyForm, vendre un template est un usage commercial.</li>
+<li><strong>La marque.</strong> Tout repose sur le crédit « @videocode », et ce nom n'est pas déposé. Un fork peut le reprendre. Un dépôt à l'INPI coûte moins cher qu'un procès.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 3</summary>
+ <div class="body"><p><strong>1. La plus forte : C.</strong></p>
+<ul>
+<li>C est la seule à traiter l'enjeu « inapplicable en droit français » avec des textes précis : art. 1190, arrêt Entr'ouvert c/ Orange, L131-1 et L131-3.</li>
+<li>Elle repère aussi que l'irréversible est le CLA, pas la licence.</li>
+<li>D la complète bien avec le SPDX et la conformité LGPL, mais D s'occupe de la mise en place, pas du choix entre les quatre options.</li>
+</ul>
+<p><strong>2. Le plus gros angle mort : E.</strong></p>
+<ul>
+<li>E bâtit un modèle payant (prix affiché, paiement par carte, grille tarifaire) sans voir que l'auteur n'a ni société ni moyen de facturer.</li>
+<li>Son seuil contredit l'objectif central de l'auteur. Un SaaS de deux personnes qui revend Video-Code ne paie rien, alors que c'est exactement le cas qu'il veut faire passer par un accord.</li>
+</ul>
+<p><strong>3. Ce que les cinq ont raté :</strong></p>
+<ul>
+<li><strong>L'asymétrie de sens.</strong> Une licence restrictive peut s'assouplir plus tard vers l'AGPL ou le MIT. L'inverse est impossible, car une version publiée en licence ouverte le reste. Dans le doute, mieux vaut donc commencer strict. Aucun advisor ne le dit.</li>
+<li><strong>Le fait admis « la vidéo n'est pas une œuvre dérivée » est fragile.</strong> Les scènes Python des utilisateurs importent la bibliothèque. Les vidéos peuvent embarquer des templates et des assets livrés avec le logiciel. Aucune des quatre options ne règle le statut de ces scripts, des templates partagés, ni de ce que l'agent IA génère.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 4</summary>
+ <div class="body"><p>1. <strong>Réponse la plus forte : C.</strong></p>
+<ul>
+<li>Elle est la seule à déplacer l'irréversible au bon endroit : seul titulaire des droits, l'auteur peut relicencier les versions futures, alors que le CLA, lui, ne se rattrape pas.</li>
+<li>Elle donne des règles utilisables pour ce CLA : L131-1, L131-3, « durée légale » et non « perpétuel », consentement contribution par contribution.</li>
+<li>Elle fait partir la licence d'un tag.</li>
+<li>D est meilleure sur l'exécution (SPDX, LGPL), mais C tranche la vraie question.</li>
+</ul>
+<p>2. <strong>Plus gros angle mort : E.</strong></p>
+<ul>
+<li>Un seuil payant suppose une structure capable de facturer et de vérifier des effectifs. L'auteur est étudiant, sans société, et E affirme pourtant qu'un effectif est « vérifiable ».</li>
+<li>Un SaaS de trois personnes qui revend Video-Code tomberait dans le palier gratuit, soit exactement le cas que l'auteur veut soumettre à un accord.</li>
+</ul>
+<p>3. <strong>Ce que les cinq ont manqué :</strong></p>
+<ul>
+<li>Le fait « la vidéo n'est pas une œuvre dérivée » ne couvre pas la <strong>scène Python</strong>, qui importe la bibliothèque <code>videocode</code>.</li>
+<li>Aucune réponse ne dit sous quel statut un créateur peut publier ses scènes, templates ou plugins, ni le code produit par l'agent IA.</li>
+<li>Or l'écosystème de Manim vit de ce partage.</li>
+<li>Piste à examiner : l'API Python en permissif, le moteur et l'éditeur en restrictif.</li>
+<li>Second oubli : le crédit « @videocode » repose sur un nom non déposé à l'INPI. Un tiers peut le prendre.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 5</summary>
+ <div class="body"><p>1. <strong>C.</strong> C est la seule réponse à situer l'irréversible au bon endroit : le texte de licence se relicencie, le CLA non. C est aussi la seule à le rédiger selon le droit français (L131-1, L131-3, « durée légale » plutôt que « perpétuel »). C ajoute trois points utiles que les autres n'ont pas ensemble : la licence posée à partir d'un tag, l'exception dans un fichier séparé, l'arrêt Entr'ouvert. D est plus opérationnelle, mais ne dit rien du CLA en droit français.</p>
+<p>2. <strong>E.</strong> E oublie que l'auteur est un étudiant sans société. Il ne peut donc ni facturer, ni encaisser par carte, ni gérer la TVA, alors que tout le modèle d'E repose sur un prix affiché. E ne dit pas non plus comment vérifier un effectif, objection que A et C soulèvent. Enfin, un seuil de 3 personnes fait payer une grosse chaîne YouTube, ce qui contredit l'objectif de gratuité pour les vidéos monétisées.</p>
+<p>3. <strong>Le statut du code de l'utilisateur et le lien entre la licence et la vidéo.</strong></p>
+<ul>
+<li>Les scènes et les templates Python importent la bibliothèque. Sous AGPL, ils deviennent des œuvres dérivées, donc soumis au copyleft. Sous PolyForm, un marché de templates payants devient ambigu. Aucune réponse n'en parle.</li>
+<li>La vidéo n'est pas une œuvre dérivée. Le crédit est donc une simple condition contractuelle d'usage. Un retrait YouTube pour crédit manquant est impossible, et le levier proposé par C tombe.</li>
+<li>Seuls les éléments embarqués dans le rendu (polices, templates, assets) relient juridiquement la licence à la vidéo. Leur licence reste à définir.</li>
+</ul></div>
+ </details>
+
+ <footer>
+ Generated by the <code>llm-council</code> skill on 17 septembre 2026, 14 h 34.
+ Full transcript and anonymization map in
+ <code>council-transcript.md</code>.
+ </footer>
+
+</div>
+</body>
+</html>

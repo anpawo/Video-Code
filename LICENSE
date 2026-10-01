@@ -1,0 +1,141 @@
+SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+Required Notice: Copyright Marius Rousset (https://mariusrousset.com/videocode)
+
+# Additional permissions
+
+Video-Code is licensed under the PolyForm Noncommercial License 1.0.0, printed
+below word for word. That license alone would make a monetised video a
+commercial use, which would empty the tool of its purpose. The three permissions
+here are granted by Marius Rousset on top of it. They add to the license; they
+take nothing away from it, and they change nothing in its text.
+
+## 1. The videos you make with it
+
+Rendering a video with Video-Code, and publishing it, is a permitted purpose --
+including where the video earns money: advertising, sponsorship, memberships,
+paid courses, or a film you sell. Every platform counts, and so does every
+sponsor.
+
+The condition is the credit. The video, or the page that carries it, must name
+Video-Code and the address given under "License" in `README.md`. The address
+lives in the README so that it can change without breaking videos already
+published.
+
+If you forget the credit, you have not lost anything: you have 30 days from a
+written notice to put it back, and this permission continues.
+
+**Not covered: a video made as paid work for someone else.** This permission
+covers what you publish under your own name. A video produced to order is
+business use, which permission 3 covers.
+
+## 2. The scenes, templates and agent code you write
+
+A scene is a Python file that imports this library; so is a template, and so is
+the code an AI agent writes to drive it. They are yours. Publish them, share
+them, sell them, license them as you like -- this project claims nothing in
+them, and the noncommercial terms below do not reach them.
+
+Whoever runs your scene still needs their own license to Video-Code itself.
+
+## 3. Business use under 100 000 EUR of revenue
+
+Using Video-Code in the course of business -- a video produced to order for a
+client, the tool inside a service or a product you sell -- is a permitted
+purpose for as long as your revenue stays under 100 000 EUR.
+
+Your revenue is the gross revenue -- turnover, not profit -- of you and of
+every organisation you control or that controls you, added together over the
+last twelve months, every currency converted at the rate of the day. All of it
+counts, not only the part Video-Code helped earn. You judge it yourself; no one
+will ask for your books.
+
+The credit of permission 1 applies to every video you publish under this
+permission too.
+
+Above the threshold you need a commercial license. Its price is a fixed yearly
+sum per organisation, published under "License" in `README.md` -- there for the
+same reason the credit address is: so it can change without this text
+changing. Write to <rousset.marius13@gmail.com> to take one. Crossing the
+threshold gives you 90 days to do so, and nothing you did before stays in
+question.
+
+## Duration
+
+These three permissions are irrevocable, except for someone who breaks the terms
+below and does not fix it within the 32 days that license allows.
+
+---
+
+# PolyForm Noncommercial License 1.0.0
+
+<https://polyformproject.org/licenses/noncommercial/1.0.0>
+
+## Acceptance
+
+In order to get any license under these terms, you must agree to them as both strict obligations and conditions to all your licenses.
+
+## Copyright License
+
+The licensor grants you a copyright license for the software to do everything you might do with the software that would otherwise infringe the licensor's copyright in it for any permitted purpose.  However, you may only distribute the software according to [Distribution License](#distribution-license) and make changes or new works based on the software according to [Changes and New Works License](#changes-and-new-works-license).
+
+## Distribution License
+
+The licensor grants you an additional copyright license to distribute copies of the software.  Your license to distribute covers distributing the software with changes and new works permitted by [Changes and New Works License](#changes-and-new-works-license).
+
+## Notices
+
+You must ensure that anyone who gets a copy of any part of the software from you also gets a copy of these terms or the URL for them above, as well as copies of any plain-text lines beginning with `Required Notice:` that the licensor provided with the software.  For example:
+
+> Required Notice: Copyright Yoyodyne, Inc. (http://example.com)
+
+## Changes and New Works License
+
+The licensor grants you an additional copyright license to make changes and new works based on the software for any permitted purpose.
+
+## Patent License
+
+The licensor grants you a patent license for the software that covers patent claims the licensor can license, or becomes able to license, that you would infringe by using the software.
+
+## Noncommercial Purposes
+
+Any noncommercial purpose is a permitted purpose.
+
+## Personal Uses
+
+Personal use for research, experiment, and testing for the benefit of public knowledge, personal study, private entertainment, hobby projects, amateur pursuits, or religious observance, without any anticipated commercial application, is use for a permitted purpose.
+
+## Noncommercial Organizations
+
+Use by any charitable organization, educational institution, public research organization, public safety or health organization, environmental protection organization, or government institution is use for a permitted purpose regardless of the source of funding or obligations resulting from the funding.
+
+## Fair Use
+
+You may have "fair use" rights for the software under the law. These terms do not limit them.
+
+## No Other Rights
+
+These terms do not allow you to sublicense or transfer any of your licenses to anyone else, or prevent the licensor from granting licenses to anyone else.  These terms do not imply any other licenses.
+
+## Patent Defense
+
+If you make any written claim that the software infringes or contributes to infringement of any patent, your patent license for the software granted under these terms ends immediately. If your company makes such a claim, your patent license ends immediately for work on behalf of your company.
+
+## Violations
+
+The first time you are notified in writing that you have violated any of these terms, or done anything with the software not covered by your licenses, your licenses can nonetheless continue if you come into full compliance with these terms, and take practical steps to correct past violations, within 32 days of receiving notice.  Otherwise, all your licenses end immediately.
+
+## No Liability
+
+***As far as the law allows, the software comes as is, without any warranty or condition, and the licensor will not be liable to you for any damages arising out of these terms or the use or nature of the software, under any kind of legal claim.***
+
+## Definitions
+
+The **licensor** is the individual or entity offering these terms, and the **software** is the software the licensor makes available under these terms.
+
+**You** refers to the individual or entity agreeing to these terms.
+
+**Your company** is any legal entity, sole proprietorship, or other kind of organization that you work for, plus all organizations that have control over, are under the control of, or are under common control with that organization.  **Control** means ownership of substantially all the assets of an entity, or the power to direct its management and policies by vote, contract, or otherwise.  Control can be direct or indirect.
+
+**Your licenses** are all the licenses granted to you for the software under these terms.
+
+**Use** means anything you do with the software requiring one of your licenses.

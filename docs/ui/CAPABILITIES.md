@@ -46,9 +46,9 @@ by gesture. `★` marks what has been named as important.
 - ◐ Lanes: one per element, no user-defined tracks yet
 - ◐ **Trim**: drag a clip's right edge — it writes `hide(start=…)` under the last
   line that touched the element, counting from the cursor that line left behind.
-  The left edge has no handle: where a clip STARTS is where `waitFor`, `flush` and
-  `wait` left the clock, which is a statement to move rather than an argument to
-  change. A video's `startFrame`/`endFrame` are deliberately NOT this gesture —
+  The left edge is a move whose end stays put: the element's `.wait()` changes,
+  and a `hide(start=…)` that counted from that clock is told the old moment
+  again. A video's `startFrame`/`endFrame` are deliberately NOT this gesture —
   they choose which frames get loaded, and a `Video` cut to thirty frames inside a
   three-second scene still lasts three seconds, so writing them would have moved
   nothing on screen. They stay on the card, beside the rest of the call
@@ -58,7 +58,13 @@ by gesture. `★` marks what has been named as important.
 - ○ **Slide**: move a clip between its neighbours, its own content unchanged
 - ○ **Razor / split** at the playhead, on one clip or all lanes
 - ○ Insert vs overwrite when dropping onto an occupied lane
-- ○ Move a clip in time by dragging it; move it between lanes
+- ◐ **Move** a clip in time by dragging its body: it writes the element's own
+  `.wait(n)` in front of the first call that takes time — `title.wait(0.5).fadeIn()`
+  — or changes the one already there, and takes it away at zero (`waitLinkSpan`
+  in `videocode/edit.py`). A clip placed by a drop moves its `show(start=…)`
+  instead. Refused in words: a `.wait(NAME)` (the name's own line is offered), a
+  clip nothing starts, a video's body (its frames would not follow), a move a
+  `wait()` above swallows. Not yet: moving it between lanes
 - ○ Ripple delete (close the gap) vs lift (leave a hole)
 - ○ Multi-selection, rubber-band selection, select all to the left/right
 - ○ Copy, cut, paste — including paste attributes only

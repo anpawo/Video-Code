@@ -68,6 +68,19 @@ Key facts:
   they share — and a run prints a line naming both call sites when it happens.
   Two effects on different channels compose, whatever their windows. If your
   effect needs both axes it should claim both; if it needs one, claim one.
+- **`Input.apply(shader, start=X)`'s `X` is relative to `meta.transformationOffset`
+  (the input's own clock), not the scene's absolute time** — and `apply()`'s
+  own default is `start=0`, i.e. "right now, at this input's offset". A
+  two-input orchestrator (`transitions.py`) that calls `incoming.apply(_show())`
+  with no `start=` makes it visible IMMEDIATELY, not when its OWN animation
+  loop later starts at `start=start+half` — the classic case being a delayed
+  reveal (`dipToBlack`'s incoming shouldn't show until the midpoint). Two
+  chained calls must carry the SAME explicit `start=` value, or the first one
+  fires at the wrong time and shows whatever state the input already had
+  (its raw, unfiltered fill color, in `dipToBlack`'s case) until the second
+  catches up. `transformationOffset` itself only moves on `.flush()`/`.wait()`,
+  so a loop of many `.apply()` calls at increasing `start=` values does NOT
+  drift — every call in the loop is relative to the same fixed offset.
 
 ## B. Fragment shader
 
@@ -208,6 +221,17 @@ Export it from `videocode/shader/_shaders.py` (star import).
 - **`--visual-test --update-golden` rewrites EVERY golden**, including cases
   that were legitimately failing. After generating goldens for a new scene,
   `git checkout -- test/visual/golden/` then `git add` only the new files.
+- **Nothing a golden covers may draw an unseeded random number.** A scene is
+  executed once per render, so `random.uniform()` inside one is consistent
+  within a run and different on the next: the golden starts failing for no
+  reason and the bake digest starts reporting a change nobody made. The cost is
+  not the red run, it is that a gate which cries wolf gets turned off. A scene
+  that genuinely needs scattering seeds its own generator with a fixed number
+  written in the scene file (`random.Random(1234)`), so the same file always
+  draws the same picture. The `shake` note above is the same rule stated for
+  effect offsets. Nothing in the tree draws a random number today (checked
+  2026-09-20), which is why this is written before someone needs it rather
+  than after a golden flaps.
 - **Colors can't ride push constants.** `shaderParams()` only picks numeric
   args — an `rgba` attribute is silently skipped. Flatten colors to float
   attributes in `__init__` (see `duotone.py`: `darkB/darkG/darkR/...`,

@@ -1,0 +1,12 @@
+[
+  {
+    "files": ["src/window/VulkanWidget.cpp", "src/vulkan/VulkanHeadlessRenderer.cpp"],
+    "reason": "the preview and the headless renderer are near-copies by history. Merging them is a project of its own and nobody has decided it, so the weekly audit stays silent on the pair; the ratchet still refuses growth, and prints a clone that vanishes from one side only",
+    "date": "2026-09-18"
+  },
+  {
+    "files": ["assets/shaders/*/frag.glsl", "assets/mathshaders/*.glsl"],
+    "reason": "every effect shader opens with the same interface block — in, sampler, push constants, out — because the renderer binds them all the same way, and GLSL has no include here; the header is a contract, not a copy",
+    "date": "2026-09-18"
+  }
+]

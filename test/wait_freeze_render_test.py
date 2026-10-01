@@ -24,7 +24,7 @@ import numpy as np
 
 sys.path.insert(0, ".")
 sys.path.insert(0, "test")
-from helpers import check, needsRenderer, section, summary
+from helpers import check, needsRenderer, needsTool, section, summary
 
 FRAMES_PER_SEGMENT = 30
 OUTPUT_WIDTH = 160
@@ -95,7 +95,8 @@ with tempfile.TemporaryDirectory() as tmp:
         f.write(SCENE)
 
     section("render")
-    if not needsRenderer("wait/freeze needs a rendered video to measure frame differences"):
+    if not needsRenderer("wait/freeze needs a rendered video to measure frame differences") \
+       or not needsTool("ffmpeg", "a rendered video is ffmpeg's to write"):
         summary()
         sys.exit(0)
     try:

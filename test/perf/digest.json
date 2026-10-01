@@ -33,7 +33,7 @@
   "frameSlots": 62,
   "inputs": 2,
   "lastFrame": 36,
-  "shape": "4a69c3e80e772128"
+  "shape": "7fed55299c842393"
  },
  "test/visual/scenes/aspect_portrait.py": {
   "applyCalls": 5,
@@ -70,15 +70,6 @@
   "inputs": 6,
   "lastFrame": 60,
   "shape": "a9ca4210600dea32"
- },
- "test/visual/scenes/chess.py": {
-  "applyCalls": 120,
-  "entries": 186,
-  "events": 12,
-  "frameSlots": 121,
-  "inputs": 33,
-  "lastFrame": 131,
-  "shape": "8d1366c04b004b94"
  },
  "test/visual/scenes/composition.py": {
   "applyCalls": 39,
@@ -151,6 +142,24 @@
   "inputs": 3,
   "lastFrame": 30,
   "shape": "fbe2a714ae1f3fc0"
+ },
+ "test/visual/scenes/effect_shaders5.py": {
+  "applyCalls": 21,
+  "entries": 36,
+  "events": 0,
+  "frameSlots": 18,
+  "inputs": 9,
+  "lastFrame": 30,
+  "shape": "15233d3789bdf8f6"
+ },
+ "test/visual/scenes/effect_shaders6.py": {
+  "applyCalls": 10,
+  "entries": 20,
+  "events": 0,
+  "frameSlots": 10,
+  "inputs": 5,
+  "lastFrame": 30,
+  "shape": "a71e89a749a3ef6e"
  },
  "test/visual/scenes/effect_templates.py": {
   "applyCalls": 237,
@@ -249,7 +258,7 @@
   "frameSlots": 6,
   "inputs": 3,
   "lastFrame": 1,
-  "shape": "5cb979d15cfabdf8"
+  "shape": "81ea7cec7d402c69"
  },
  "test/visual/scenes/layers.py": {
   "applyCalls": 12,
@@ -312,7 +321,7 @@
   "frameSlots": 35,
   "inputs": 2,
   "lastFrame": 18,
-  "shape": "51585a4c85277b64"
+  "shape": "e7ab320f592808b2"
  },
  "test/visual/scenes/reload_b.py": {
   "applyCalls": 46,
@@ -321,7 +330,7 @@
   "frameSlots": 47,
   "inputs": 2,
   "lastFrame": 39,
-  "shape": "12249cffe289c96e"
+  "shape": "1ec0dabb146e16b3"
  },
  "test/visual/scenes/resize.py": {
   "applyCalls": 62,
@@ -449,6 +458,15 @@
   "lastFrame": 16,
   "shape": "4e847007eddb7b39"
  },
+ "test/visual/scenes/transitions2.py": {
+  "applyCalls": 84,
+  "entries": 89,
+  "events": 0,
+  "frameSlots": 64,
+  "inputs": 6,
+  "lastFrame": 15,
+  "shape": "e9c104ac2c93bdcd"
+ },
  "test/visual/scenes/uv_mapping.py": {
   "applyCalls": 2,
   "entries": 8,
@@ -456,7 +474,7 @@
   "frameSlots": 5,
   "inputs": 3,
   "lastFrame": 1,
-  "shape": "47ac5b6243297518"
+  "shape": "37674d2101d4acff"
  },
  "test/visual/scenes/video.py": {
   "applyCalls": 6,

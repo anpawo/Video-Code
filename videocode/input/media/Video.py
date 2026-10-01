@@ -5,7 +5,7 @@ from __future__ import annotations
 import subprocess
 
 from videocode.input.shape.Polygon import *
-from videocode.constants import WORLD_TO_SCREEN_RATIO
+from videocode.constants import FRAMERATE, WORLD_TO_SCREEN_RATIO
 from videocode.context import Context
 from videocode.input.media.Image import _fitToRatio
 from videocode.input.media.TrackedPath import TrackedPath
@@ -38,9 +38,27 @@ def _pixelToWorld(
     return (worldX, worldY)
 
 
+def _probe(args: list[str]) -> str:
+    """
+    What `ffprobe` answers, or a sentence saying it is not installed.
+
+    Raised rather than returned: a clip whose size nobody knows cannot be
+    placed. The bare FileNotFoundError this replaces named `ffprobe` and
+    nothing else — not what it was for, not how to get it.
+    """
+    try:
+        return subprocess.run(["ffprobe", "-v", "error", *args],
+                              capture_output=True, text=True, check=True).stdout.strip()
+    except FileNotFoundError as missing:
+        raise FileNotFoundError(
+            "`ffprobe` not found — install ffmpeg (`brew install ffmpeg`, "
+            "`apt install ffmpeg`) to read a video's size and length."
+        ) from missing
+
+
 class Video(Polygon):
     cppName = "Video"
-    cppAttrs = Polygon.cppAttrs | {"filepath", "cuts", "speedRamps", "uvMapping", "uvAngle", "originFrame"}
+    cppAttrs = Polygon.cppAttrs | {"filepath", "cuts", "speedRamps", "holds", "uvMapping", "uvAngle", "originFrame"}
 
     def __init__(
         self,
@@ -56,6 +74,7 @@ class Video(Polygon):
         strokeWidth: wufloat = 0,
         uvMapping: UVMapping = UVMapping.STRETCH,
         uvAngle: wufloat = 0,
+        holds: list[tuple[sec, sec]] = [],
     ) -> None:
         """
         `cuts` are ranges of source-video frames to skip during playback —
@@ -95,6 +114,15 @@ class Video(Polygon):
         rate math (only by where the ramp's source anchor sits) — ramps
         aren't expected to straddle a cut in practice.
 
+        `holds` are `(at, seconds)` pairs, a frame hold: the image `at` seconds
+        into the clip stays on screen for `seconds`, then the clip plays on from
+        that same image — nothing is skipped, the clip gets longer by the hold,
+        and `end` says so. `at` counts the clip as cuts and speed ramps leave it,
+        before any hold. The clip's own sound is silent over the hold. For the
+        moment you stop on to explain it:
+
+            Video("fight.mp4", holds=[(3.2, 2.0)])     # stops on 3.2 s for 2 s
+
         `uvMapping` controls how the texture is wrapped onto the shape —
         see the `UVMapping` enum for the mode semantics; `uvAngle` (degrees)
         rotates the angular origin of the polar modes.
@@ -132,17 +160,19 @@ class Video(Polygon):
                 )
         self.speedRamps = speedRamps
 
+        for at, seconds in holds:
+            if at < 0 or seconds <= 0:
+                raise ValueError(f"Video holds are (at >= 0, seconds > 0), got ({at}, {seconds})")
+        self.holds = sorted((round(at * FRAMERATE), round(seconds * FRAMERATE)) for at, seconds in holds)
+
         # A shape needs both numbers, so ffprobe answers (metadata only, no
         # frame decode) whenever one is missing: one dimension given fixes the
         # other through the video's own proportions, neither given is its
         # natural frame size — the same rule as `Image`, for the same reason.
         if width is None or height is None:
-            out = subprocess.run(
-                ["ffprobe", "-v", "error", "-select_streams", "v:0",
-                 "-show_entries", "stream=width,height", "-of", "csv=p=0", filepath],
-                capture_output=True, text=True, check=True,
-            )
-            w, h = out.stdout.strip().split(",")
+            out = _probe(["-select_streams", "v:0", "-show_entries", "stream=width,height",
+                          "-of", "csv=p=0", filepath])
+            w, h = out.split(",")
             width, height = _fitToRatio(width, height, float(w), float(h))
 
         self.width = width
@@ -175,12 +205,12 @@ class Video(Polygon):
         # playback count as the renderer's — the source's frames minus the cut
         # ranges — read off ffprobe; an unreadable count claims nothing rather
         # than raising, like `Sound.length()`.
+        # The clip's last image, for whoever waits for it: `waitFor(clip)`
+        # means the clip's last EFFECT, which ends long before the clip does.
+        self._ownEnd: frame = 0
         if self.placed:
-            said = subprocess.run(
-                ["ffprobe", "-v", "error", "-select_streams", "v:0",
-                 "-show_entries", "stream=nb_frames", "-of", "csv=p=0", filepath],
-                capture_output=True, text=True, check=True,
-            ).stdout.strip()
+            said = _probe(["-select_streams", "v:0", "-show_entries", "stream=nb_frames",
+                           "-of", "csv=p=0", filepath])
             frames = int(said) if said.isdigit() else 0
             cut, seen = 0, 0
             for a, b in sorted((min(a, frames), min(b, frames)) for a, b in self.cuts):
@@ -188,7 +218,18 @@ class Video(Polygon):
                 if b > a:
                     cut, seen = cut + b - a, b
             if frames > cut:
-                Context.lastEverAffectedFrame = max(Context.lastEverAffectedFrame, self.originFrame + frames - cut)
+                self._ownEnd = self.originFrame + frames - cut + sum(n for _, n in self.holds)
+                Context.lastEverAffectedFrame = max(Context.lastEverAffectedFrame, self._ownEnd)
+
+    @property
+    def end(self) -> sec:
+        """
+        The second of the film at which this clip's last image plays, cuts
+        deducted — what to wait for when the clip itself has to be over:
+
+            merci.waitFor(marius.end).fadeIn()
+        """
+        return self._ownEnd / FRAMERATE
 
     def generateVertices(self) -> list[point]:
         if self.width is None or self.height is None:

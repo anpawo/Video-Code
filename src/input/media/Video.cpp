@@ -84,6 +84,20 @@ Video::Video(json::object_t&& args)
     // lets mapToSourceIndex do a simple ordered scan.
     std::sort(_speedRamps.begin(), _speedRamps.end(), [](const SpeedRamp& a, const SpeedRamp& b) { return a.playbackStart < b.playbackStart; });
 
+    // Holds come last: `at` is a frame of the playback the cuts and ramps
+    // already made, and each one lengthens the clip by what it holds.
+    if (_baseArgs.contains("holds")) {
+        const size_t unheld = _playbackLength;
+        for (const auto& raw : _baseArgs.at("holds")) {
+            auto pair = raw.get<std::vector<size_t>>();
+            if (pair[1] > 0) {
+                _holds.push_back({std::min(pair[0], unheld - 1), pair[1]});
+                _playbackLength += pair[1];
+            }
+        }
+        std::sort(_holds.begin(), _holds.end());
+    }
+
     if (_baseArgs.contains("originFrame")) {
         _origin = _baseArgs.at("originFrame").get<size_t>();
     }
@@ -162,6 +176,22 @@ size_t Video::mapToSourceIndex(size_t playbackIndex) const
     return mapCutsOnly(playbackIndex);
 }
 
+// A frame of the held playback, as the frame of the playback before any hold:
+// inside a hold it is the frame the hold froze on, after it the count resumes
+// where the hold stopped it.
+size_t Video::unhold(size_t playbackIndex) const
+{
+    size_t held = 0;
+    for (const auto& [at, length] : _holds) {
+        if (playbackIndex < at + held)
+            break;
+        if (playbackIndex < at + held + length)
+            return at;
+        held += length;
+    }
+    return playbackIndex - held;
+}
+
 cv::Mat Video::getFrameAt(size_t index)
 {
     if (index >= _nbFrame) {
@@ -203,7 +233,7 @@ Mesh Video::getMesh(const Metadata& meta, const Config& config)
         playbackIndex = _playbackLength - 1;
     }
 
-    size_t index = mapToSourceIndex(playbackIndex);
+    size_t index = mapToSourceIndex(unhold(playbackIndex));
 
     if (index != _lastIndex) {
         _currentFrame = getFrameAt(index);

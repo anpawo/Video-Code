@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import os
 import sys
@@ -12,11 +14,13 @@ sys.path.append(".")
 
 from videocode.context import *
 from videocode import *
+from videocode import params
 
 
 def _resetContext():
     Context.stack = {}
     Context.events = []
+    Context.badValues = []
     Context.inputCounter = 0
     Context.lastEverAffectedFrame = 0
     Context.cursor = 0
@@ -77,6 +81,10 @@ def _resetContext():
 
     _camera._reset()
 
+    # And the parameters it asked for, which are checked against those it was
+    # given once the run is over.
+    params.startRun()
+
 
 def _oneLine(hit: dict) -> str:
     """The gutter has one line, not a paragraph — the paragraph stays on stderr."""
@@ -133,8 +141,19 @@ def _reportContendedKeys() -> list[dict]:
         # bar and the row carrying the fault are found by identity rather than by
         # comparing numbers that count from different places.
         out.append({"line": b["line"] - 1, "sourceLine": b["line"], "input": hit["input"],
-                    "file": b["file"], "message": _oneLine(hit)})
+                    "file": b["file"], "message": _oneLine(hit), "rule": "contended-key"})
     return out
+
+def _reportBadValues() -> list[dict]:
+    """
+    An argument a type refuses — `opacity(300)` on a uint8 — as a red line in
+    the code and a hazard on the clip. Found by `Context._callSite()`, on the
+    person's own frame, so an expression is judged by what it was worth.
+    """
+    return [{"line": b["line"] - 1, "sourceLine": b["line"], "input": b["input"],
+             "file": b["file"], "message": b["message"], "severity": 1, "rule": "bad-value"}
+            for b in Context.badValues]
+
 
 def _reportBackdatedWrites() -> list[dict]:
     """
@@ -166,7 +185,75 @@ def _reportBackdatedWrites() -> list[dict]:
         # bar and the row carrying the fault are found by identity rather than by
         # comparing numbers that count from different places.
         out.append({"line": b["line"] - 1, "sourceLine": b["line"], "input": hit["input"],
-                    "file": b["file"], "message": _oneLineBackdated(hit)})
+                    "file": b["file"], "message": _oneLineBackdated(hit), "rule": "backdated-write"})
+    return out
+
+
+def _reportLint(model: dict) -> list[dict]:
+    """
+    The mistakes no line refuses, read off the model the timeline is drawn from:
+
+    - a Sound that starts on or after the last frame — the mix is cut at the
+      film's end (AudioMix.cpp), and a Sound does not make the film longer;
+    - a write before frame 0, which the renderer skips, or a Sound delayed by a
+      negative time, which ffmpeg refuses;
+    - an element on screen on no frame at all, by the renderer's own test;
+    - one that first appears on the last frame: made after the final wait().
+
+    One finding per call site, not per element: a Text is one line and many glyphs.
+    """
+    frames, fps = model["frames"], model["fps"]
+    out: list[dict] = []
+
+    def say(rule: str, severity: int, file: str, line: int, index: int, message: str) -> None:
+        out.append({"line": line - 1, "sourceLine": line, "input": index, "file": file,
+                    "message": message, "severity": severity, "rule": rule})
+
+    # A line the bounds check already refused says so once.
+    refused = {(b["file"], b["line"]) for b in Context.badValues}
+    # ponytail: the film's length here ignores speed ramps, which the C++ follows (Core.cpp),
+    # so the end rules stand down on a ramped Video rather than guess. An unreadable nb_frames
+    # (mkv, webm) leaves the same gap: stand down on any Video if one shows up.
+    ramped = any(entry[-1]["type"] == "Video" and entry[-1]["args"].get("speedRamps") for entry in Context.stack.values())
+    early: dict[tuple[str, int, str], tuple[int, int]] = {}
+    groups: dict[tuple[str, int], list[dict]] = {}
+    for element in model["elements"]:
+        made = Context.stack[element["index"]][-1]
+        for effect in element["effects"]:
+            at = (effect["file"], effect["line"], effect["call"])
+            if effect["start"] < 0 and at[:2] not in refused and (at not in early or effect["start"] < early[at][0]):
+                early[at] = (effect["start"], element["index"])
+        if made["type"] == "Sound":
+            delay = made["args"].get("delay", 0)
+            where = (element["file"], element["line"], element["index"])
+            if where[:2] in refused:
+                continue
+            # AudioMix.cpp rounds the same way before handing the delay to ffmpeg.
+            if round(delay * 1000) < 0:
+                say("before-start", 1, *where, f"Sound starts at {delay:.2f} s, before the film does — ffmpeg refuses "
+                    f"a negative delay. Start it at 0 or later; trimStart= skips the head of the file.")
+            elif not ramped and round(delay * fps) >= max(frames - 1, 1):
+                say("sound-after-end", 1, *where, f"Sound starts at {delay:.2f} s but the film is {frames / fps:.2f} s "
+                    f"long, so at most one frame of it is heard — a Sound does not make the film longer. "
+                    f"Add a wait() after it.")
+        elif made["type"] != "Camera" and element["line"] > 0:
+            groups.setdefault((element["file"], element["line"]), []).append(element)
+
+    for (file, line, call), (start, index) in early.items():
+        say("before-start", 1, file, line, index, f"{call}() starts at frame {start}, before the film's first frame — "
+            f"the renderer skips every frame below 0, so that part never plays.")
+    for (file, line), group in groups.items():
+        name = group[0]["kind"] + (f" ({len(group)} elements)" if len(group) > 1 else "")
+        seen = [element for element in group if element["seen"]]
+        if not seen:
+            say("never-visible", 2, file, line, group[0]["index"],
+                f"{name} is never on screen — hidden or at opacity 0 on every frame.")
+        # The signature of an element made after the last wait(): its placement
+        # shows it on the frame that the making itself added to the film.
+        elif not ramped and frames > 1 and all(element["first"] == frames - 1 for element in seen):
+            say("last-frame-only", 2, file, line, seen[0]["index"],
+                f"{name} first appears on the film's last frame ({frames - 1}), so it is on screen for one "
+                f"frame — add a wait() after it.")
     return out
 
 def _applyBackground(scope: dict) -> None:
@@ -327,6 +414,7 @@ def execScene(filepath: str) -> None:
     else:
         scope = _runUntilStable(code, scope, lambda: _sceneScope(_resetContext()))
 
+    params.checkRun()
     _applyBackground(scope)
     _reportContendedKeys()
     _reportBackdatedWrites()
@@ -480,8 +568,12 @@ def sceneModel() -> dict:
         firstSeen = -1
         lastSeen = total - 1
         wasVisible = False
-        for frame in frames:
-            for key, shader in entry[frame].items():
+        # Frame 0 is walked even with no key on it: an element made with nothing
+        # applied is on screen from the start (one made later is hidden there by
+        # its placement). Without it a music track began at its first fade.
+        # Frames below 0 are skipped, as the renderer skips them (Core.cpp).
+        for frame in sorted({0, *(f for f in frames if f >= 0)}):
+            for key, shader in entry.get(frame, {}).items():
                 args = shader.get("args", {})
                 if "opacity" in args:
                     opacity = args["opacity"]
@@ -507,6 +599,7 @@ def sceneModel() -> dict:
 
         # Never on screen at all: drawn where its keys are, rather than not at
         # all, because a clip you cannot see is still a clip you have to find.
+        seen = firstSeen >= 0
         if firstSeen < 0:
             firstSeen = frames[0] if frames else 0
 
@@ -519,6 +612,7 @@ def sceneModel() -> dict:
                 "line": line,
                 "first": firstSeen,
                 "last": lastSeen,
+                "seen": seen,
                 "effects": effects,
                 "points": points,
             }
@@ -863,6 +957,49 @@ def inputSignature(className: str) -> list[dict]:
         return []
 
 
+def parameterSlot(owner: str, call: str, name: str) -> int:
+    """
+    Where `name` stands when a call passes it without its name, or -1.
+
+    `Text("Merci")` and `rotateBy(180)` say `text` and `degree` by position,
+    and an edit addressed by name has to find them there. Not `inputSignature`'s
+    order: that one leaves out `start` and the `_` parameters, which still take
+    a slot. -1 for a name that can only be given by keyword, and for a call
+    this cannot find.
+
+    `call` is a class (`Text`), a method of `owner` (`rotateBy` on `Circle`),
+    or a function the scene language exposes (`wait`).
+    """
+    import inspect
+
+    import videocode
+
+    target = getattr(videocode, owner, None) if owner else None
+    fn = getattr(target, call, None) if inspect.isclass(target) else None
+    if fn is None:
+        fn = getattr(videocode, call, None)
+        if inspect.isclass(fn):
+            fn = fn.__init__
+    if not callable(fn):
+        return -1
+
+    try:
+        parameters = list(inspect.signature(fn).parameters.values())
+    except (TypeError, ValueError):
+        return -1
+
+    slot = 0
+    for parameter in parameters:
+        if parameter.kind not in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD):
+            return -1
+        if parameter.name == "self":
+            continue
+        if parameter.name == name:
+            return slot
+        slot += 1
+    return -1
+
+
 def enumValues(name: str) -> list[str]:
     """
     What an argument of this type accepts, spelled the way a scene writes it.
@@ -1012,6 +1149,7 @@ def execSource(source: str, filepath: str) -> dict:
         _besideScene(filepath)
         code = compile(source, filepath, "exec")
         scope = _runUntilStable(code, scope, lambda: _sceneScope(_resetContext()))
+        params.checkRun()
         _applyBackground(scope)
         # Collected as well as printed. These two ran on every keystroke in the
         # editor and spoke only to stderr, which the editor does not read — the
@@ -1019,7 +1157,7 @@ def execSource(source: str, filepath: str) -> dict:
         # video" reached nobody who was editing. `Editor::executeScene` copies
         # every key of this dict through to QML, so returning them is the whole
         # of the wiring.
-        warnings = _reportContendedKeys() + _reportBackdatedWrites()
+        warnings = _reportContendedKeys() + _reportBackdatedWrites() + _reportBadValues()
         warnings = [w for w in warnings if w["file"] == filepath]
     except SyntaxError as error:
         return {
@@ -1045,6 +1183,13 @@ def execSource(source: str, filepath: str) -> dict:
             "message": f"{type(error).__name__}: {error}",
         }
 
+    model = sceneModel()
+    # Outside the try, like the model itself: a bug in the lint raises rather
+    # than posing as the scene failing on line 1. last-frame-only stays out of
+    # the editor — it is what every line typed at the end of a scene is until
+    # its wait() is.
+    warnings += [w for w in _reportLint(model) if w["file"] == filepath and w["rule"] != "last-frame-only"]
+
     return {
         "ok": True,
         # JSON, like `scene` below, because the bridge to the editor stringifies
@@ -1057,8 +1202,62 @@ def execSource(source: str, filepath: str) -> dict:
         "inputs": len(Context.stack),
         "frames": max(Context.lastEverAffectedFrame, 1),
         "fps": FRAMERATE,
-        "scene": json.dumps(sceneModel()),
+        "scene": json.dumps(model),
     }
+
+
+def _lintOnce(source: str, filepath: str) -> set[tuple]:
+    """One run's findings, as (file, line, severity, message, rule)."""
+    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+        report = execSource(source, filepath)
+        if not report["ok"]:
+            message = report["message"]
+            if message.startswith("ParamError: "):
+                return {(filepath, report["line"] + 1, "error", message.removeprefix("ParamError: "), "param")}
+            return {(filepath, report["line"] + 1, "error", message, "scene-error")}
+        found = _reportContendedKeys() + _reportBackdatedWrites() + _reportBadValues() + _reportLint(json.loads(report["scene"]))
+    return {(w["file"], w["sourceLine"], "error" if w.get("severity") == 1 else "warning", w["message"], w["rule"])
+            for w in found}
+
+
+def lintSource(source: str, filepath: str, sets: list[str] | None = None, data: str = "") -> tuple[str, int]:
+    """
+    `--lint`: run a scene without rendering it and say what is wrong with it, one
+    `file:line: error|warning: message [rule]` per line, and 1 if any is an error.
+
+    Findings only: the scene's own prints and the reporters' stderr paragraphs
+    are swallowed, since the reporters run twice here — once in `execSource`,
+    for the editor's filtered list, and once more unfiltered, which is cheap:
+    they only read `Context`, which still holds this run.
+
+    With `--set`/`--data` the scene runs once per row, given that row, so a
+    required param() nobody gave, a --set key nothing reads and a cell that
+    does not read as its parameter's type are all found without a frame being
+    rendered. A finding every row shares is said once.
+    """
+    said: set[tuple] = set()
+    if sets or data:
+        try:
+            rows = params.plan(sets or [], data, "lint.mp4")
+        except params.ParamError as error:
+            return f"{filepath}: error: {error} [param]\n", 1
+        before = os.environ.get("VC_PARAMS")
+        try:
+            for row in rows:
+                params.provide(row["params"])
+                said |= _lintOnce(source, filepath)
+        finally:
+            if before is None:
+                os.environ.pop("VC_PARAMS", None)
+            else:
+                os.environ["VC_PARAMS"] = before
+        unread = params.unreadColumns().removeprefix("video-code: warning: ").strip()
+        if unread:
+            said.add((filepath, 1, "warning", unread, "unread-column"))
+    else:
+        said = _lintOnce(source, filepath)
+    lines = sorted(said)
+    return "".join(f"{f}:{n}: {s}: {m} [{r}]\n" for f, n, s, m, r in lines), int(any(s == "error" for _, _, s, _, _ in lines))
 
 
 def serializeScene(filepath: str) -> str:

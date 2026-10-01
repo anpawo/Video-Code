@@ -56,4 +56,9 @@ struct Config
     ///< --for: which named shape this render is and its place in the run
     ///< ("tiktok, 2 of 3"), for the Generating line. Empty for a lone render.
     std::string shapeNote;
+
+    ///< --set / --data: what this render's scene is given, as the VC_PARAMS
+    ///< JSON videocode/params.py reads. Empty when neither flag is used — the
+    ///< environment is then left as it was.
+    std::string params;
 };

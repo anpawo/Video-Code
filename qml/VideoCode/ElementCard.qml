@@ -36,6 +36,9 @@ Item {
     visible: element !== null
 
     property var element: null
+    // In the dock rather than over the window: no journey, no backdrop, no
+    // effects timeline — what it is, what its line says, what it is worth now.
+    property bool docked: false
     property var effectNames: []
 
     // Where the clip is on screen, so the card can start from it.
@@ -393,6 +396,10 @@ Item {
         from = where;
         library = false;
         curving = null;
+        if (docked) {
+            travel = 1;
+            return;
+        }
         travel = 0;
         // One frame at zero before it is told to go: setting both in the same
         // tick means no journey to animate.
@@ -426,6 +433,8 @@ Item {
     }
 
     function close() {
+        if (docked)
+            return;
         // And the other way round, for a card shut inside the frame it opened on.
         launch.stop();
 
@@ -639,6 +648,7 @@ Item {
 
     Rectangle {
         anchors.fill: parent
+        visible: !root.docked
         color: Qt.rgba(0.02, 0.027, 0.039, 0.88)
         opacity: root.travel
 
@@ -671,20 +681,20 @@ Item {
         // place from the first frame, and simply arrives: everything in it has
         // nowhere to come from, and a box that grows behind a moving bar is a
         // second thing to watch.
-        x: (root.width - wide) / 2
-        y: Math.min(Math.max(24, root.height * 0.12), Math.max(24, root.height - tall - 24))
-        width: wide
-        height: tall
+        x: root.docked ? 0 : (root.width - wide) / 2
+        y: root.docked ? 0 : Math.min(Math.max(24, root.height * 0.12), Math.max(24, root.height - tall - 24))
+        width: root.docked ? root.width : wide
+        height: root.docked ? root.height : tall
 
         // Behind the bar until the bar is nearly home. The delay is what makes
         // the eye follow one moving thing: the chrome shows up around a bar that
         // has already stopped.
-        opacity: Math.max(0, (root.travel - 0.55) / 0.45)
+        opacity: root.docked ? 1 : Math.max(0, (root.travel - 0.55) / 0.45)
 
         clip: true
         color: Theme.panel
-        radius: Theme.radius
-        border.width: 1
+        radius: root.docked ? 0 : Theme.radius
+        border.width: root.docked ? 0 : 1
         border.color: Theme.edge
 
         MouseArea { anchors.fill: parent }
@@ -704,6 +714,7 @@ Item {
             z: 500
             visible: root.editing !== null
             acceptedButtons: Qt.AllButtons
+            cursorShape: undefined // it hands the press back; the cursor is not its to say either
             onPressed: (mouse) => {
                 root.forceActiveFocus();
                 mouse.accepted = false;
@@ -711,11 +722,23 @@ Item {
         }
 
         // ── What it is ────────────────────────────────────────────────────
+        Text {
+            anchors.centerIn: parent
+            visible: root.docked && root.element === null
+            text: "click a clip"
+            color: Theme.inkFaint
+            font.family: Theme.ui
+            font.pixelSize: 12
+        }
+
         Item {
             id: head
             anchors { left: parent.left; right: parent.right; top: parent.top }
             anchors.margins: card.pad
-            height: 12
+            height: root.docked ? 30 : 12
+
+            Item { id: nameLine; width: 1; height: 12; y: 0 }
+            Item { id: lineLine; width: 1; height: 12; y: root.docked ? 18 : 0 }
 
             // Its name, at the left end of the same row as the line it was
             // written on. On the clip it was a label ON the picture, fighting
@@ -723,16 +746,17 @@ Item {
             // this card is about — and the row already carries the other two
             // facts about it.
             Text {
-                anchors { left: parent.left; verticalCenter: parent.verticalCenter }
+                anchors { left: parent.left; verticalCenter: nameLine.verticalCenter }
                 text: root.element !== null && root.element.n !== undefined ? root.element.n : ""
                 color: Theme.ink
                 font.family: Theme.ui
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
-                width: Math.min(implicitWidth, head.width / 3)
+                width: Math.min(implicitWidth, root.docked ? head.width - 56 : head.width / 3)
 
                 HoverHandler { cursorShape: Qt.PointingHandCursor }
+                HoverTint {}
 
                 TapHandler {
                     onTapped: if (root.element !== null) root.renameRequested(root.element)
@@ -747,6 +771,7 @@ Item {
             Row {
                 anchors.centerIn: parent
                 spacing: 8
+                visible: !root.docked
 
                 Rectangle {
                     anchors.verticalCenter: parent.verticalCenter
@@ -771,7 +796,10 @@ Item {
             // to say it, and clicking it puts the caret there.
             Text {
                 id: where
-                anchors { right: dur.left; rightMargin: 12; verticalCenter: parent.verticalCenter }
+                anchors.right: root.docked ? undefined : dur.left
+                anchors.rightMargin: 12
+                anchors.left: root.docked ? parent.left : undefined
+                anchors.verticalCenter: root.docked ? lineLine.verticalCenter : parent.verticalCenter
                 text: root.element !== null && root.element.line > 0
                       ? "line " + root.element.line : ""
                 color: jump.containsMouse ? Theme.live : Theme.inkFaint
@@ -789,7 +817,9 @@ Item {
 
             Text {
                 id: dur
-                anchors { right: closer.left; rightMargin: 10; verticalCenter: parent.verticalCenter }
+                anchors.right: root.docked ? parent.right : closer.left
+                anchors.rightMargin: root.docked ? 0 : 10
+                anchors.verticalCenter: nameLine.verticalCenter
                 text: root.span.toFixed(1) + "s"
                 color: Theme.inkDim
                 font.family: Theme.mono
@@ -798,6 +828,7 @@ Item {
 
             CloseButton {
                 id: closer
+                visible: !root.docked
                 anchors { right: parent.right; verticalCenter: parent.verticalCenter }
                 onTriggered: root.dismiss()
             }
@@ -809,7 +840,7 @@ Item {
         // would be one too many. The swap happens at rest, where nothing moves.
         Rectangle {
             id: bar
-            visible: root.travel >= 1
+            visible: !root.docked && root.travel >= 1
             anchors {
                 left: parent.left; right: parent.right
                 leftMargin: card.pad; rightMargin: card.pad
@@ -818,7 +849,7 @@ Item {
             // Le clip, et rien d'autre : le nom est monté dans l'en-tête et les
             // arguments sont descendus dans leur propre cadre, donc la barre
             // n'a plus à loger que ce qu'elle montre — la forme d'onde.
-            height: 76
+            height: root.docked ? 0 : 76
             radius: 6
             color: root.hue
             border.width: 1
@@ -917,7 +948,7 @@ Item {
                 top: bar.bottom; topMargin: 10
             }
             height: 26 + argRow.height + 10
-            visible: argRow.visible
+            visible: root.docked && argRow.visible
             radius: 6
             color: Theme.sunk
             border.width: 1
@@ -961,6 +992,7 @@ Item {
         // ── The element's own duration, laid out under it ─────────────────
         Item {
             id: scale
+            visible: !root.docked
             anchors {
                 left: bar.left; right: bar.right
                 // Sous la DERNIÈRE rangée visible, quelle qu'elle soit. Accrochée
@@ -1052,6 +1084,7 @@ Item {
         // ── What animates it, on the element's own axis ───────────────────
         Item {
             id: applied
+            visible: !root.docked
             // Jusqu'à la phrase du bas, pas jusqu'aux pastilles : celles-ci sont
             // remontées DANS la barre, donc au-dessus d'ici, et le bloc a eu une
             // hauteur négative — les effets ont disparu sans un mot.
@@ -1287,6 +1320,8 @@ Item {
                                   ? Theme.kind[row.modelData.kind] : root.hue)
                                : root.fxHue
                         clip: true
+
+                        HoverTint {}
 
                         // What the run said about THIS call, or "". The timeline
                         // says which element is at fault; this says which of its
@@ -1556,6 +1591,8 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: row.openCurve(easeChip)
                         }
+
+                        HoverTint { radius: 3 }
                     }
                 }
             }
@@ -1585,7 +1622,7 @@ Item {
                 leftMargin: 12; rightMargin: 12
             }
             height: 40
-            visible: root.arguments.length > 0
+            visible: root.docked && root.arguments.length > 0
             clip: true
             flickableDirection: Flickable.HorizontalFlick
             boundsBehavior: Flickable.StopAtBounds
@@ -1728,6 +1765,8 @@ Item {
                             argEntry.selectAll();
                         }
                     }
+
+                    HoverTint { visible: root.writable }
                 }
             }
             }
@@ -1777,7 +1816,7 @@ Item {
                 top: metaBlock.top; topMargin: 26
             }
             height: 40
-            visible: root.startShown.length > 0 || root.addable.length > 0
+            visible: root.docked && (root.startShown.length > 0 || root.addable.length > 0)
             clip: true
             flickableDirection: Flickable.HorizontalFlick
             boundsBehavior: Flickable.StopAtBounds
@@ -1934,6 +1973,8 @@ Item {
                                                 fieldEntry.selectAll();
                                             }
                                         }
+
+                                        HoverTint { visible: root.writable }
                                     }
                                 }
                             }
@@ -2087,7 +2128,7 @@ Item {
                      : (argBlock.visible ? argBlock.bottom : bar.bottom); topMargin: 10
             }
             height: 22
-            visible: root.argsNow.length > 0
+            visible: root.docked && root.argsNow.length > 0
             clip: true
             flickableDirection: Flickable.HorizontalFlick
             boundsBehavior: Flickable.StopAtBounds
@@ -2161,7 +2202,7 @@ Item {
                 top: rule.visible ? rule.bottom : liveRow.bottom; topMargin: 7
             }
             spacing: 6
-            visible: root.metaShown.length > 0
+            visible: root.docked && root.metaShown.length > 0
 
             Text {
                 height: 22
@@ -2201,6 +2242,7 @@ Item {
         // ── How to get out, and how to add one ────────────────────────────
         Item {
             id: hint
+            visible: !root.docked
             anchors {
                 left: bar.left; right: bar.right
                 bottom: parent.bottom; bottomMargin: card.pad
@@ -2599,33 +2641,33 @@ Item {
                         model: family.modelData.items
 
                         Rectangle {
-                            id: chip
+                            id: fxChip
                             required property var modelData
                             width: label.implicitWidth + 18
                             height: 22
                             radius: 4
-                            color: pick.containsMouse ? Qt.alpha(root.fxHue, 0.14) : Theme.sunk
+                            color: fxPick.containsMouse ? Qt.alpha(root.fxHue, 0.14) : Theme.sunk
                             border.width: 1
-                            border.color: pick.containsMouse ? root.fxHue : Theme.edge
+                            border.color: fxPick.containsMouse ? root.fxHue : Theme.edge
 
                             Text {
                                 id: label
                                 anchors.centerIn: parent
-                                text: chip.modelData.name
-                                color: pick.containsMouse ? Theme.ink : Theme.inkDim
+                                text: fxChip.modelData.name
+                                color: fxPick.containsMouse ? Theme.ink : Theme.inkDim
                                 font.family: Theme.mono
                                 font.pixelSize: 11
                             }
 
                             MouseArea {
-                                id: pick
+                                id: fxPick
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 // Chosen, not applied. What it is set to and
                                 // where it lands are still open questions, and
                                 // an effect written into the scene the instant
                                 // you name it answers both of them for you.
-                                onClicked: root.pick(chip.modelData)
+                                onClicked: root.pick(fxChip.modelData)
                             }
                         }
                     }
@@ -2767,6 +2809,8 @@ Item {
                     font.weight: Font.DemiBold
                 }
 
+                HoverTint { visible: root.missing.length === 0 }
+
                 MouseArea {
                     anchors.fill: parent
                     enabled: root.missing.length === 0
@@ -2847,7 +2891,7 @@ Item {
     }
 
     Keys.onPressed: (event) => {
-        if (event.key === Qt.Key_E && root.members.length === 0) {
+        if (event.key === Qt.Key_E && root.members.length === 0 && !root.docked) {
             // A group has no `apply` of its own: offering the library there
             // would write a line naming something the scene does not have.
             root.library = !root.library;

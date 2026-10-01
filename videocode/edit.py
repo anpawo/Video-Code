@@ -27,7 +27,7 @@ worse than one that does nothing.
 from __future__ import annotations
 
 import ast
-from typing import NamedTuple
+from typing import NamedTuple, Sequence
 
 
 class Edit(NamedTuple):
@@ -296,6 +296,7 @@ def argumentSpan(
     name: str,
     value: str,
     occurrence: int = 0,
+    index: int = -1,
 ) -> tuple[int, int, str] | str | None:
     """
     The same edit as `setArgument`, expressed as a range and what to put in it.
@@ -310,6 +311,12 @@ def argumentSpan(
     `None` when the call is not there, which is a refusal, not an empty edit. A
     sentence when the value written is one the gesture may not replace — see
     `_kept` — because that refusal is one the person has to hear.
+
+    `index` is the slot the signature gives `name`, when the caller knows it.
+    `Text("Merci")` writes `text` without its name, and appending `text="Hi"`
+    beside it gives the call the same argument twice: the scene stops running
+    and the edit looks like it did nothing. A value already standing in that
+    slot is rewritten where it stands.
     """
     node = _pick(source, line, call, occurrence)
     if node is None:
@@ -322,6 +329,13 @@ def argumentSpan(
         if source[start:end] == value:
             return None
         return _kept(source, keyword.value, value) or (start, end, value)
+
+    # Behind a `*rest` no slot can be counted, so nothing there is rewritten.
+    if 0 <= index < len(node.args) and not any(isinstance(a, ast.Starred) for a in node.args[: index + 1]):
+        start, end = _span(source, node.args[index])
+        if source[start:end] == value:
+            return None
+        return _kept(source, node.args[index], value) or (start, end, value)
 
     start, end = _span(source, node)
     closing = source.rfind(")", start, end)
@@ -492,6 +506,87 @@ def removeCallSpan(
     if receiverEnd == start:
         return None
     return receiverEnd, end, ""
+
+
+def waitLinkSpan(
+    source: str,
+    line: int,
+    calls: Sequence[str],
+    seconds: float,
+) -> tuple[int, int, str] | str | None:
+    """
+    The span that makes what a line starts happen `seconds` later — or sooner.
+
+    Dragging a clip along the timeline moves the element's OWN clock, and the
+    word for that is `.wait()`:
+
+        title = Text("Bonjour").fadeIn()            # dragged 0.5 s to the right
+        title = Text("Bonjour").wait(0.5).fadeIn()
+
+    `calls` are the links on that line that take time; the wait belongs in
+    front of the leftmost of them. Not straight after the constructor:
+    `Square().wait(1).opacity(0)` leaves the square fully opaque for the second
+    it was meant to be absent. Not at the end of the chain either: links of one
+    chain share a clock until a `flush()`, so a wait after `.fadeIn()` delays
+    nothing that is already written.
+
+    A `.wait(n)` already standing there is the same decision made earlier, so
+    its number changes instead of a second link appearing — and at zero the link
+    goes, because `.wait(0)` is a sentence that says nothing.
+
+    A sentence when the gesture may not do it: the wait is a name (see `_kept`),
+    or there is less wait than the drag asks back. `None` when the line holds no
+    such chain.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return None
+
+    chain: list[ast.Call] = []
+    for statement in ast.walk(tree):
+        if not isinstance(statement, (ast.Expr, ast.Assign, ast.AnnAssign)):
+            continue
+        if not (statement.lineno <= line <= (statement.end_lineno or statement.lineno)):
+            continue
+        node = statement.value
+        while isinstance(node, ast.Call):
+            chain.append(node)
+            node = node.func.value if isinstance(node.func, ast.Attribute) else None
+        break
+
+    # Walked from the outside in, read from the left: the last one found is the
+    # first one written.
+    target = next((link for link in reversed(chain) if isinstance(link.func, ast.Attribute) and link.func.attr in calls), None)
+    if target is None or not isinstance(target.func, ast.Attribute):
+        return None
+
+    held = target.func.value
+    if isinstance(held, ast.Call) and isinstance(held.func, ast.Attribute) and held.func.attr == "wait" and len(held.args) == 1:
+        written = held.args[0]
+        if reason := _kept(source, written, "0"):
+            return reason
+
+        old = float(ast.literal_eval(written))
+        new = round(old + seconds, 2)
+        # Dragged back to where it would stand with no wait at all, a clip
+        # overshoots by a frame or two — a fade is first SEEN one frame after
+        # it starts, and the edge snaps to what is seen. That is the gesture
+        # for "no wait", not a request for more than there is.
+        if -0.1 <= new < 0:
+            new = 0
+        if new < 0:
+            return f"nothing but {old:g}s of .wait() to give back on line {line} — what else holds it there is written above"
+        if new == 0:
+            return _span(source, held.func.value)[1], _span(source, held)[1], ""
+        start, end = _span(source, written)
+        return start, end, f"{new:g}"
+
+    if round(seconds, 2) <= 0:
+        return f"nothing to shorten: no .wait() in front of {target.func.attr}() — what holds it there is written above line {line}"
+
+    at = _span(source, held)[1]
+    return at, at, f".wait({round(seconds, 2):g})"
 
 
 def callLine(source: str, name: str, occurrence: int = 0) -> int:

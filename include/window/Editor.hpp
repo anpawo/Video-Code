@@ -129,6 +129,12 @@ namespace VC
 
         Q_INVOKABLE bool reducedMotion() const;
 
+        // bringToFront() — raise the application, once the window is on screen.
+        // See VC::bringToFront(): requestActivate() alone leaves the process
+        // behind whatever launched it, and macOS then keeps the cursor and the
+        // ⌘ keys for that other application.
+        Q_INVOKABLE void bringToFront() const;
+
         Q_INVOKABLE void saveLayout(const QString& json) const;
 
         // loadLayout() — the arrangement from last time, or an empty string,
@@ -327,9 +333,14 @@ namespace VC
         // text wholesale wiped the undo history, and ⌘Z after a gesture did
         // nothing. Through the document, a gesture lands in the same history as
         // typing and takes one ⌘Z to undo.
+        //
+        // `owner` is the class of the element the call is about: with it the
+        // name is looked up in the call's signature, and a value the line gives
+        // by position — `Text("Merci")`, `rotateBy(180)` — is rewritten where it
+        // stands instead of being given a second time by name.
         Q_INVOKABLE QVariantMap argumentSpan(
             const QString& source, int line, const QString& call, const QString& name,
-            const QString& value, int occurrence = 0
+            const QString& value, const QString& owner = QString(), int occurrence = 0
         );
 
         // positionalSpan() — the same as argumentSpan(), for an argument written
@@ -337,6 +348,13 @@ namespace VC
         Q_INVOKABLE QVariantMap positionalSpan(
             const QString& source, int line, const QString& call, int index, const QString& value,
             int occurrence = 0
+        );
+
+        // waitLinkSpan() — the span that makes what a line starts happen
+        // `seconds` later or sooner: the `.wait()` in front of the first of
+        // `calls`, changed, added or taken away. What a dragged clip writes.
+        Q_INVOKABLE QVariantMap waitLinkSpan(
+            const QString& source, int line, const QStringList& calls, double seconds
         );
 
         // removeCallSpan() — the span that takes a call OUT, as a range to
@@ -377,6 +395,14 @@ namespace VC
         // how the card offers the right fields per kind without knowing what a
         // video is.
         Q_INVOKABLE QVariantList inputParams(const QString& className);
+        // What a scene expression is worth, as text — `BLUE_C` → "(105, 165, 241, 255)".
+        // "" when it does not evaluate.
+        Q_INVOKABLE QString evalText(const QString& expression);
+        // The system's own file chooser, started in `near` (a file or a folder);
+        // the path picked, or "" when none was.
+        Q_INVOKABLE QString pickFile(const QString& near);
+        // The system colour picker, opened on `hex`; "#rrggbb" picked, or "".
+        Q_INVOKABLE QString pickColor(const QString& hex);
 
         // easingCurves() — the `Easing` presets that ARE curves, as the four
         // control points behind each, keyed by the spelling a scene uses. The

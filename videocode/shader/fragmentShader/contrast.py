@@ -3,23 +3,17 @@
 from __future__ import annotations
 
 from videocode.shader.ishader import FragmentShader
-from videocode.ty import int8
+from videocode.ty import number
 
 
 class contrast(FragmentShader):
     """
-    Contrast filter.
+    Contrast adjustment pivoting around mid-gray.
 
-    Adjusts contrast around the mid-gray value (128).
+    - `amount`: -255 (flattest) .. 255 (most contrasted), 0 = unchanged.
 
-    - amount ∈ [-255, 255]
-    - 0   : no effect
-    - > 0 : higher contrast
-    - < 0 : lower contrast
+    Example: `video.apply(contrast(60), duration=3)`
     """
 
-    def __init__(
-        self,
-        amount: int8,
-    ):
+    def __init__(self, amount: number = 0):
         self.amount = amount

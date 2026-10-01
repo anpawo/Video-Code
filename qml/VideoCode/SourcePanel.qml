@@ -25,6 +25,26 @@ Item {
     // text on screen is briefly not valid Python. That is why the analyser is
     // told to hold: see `diffPending`.
     property var diffRows: []
+
+    // The lines a hand on the timeline is about to change, lit before the
+    // release writes them: `{ line, from, to, text, note, refused }`, lines
+    // from 1. `from`–`to` is the part of the line that changes; `text`, when
+    // it is not empty, is the whole line as it will read, drawn over the one
+    // in the buffer — which is never touched; `note` is said after the line:
+    // a statement that will be written under it, or why the gesture is refused.
+    property var aimed: []
+    onAimedChanged: if (aimed.length > 0) reveal(aimed[0].line)
+
+    // Scrolled only as far as it takes: a pane that jumps at every hover is a
+    // pane you stop reading.
+    function reveal(line) {
+        const flick = view.contentItem as Flickable;
+        const top = editor.topPadding + (line - 1) * gutter.lineHeight;
+        if (top < flick.contentY)
+            flick.contentY = Math.max(0, top - gutter.lineHeight);
+        else if (top + gutter.lineHeight > flick.contentY + view.height)
+            flick.contentY = top + 2 * gutter.lineHeight - view.height;
+    }
     readonly property bool diffPending: diffRows.length > 0
     property string name: "untitled.py"
     // Whether the buffer differs from what is on disk. Shown by the pane's tab,
@@ -158,7 +178,7 @@ Item {
     // diff.
     function showAgentEdit(body) {
         editor.ready = false;
-        editor.text = body;
+        root.replaceWhole(body);
         editor.pristine = body;
         root.modified = false;
         editor.ready = true;
@@ -322,9 +342,7 @@ Item {
 
             const next = lines.join("\n");
             if (open) {
-                const caret = editor.cursorPosition;
-                editor.text = next;
-                editor.cursorPosition = Math.min(caret, next.length);
+                root.replaceWhole(next);
             } else if (!Shell.writeTextFile(where, next)) {
                 continue;
             }
@@ -340,7 +358,11 @@ Item {
         let offset = 0;
         for (let i = 0; i < line && i < lines.length; ++i)
             offset += lines[i].length + 1;
-        return offset + Math.min(character, line < lines.length ? lines[line].length : 0);
+        // A line past the last one is the end of the text, not one character
+        // beyond it: a file that does not end in a newline has no "start of the
+        // next line", and a squiggle or a caret sent there made Qt warn on every
+        // repaint (QTextCursor::setPosition: Position out of range).
+        return Math.min(offset + Math.min(character, line < lines.length ? lines[line].length : 0), editor.text.length);
     }
 
     // The other direction: where the mouse is, told in the protocol's terms.
@@ -363,6 +385,56 @@ Item {
         renaming.begin();
         return true;
     }
+
+    // The same rename, given its answer up front: no box, no caret moved, the
+    // Inspector's field already asked. Every occurrence, every file, as ever.
+    function renameTo(line, name, wanted, then) {
+        const rows = editor.text.split("\n");
+        if (line < 1 || line > rows.length || wanted.length === 0 || wanted === name)
+            return false;
+        const column = rows[line - 1].indexOf(name);
+        if (column < 0)
+            return false;
+        const at = { line: line - 1, character: column };
+        Lsp.rename(root.path, at.line, at.character, wanted, function (edit) {
+            const touched = root.applyEdit(edit);
+            notice.say(touched === 0
+                       ? "nothing to rename"
+                       : "renamed in " + touched + (touched === 1 ? " file" : " files"));
+            if (touched > 0 && root.path.length > 0)
+                Lsp.changeDocument(root.path, editor.text);
+            if (then !== undefined)
+                then(touched);
+        });
+        return true;
+    }
+
+    // The whole buffer, as ONE thing to undo: only the span that differs is
+    // replaced, through the document, so a rename, an agent's turn or a file
+    // put back are each a single ⌘Z — and the caret stays put. Assigning
+    // `editor.text` would wipe the undo stack instead.
+    function replaceWhole(next) {
+        const cur = editor.text;
+        if (cur === next)
+            return true;
+        if (cur.length === 0) {
+            editor.text = next;
+            return true;
+        }
+        const most = Math.min(cur.length, next.length);
+        let head = 0;
+        while (head < most && cur.charCodeAt(head) === next.charCodeAt(head))
+            ++head;
+        let tail = 0;
+        while (tail < most - head
+               && cur.charCodeAt(cur.length - 1 - tail) === next.charCodeAt(next.length - 1 - tail))
+            ++tail;
+        return root.replaceRange(head, cur.length - tail, next.substring(head, next.length - tail));
+    }
+
+    // The editor's own undo, for a ⌘Z pressed from another pane.
+    readonly property bool editorHasFocus: editor.activeFocus
+    function undo() { editor.undo(); }
 
     function locationAt(offset) {
         const before = editor.text.substring(0, offset).split("\n");
@@ -824,6 +896,11 @@ Item {
             offset += lines[i].length + 1;
 
         const indent = /^\s*/.exec(lines[line - 1])[0];
+        // A file that does not end in a newline has no "after" its last line:
+        // the offset lands one past the end, the edit was refused without a
+        // word, and the last clip of a scene could not be given an end.
+        if (offset > editor.text.length)
+            return root.replaceRange(editor.text.length, editor.text.length, "\n" + indent + statement + "\n");
         return root.replaceRange(offset, offset, indent + statement + "\n");
     }
 
@@ -915,14 +992,19 @@ Item {
 
     // Say something for a moment. The panel's one channel for news that has no
     // other home: a save refused, a rename that touched files you cannot see.
-    function say(what) { notice.say(what); }
+    function say(what) { notice.say(what); spoke(what, null); }
 
     // The same strip, with something to do about it. A refusal that only says
     // no leaves the person to go and make the edit by hand; when there IS an
     // edit the gesture may make, the sentence is the button. It stays a little
     // longer than a plain notice and goes on its own like one: an offer that
     // waits for an answer is a dialog, and this is a drag that missed.
-    function offer(what, act) { notice.offer(what, act); }
+    function offer(what, act) { notice.offer(what, act); spoke(what, act); }
+
+    // Whatever the strip was just given, for a panel that asked for the edit
+    // while this pane is behind another tab: the strip alone is then said to
+    // nobody. `act` is the offer's action, or null.
+    signal spoke(string what, var act)
 
     // Something happened that you cannot see, said briefly and then gone.
     // A rename rewrites files nobody is looking at; a permanent strip for that
@@ -971,6 +1053,8 @@ Item {
             font.family: Theme.mono
             font.pixelSize: root.codeSize - 2
         }
+
+        HoverTint { visible: notice.act !== null }
 
         MouseArea {
             anchors.fill: parent
@@ -1671,6 +1755,8 @@ Item {
                     horizontalAlignment: Text.AlignRight
                 }
 
+                HoverTint {}
+
                 MouseArea {
                     anchors.fill: parent
                     onClicked: {
@@ -1776,6 +1862,99 @@ Item {
                 }
             }
 
+            // What a hand on the timeline would change: the line, and on it
+            // the part that changes. Behind the glyphs, like the rows above.
+            Repeater {
+                model: root.aimed
+
+                Rectangle {
+                    id: lit
+                    required property var modelData
+                    readonly property rect head: editor.positionToRectangle(root.offsetOf(modelData.line - 1, modelData.from))
+                    readonly property rect tail: editor.positionToRectangle(root.offsetOf(modelData.line - 1, modelData.to))
+                    z: -1
+                    y: editor.topPadding + (modelData.line - 1) * gutter.lineHeight
+                    width: Math.max(view.width, editor.contentWidth)
+                    height: gutter.lineHeight
+                    color: Qt.alpha(modelData.refused ? Theme.bad : Theme.live, 0.13)
+
+                    Rectangle {
+                        visible: lit.modelData.to > lit.modelData.from && lit.modelData.text.length === 0
+                        x: lit.head.x
+                        width: lit.tail.x - lit.head.x
+                        height: parent.height
+                        radius: 2
+                        color: Qt.alpha(Theme.live, 0.30)
+                    }
+                }
+            }
+
+            // And over them, once the clip is held: the line as the release
+            // will write it, the value following the hand, and what is said
+            // beside a line — the statement going under it, or the refusal.
+            Repeater {
+                model: root.aimed
+
+                Item {
+                    id: ghost
+                    required property var modelData
+                    readonly property string reads: modelData.text
+                    readonly property rect end: editor.positionToRectangle(root.offsetOf(modelData.line - 1, 1e6))
+                    z: 1
+                    y: editor.topPadding + (modelData.line - 1) * gutter.lineHeight
+                    width: Math.max(view.width, editor.contentWidth)
+                    height: gutter.lineHeight
+
+                    Rectangle {
+                        visible: ghost.reads.length > 0
+                        anchors.fill: parent
+                        color: Theme.codeSkin.ground
+
+                        Rectangle {
+                            anchors.fill: parent
+                            color: Qt.alpha(Theme.live, 0.13)
+                        }
+
+                        Row {
+                            x: editor.leftPadding
+                            height: parent.height
+
+                            Text {
+                                height: parent.height
+                                verticalAlignment: Text.AlignVCenter
+                                text: ghost.reads.slice(0, ghost.modelData.from)
+                                color: Theme.codeSkin.ink
+                                font: editor.font
+                            }
+                            Text {
+                                height: parent.height
+                                verticalAlignment: Text.AlignVCenter
+                                text: ghost.reads.slice(ghost.modelData.from, ghost.modelData.to)
+                                color: Theme.live
+                                font: editor.font
+                            }
+                            Text {
+                                height: parent.height
+                                verticalAlignment: Text.AlignVCenter
+                                text: ghost.reads.slice(ghost.modelData.to)
+                                color: Theme.codeSkin.ink
+                                font: editor.font
+                            }
+                        }
+                    }
+
+                    Text {
+                        visible: ghost.modelData.note.length > 0
+                        x: ghost.end.x + 18
+                        height: parent.height
+                        verticalAlignment: Text.AlignVCenter
+                        text: (ghost.modelData.refused ? "" : "↳ ") + ghost.modelData.note
+                        color: ghost.modelData.refused ? Theme.bad : Theme.live
+                        font: editor.font
+                    }
+                }
+            }
+
             // The band under the caret, drawn behind the text (z < 0) so it
             // never touches the glyphs.
             Rectangle {
@@ -1786,6 +1965,21 @@ Item {
                 height: editor.cursorRectangle.height
                 color: Theme.codeSkin.band
                 visible: editor.activeFocus
+            }
+
+            // The line under the pointer, faintly, whether or not the pane has
+            // the keyboard: the window answers the hand everywhere, and a line
+            // is what a click here will land on. Not past the last line — the
+            // empty space below the text belongs to no line.
+            Rectangle {
+                readonly property rect at: editor.positionToRectangle(editor.positionAt(probe.mouseX, probe.mouseY))
+                z: -1
+                x: 0
+                y: at.y
+                width: Math.max(view.width, editor.contentWidth)
+                height: at.height
+                color: Theme.hover
+                visible: probe.containsMouse && probe.mouseY <= editor.topPadding + editor.contentHeight
             }
 
             // Only a human's edit dirties the buffer: assigning the initial text
@@ -1921,6 +2115,10 @@ Item {
             MouseArea {
                 id: probe
                 anchors.fill: parent
+                // Unset, not the arrow: this area only watches — a MouseArea
+                // claims the arrow from birth, and over the text that hid the
+                // text caret. What is under the pointer says what it is.
+                cursorShape: undefined
                 // Clicks are taken only to be handed straight back: ⌘-click
                 // follows a definition, and a press with no modifier is
                 // refused, which passes it up to the text where it belongs.
@@ -2068,6 +2266,7 @@ Item {
                         anchors.fill: parent
                         acceptedButtons: Qt.NoButton
                         hoverEnabled: true
+                        cursorShape: undefined // the text's caret, not an arrow over a word
                         ToolTip.visible: containsMouse
                         ToolTip.delay: 350
                         ToolTip.text: squiggle.modelData.message

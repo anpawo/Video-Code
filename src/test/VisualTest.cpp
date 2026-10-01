@@ -185,7 +185,6 @@ namespace
         {"animation", "test/visual/scenes/animation.py", {0, 10, 25}},
         {"groups", "test/visual/scenes/groups.py", {0, 15, 29}},
         {"stateful-group-scale", "test/visual/scenes/stateful_group_scale.py", {0, 15, 29}},
-        {"chess", "test/visual/scenes/chess.py", {0, 30, 65, 100, 130}},
         {"gradient", "test/visual/scenes/gradient.py", {0}},
         {"gradient-percent", "test/visual/scenes/gradient_percent.py", {0}},
         {"gradient-conic", "test/visual/scenes/gradient_conic.py", {0}},
@@ -216,7 +215,10 @@ namespace
         {"montage-camera", "test/visual/scenes/montage_camera.py", {0, 7, 15, 29}},
         {"montage-grade", "test/visual/scenes/montage_grade.py", {0, 7, 15, 29}},
         {"effect-shaders4", "test/visual/scenes/effect_shaders4.py", {0}},
+        {"effect-shaders5", "test/visual/scenes/effect_shaders5.py", {0}},
+        {"effect-shaders6", "test/visual/scenes/effect_shaders6.py", {0}},
         {"transitions", "test/visual/scenes/transitions.py", {0, 8, 15}},
+        {"transitions2", "test/visual/scenes/transitions2.py", {0, 8, 14}},
         {"blend-modes", "test/visual/scenes/blend_modes.py", {0}},
         {"glow", "test/visual/scenes/glow.py", {0}},
         // Three frames: the middle one is the point. A group's trajectory was

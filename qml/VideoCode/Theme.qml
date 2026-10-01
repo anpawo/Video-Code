@@ -19,6 +19,11 @@ QtObject {
     readonly property color edge:     "#2a3140"
     readonly property color edgeSoft: "#212734"
 
+    // What the pointer is on. A veil rather than a surface, so the same token
+    // lifts a transparent row, a rail and a panel alike — `rail` as a hover
+    // vanished on everything that was already rail.
+    readonly property color hover:    Qt.rgba(1, 1, 1, 0.05)
+
     // ── Text ──
     readonly property color ink:      "#e3e7ef"
     readonly property color inkDim:   "#8a93a6"
@@ -135,10 +140,10 @@ QtObject {
     // never learn that a value was overridden.
     readonly property var shipped: ({
         // One hue per media kind.
-        "polygon": "#5aa06a",
-        "image":   "#a06fc0",
-        "video":   "#4a86c5",
-        "sound":   "#46a3a0",
+        "polygon": "#7c5f94",
+        "image":   "#6f6a9a",
+        "video":   "#3f6f8c",
+        "sound":   "#3f8a6c",
         // Subtitles are derived text, so they borrow the neutral rather than
         // spending a fifth hue on themselves.
         "subs":    "#5d6577",

@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo/videocode.svg" width="120" alt="Videocode"></p>
+
 # Video-Code
 The initial goal of this project is to create videos from code.<br>
 I've always wanted to create millimetric videos and I will be able to, soon enough.
@@ -159,10 +161,10 @@ para.curY = 0
 para.newline().newline()
 
 timestamp("text: image")
-para.waitFor(g).add(textImg1 := Code('img = Image("wb.png").fadeIn().scaleTo(2)')).newline()
+para.waitFor(g).add(textImg1 := Code('img = Image("tinder-mail.png").fadeIn().scaleTo(2)')).newline()
 
 timestamp("show: image")
-img = Image("wb.png").position(sv.b.x, sv.b.y).opacity(0).waitFor(para).wait(PAUSE_DELAY).fadeIn().scaleTo(2).flush()
+img = Image("tinder-mail.png").position(sv.b.x, sv.b.y).opacity(0).waitFor(para).wait(PAUSE_DELAY).fadeIn().scaleTo(2).flush()
 
 timestamp("text: image lightsweep")
 para.waitFor(img).wait(PAUSE_DELAY).add(textImg2 := Code("img.apply(lightSweep(width=10), duration=2)")).newline()
@@ -269,7 +271,7 @@ It downloads the [latest release](https://github.com/anpawo/Video-Code/releases/
 for this machine — macOS on Apple Silicon, or Ubuntu 24.04 on x86_64 — into
 `./video-code`, then renders one scene to prove it works. The only thing it asks
 of the machine is `ffmpeg`: `brew install ffmpeg`, or on Ubuntu
-`sudo apt install ffmpeg mesa-vulkan-drivers libvulkan1 libopengl0 libegl1 libglx0 libxkbcommon0`.
+`sudo apt install ffmpeg mesa-vulkan-drivers libvulkan1 libopengl0 libegl1 libglx0 libxkbcommon0 libopencv-imgcodecs406t64 libopencv-videoio406t64`.
 
 To build from source instead, checkout the [documentation](docs/user/user.md#installation).
 
@@ -298,128 +300,22 @@ make arm
 See [docs/WORKFLOWS.md](docs/WORKFLOWS.md) for what each gate can and cannot
 decide, and how to re-baseline performance deliberately.
 
-## Patch Notes
+## Everything else
 
+The full list of what a scene can use — every input, transformation, shader and
+effect, with the file it lives in and a scene that exercises it — is
+[docs/FEATURES.md](docs/FEATURES.md). What changed, and when, is `git log`.
 
-<details open>
-    <summary><code>Inputs</code></summary>
-<br>
+## License
 
-- `image`
-- `video`
-- `webImage`
+[PolyForm Noncommercial 1.0.0](LICENSE), with three permissions added on top
+of it: the videos you make are yours to publish and monetise anywhere as long
+as they credit
 
-<br>
+> made with https://mariusrousset.com/videocode
 
-- `circle`
-- `rectangle`
-- `square`
-- `horizontalLine`
-- `verticalLine`
-
-<br>
-
-- `text`
-
-<br>
-
-- `group`
-
-</details>
-
-<br>
-
-<details open>
-    <summary><code>Transformations</code></summary>
-<br>
-
-
-- `position`
-- `align`
-- `rotate`
-- `scale`
-- `args`
-- `hide`
-- `show`
-
-</details>
-
-<br>
-
-<details open>
-    <summary><code>Shaders</code></summary>
-<br>
-
-- `grayscale`
-- `opacity`
-- `blur`
-- `gamma`
-- `grain`
-- `brightness`
-- `contrast`
-- `sharpen`
-
-</details>
-
-<br>
-
-<details open>
-    <summary><code>Effect Templates</code></summary>
-<br>
-
-- `moveTo`
-- `moveBy`
-
-<br>
-
-- `scaleTo`
-- `scaleBy`
-
-<br>
-
-- `fadeIn`
-- `fadeOut`
-
-</details>
-
-<br>
-
-<details>
-    <summary><code>Patchs</code></summary>
-<br>
-
-- `feature`: start and duration of transformation (08/04/25)
-- `rework`: inputs are kept on the video by default (08/04/25)
-- `feature`: wait -> freeze the screen for the duration (08/04/25)
-- `transformation`: setPosition (08/04/25)
-- `rework`: move -> moveTo (08/04/25)
-- `input`: group (08/04/25)
-- `input`: rectangle (24/03/25)
-- `input`: circle (24/03/25)
-- `transformation`: scale (20/03/25)
-- `transformation`: zoom (19/03/25)
-- `rework`: effects' duration (19/03/25)
-- `transformation`: grayscale (19/03/25)
-- `feature`: keep last frame of input on screen (06/03/25)
-- `rework`: one stack (06/03/25)
-- `transformation`: repeat (03/03/25)
-- `input`: text (03/03/25)
-- `rework`: position of the frames (02/03/25)
-- `transformation`: move (02/03/25)
-- `feature`: setters (update in real time the proportions of a shape) (20/09/25)
-- `fix`: different framerate between the window and the generated video
-- `feature`: image from url
-- `rework`: moveTo
-- `rework`: scale
-- `feature`: persistent transformations
-- `input`: line (01/01/2026)
-- `transformation`: align, args, hide, position, rotate, scale, show => basic transformation (01/01/2026)
-- `template`: moveTo, moveBy, scaleTo, scaleBy, fadeIn, fadeOut => effect overtime that are smooth (01/01/2026)
-- `feature`: flush => prevents effects to be applied at the same time (01/01/2026)
-- `feature`: frames are not kept in memory anymore, they are generated on the fly. (01/01/2026)
-- `feature`: any output resolution — `-w`/`--width` + `--height` (default 1920x1080); the world box, the preview window and the encoder all follow (01/08/2026)
-- `feature`: math-shader anchoring — `Space.SHAPE|FRAME|ANCHOR|GROUP`, so a pattern stops swimming when its host moves or scales (01/08/2026)
-- `feature`: `SplitView(split=Split.ROWS)` — panels stack instead of sitting side by side, and `AUTO` picks by frame shape so one scene cuts to 16:9 and 9:16 (01/08/2026)
-- `feature`: one scene, every format — `--generate film.mp4 --for youtube,tiktok,square` writes one file per shape, each one re-running the scene so it lays itself out for that frame instead of being cropped (05/09/2026)
-
-</details>
+your scenes, templates and agent-written code stay entirely yours, and using
+the tool for business -- client work, inside a product or a service -- is free
+while your yearly revenue is under 100 000 EUR. Above that, a commercial
+license costs **1 000 EUR per organisation per year**; write to
+<rousset.marius13@gmail.com>.

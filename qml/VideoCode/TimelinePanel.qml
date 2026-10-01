@@ -39,7 +39,8 @@ Item {
 
     // The moment nearest `seconds` worth snapping to, or the tenth it rounds to.
     // Eight pixels of forgiveness, so the magnet is the same size on screen at
-    // every zoom — and none at all when ⌘ is held.
+    // every zoom — and none at all unless ⇧ is held: an edge follows the hand,
+    // and lining it up with something is asked for.
     function snapped(seconds, exact) {
         if (exact)
             return Math.round(seconds * 100) / 100;
@@ -59,9 +60,81 @@ Item {
 
     signal elementPicked(int index)
 
+    // hh:mm:ss:ff, the way an NLE writes a moment; `full` keeps the hours.
+    function timecode(seconds, full) {
+        const fps = root.scene.fps !== undefined ? root.scene.fps : 30;
+        const whole = Math.floor(seconds);
+        const f = Math.floor((seconds - whole) * fps + 1e-6);
+        const two = (n) => String(n).padStart(2, "0");
+        const core = two(Math.floor(whole / 60) % 60) + ":" + two(whole % 60) + ":" + two(f);
+        return full ? two(Math.floor(whole / 3600)) + ":" + core : core;
+    }
+
+    // The lanes' order, as element indices. The scene's own order until the
+    // grip in the head column moves a lane; forgotten when the scene changes
+    // shape, since the indices would then name other elements.
+    property var order: []
+    readonly property var lanesOrder: root.order.length === root.scene.elements.length
+                                      ? root.order
+                                      : Array.from({ length: root.scene.elements.length }, (_, i) => i)
+
+    // 100 %: the scene's whole span in the pane.
+    function zoomToFit() {
+        if (root.fitZoom > 0)
+            zoom.value = Math.max(zoom.from, Math.min(zoom.to, root.fitZoom));
+    }
+
+    // A lane on its way: the row being dragged, how far it has gone, and the
+    // row it would land on. The whole lane — head and clips — follows the
+    // pointer, and the rows it passes step aside, so what you see while
+    // dragging is what you get on release.
+    property int dragLane: -1
+    property real dragDy: 0
+    readonly property int dragTarget: dragLane < 0 ? -1
+        : Math.max(0, Math.min(root.lanesOrder.length - 1, dragLane + Math.round(dragDy / root.laneHeight)))
+
+    function laneShift(row) {
+        if (root.dragLane < 0)
+            return 0;
+        if (row === root.dragLane)
+            return root.dragDy;
+        if (root.dragLane < row && row <= root.dragTarget)
+            return -root.laneHeight;
+        if (root.dragTarget <= row && row < root.dragLane)
+            return root.laneHeight;
+        return 0;
+    }
+
+    function moveLane(from, to) {
+        const next = root.lanesOrder.slice();
+        to = Math.max(0, Math.min(next.length - 1, to));
+        if (from === to)
+            return;
+        const [one] = next.splice(from, 1);
+        next.splice(to, 0, one);
+        root.order = next;
+    }
+
+    // V1, V2… for what is seen, A1, A2… for what is only heard, top down.
+    function trackName(row) {
+        const all = root.scene.elements;
+        let seen = 0, heard = 0;
+        for (let i = 0; i <= row; ++i)
+            all[root.lanesOrder[i]].kind === "sound" ? ++heard : ++seen;
+        return all[root.lanesOrder[row]].kind === "sound" ? "A" + heard : "V" + seen;
+    }
+
+    // The ruler writes a timecode every `rulerStep` seconds: the first step
+    // that keeps two stamps at least 120 px apart.
+    readonly property int rulerStep: {
+        const fit = [1, 2, 5, 10, 15, 30, 60].find(step => step * root.pxPerSecond >= 120);
+        return fit === undefined ? 60 : fit;
+    }
+
     // A clip was opened, and this is where it sits on screen. The rect is the
     // whole point: whatever opens it can start there.
     signal elementOpened(var element, rect where)
+    signal elementInspected(var element)
     signal renameRequested(var element)
     signal scrubbed(real seconds)
 
@@ -93,14 +166,22 @@ Item {
         const row = Math.floor(at.y / root.laneHeight);
         if (row < 0 || row >= root.scene.elements.length)
             return null;
-        return root.scene.elements[row];
+        return root.scene.elements[root.lanesOrder[row]];
     }
 
     // Which lane the pointer is over while something is carried, by index, so
     // it can be lit. -1 for none.
     property int hoverLane: -1
 
-    // Where a carried thing would land, in seconds, or -1 for nothing carried.
+    // The row the pointer is simply resting on — head and track light
+    // together, so the eye follows one line across the panel instead of
+    // matching a clip to its name by counting rows. Two sources, one answer:
+    // leaving the track for the head must not clear what the head just said.
+    property int headRow: -1
+    readonly property int pointerRow: rowHover.row >= 0 && rowHover.row < root.lanesOrder.length ? rowHover.row : root.headRow
+
+    // Where a carried thing would land — or where the edge being dragged
+    // stands — in seconds, or -1 for nothing carried.
     // Drawn, because a drop you cannot aim is a drop you undo.
     property real dropAt: -1
 
@@ -108,11 +189,79 @@ Item {
     // business, not the timeline's: a video ends by loading fewer frames, a
     // square ends by being hidden, and both are one line of Python — see
     // Main.trimElement.
-    signal trimmed(var element, string edge, real seconds)
+    //
+    // `push` is ⌘ held at the release. Without it the clip moves ALONE: the
+    // scene is sequential, so a clip that ends later pushes every gap after
+    // it, and the first of those gaps gives the time back — see Main.gesture.
+    signal trimmed(var element, string edge, real seconds, bool push)
+
+    // A clip's body was dragged along its lane, by this many seconds. The
+    // element's own clock is what moves — see Main.moveElement.
+    signal shifted(var element, real seconds, bool push)
+
+    // How far a clip can go later on its own, in seconds: what the gap after
+    // it holds. Asked of the shell, which is the one that reads the lines.
+    property var roomFor: (element, edge) => Infinity
+
+    // The clip in the hand, by element index, and how far each of its edges has
+    // been pulled, in seconds. Held in seconds while the drag lasts, written
+    // once on release — the buffer is not rewritten sixty times a second. Here
+    // rather than on the bar, so that Escape can drop what the pointer holds.
+    property int heldLane: -1
+    property real heldIn: 0
+    property real heldOut: 0
+
+    // What a hand on a clip is about to write, for the code pane that shows
+    // it before the release does — see Main.aimCode. `at` is the moment the
+    // edge stands at, `value` what the release would hand `trimmed`/`shifted`,
+    // `push` whether ⌘ is down. Null when nothing is aimed at.
+    property var aim: null
+
+    function letGo() {
+        root.heldLane = -1;
+        root.heldIn = 0;
+        root.heldOut = 0;
+        root.dropAt = -1;
+        root.aim = null;
+    }
+
+    Keys.onEscapePressed: (event) => {
+        if (root.heldLane >= 0)
+            root.letGo();
+        else
+            event.accepted = false;
+    }
+
+    // How far an edge that stood at `from` has been pulled, in seconds.
+    //
+    // The EDGE is what snaps, not the distance it travelled: lining a clip up
+    // with the one above it is the whole point, and a snapped distance only
+    // ever lines up with where the drag started.
+    //
+    // Off a magnet, a distance that ends up WRITTEN is rounded itself. A move
+    // writes `.wait(0.5)`, and everything that fades in starts on frame 1, not
+    // frame 0: rounding the edge there wrote `.wait(0.47)`. On a magnet it is
+    // rounded UP to the hundredth, because `.wait()` counts whole frames and
+    // drops the rest: 1.0333 s written as 1.03 is thirty frames, not thirty-one,
+    // and the clip stops one frame short of the edge it was lined up with.
+    function travel(from, px, free, written) {
+        const raw = px / root.pxPerSecond;
+        const to = root.snapped(from + raw, free);
+        if (!written)
+            return to - from;
+        if (!free && to === Math.round((from + raw) * 10) / 10)
+            return Math.round(raw * 10) / 10;
+        return Math.ceil((to - from) * 100 - 1e-6) / 100;
+    }
 
     // A gap you can change. The band knows the line it was written on, so
     // clicking it is an edit to that line and nothing else — see Main.writeWait.
     signal waitChanged(int line, string seconds)
+
+    // A gap's label was pulled: the gap now ENDS at that moment. Where a gap
+    // starts is not its own to say — it is wherever the work before it ended —
+    // so moving a start is this same gesture on the gap before it.
+    signal waitDragged(int line, real seconds)
 
     // Which gap is being typed into, by line. Nothing else can be open at once:
     // two fields over a timeline is two answers to "what am I editing".
@@ -179,7 +328,7 @@ Item {
     // than the waveform the extra height was carrying: it was never read for its
     // shape — a deterministic squiggle, not the file's own — only for the fact
     // that it was there.
-    readonly property int laneHeight: 24
+    readonly property int laneHeight: 32
     // Blank strip kept to the left of time zero. Wide enough for the playhead's
     // handle to sit at 0 without touching the panel's edge — and, since every
     // ruler stamp is centred on the line it names, wide enough for the FIRST one
@@ -200,39 +349,28 @@ Item {
     // below, which is what decides where the pane opens.
     readonly property real pad: Math.max(gutter, width * 0.5)
 
-    // How many rows up a wait's label has to sit so it does not land on the one
-    // before it. Two short gaps in a row are two chips of the same width a few
-    // pixels apart: side by side they overlap and neither reads. Stacked, both
-    // do. Counted from the neighbours rather than fixed per index, so a run of
-    // three climbs and a lone gap stays on the floor.
-    // The tallest stack any of them ends up in, which is how much empty ground
-    // the content needs under its last lane: the labels are pinned to the foot
-    // of the VIEWPORT, so at the end of the scroll they land wherever the
-    // content stops. A constant would be wrong the moment two gaps met.
-    readonly property int stampRows: {
-        let most = 0;
-        const waits = root.scene.waits;
-        if (waits !== undefined)
-            for (let i = 0; i < waits.length; ++i)
-                most = Math.max(most, root.stampRow(i));
-        return most;
+    // Which row each wait's label sits on, by index. A label starts where its
+    // gap starts and is as wide as its writing, so two short gaps in a row
+    // would print on top of each other: each one takes the lowest row whose
+    // last label has already ended. Packed, not counted from the neighbours —
+    // counting put a run of four on the same second row, one over the next.
+    readonly property var stampRowOf: {
+        const waits = root.scene.waits !== undefined ? root.scene.waits : [];
+        const ends = [];
+        return waits.map((gap) => {
+            const x = gap.at * root.pxPerSecond;
+            let row = 0;
+            while (row < ends.length && ends[row] > x)
+                ++row;
+            // 74: the widest "wait N.Ns" chip, plus a hair.
+            ends[row] = x + 74;
+            return row;
+        });
     }
-
-    function stampRow(index) {
-        const waits = root.scene.waits;
-        if (waits === undefined || index <= 0)
-            return 0;
-        const middle = (i) => (waits[i].at + waits[i].d / 2) * root.pxPerSecond;
-        let row = 0;
-        for (let k = index - 1; k >= 0 && row < 3; --k) {
-            // 74: the widest "wait N.Ns" chip, plus a hair. Narrower than that
-            // apart and the two would touch.
-            if (middle(index) - middle(k) > 74)
-                break;
-            ++row;
-        }
-        return row;
-    }
+    // The tallest stack, which is how much empty ground the content needs
+    // under its last lane: the labels are pinned to the foot of the VIEWPORT,
+    // so at the end of the scroll they land wherever the content stops.
+    readonly property int stampRows: Math.max(0, ...root.stampRowOf)
 
     // Opening on the runway would be opening on nothing. Once — and only once,
     // or the pane would snap back to the start every time it is resized — the
@@ -299,10 +437,12 @@ Item {
 
             Text {
                 anchors.verticalCenter: parent.verticalCenter
-                text: Math.round(root.pxPerSecond) + " px/s"
-                color: Theme.inkFaint
-                font.family: Theme.mono
-                font.pixelSize: 9
+                text: "−"
+                color: lessHover.hovered ? Theme.ink : Theme.inkDim
+                font.family: Theme.ui
+                font.pixelSize: 13
+                HoverHandler { id: lessHover }
+                TapHandler { onTapped: zoom.value = Math.max(zoom.from, zoom.value / 1.25) }
             }
 
             Slider {
@@ -353,6 +493,26 @@ Item {
                     border.width: 1
                 }
             }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "+"
+                color: moreHover.hovered ? Theme.ink : Theme.inkDim
+                font.family: Theme.ui
+                font.pixelSize: 13
+                HoverHandler { id: moreHover }
+                TapHandler { onTapped: zoom.value = Math.min(zoom.to, zoom.value * 1.25) }
+            }
+
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                width: 36
+                horizontalAlignment: Text.AlignRight
+                text: root.fitZoom > 0 ? Math.round(root.pxPerSecond / root.fitZoom * 100) + "%" : ""
+                color: Theme.inkFaint
+                font.family: Theme.mono
+                font.pixelSize: 9
+            }
         }
     }
 
@@ -386,11 +546,146 @@ Item {
         onPressed: root.forceActiveFocus()
     }
 
+    // The track heads, the way Premiere Pro keeps them: a fixed column the
+    // clips scroll under, the playhead's timecode in its corner.
+    Rectangle {
+        id: heads
+        visible: flick.visible
+        anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+        width: 86
+        z: 7
+        color: Theme.rail
+        clip: true
+
+        Text {
+            x: 10
+            height: ruler.height
+            verticalAlignment: Text.AlignVCenter
+            text: root.timecode(root.playhead, true)
+            color: Theme.live
+            font.family: Theme.mono
+            font.pixelSize: 11
+        }
+
+        Repeater {
+            model: root.lanesOrder
+
+            Item {
+                id: head
+                required property int index
+                required property int modelData
+                readonly property var element: root.scene.elements[head.modelData]
+                y: ruler.height - flick.contentY + index * root.laneHeight
+                width: heads.width
+                height: root.laneHeight
+                z: root.dragLane === head.index ? 2 : 0
+                transform: Translate {
+                    y: root.laneShift(head.index)
+                    Behavior on y {
+                        enabled: root.dragLane >= 0 && root.dragLane !== head.index
+                        NumberAnimation { duration: Theme.motion(90) }
+                    }
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    visible: gripArea.pressed
+                    color: Theme.rail
+                    border.width: 1
+                    border.color: Theme.edge
+                }
+
+                Rectangle {
+                    anchors.fill: parent
+                    color: root.pointerRow === head.index ? Theme.hover : "transparent"
+                }
+                HoverHandler {
+                    onHoveredChanged: {
+                        if (hovered)
+                            root.headRow = head.index;
+                        else if (root.headRow === head.index)
+                            root.headRow = -1;
+                    }
+                }
+
+                // The lane's colour, as a strip along the edge.
+                Rectangle {
+                    width: 3
+                    height: parent.height
+                    color: Theme.kind[head.element.kind]
+                }
+
+                // The grip: three lines, dragged up or down to move the lane.
+                Column {
+                    x: 11
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 2
+                    Repeater {
+                        model: 3
+                        Rectangle { width: 10; height: 1.5; radius: 1; color: Theme.inkFaint }
+                    }
+                }
+
+                MouseArea {
+                    id: gripArea
+                    width: 30
+                    height: parent.height
+                    cursorShape: Qt.SizeVerCursor
+                    HoverTint {}
+                    // Measured in the panel's frame, not the grip's: the grip
+                    // itself moves with the pointer, so its own y never changes.
+                    property real startY: 0
+                    onPressed: (mouse) => {
+                        startY = mapToItem(root, mouse.x, mouse.y).y;
+                        root.dragLane = head.index;
+                        root.dragDy = 0;
+                        root.forceActiveFocus();
+                    }
+                    onPositionChanged: (mouse) => {
+                        if (pressed)
+                            root.dragDy = mapToItem(root, mouse.x, mouse.y).y - startY;
+                    }
+                    onReleased: {
+                        const to = root.dragTarget;
+                        const from = root.dragLane;
+                        root.dragLane = -1;
+                        root.dragDy = 0;
+                        if (to !== from)
+                            root.moveLane(from, to);
+                    }
+                }
+
+                Text {
+                    x: 30
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.trackName(head.index)
+                    color: root.selectedIndex === head.modelData ? Theme.ink : Theme.inkDim
+                    font.family: Theme.ui
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                }
+
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    width: parent.width
+                    height: 1
+                    color: Theme.edgeSoft
+                }
+            }
+        }
+
+        Rectangle {
+            anchors { right: parent.right; top: parent.top; bottom: parent.bottom }
+            width: 1
+            color: Theme.edge
+        }
+    }
+
     Flickable {
         id: flick
         visible: root.scene.elements.length > 0
         anchors {
-            left: parent.left; right: parent.right
+            left: heads.right; right: parent.right
             top: parent.top; bottom: parent.bottom
         }
         // Time zero needs room to be a time and not a border — flush against the
@@ -416,6 +711,14 @@ Item {
         ScrollBar.horizontal: ScrollBar {}
         ScrollBar.vertical: ScrollBar {}
 
+        // The row under the pointer, from anywhere in the panel's width — a
+        // handler per lane only answered where the scene had frames.
+        HoverHandler {
+            id: rowHover
+            readonly property int row: hovered
+                ? Math.floor(lanes.mapFromItem(flick, point.position.x, point.position.y).y / root.laneHeight) : -1
+        }
+
         Column {
             id: lanes
             x: root.pad
@@ -423,35 +726,46 @@ Item {
             spacing: 0
 
             Repeater {
-                model: root.scene.elements
+                model: root.lanesOrder.map(i => root.scene.elements[i])
 
                 Item {
                     id: lane
                     required property int index
                     required property var modelData
+                    readonly property int elementIndex: root.lanesOrder[lane.index]
                     width: root.contentWidth
+                    z: root.dragLane === lane.index ? 2 : 0
+                    transform: Translate {
+                        y: root.laneShift(lane.index)
+                        Behavior on y {
+                            enabled: root.dragLane >= 0 && root.dragLane !== lane.index
+                            NumberAnimation { duration: Theme.motion(90) }
+                        }
+                    }
 
                     height: root.laneHeight
 
-                    // A second's worth of grid, so a clip's edge can be read
-                    // against the ruler without dragging the eye up to it.
-                    Repeater {
-                        model: Math.floor(root.span) + 1
+                    // Across the whole visible width, not the scene's: the
+                    // row goes on after the last clip, and so does the line.
+                    Rectangle {
+                        x: -lanes.x
+                        width: Math.max(flick.contentWidth, flick.width)
+                        height: parent.height
+                        color: root.pointerRow === lane.index ? Theme.hover : "transparent"
+                    }
 
-                        Rectangle {
-                            required property int index
-                            x: index * root.pxPerSecond
-                            width: 1
-                            height: lane.height
-                            color: Theme.edgeSoft
-                        }
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        width: parent.width
+                        height: 1
+                        color: Theme.edgeSoft
                     }
 
                     // Lit while something that needs an element is carried over
                     // it: the drop has a target, and the target says so.
                     Rectangle {
                         anchors.fill: parent
-                        visible: root.hoverLane === lane.index
+                        visible: root.hoverLane === lane.elementIndex
                         color: Qt.alpha(Theme.live, 0.10)
                         border.width: 1
                         border.color: Qt.alpha(Theme.live, 0.55)
@@ -460,30 +774,47 @@ Item {
                     Rectangle {
                         id: bar
                         x: (lane.modelData.l + bar.heldIn) * root.pxPerSecond
-                        y: 3
+                        y: 2
                         width: Math.max(
                             (lane.modelData.d - bar.heldIn + bar.heldOut) * root.pxPerSecond - 2, 8)
                         // The LANE grows when it opens; the bar does not. It is
                         // still one clip, and a clip that swells to hold its own
                         // contents stops reading as a clip.
-                        height: root.laneHeight - 6
-                        radius: 4
+                        height: root.laneHeight - 4
+                        radius: 6
 
                         readonly property bool away: root.openedName.length > 0
                                                      && root.openedName === lane.modelData.n
 
-                        readonly property bool lit: root.litIndex === lane.index
+                        readonly property bool lit: root.litIndex === lane.elementIndex
 
+                        readonly property bool picked: root.selectedIndex === lane.elementIndex
+                        // Which of the three grips has the pointer, by name: the
+                        // edges overlap the body, and whether the leave or the
+                        // enter arrives first is not ours to choose. Told by a
+                        // HoverHandler in each grip, not by the grip's own
+                        // containsMouse, which stayed true on the last clip
+                        // pressed, wherever the pointer went next.
+                        property string pointed: ""
+
+                        // Selection is the clip's own hue lifted, not white: a
+                        // white frame outshouted the playhead and the code pane
+                        // both. The pointer adds half as much again, on top of
+                        // whatever else the clip is, so it never reads as picked.
+                        readonly property color hue: Theme.kind[lane.modelData.kind]
                         color: away ? "transparent"
-                                    : Qt.alpha(Theme.kind[lane.modelData.kind], bar.lit ? 0.52 : 0.30)
-                        border.width: root.selectedIndex === lane.index ? 2 : 1
+                                    : Qt.lighter(bar.hue, (bar.picked ? 1.10 : bar.lit ? 1.12 : 1)
+                                                          + (bar.pointed.length > 0 ? 0.06 : 0))
+                        border.width: 1
                         border.color: away
                                       ? Qt.rgba(1, 1, 1, 0.10)
-                                      : (root.selectedIndex === lane.index
-                                         ? Theme.live
+                                      : (bar.picked
+                                         ? Qt.lighter(bar.hue, 1.7)
                                          : (bar.lit
                                             ? Qt.alpha(Theme.live, 0.55)
-                                            : Qt.rgba(1.000, 1.000, 1.000, 0.149)))
+                                            : (bar.pointed.length > 0
+                                               ? Qt.lighter(bar.hue, 1.3)
+                                               : Qt.darker(bar.hue, 1.35))))
 
                         // ── A fault the run found on this element ────────
                         // Hazard hatching, the mark every editing tool uses for
@@ -527,10 +858,9 @@ Item {
                         Rectangle {
                             id: label
                             visible: !bar.away
-                            anchors { fill: parent; margins: 1 }
-                            topLeftRadius: 3
-                            topRightRadius: 3
-                            color: Qt.alpha(Theme.kind[lane.modelData.kind], 0.92)
+                            anchors { left: parent.left; right: parent.right; top: parent.top; margins: 1 }
+                            height: 18
+                            color: "transparent"
                             clip: true
 
                             Row {
@@ -577,7 +907,7 @@ Item {
                                     text: lane.modelData.n
                                     // Near-black on a saturated band, which beats
                                     // white on every hue this palette uses.
-                                    color: Qt.rgba(0.04, 0.06, 0.09, 0.92)
+                                    color: "#ffffff"
                                     font.family: Theme.ui
                                     font.pixelSize: 11
                                     font.weight: Font.DemiBold
@@ -597,127 +927,196 @@ Item {
                                     visible: count > 0
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: "×" + count
-                                    color: Qt.rgba(0.04, 0.06, 0.09, 0.55)
+                                    color: Qt.rgba(1, 1, 1, 0.6)
                                     font.family: Theme.mono
                                     font.pixelSize: 10
                                 }
                             }
                         }
 
-                        // ── The edge you can pull ─────────────────────────
-                        // A clip that can only be opened is a label; the first
-                        // gesture any editor has is dragging where something
-                        // stops. Held in seconds while the drag lasts, written
-                        // once on release — the buffer is not rewritten sixty
-                        // times a second.
+                        // ── The clip in the hand ──────────────────────────
+                        // A clip that can only be opened is a label. Three
+                        // gestures, one piece of code: the body moves it, the
+                        // left edge says when it appears, the right edge when
+                        // it stops.
                         //
-                        // The right edge only. Where a clip STARTS is where the
-                        // lines above it left the clock — `waitFor`, `flush`,
-                        // a `wait` — and that is a statement to move, not an
-                        // argument to change. A handle that could only refuse
-                        // is a handle that lies about what it does.
-                        property real heldIn: 0
-                        property real heldOut: 0
-
+                        // The left edge was gone for a while — a handle that
+                        // could only refuse is a handle that lies about what it
+                        // does — and is back now that it has something true to
+                        // write: the element's own `.wait()`, see
+                        // Main.moveElement.
                         Repeater {
-                            model: [{ edge: "out", at: 1 }]
+                            model: ["body", "in", "out"]
 
                             MouseArea {
-                                required property var modelData
-                                readonly property bool outward: modelData.edge === "out"
+                                id: grip
+                                required property string modelData
+                                readonly property string edge: modelData
+                                // Nine pixels inside the bar was a target to
+                                // aim at, and on a short clip a third of it. The
+                                // handle now reaches as far OUTSIDE the edge as
+                                // inside it: the edge is grabbed from either
+                                // side, and a short clip keeps its body — a
+                                // quarter of the bar at most is taken from it.
+                                readonly property real reach: 8
+                                readonly property real lip: Math.min(reach, bar.width / 4)
 
-                                x: outward ? bar.width - 9 : 0
-                                width: 9
+                                x: edge === "out" ? bar.width - lip : edge === "in" ? -reach : 0
+                                width: edge === "body" ? bar.width : lip + reach
                                 height: bar.height
                                 hoverEnabled: true
-                                cursorShape: Qt.SizeHorCursor
+                                cursorShape: edge !== "body" ? Qt.SizeHorCursor
+                                           : pressed && moved ? Qt.ClosedHandCursor : Qt.ArrowCursor
                                 preventStealing: true
-                                visible: !bar.away
+                                // A sound is not ON SCREEN from a moment: nothing
+                                // it has says when it starts, so its left edge
+                                // would be a handle with nothing to write.
+                                visible: !bar.away && !(edge === "in" && lane.modelData.kind === "sound")
+                                HoverHandler {
+                                    onHoveredChanged: {
+                                        bar.pointed = hovered ? grip.edge
+                                                    : bar.pointed === grip.edge ? "" : bar.pointed;
+                                        // An edge under the hand says what pulling it
+                                        // would touch; the body waits until it is taken.
+                                        if (grip.edge === "body" || root.heldLane >= 0)
+                                            return;
+                                        if (hovered)
+                                            root.aim = grip.aimed(false);
+                                        else if (root.aim !== null && !root.aim.held
+                                                 && root.aim.element === lane.modelData && root.aim.edge === grip.edge)
+                                            root.aim = null;
+                                    }
+                                }
+
+                                function aimed(held) {
+                                    return {
+                                        element: lane.modelData, edge: edge, held: held, push: grip.push,
+                                        at: held ? root.dropAt : lane.modelData.l + (edge === "out" ? lane.modelData.d : 0),
+                                        value: edge === "body" ? root.heldIn : root.dropAt
+                                    };
+                                }
 
                                 property real anchorX: 0
                                 property bool moved: false
+                                property bool push: false
+                                property real room: Infinity
 
                                 onPressed: (mouse) => {
                                     root.forceActiveFocus();
                                     anchorX = mapToItem(lane, mouse.x, 0).x;
                                     moved = false;
+                                    push = false;
+                                    room = root.roomFor(lane.modelData, edge);
                                 }
 
                                 onPositionChanged: (mouse) => {
                                     if (!pressed)
                                         return;
-                                    const now = mapToItem(lane, mouse.x, 0).x;
-                                    const free = (mouse.modifiers & Qt.ControlModifier) !== 0;
-                                    // The EDGE is what snaps, not the distance it
-                                    // travelled: lining a clip up with the one
-                                    // above it is the whole point, and a snapped
-                                    // delta only ever lines up with where the
-                                    // drag started.
-                                    const edge = lane.modelData.l + lane.modelData.d;
-                                    const delta = root.snapped(edge + (now - anchorX) / root.pxPerSecond, free) - edge;
+                                    const px = mapToItem(lane, mouse.x, 0).x - anchorX;
+                                    // A click is allowed to tremble: at ten
+                                    // pixels a second, one pixel is a tenth.
+                                    if (!moved && Math.abs(px) < Application.styleHints.startDragDistance)
+                                        return;
+                                    const free = (mouse.modifiers & Qt.ShiftModifier) === 0;
+                                    const from = lane.modelData.l + (edge === "out" ? lane.modelData.d : 0);
+                                    const pushing = (mouse.modifiers & Qt.ControlModifier) !== 0;
+                                    // Alone, it stops where the gap after it has
+                                    // nothing left to give.
+                                    const delta = Math.min(root.travel(from, px, free, edge !== "out"),
+                                                           pushing ? Infinity : room);
                                     if (Math.abs(delta) > 0.001)
                                         moved = true;
+                                    if (!moved)
+                                        return;
 
                                     // Neither edge may pass the other: a clip of
                                     // no length is a clip you can no longer find.
-                                    if (outward)
-                                        bar.heldOut = Math.max(0.1 - lane.modelData.d, delta);
-                                    else
-                                        bar.heldIn = Math.min(lane.modelData.d - 0.1, delta);
+                                    // And nothing starts before the film does.
+                                    const early = Math.max(-lane.modelData.l, delta);
+                                    root.heldLane = lane.elementIndex;
+                                    root.heldOut = edge === "out" ? Math.max(0.1 - lane.modelData.d, delta)
+                                                 : edge === "body" ? early : 0;
+                                    root.heldIn = edge === "in" ? Math.min(lane.modelData.d - 0.1, early)
+                                                : edge === "body" ? early : 0;
+                                    root.dropAt = from + (edge === "out" ? root.heldOut : root.heldIn);
+                                    // Asked again when the SNAPPED moment moves, not on
+                                    // every pixel: the plan parses the scene.
+                                    if (root.aim === null || !root.aim.held || root.aim.at !== root.dropAt || push !== pushing) {
+                                        push = pushing;
+                                        root.aim = grip.aimed(true);
+                                    }
                                 }
 
+                                onCanceled: root.letGo()
+
                                 onReleased: {
-                                    if (moved) {
-                                        const at = outward
-                                                 ? lane.modelData.l + lane.modelData.d + bar.heldOut
-                                                 : lane.modelData.l + bar.heldIn;
-                                        root.trimmed(lane.modelData, modelData.edge, at);
-                                    }
-                                    bar.heldIn = 0;
-                                    bar.heldOut = 0;
+                                    // Escape let go of it first: nothing to write.
+                                    const mine = moved && root.heldLane === lane.elementIndex;
+                                    const at = root.dropAt;
+                                    const by = root.heldIn;
+                                    root.letGo();
+                                    if (!mine)
+                                        return;
+                                    if (edge !== "body")
+                                        root.trimmed(lane.modelData, edge, at, push);
+                                    else if (Math.abs(by) > 0.001)
+                                        root.shifted(lane.modelData, by, push);
+                                }
+
+                                // A tap picks the clip and fills the Inspector; a double
+                                // tap opens the clip's own timeline — somewhere else.
+                                //
+                                // What is inside a clip does not belong on the timeline:
+                                // rows that grow push everything below them down, and a
+                                // timeline whose geometry changes when you look at
+                                // something has stopped being a map. The bar reports
+                                // where it is on screen so the card can start there and
+                                // travel, which is what makes it obvious that the big
+                                // thing in the middle IS this clip.
+                                //
+                                // Asked of the area that also drags, not of a
+                                // TapHandler beside it: the area takes the press,
+                                // and only it knows whether the press then moved.
+                                onClicked: {
+                                    if (edge !== "body" || moved)
+                                        return;
+                                    root.elementPicked(lane.elementIndex);
+                                    root.elementInspected(lane.modelData);
+                                }
+
+                                onDoubleClicked: {
+                                    if (edge !== "body")
+                                        return;
+                                    const at = bar.mapToItem(null, 0, 0);
+                                    root.elementOpened(
+                                        lane.modelData,
+                                        Qt.rect(at.x, at.y, bar.width, bar.height)
+                                    );
                                 }
 
                                 // The edge, drawn only when the pointer is on it
-                                // or pulling it.
+                                // or pulling it — on the BAR's edge, not the
+                                // handle's, which reaches outside the bar.
                                 Rectangle {
+                                    visible: grip.edge !== "body"
+                                    x: grip.edge === "out" ? bar.width - width - grip.x : -grip.x
                                     anchors {
-                                        right: parent.outward ? parent.right : undefined
-                                        left: parent.outward ? undefined : parent.left
                                         top: parent.top; bottom: parent.bottom
                                         topMargin: 3; bottomMargin: 3
                                     }
-                                    width: 3
-                                    radius: 1.5
-                                    color: Theme.kind[lane.modelData.kind]
+                                    width: 2
+                                    radius: 1
+                                    color: Qt.rgba(1, 1, 1, 0.30)
                                     opacity: parent.containsMouse || parent.pressed ? 0.95 : 0
                                     Behavior on opacity { NumberAnimation { duration: Theme.motion(90) } }
                                 }
                             }
                         }
 
-                        // A tap opens the element — somewhere else.
-                        //
-                        // What is inside a clip does not belong on the timeline:
-                        // rows that grow push everything below them down, and a
-                        // timeline whose geometry changes when you look at
-                        // something has stopped being a map. The bar reports
-                        // where it is on screen so the card can start there and
-                        // travel, which is what makes it obvious that the big
-                        // thing in the middle IS this clip.
-                        TapHandler {
-                            onTapped: {
-                                root.forceActiveFocus();
-                                const at = bar.mapToItem(null, 0, 0);
-                                root.elementOpened(
-                                    lane.modelData,
-                                    Qt.rect(at.x, at.y, bar.width, bar.height)
-                                );
-                            }
-
-                            // Un nom, ici, est la variable que la scène déclare :
-                            // le renommer est celui du volet de code.
-                            onDoubleTapped: root.renameRequested(lane.modelData)
-                        }
+                        // How far this bar's edges are out of place, which is
+                        // nothing unless it is the one in the hand.
+                        readonly property real heldIn: root.heldLane === lane.elementIndex ? root.heldIn : 0
+                        readonly property real heldOut: root.heldLane === lane.elementIndex ? root.heldOut : 0
                     }
                 }
             }
@@ -738,49 +1137,35 @@ Item {
             // the panel whose height IS its usefulness, and twelve pixels off
             // every lane forever, to hold a row that is empty, is twelve pixels
             // taken from the thing the panel is for.
-            height: root.scene.markers !== undefined && root.scene.markers.length > 0 ? 40 : 28
+            height: root.scene.markers !== undefined && root.scene.markers.length > 0 ? 56 : 44
             z: 5
             color: Theme.rail
 
             Repeater {
-                model: Math.floor(root.span) + 1
+                model: Math.floor(root.span / (root.rulerStep / 10)) + 1
 
                 Item {
                     required property int index
-                    x: index * root.pxPerSecond
-                    width: root.pxPerSecond
+                    readonly property real seconds: index * root.rulerStep / 10
+                    x: seconds * root.pxPerSecond
+                    width: root.rulerStep / 10 * root.pxPerSecond
                     height: ruler.height
 
-                    // The tick stops short of its own number. Now that the
-                    // figure sits ON the line, a full-height tick would run up
-                    // through the digits and read as a strikethrough; it only has
-                    // to reach far enough down to meet the lanes below.
+                    readonly property bool major: index % 10 === 0
+                    readonly property bool middle: index % 5 === 0
+
                     Rectangle {
-                        anchors.bottom: parent.bottom
                         width: 1
-                        height: 6
-                        color: parent.index % 2 ? Theme.edgeSoft : Theme.edge
+                        height: parent.major ? 10 : parent.middle ? 6 : 4
+                        color: parent.major ? Theme.inkDim : Theme.edge
                     }
 
                     Text {
-                        id: stamp
-                        visible: parent.index % 2 === 0
-                        // Centred on the line it names, not parked beside it: a
-                        // number to the right of its tick reads as belonging to
-                        // the space AFTER that second, and the colon of "00:00"
-                        // sits over time zero. The clamp is the guard for a
-                        // gutter too narrow to hold half a stamp — it should not
-                        // bite at the shipped one.
-                        x: parent.index === 0
-                           ? Math.max(-stamp.implicitWidth / 2, -root.pad + 2)
-                           : -stamp.implicitWidth / 2
-                        anchors { bottom: parent.bottom; bottomMargin: 7 }
-                        text: {
-                            const m = Math.floor(parent.index / 60);
-                            const s = parent.index % 60;
-                            return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
-                        }
-                        color: Theme.inkFaint
+                        visible: parent.major
+                        x: 6
+                        y: 12
+                        text: root.timecode(parent.seconds, true)
+                        color: Theme.inkDim
                         font.family: Theme.mono
                         font.pixelSize: 11
                     }
@@ -826,7 +1211,7 @@ Item {
                     }
 
                     Canvas {
-                        x: 1; y: 2
+                        x: 1; y: ruler.height - 13
                         width: 6; height: 7
                         onPaint: {
                             const ctx = getContext("2d");
@@ -843,7 +1228,7 @@ Item {
 
                     Text {
                         x: 10
-                        y: 1
+                        y: ruler.height - 15
                         width: Math.max(0, Math.min(implicitWidth, flag.room))
                         visible: flag.room > 12
                         elide: Text.ElideRight
@@ -860,6 +1245,8 @@ Item {
                 height: 1
                 color: Theme.edge
             }
+
+            HoverTint {}
 
             // Scrubbing. On the ruler only, and not over the lanes: a click on a
             // clip means "open this", and a surface where the same gesture does
@@ -1015,7 +1402,16 @@ Item {
                 // front had to be fainter. The guess was wrong twice over: this
                 // far up it has to read as something LAID OVER the clips, and
                 // under a third of red they are still perfectly legible.
-                color: Qt.rgba(0.878, 0.376, 0.361, 0.325)
+                color: Qt.alpha(Theme.inkDim, 0.10)
+
+                // The join, on the instant everything before it ended. Drawn
+                // here, under every label: on the labels' own layer the line
+                // of one gap ran through the writing of the gap before it.
+                Rectangle {
+                    width: 1
+                    height: parent.height
+                    color: Qt.alpha(Theme.inkDim, 0.45)
+                }
             }
         }
 
@@ -1032,14 +1428,7 @@ Item {
                 height: flick.height
                 z: 4
 
-                // The join, on the instant everything before it ended.
-                Rectangle {
-                    width: 1
-                    height: parent.height
-                    color: Qt.rgba(0.878, 0.376, 0.361, 0.55)
-                }
-
-                // And where it is written, so the line is a thing you can go to
+                // Where it is written, so the line is a thing you can go to
                 // rather than a mark you have to decode.
                 // At the FOOT of the pane, not at its head: the head is the
                 // ruler's and the space under the last lane is the only place a
@@ -1051,19 +1440,14 @@ Item {
                 // the smallest edit this timeline can make.
                 Rectangle {
                     id: gapStamp
-                    // Centred on the MIDDLE of the gap, and allowed to overhang
-                    // it on both sides. A gap half a second long is twelve pixels
-                    // at the opening zoom and can hold no writing at all, so the
-                    // label used to disappear — the shortest waits, the ones
-                    // hardest to see, were the ones that never said what they
-                    // were.
-                    //
-                    // Centred on the join LINE instead, which is the gap's left
-                    // edge, it read as centred on the narrow gaps and as pinned
-                    // to the left of the wide ones: the same rule looking like
-                    // two.
-                    x: join.width / 2 - width / 2
-                    y: join.height - height - 4 - root.stampRow(join.index) * (height + 3)
+                    // From the gap's own start, like a clip from its first
+                    // frame, and allowed to overhang its end: a gap half a
+                    // second long is twelve pixels at the opening zoom and can
+                    // hold no writing at all. Centred on the gap it read as a
+                    // thing floating near it; pulled, it has to start where
+                    // the time it stretches starts.
+                    x: 0
+                    y: join.height - height - 4 - root.stampRowOf[join.index] * (height + 3)
                     width: stampText.implicitWidth + 12
                     height: stampText.implicitHeight + 6
                     radius: 3
@@ -1078,8 +1462,8 @@ Item {
                            : Qt.alpha(Theme.sunk, 0.92)
                     border.width: 1
                     border.color: editing
-                                  ? Qt.rgba(0.878, 0.376, 0.361, 0.8)
-                                  : Qt.rgba(0.878, 0.376, 0.361, 0.22)
+                                  ? Qt.alpha(Theme.inkDim, 0.8)
+                                  : Qt.alpha(Theme.inkDim, 0.22)
                     readonly property bool editing: root.editingWait === join.modelData.line
 
                     Text {
@@ -1087,7 +1471,7 @@ Item {
                         anchors.centerIn: parent
                         visible: !gapStamp.editing
                         text: "wait " + join.modelData.says.toFixed(1) + "s"
-                        color: Qt.rgba(0.945, 0.541, 0.525, 1)
+                        color: Theme.inkDim
                         font.family: Theme.mono
                         font.pixelSize: 10
                     }
@@ -1097,7 +1481,7 @@ Item {
                         anchors { fill: parent; leftMargin: 6; rightMargin: 6 }
                         verticalAlignment: TextInput.AlignVCenter
                         visible: gapStamp.editing
-                        color: Qt.rgba(0.945, 0.541, 0.525, 1)
+                        color: Theme.inkDim
                         font.family: Theme.mono
                         font.pixelSize: 10
                         selectByMouse: true
@@ -1110,20 +1494,62 @@ Item {
                         onActiveFocusChanged: if (!activeFocus && gapStamp.editing) root.editingWait = -1;
                     }
 
+                    // The label is the gap's handle: click it to type the
+                    // number, pull it sideways to stretch the gap itself. Not
+                    // the band's edges — a handle laid over the lanes takes the
+                    // pointer from the clips under it, and a gap usually starts
+                    // exactly where a clip ends. Moving a gap's START is the
+                    // same gesture on the gap BEFORE it.
                     MouseArea {
                         id: stampMouse
                         anchors.fill: parent
                         anchors.margins: -3
                         hoverEnabled: true
                         enabled: !gapStamp.editing
-                        cursorShape: Qt.IBeamCursor
-                        onClicked: {
-                            root.editingWait = join.modelData.line;
-                            // The number alone, not the sentence: what you are
-                            // editing is the argument in the call.
-                            stampEntry.text = join.modelData.says.toFixed(2);
-                            stampEntry.forceActiveFocus();
-                            stampEntry.selectAll();
+                        cursorShape: pressed && pulled ? Qt.SizeHorCursor : Qt.IBeamCursor
+                        preventStealing: true
+
+                        property real anchorX: 0
+                        property bool pulled: false
+
+                        // The label keeps the press even where a short pane
+                        // lays it over a lane — handing it to the clip made the
+                        // gaps unreachable in the default layout, where all
+                        // three labels fall on one. The cost is small and
+                        // local: a clip is not dragged from the fifty pixels
+                        // its gap's label covers.
+                        onPressed: (mouse) => {
+                            anchorX = mapToItem(flick.contentItem, mouse.x, 0).x;
+                            pulled = false;
+                        }
+
+                        onPositionChanged: (mouse) => {
+                            if (!pressed)
+                                return;
+                            const px = mapToItem(flick.contentItem, mouse.x, 0).x - anchorX;
+                            if (!pulled && Math.abs(px) < Application.styleHints.startDragDistance)
+                                return;
+                            pulled = true;
+                            const ends = join.modelData.at + join.modelData.d;
+                            root.dropAt = ends + root.travel(ends, px, (mouse.modifiers & Qt.ShiftModifier) === 0, true);
+                        }
+
+                        onCanceled: { pulled = false; root.dropAt = -1; }
+
+                        onReleased: {
+                            const at = root.dropAt;
+                            root.dropAt = -1;
+                            if (!pulled) {
+                                root.editingWait = join.modelData.line;
+                                // The number alone, not the sentence: what you
+                                // are editing is the argument in the call.
+                                stampEntry.text = join.modelData.says.toFixed(2);
+                                stampEntry.forceActiveFocus();
+                                stampEntry.selectAll();
+                            } else if (at >= 0) {
+                                root.waitDragged(join.modelData.line, at);
+                            }
+                            pulled = false;
                         }
                     }
                 }
@@ -1142,7 +1568,7 @@ Item {
 
             Rectangle {
                 anchors.fill: parent
-                color: Theme.live
+                color: Theme.bad
             }
 
             // The grab handle, which is also what makes the line findable when it
@@ -1153,7 +1579,7 @@ Item {
                 onPaint: {
                     const ctx = getContext("2d");
                     ctx.reset();
-                    ctx.fillStyle = Theme.live;
+                    ctx.fillStyle = Theme.bad;
                     ctx.beginPath();
                     ctx.moveTo(0, 0);
                     ctx.lineTo(width, 0);
@@ -1163,5 +1589,18 @@ Item {
                 }
             }
         }
+    }
+
+    // The cursor of the gesture, for as long as it lasts. A handle is sixteen
+    // pixels wide and the edge it pulls is magnetised: the pointer runs ahead
+    // of it, leaves the handle, and the double arrow fell back to a plain arrow
+    // in the middle of a stretch. Takes no button, so it takes nothing from the
+    // area that holds the press — it only says what the hand is doing.
+    MouseArea {
+        anchors.fill: parent
+        z: 100
+        visible: root.heldLane >= 0
+        acceptedButtons: Qt.NoButton
+        cursorShape: root.heldIn !== root.heldOut ? Qt.SizeHorCursor : Qt.ClosedHandCursor
     }
 }

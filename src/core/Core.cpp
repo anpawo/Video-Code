@@ -641,6 +641,14 @@ void VC::Core::uploadTextures(VC::VulkanWidget* widget)
     _pendingTextureUpload.clear();
 }
 
+void VC::Core::requeueTextures()
+{
+    _pendingTextureUpload.clear();
+    for (size_t idx = 0; idx < _inputs.size(); ++idx)
+        if (dynamic_cast<Image*>(_inputs[idx].get()) || dynamic_cast<Video*>(_inputs[idx].get()))
+            _pendingTextureUpload.push_back(idx);
+}
+
 void VC::Core::uploadTextures(
     std::function<VkDescriptorSet(const cv::Mat&)>       uploadFn,
     std::function<void(VkDescriptorSet, const cv::Mat&)> reuploadFn

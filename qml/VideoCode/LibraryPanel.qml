@@ -366,6 +366,8 @@ Item {
             border.width: 1
             border.color: root.missing.length > 0 ? Theme.edge : Theme.live
 
+            HoverTint { visible: root.missing.length === 0 }
+
             Text {
                 anchors.centerIn: parent
                 text: root.picked === null

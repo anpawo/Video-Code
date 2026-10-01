@@ -3,7 +3,7 @@
 Make a folder that runs on another Ubuntu.
 
     python3 scripts/bundle_linux.py            # → dist/video-code-linux-x86_64/
-    python3 scripts/bundle_linux.py --zip      # …and the zip beside it
+    python3 scripts/bundle_linux.py --archive      # …and the tar.xz beside it
 
 The macOS twin is scripts/bundle.py, and what to ship is the same list, so it
 is imported from there rather than written twice. What differs is the loader:
@@ -48,6 +48,9 @@ SYSTEM = (
     "libz.so", "liblzma", "libbz2", "libexpat", "libffi", "libuuid",
     "libssl", "libcrypto", "libasound", "libpulse", "libnss_", "libmount",
     "libblkid",
+    # Ubuntu's OpenCV: its imgcodecs names GDAL and its videoio names ffmpeg,
+    # and the two trees were 110 of v0.1.0's 188 MB. apt has them in seconds.
+    "libopencv_",
 )
 # Three names are deliberately NOT in that list, and each cost a run to learn:
 #   glib          — its package is `libglib2.0-0t64` on 24.04 and was
@@ -215,7 +218,7 @@ def check_clean(lib_dir: Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--zip", action="store_true")
+    parser.add_argument("--archive", action="store_true")
     parser.add_argument("--no-smoke", action="store_true")
     args = parser.parse_args()
 
@@ -300,9 +303,12 @@ def main() -> None:
 
     if not args.no_smoke:
         bundle.smoke(DIST)
-    if args.zip:
-        archive = shutil.make_archive(str(DIST), "zip", DIST.parent, DIST.name)
-        print(f"zip: {archive} ({Path(archive).stat().st_size // 1_000_000} MB)")
+    if args.archive:
+        # xz, not zip: the same folder is a third smaller (measured: 145 MB of
+        # dylibs and Python, 45 MB zipped, 31 MB here), and tar reads it on both
+        # platforms. What it costs is a couple of minutes on the runner.
+        archive = shutil.make_archive(str(DIST), "xztar", DIST.parent, DIST.name)
+        print(f"archive: {archive} ({Path(archive).stat().st_size // 1_000_000} MB)")
 
 
 README = """Video-Code — a folder that runs
@@ -311,7 +317,8 @@ README = """Video-Code — a folder that runs
 Needs: Ubuntu 24.04 or newer (x86_64), and this line from apt:
 
     sudo apt install ffmpeg mesa-vulkan-drivers libvulkan1 \
-                     libopengl0 libegl1 libglx0 libxkbcommon0
+                     libopengl0 libegl1 libglx0 libxkbcommon0 \
+                     libopencv-imgcodecs406t64 libopencv-videoio406t64
 
 Nothing else: Python, its packages and Qt are inside. A desktop Ubuntu already
 has everything after the first two. The renderer draws with Vulkan —

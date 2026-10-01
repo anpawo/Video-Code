@@ -13,8 +13,7 @@ vc
 video/
 *.mp4
 *.mkv
-*.jpg
-*.jpeg
+*.jp*g
 *.png
 *.mov
 *.webm
@@ -26,27 +25,20 @@ video/
 __pycache__/
 *.pyc
 
-
 # Direnv
 .envrc
 .direnv/
 
-# Python virtual environments
-.venv/
-venv/
-videocodevenv/
+# Python virtual environments, whatever they were named
+*venv/
 
-# CMake
-build/
-# vcpkg's generated install tree (but keep the manifest, overlay triplets/ports,
-# and chainload toolchain under version control)
+# Build trees, and what vcpkg installs from the manifest. The manifest itself,
+# the overlay ports and triplets, and the chainload toolchain stay tracked.
+build*/
 vcpkg_installed/
 
-# Dependencies
-include/argparse/
-
-# Executables
-video-code
+# The binary `make` copies to the root
+/video-code
 
 # Mac
 .DS_Store
@@ -67,19 +59,18 @@ pgn
 # the test suite needs them to compare against on a fresh checkout.
 !test/visual/golden/*.png
 
-# And the two assets a scene of the corpus reads. Ignored, they made
-# image_shape.py and chess.py impossible to bake from a clean clone — the repo
-# asked its own test suite for files it did not contain.
-!wb.png
-!pgn
+# The asset a scene of the corpus reads. Ignored, it made image_shape.py
+# impossible to bake from a clean clone — the repo asked its own test suite for
+# a file it did not contain.
+!tinder-mail.png
 
-# The chessboard and its twelve pieces. Committed so `chess.py` bakes from a
-# clean clone instead of fetching them from chess.com at bake time.
-!assets/chess/*.png
+# The logo: the SVG is the source, these two are what Qt and GitHub can show.
+!assets/logo/*.png
 
 # WebImage
 webimage/
-build-qml/
 temp/
 dist/
 test/tour_music.wav
+a-verifier/
+videos/*/media/
