@@ -12,6 +12,7 @@ from videocode.constants import *
 from videocode.context import *
 from videocode.input._inputs import *
 from videocode.shader._shaders import *
+from videocode.params import *
 
 # `easing=CubicBezier(0.42, 0, 0.58, 1)` is what the editor's curve writes, and
 # a scene has to be able to run the line it just wrote: the name belongs in the

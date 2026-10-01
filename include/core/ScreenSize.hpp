@@ -30,7 +30,8 @@ namespace VC
 
     ///< One Config per shape named by --for, in the order asked, each with its
     ///< own resolution and its own output filename; a single Config — the
-    ///< --width/--height one — when --for is absent. Deliberately does NOT
+    ///< --width/--height one — when --for is absent. With --set/--data, that
+    ///< for every row: rows × shapes, the row's values in Config::params. Deliberately does NOT
     ///< applyScreenSize: that transform is process-global, so it belongs to
     ///< the moment a render starts, not to the moment its Config is built.
     std::vector<Config> makeConfigs(const argparse::ArgumentParser &parser);
@@ -39,4 +40,8 @@ namespace VC
     ///< and Python's VC_SCREEN at a resolution. Called by makeConfig; only worth
     ///< calling directly when a Config is built by hand, as in VisualTest.
     void applyScreenSize(float width, float height);
+
+    ///< Hand the next run of the scene its --set/--data values (VC_PARAMS). A
+    ///< no-op for a Config made without either flag.
+    void applyParams(const Config &config);
 }

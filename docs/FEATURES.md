@@ -953,6 +953,8 @@ Easing curves (`videocode/utils/bezier.py`):
 | `--framerate` | Output fps — scenes are authored at 30fps and resampled |
 | `--from <s\|name>` / `--to <s\|name>` | Render only that stretch of the scene — seconds (`--from 12.5`) or the name of a `timestamp()` written in it (`--from "show: rectangle"`). Frames are `[from, to)`; past the end clamps. Sounds keep their place: one that began before `--from` is heard from where the stretch enters it. With an image extension, `--from` picks the still. See *Render a stretch* |
 | `--for <shapes>` | Render the scene once per named shape — `youtube`, `tiktok`, `square` — one file each, the shape in the filename. Each render RE-RUNS the scene at that resolution, so the scene lays itself out for it. See *One scene, every format* |
+| `--set key=value` | Give a `param()` of the scene a value, read as its default's type. Repeatable. Also with `--lint` and `--editor`. See *One scene, many videos* |
+| `--data rows.csv\|rows.json` | Render the scene once per row, each column a `param()`; `--generate "out/{name}.mp4"` names the files. See *One scene, many videos* |
 | `--hwencode` | Hardware H.264 encode (videotoolbox, macOS) |
 | `--showstack` / `--showtimeline` | Debug printing during generation |
 | `--visual-test [--update-golden]` | Run/refresh the golden-frame visual-regression suite (`src/test/VisualTest.cpp`, `test/visual/golden/`) |
@@ -1010,12 +1012,18 @@ Exit 1 if any line is an error; warnings alone exit 0. The rules:
 | `never-visible` | warning | hidden or at opacity 0 on every frame |
 | `last-frame-only` | warning | made after the final `wait()`, so on screen for one frame |
 | `bad-value`, `contended-key`, `backdated-write` | as in the editor | what the Code pane already underlines |
+| `param` | error | with `--set`/`--data`: a required `param()` nobody gave, a value that does not read as its type, a `--set` key no `param()` reads |
+| `unread-column` | warning | with `--data`: a column no row's run read |
 
 The same findings reach the editor, underlined in the Code pane and hatched on
 the clip — except `last-frame-only`, which every line typed at the end of a
 scene is until its `wait()` is. From Python it is
 `videocode.serialize.lintSource(source, path)`, which returns the text and the
 exit code.
+
+`--lint --set …` and `--lint --data rows.csv` run the scene once per row with
+that row's values, so a batch is checked before a frame of it is drawn; a finding
+every row shares is said once.
 
 ### Reading the editor from outside — `tell verify`
 
@@ -1086,6 +1094,51 @@ Not included: **loudness normalisation**. The roadmap line pairs it with this
 feature, but it is a separate concern — it changes the audio of every render,
 needs its own flag and its own measurement, and single-pass `loudnorm` is not
 the two-pass measure the name implies.
+
+### One scene, many videos — `param()`, `--set`, `--data`
+
+```python
+name  = param("name", "World")     # a str
+score = param("score", 0)          # "12" arrives as 12
+brand = param("brand", BLUE)       # "#ff8800" arrives as an rgba
+title = param("title")             # no default: it must be given
+```
+
+```bash
+./video-code --file card.py --generate card.mp4 --set name=Ada --set score=12
+./video-code --file card.py --generate "out/{name}.mp4" --data people.csv
+# out/Ada.mp4, out/Grace.mp4, … — one per row, each a fresh run of the scene
+./video-code --lint --file card.py --data people.csv    # every row checked, nothing drawn
+./video-code --editor --file card.py --set name=Ada     # preview one row
+```
+
+A scene written once and filled from outside — Remotion's *input props*.
+`param(name, default)` returns the value given for `name`, else the default;
+the editor gives nothing, so a template with defaults stays previewable. The
+default's type is the parameter's type: a CSV cell is always text, and it
+arrives as an `int`, a `float`, a `bool` (`true/false/yes/no/1/0`), an `rgba`
+(`#rrggbb[aa]`) or an enum member (by name) when that is what the default is. A
+value that does not read is refused, naming its row — never passed on as a
+string that breaks three calls later.
+
+`--data` takes a `.csv` (a header line, then one render per row) or a `.json`
+(a list of objects). An empty cell is a value not given, so the default applies.
+`{column}` in the `--generate` path is filled per row, made safe for a filename,
+its folders created; without one, a batch is numbered (`out-1.mp4`,
+`out-2.mp4`…). With `--for`, every row is rendered in every shape
+(`out/Ada-tiktok.mp4`). `--set` gives one value to every row.
+
+What would otherwise render N files quietly wrong is refused before the first
+frame: a key in both `--set` and the data, a `{field}` that is no column or a
+row leaves empty, two rows writing one file. What only a run can see — a
+`--set` key no `param()` reads, a required one nobody gave — fails the render,
+and `--lint` finds it without rendering. A `--data` column no row reads is a
+warning at the end: a CSV often carries columns for the filename only. A row
+that fails stops the batch, saying how many renders were not made.
+
+The values reach the scene as the resolution does: C++ exports `VC_PARAMS`
+(JSON) before each run, and `param()` reads it when it is called
+(`videocode/params.py`).
 
 `videocode/serialize.py` — `execScene()` (used by the C++ embed) and
 `serializeScene()` (for CLI/inspection) turn a scene script into the JSON

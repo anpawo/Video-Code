@@ -8,6 +8,7 @@
 #include "core/ScreenSize.hpp"
 
 #include <pybind11/embed.h>
+#include <pybind11/stl.h>
 
 #include <argparse/argparse.hpp>
 #include <filesystem>
@@ -120,13 +121,75 @@ Config VC::makeConfig(const argparse::ArgumentParser &parser)
     };
 }
 
+namespace
+{
+    // One entry per render asked by --set/--data, from videocode/params.py —
+    // which reads the CSV, fills "{column}" in the output path, and refuses
+    // before the first frame what would otherwise fail half way through a
+    // batch. Called after makeConfig has pointed Python at the resolution:
+    // importing videocode builds the world box.
+    struct Row
+    {
+        std::string params;
+        std::string output;
+        std::string note;
+    };
+
+    std::vector<Row> planRows(const argparse::ArgumentParser &parser, const std::string &output)
+    {
+        const auto        sets = parser.get<std::vector<std::string>>("--set");
+        const std::string data = parser.present("--data").value_or("");
+        if (sets.empty() && data.empty())
+            return {{"", output, ""}};
+
+        std::vector<Row> rows;
+        try {
+            for (const py::handle entry : py::module_::import("videocode.params").attr("plan")(sets, data, output)) {
+                rows.push_back({entry["params"].cast<std::string>(), entry["output"].cast<std::string>(), entry["note"].cast<std::string>()});
+            }
+        } catch (const py::error_already_set &e) {
+            // A ParamError is a sentence written for the person at the
+            // terminal; anything else is a bug, and keeps its traceback.
+            std::cerr << "video-code: " << (e.matches(py::module_::import("videocode.params").attr("ParamError")) ? std::string(py::str(e.value())) : std::string(e.what())) << "\n";
+            std::exit(EXIT_FAILURE);
+        }
+        return rows;
+    }
+}
+
+void VC::applyParams(const Config &config)
+{
+    if (config.params.empty())
+        return;
+    try {
+        py::module_::import("videocode.params").attr("provide")(config.params);
+    } catch (const py::error_already_set &e) {
+        std::cerr << "Could not export VC_PARAMS:\n"
+                  << e.what() << "\n";
+    }
+}
+
 std::vector<Config> VC::makeConfigs(const argparse::ArgumentParser &parser)
 {
-    const Config      base = makeConfig(parser);
-    const std::string asked = parser.present("--for").value_or("");
+    const Config           base = makeConfig(parser);
+    const std::string      asked = parser.present("--for").value_or("");
+    const std::vector<Row> rows = planRows(parser, base.outputFile);
 
-    if (asked.empty())
-        return {base};
+    // Each row, then each shape inside it: a row's files sit together, and a
+    // row that fails stops the batch with the rows after it named as not made.
+    const auto withRow = [](Config config, const Row &row) {
+        config.params = row.params;
+        config.outputFile = row.output;
+        config.shapeNote = row.note;
+        return config;
+    };
+
+    if (asked.empty()) {
+        std::vector<Config> configs;
+        for (const Row &row : rows)
+            configs.push_back(withRow(base, row));
+        return configs;
+    }
 
     // The shapes decide the size, so the size flags cannot also. Said rather
     // than resolved quietly: `-w 800 --for tiktok` is a person expecting one
@@ -134,7 +197,7 @@ std::vector<Config> VC::makeConfigs(const argparse::ArgumentParser &parser)
     if (parser.is_used("--width") || parser.is_used("--height"))
         std::cerr << "video-code: --for decides the resolution — the --width/--height you gave are not used.\n";
 
-    std::vector<Config> configs;
+    std::vector<Config> shapes;
     for (size_t start = 0; start <= asked.size();) {
         const size_t      comma = std::min(asked.find(',', start), asked.size());
         const size_t      from = asked.find_first_not_of(" \t", start);
@@ -156,14 +219,21 @@ std::vector<Config> VC::makeConfigs(const argparse::ArgumentParser &parser)
         config.screenHeight = shape->height;
         config.windowWidth = config.screenWidth * config.windowRatio;
         config.windowHeight = config.screenHeight * config.windowRatio;
-        config.outputFile = named(base.outputFile, name);
         config.shapeNote = name;
-        configs.push_back(config);
+        shapes.push_back(config);
     }
 
     // Numbered only when there is a run to be somewhere in.
-    if (configs.size() > 1)
-        for (size_t i = 0; i < configs.size(); ++i)
-            configs[i].shapeNote += std::format(", {} of {}", i + 1, configs.size());
+    std::vector<Config> configs;
+    for (const Row &row : rows) {
+        for (size_t i = 0; i < shapes.size(); ++i) {
+            Config config = withRow(shapes[i], row);
+            config.outputFile = named(row.output, shapes[i].shapeNote);
+            config.shapeNote = (row.note.empty() ? "" : row.note + " · ") + shapes[i].shapeNote;
+            if (shapes.size() > 1)
+                config.shapeNote += std::format(", {} of {}", i + 1, shapes.size());
+            configs.push_back(config);
+        }
+    }
     return configs;
 }
