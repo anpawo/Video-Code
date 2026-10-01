@@ -39,7 +39,8 @@ Item {
 
     // The moment nearest `seconds` worth snapping to, or the tenth it rounds to.
     // Eight pixels of forgiveness, so the magnet is the same size on screen at
-    // every zoom — and none at all when ⌘ is held.
+    // every zoom — and none at all unless ⇧ is held: an edge follows the hand,
+    // and lining it up with something is asked for.
     function snapped(seconds, exact) {
         if (exact)
             return Math.round(seconds * 100) / 100;
@@ -188,11 +189,19 @@ Item {
     // business, not the timeline's: a video ends by loading fewer frames, a
     // square ends by being hidden, and both are one line of Python — see
     // Main.trimElement.
-    signal trimmed(var element, string edge, real seconds)
+    //
+    // `push` is ⌘ held at the release. Without it the clip moves ALONE: the
+    // scene is sequential, so a clip that ends later pushes every gap after
+    // it, and the first of those gaps gives the time back — see Main.gesture.
+    signal trimmed(var element, string edge, real seconds, bool push)
 
     // A clip's body was dragged along its lane, by this many seconds. The
     // element's own clock is what moves — see Main.moveElement.
-    signal shifted(var element, real seconds)
+    signal shifted(var element, real seconds, bool push)
+
+    // How far a clip can go later on its own, in seconds: what the gap after
+    // it holds. Asked of the shell, which is the one that reads the lines.
+    property var roomFor: (element, edge) => Infinity
 
     // The clip in the hand, by element index, and how far each of its edges has
     // been pulled, in seconds. Held in seconds while the drag lasts, written
@@ -202,10 +211,10 @@ Item {
     property real heldIn: 0
     property real heldOut: 0
 
-    // What a hand on a clip is about to write, for the tip that shows it
-    // before the release does — see Main.aimTip. `at` is the moment the edge
-    // stands at, `value` what the release would hand `trimmed`/`shifted`, and
-    // x, y the edge in the window's frame. Null when nothing is aimed at.
+    // What a hand on a clip is about to write, for the code pane that shows
+    // it before the release does — see Main.aimCode. `at` is the moment the
+    // edge stands at, `value` what the release would hand `trimmed`/`shifted`,
+    // `push` whether ⌘ is down. Null when nothing is aimed at.
     property var aim: null
 
     function letGo() {
@@ -340,39 +349,28 @@ Item {
     // below, which is what decides where the pane opens.
     readonly property real pad: Math.max(gutter, width * 0.5)
 
-    // How many rows up a wait's label has to sit so it does not land on the one
-    // before it. Two short gaps in a row are two chips of the same width a few
-    // pixels apart: side by side they overlap and neither reads. Stacked, both
-    // do. Counted from the neighbours rather than fixed per index, so a run of
-    // three climbs and a lone gap stays on the floor.
-    // The tallest stack any of them ends up in, which is how much empty ground
-    // the content needs under its last lane: the labels are pinned to the foot
-    // of the VIEWPORT, so at the end of the scroll they land wherever the
-    // content stops. A constant would be wrong the moment two gaps met.
-    readonly property int stampRows: {
-        let most = 0;
-        const waits = root.scene.waits;
-        if (waits !== undefined)
-            for (let i = 0; i < waits.length; ++i)
-                most = Math.max(most, root.stampRow(i));
-        return most;
+    // Which row each wait's label sits on, by index. A label starts where its
+    // gap starts and is as wide as its writing, so two short gaps in a row
+    // would print on top of each other: each one takes the lowest row whose
+    // last label has already ended. Packed, not counted from the neighbours —
+    // counting put a run of four on the same second row, one over the next.
+    readonly property var stampRowOf: {
+        const waits = root.scene.waits !== undefined ? root.scene.waits : [];
+        const ends = [];
+        return waits.map((gap) => {
+            const x = gap.at * root.pxPerSecond;
+            let row = 0;
+            while (row < ends.length && ends[row] > x)
+                ++row;
+            // 74: the widest "wait N.Ns" chip, plus a hair.
+            ends[row] = x + 74;
+            return row;
+        });
     }
-
-    function stampRow(index) {
-        const waits = root.scene.waits;
-        if (waits === undefined || index <= 0)
-            return 0;
-        const middle = (i) => (waits[i].at + waits[i].d / 2) * root.pxPerSecond;
-        let row = 0;
-        for (let k = index - 1; k >= 0 && row < 3; --k) {
-            // 74: the widest "wait N.Ns" chip, plus a hair. Narrower than that
-            // apart and the two would touch.
-            if (middle(index) - middle(k) > 74)
-                break;
-            ++row;
-        }
-        return row;
-    }
+    // The tallest stack, which is how much empty ground the content needs
+    // under its last lane: the labels are pinned to the foot of the VIEWPORT,
+    // so at the end of the scroll they land wherever the content stops.
+    readonly property int stampRows: Math.max(0, ...root.stampRowOf)
 
     // Opening on the runway would be opening on nothing. Once — and only once,
     // or the pane would snap back to the start every time it is resized — the
@@ -991,22 +989,24 @@ Item {
                                 }
 
                                 function aimed(held) {
-                                    const point = bar.mapToItem(null, edge === "out" ? bar.width : 0, bar.height / 2);
                                     return {
-                                        element: lane.modelData, edge: edge, held: held,
+                                        element: lane.modelData, edge: edge, held: held, push: grip.push,
                                         at: held ? root.dropAt : lane.modelData.l + (edge === "out" ? lane.modelData.d : 0),
-                                        value: edge === "body" ? root.heldIn : root.dropAt,
-                                        x: point.x, y: point.y
+                                        value: edge === "body" ? root.heldIn : root.dropAt
                                     };
                                 }
 
                                 property real anchorX: 0
                                 property bool moved: false
+                                property bool push: false
+                                property real room: Infinity
 
                                 onPressed: (mouse) => {
                                     root.forceActiveFocus();
                                     anchorX = mapToItem(lane, mouse.x, 0).x;
                                     moved = false;
+                                    push = false;
+                                    room = root.roomFor(lane.modelData, edge);
                                 }
 
                                 onPositionChanged: (mouse) => {
@@ -1017,9 +1017,13 @@ Item {
                                     // pixels a second, one pixel is a tenth.
                                     if (!moved && Math.abs(px) < Application.styleHints.startDragDistance)
                                         return;
-                                    const free = (mouse.modifiers & Qt.ControlModifier) !== 0;
+                                    const free = (mouse.modifiers & Qt.ShiftModifier) === 0;
                                     const from = lane.modelData.l + (edge === "out" ? lane.modelData.d : 0);
-                                    const delta = root.travel(from, px, free, edge !== "out");
+                                    const pushing = (mouse.modifiers & Qt.ControlModifier) !== 0;
+                                    // Alone, it stops where the gap after it has
+                                    // nothing left to give.
+                                    const delta = Math.min(root.travel(from, px, free, edge !== "out"),
+                                                           pushing ? Infinity : room);
                                     if (Math.abs(delta) > 0.001)
                                         moved = true;
                                     if (!moved)
@@ -1037,8 +1041,10 @@ Item {
                                     root.dropAt = from + (edge === "out" ? root.heldOut : root.heldIn);
                                     // Asked again when the SNAPPED moment moves, not on
                                     // every pixel: the plan parses the scene.
-                                    if (root.aim === null || !root.aim.held || root.aim.at !== root.dropAt)
+                                    if (root.aim === null || !root.aim.held || root.aim.at !== root.dropAt || push !== pushing) {
+                                        push = pushing;
                                         root.aim = grip.aimed(true);
+                                    }
                                 }
 
                                 onCanceled: root.letGo()
@@ -1052,9 +1058,9 @@ Item {
                                     if (!mine)
                                         return;
                                     if (edge !== "body")
-                                        root.trimmed(lane.modelData, edge, at);
+                                        root.trimmed(lane.modelData, edge, at, push);
                                     else if (Math.abs(by) > 0.001)
-                                        root.shifted(lane.modelData, by);
+                                        root.shifted(lane.modelData, by, push);
                                 }
 
                                 // A tap picks the clip and fills the Inspector; a double
@@ -1397,6 +1403,15 @@ Item {
                 // far up it has to read as something LAID OVER the clips, and
                 // under a third of red they are still perfectly legible.
                 color: Qt.alpha(Theme.inkDim, 0.10)
+
+                // The join, on the instant everything before it ended. Drawn
+                // here, under every label: on the labels' own layer the line
+                // of one gap ran through the writing of the gap before it.
+                Rectangle {
+                    width: 1
+                    height: parent.height
+                    color: Qt.alpha(Theme.inkDim, 0.45)
+                }
             }
         }
 
@@ -1413,14 +1428,7 @@ Item {
                 height: flick.height
                 z: 4
 
-                // The join, on the instant everything before it ended.
-                Rectangle {
-                    width: 1
-                    height: parent.height
-                    color: Qt.alpha(Theme.inkDim, 0.45)
-                }
-
-                // And where it is written, so the line is a thing you can go to
+                // Where it is written, so the line is a thing you can go to
                 // rather than a mark you have to decode.
                 // At the FOOT of the pane, not at its head: the head is the
                 // ruler's and the space under the last lane is the only place a
@@ -1432,19 +1440,14 @@ Item {
                 // the smallest edit this timeline can make.
                 Rectangle {
                     id: gapStamp
-                    // Centred on the MIDDLE of the gap, and allowed to overhang
-                    // it on both sides. A gap half a second long is twelve pixels
-                    // at the opening zoom and can hold no writing at all, so the
-                    // label used to disappear — the shortest waits, the ones
-                    // hardest to see, were the ones that never said what they
-                    // were.
-                    //
-                    // Centred on the join LINE instead, which is the gap's left
-                    // edge, it read as centred on the narrow gaps and as pinned
-                    // to the left of the wide ones: the same rule looking like
-                    // two.
-                    x: join.width / 2 - width / 2
-                    y: join.height - height - 4 - root.stampRow(join.index) * (height + 3)
+                    // From the gap's own start, like a clip from its first
+                    // frame, and allowed to overhang its end: a gap half a
+                    // second long is twelve pixels at the opening zoom and can
+                    // hold no writing at all. Centred on the gap it read as a
+                    // thing floating near it; pulled, it has to start where
+                    // the time it stretches starts.
+                    x: 0
+                    y: join.height - height - 4 - root.stampRowOf[join.index] * (height + 3)
                     width: stampText.implicitWidth + 12
                     height: stampText.implicitHeight + 6
                     radius: 3
@@ -1528,7 +1531,7 @@ Item {
                                 return;
                             pulled = true;
                             const ends = join.modelData.at + join.modelData.d;
-                            root.dropAt = ends + root.travel(ends, px, (mouse.modifiers & Qt.ControlModifier) !== 0, true);
+                            root.dropAt = ends + root.travel(ends, px, (mouse.modifiers & Qt.ShiftModifier) === 0, true);
                         }
 
                         onCanceled: { pulled = false; root.dropAt = -1; }

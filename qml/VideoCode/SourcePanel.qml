@@ -25,6 +25,26 @@ Item {
     // text on screen is briefly not valid Python. That is why the analyser is
     // told to hold: see `diffPending`.
     property var diffRows: []
+
+    // The lines a hand on the timeline is about to change, lit before the
+    // release writes them: `{ line, from, to, text, note, refused }`, lines
+    // from 1. `from`–`to` is the part of the line that changes; `text`, when
+    // it is not empty, is the whole line as it will read, drawn over the one
+    // in the buffer — which is never touched; `note` is said after the line:
+    // a statement that will be written under it, or why the gesture is refused.
+    property var aimed: []
+    onAimedChanged: if (aimed.length > 0) reveal(aimed[0].line)
+
+    // Scrolled only as far as it takes: a pane that jumps at every hover is a
+    // pane you stop reading.
+    function reveal(line) {
+        const flick = view.contentItem as Flickable;
+        const top = editor.topPadding + (line - 1) * gutter.lineHeight;
+        if (top < flick.contentY)
+            flick.contentY = Math.max(0, top - gutter.lineHeight);
+        else if (top + gutter.lineHeight > flick.contentY + view.height)
+            flick.contentY = top + 2 * gutter.lineHeight - view.height;
+    }
     readonly property bool diffPending: diffRows.length > 0
     property string name: "untitled.py"
     // Whether the buffer differs from what is on disk. Shown by the pane's tab,
@@ -1839,6 +1859,99 @@ Item {
                     color: touched.modelData.kind === "add"
                            ? Qt.rgba(0.31, 0.75, 0.53, 0.18)
                            : Qt.rgba(0.88, 0.38, 0.36, 0.18)
+                }
+            }
+
+            // What a hand on the timeline would change: the line, and on it
+            // the part that changes. Behind the glyphs, like the rows above.
+            Repeater {
+                model: root.aimed
+
+                Rectangle {
+                    id: lit
+                    required property var modelData
+                    readonly property rect head: editor.positionToRectangle(root.offsetOf(modelData.line - 1, modelData.from))
+                    readonly property rect tail: editor.positionToRectangle(root.offsetOf(modelData.line - 1, modelData.to))
+                    z: -1
+                    y: editor.topPadding + (modelData.line - 1) * gutter.lineHeight
+                    width: Math.max(view.width, editor.contentWidth)
+                    height: gutter.lineHeight
+                    color: Qt.alpha(modelData.refused ? Theme.bad : Theme.live, 0.13)
+
+                    Rectangle {
+                        visible: lit.modelData.to > lit.modelData.from && lit.modelData.text.length === 0
+                        x: lit.head.x
+                        width: lit.tail.x - lit.head.x
+                        height: parent.height
+                        radius: 2
+                        color: Qt.alpha(Theme.live, 0.30)
+                    }
+                }
+            }
+
+            // And over them, once the clip is held: the line as the release
+            // will write it, the value following the hand, and what is said
+            // beside a line — the statement going under it, or the refusal.
+            Repeater {
+                model: root.aimed
+
+                Item {
+                    id: ghost
+                    required property var modelData
+                    readonly property string reads: modelData.text
+                    readonly property rect end: editor.positionToRectangle(root.offsetOf(modelData.line - 1, 1e6))
+                    z: 1
+                    y: editor.topPadding + (modelData.line - 1) * gutter.lineHeight
+                    width: Math.max(view.width, editor.contentWidth)
+                    height: gutter.lineHeight
+
+                    Rectangle {
+                        visible: ghost.reads.length > 0
+                        anchors.fill: parent
+                        color: Theme.codeSkin.ground
+
+                        Rectangle {
+                            anchors.fill: parent
+                            color: Qt.alpha(Theme.live, 0.13)
+                        }
+
+                        Row {
+                            x: editor.leftPadding
+                            height: parent.height
+
+                            Text {
+                                height: parent.height
+                                verticalAlignment: Text.AlignVCenter
+                                text: ghost.reads.slice(0, ghost.modelData.from)
+                                color: Theme.codeSkin.ink
+                                font: editor.font
+                            }
+                            Text {
+                                height: parent.height
+                                verticalAlignment: Text.AlignVCenter
+                                text: ghost.reads.slice(ghost.modelData.from, ghost.modelData.to)
+                                color: Theme.live
+                                font: editor.font
+                            }
+                            Text {
+                                height: parent.height
+                                verticalAlignment: Text.AlignVCenter
+                                text: ghost.reads.slice(ghost.modelData.to)
+                                color: Theme.codeSkin.ink
+                                font: editor.font
+                            }
+                        }
+                    }
+
+                    Text {
+                        visible: ghost.modelData.note.length > 0
+                        x: ghost.end.x + 18
+                        height: parent.height
+                        verticalAlignment: Text.AlignVCenter
+                        text: (ghost.modelData.refused ? "" : "↳ ") + ghost.modelData.note
+                        color: ghost.modelData.refused ? Theme.bad : Theme.live
+                        font: editor.font
+                    }
                 }
             }
 

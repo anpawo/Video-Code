@@ -1885,8 +1885,9 @@ void VC::Editor::pressKey(const QString& spec)
         const QStringList at = spec.mid(5).split(',', Qt::SkipEmptyParts);
         if (at.size() >= 4) {
             // Anything after the four numbers is a flag: "hold" to keep the
-            // button down at the end, "cmd" to drag with the modifier held —
-            // which is a different gesture, not the same one done differently.
+            // button down at the end, "cmd" or "shift" to drag with the
+            // modifier held — which is a different gesture, not the same one
+            // done differently.
             bool                  hold = false;
             Qt::KeyboardModifiers modifiers = Qt::NoModifier;
             for (int i = 4; i < at.size(); ++i) {
@@ -1895,6 +1896,8 @@ void VC::Editor::pressKey(const QString& spec)
                     hold = true;
                 else if (flag == QStringLiteral("cmd"))
                     modifiers |= Qt::ControlModifier;
+                else if (flag == QStringLiteral("shift"))
+                    modifiers |= Qt::ShiftModifier;
             }
             dragProbe(QPointF(at[0].toDouble(), at[1].toDouble()), QPointF(at[2].toDouble(), at[3].toDouble()), hold, modifiers);
         }

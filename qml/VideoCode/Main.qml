@@ -2042,173 +2042,28 @@ ApplicationWindow {
     // window's level rather than inside the pane: a label that belongs to a
     // splitter is on the boundary of two panes, and inside either one it would be
     // clipped away by the very edge you are dragging.
-    //
-    // A clip's edge gets the long form (see aimTip): a callout beside the edge,
-    // with a notch pointing at it — outside the clip, so it never covers the
-    // bar being pulled, unless that side would leave the window.
     Rectangle {
         id: tipBox
         z: 340
         visible: app.tip !== null
-        readonly property bool aimed: app.tip !== null && app.tip.title !== undefined
-        readonly property bool flipped: aimed && (app.tip.leftward ? app.tip.x - 14 - width >= 8
-                                                                   : app.tip.x + 14 + width > app.width - 8)
-        width: aimed ? aimedText.implicitWidth + 24 : tipText.implicitWidth + 14
-        height: aimed ? aimedText.implicitHeight + 16 : tipText.implicitHeight + 8
+        width: tipText.implicitWidth + 14
+        height: tipText.implicitHeight + 8
         // Ahead of the pointer, and pulled back inside the window at the edges —
         // the reading you want is the one you get while dragging TOWARDS an edge.
-        x: app.tip === null ? 0
-           : aimed ? (flipped ? app.tip.x - 14 - width : app.tip.x + 14)
-           : Math.max(4, Math.min(app.tip.x + 14, app.width - width - 4))
-        y: app.tip !== null ? Math.max(4, Math.min(aimed ? app.tip.y - height / 2 : app.tip.y + 16, app.height - height - 4)) : 0
-        color: aimed ? "transparent" : Theme.rail
+        x: app.tip !== null ? Math.max(4, Math.min(app.tip.x + 14, app.width - width - 4)) : 0
+        y: app.tip !== null ? Math.max(4, Math.min(app.tip.y + 16, app.height - height - 4)) : 0
+        color: Theme.rail
         radius: Theme.radiusSmall
-        border.width: aimed ? 0 : 1
+        border.width: 1
         border.color: Theme.live
-
-        onAimedChanged: {
-            appear.stop();
-            opacity = 1;
-            if (aimed)
-                appear.start();
-        }
-        NumberAnimation { id: appear; target: tipBox; property: "opacity"; from: 0; to: 1; duration: Theme.motion(250) }
-
-        // Drawn opaque in a layer that is then made translucent as a whole: the
-        // notch's fill has to cover the box's border where the two meet, and
-        // two translucent fills would show the seam. The layer is widened by
-        // the notch on each side, or it would cut the notch off.
-        Item {
-            visible: tipBox.aimed
-            x: -8
-            width: tipBox.width + 16
-            height: tipBox.height
-            opacity: 0.85
-            layer.enabled: visible
-
-            Rectangle {
-                x: 8
-                width: tipBox.width
-                height: tipBox.height
-                radius: 12
-                color: Theme.sunk
-                border.width: 1
-                border.color: Qt.alpha(Theme.ink, 0.25)
-            }
-
-            Item {
-                x: tipBox.flipped ? 8 + tipBox.width - 1 : 1
-                y: app.tip !== null ? Math.max(12, Math.min(tipBox.height - 12, app.tip.y - tipBox.y)) - 7 : 0
-                width: 8
-                height: 14
-                clip: true
-
-                Rectangle {
-                    x: tipBox.flipped ? -4 : 2
-                    y: 2
-                    width: 10
-                    height: 10
-                    rotation: 45
-                    color: Theme.sunk
-                    border.width: 1
-                    border.color: Qt.alpha(Theme.ink, 0.25)
-                }
-            }
-        }
 
         Text {
             id: tipText
-            visible: !tipBox.aimed
             anchors.centerIn: parent
-            text: app.tip !== null && app.tip.text !== undefined ? app.tip.text : ""
+            text: app.tip !== null ? app.tip.text : ""
             color: Theme.ink
             font.family: Theme.mono
             font.pixelSize: 11
-        }
-
-        Column {
-            id: aimedText
-            visible: tipBox.aimed
-            x: 12
-            y: 8
-            spacing: 6
-
-            Text {
-                text: tipBox.aimed ? app.tip.title : ""
-                color: Theme.ink
-                font.family: Theme.ui
-                font.pixelSize: 15
-                font.weight: Font.Medium
-            }
-
-            // Refused before the button is let go, in the words the code pane
-            // would have used after.
-            Text {
-                visible: text.length > 0
-                width: Math.min(implicitWidth, 460)
-                wrapMode: Text.Wrap
-                text: tipBox.aimed ? app.tip.refused : ""
-                color: Theme.warn
-                font.family: Theme.mono
-                font.pixelSize: 12
-            }
-
-            // A scene line can run to two hundred characters and the tip must
-            // stay in the window: cut at a width, the change is near the start
-            // of the line anyway — it is what the gesture is aimed at.
-            Column {
-                width: Math.min(implicitWidth, 520)
-                clip: true
-                Repeater {
-                    model: tipBox.aimed ? app.tip.rows : []
-
-                    Row {
-                        required property var modelData
-                        spacing: 10
-
-                        Text {
-                            width: 22
-                            horizontalAlignment: Text.AlignRight
-                            text: parent.modelData.n
-                            color: Theme.inkFaint
-                            font.family: Theme.mono
-                            font.pixelSize: 12
-                        }
-
-                        Row {
-                            readonly property var line: parent.modelData
-                            readonly property color ink: line.here ? Theme.ink : Theme.inkDim
-
-                            Text {
-                                text: parent.line.text.slice(0, parent.line.from)
-                                color: parent.ink
-                                font.family: Theme.mono
-                                font.pixelSize: 12
-                            }
-                            Rectangle {
-                                width: changed.implicitWidth
-                                height: changed.implicitHeight
-                                radius: 2
-                                color: Theme.liveSoft
-
-                                Text {
-                                    id: changed
-                                    text: parent.parent.line.text.slice(parent.parent.line.from, parent.parent.line.to)
-                                    color: Theme.live
-                                    font.family: Theme.mono
-                                    font.pixelSize: 12
-                                }
-                            }
-                            Text {
-                                text: parent.line.text.slice(parent.line.to)
-                                color: parent.ink
-                                font.family: Theme.mono
-                                font.pixelSize: 12
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -2894,6 +2749,139 @@ ApplicationWindow {
         source.say(name + " at " + (target / fps).toFixed(1) + "s");
     }
 
+    // ── A clip in the hand, alone unless ⌘ pushes ─────────────────────────
+    //
+    // The scene is sequential: a clip that ends later starts every gap after
+    // it later, and the whole film follows. That is what ⌘ asks for. Without
+    // it the clip moves ALONE — the first gap that moved gives the time back,
+    // so nothing after that gap is touched — and it stops where that gap has
+    // nothing left.
+    //
+    // Measured on the run rather than worked out: whether a `hide` pushes
+    // depends on where the scene's clock stood when its line ran, and a first
+    // `.wait()` costs a frame more than it says. So the edit is written, the
+    // gaps are read again, and what the first of them lost is written back.
+    // The several writes are then folded into one, for one ⌘Z.
+    function gesture(element, edge, value, push) {
+        const before = source.text;
+        const fps = execFps > 0 ? execFps : 30;
+        const was = (liveScene.waits !== undefined ? liveScene.waits : [])
+                    .map((gap) => ({ at: Math.round(gap.at * fps), frames: Math.round(gap.d * fps) }));
+        const write = (to) => edge === "body" ? app.moveElement(element, to) : app.trimElement(element, edge, to);
+
+        write(value);
+        if (source.text === before || push)
+            return app.asOneEdit(before);
+
+        // More than the gap holds: as far as it goes, and no further. Asked
+        // again rather than computed once — a `.wait()` counts whole frames.
+        let owed = app.owedBy(was);
+        for (let tries = 0; owed !== null && owed.left < 0 && tries < 3; ++tries) {
+            value += owed.left / fps;
+            const went = edge === "body" ? value : value - element.l - (edge === "out" ? element.d : 0);
+            app.rewind(before);
+            if (went < 0.02) {
+                app.executeScene();
+                source.say("the wait() on line " + owed.line + " has no time left to give — ⌘ pushes what follows instead");
+                return;
+            }
+            write(value);
+            owed = source.text === before ? null : app.owedBy(was);
+        }
+        if (owed !== null) {
+            const span = owed.left < 0 ? { ok: false }
+                       : Shell.positionalSpan(source.text, owed.line, "wait", 0, app.plain(Math.ceil(owed.left / fps * 100 - 1e-6) / 100));
+            if (!span.ok) {
+                app.rewind(before);
+                app.executeScene();
+                source.say("the wait() on line " + owed.line + " cannot give that time back — ⌘ pushes what follows instead");
+                return;
+            }
+            source.replaceRange(span.start, span.end, span.text);
+            app.executeScene();
+        }
+        app.asOneEdit(before);
+    }
+
+    // The first gap a write moved, and the frames it would have left once it
+    // has given the move back. Null when no gap moved: nothing was pushed.
+    function owedBy(was) {
+        const fps = execFps > 0 ? execFps : 30;
+        const now = liveScene.waits !== undefined ? liveScene.waits : [];
+        if (now.length !== was.length)
+            return null;
+        for (let i = 0; i < now.length; ++i) {
+            const moved = Math.round(now[i].at * fps) - was[i].at;
+            if (moved !== 0)
+                return { line: now[i].line, left: was[i].frames - moved };
+        }
+        return null;
+    }
+
+    // The gap that follows a line, or null. The waits are in the film's order.
+    function gapAfter(line) {
+        const found = (liveScene.waits !== undefined ? liveScene.waits : []).find((gap) => gap.line > line);
+        return found !== undefined ? found : null;
+    }
+
+    // The gap a clip would push by ending later, and the slack it has before
+    // it does: a gap starts when the LAST thing before it has ended, so a clip
+    // that ends early can go that far without moving anything. Null when no
+    // gap follows, or when the clip's end is not its clock's to move — a left
+    // edge whose `hide` is told the old moment again.
+    function gapBehind(element, edge, line) {
+        const gap = app.gapAfter(line);
+        const points = element.points !== undefined ? element.points : [];
+        if (gap === null || (edge === "in" && points.some((point) => point.call === "hide")))
+            return null;
+        // Where the element's own clock stands: the end of the last thing it does.
+        const clock = element.effects.reduce((most, fx) => Math.max(most, fx.l + fx.d), 0);
+        return { gap: gap, slack: Math.max(0, gap.at - clock) };
+    }
+
+    // How far a clip can be taken later on its own: its slack, then what the
+    // gap behind it holds. A right edge is not held back here — whether a
+    // `hide` pushes at all is the run's to say, see gesture.
+    function roomAfter(element, edge) {
+        if (edge === "out")
+            return Infinity;
+        const plan = app.planGesture(element, edge, edge === "body" ? 0.1 : element.l + 0.1);
+        const behind = plan.ok ? app.gapBehind(element, edge, plan.line) : null;
+        if (behind === null)
+            return Infinity;
+        return behind.slack + (app.gapSpan(behind.gap).ok ? behind.gap.d : 0);
+    }
+
+    // Where a gap's number is written, if it is a number: a name is not the
+    // gesture's to change. Asked with another value than the one it holds —
+    // the same one is no edit, and is answered as a refusal.
+    function gapSpan(gap) {
+        return Shell.positionalSpan(source.text, gap.line, "wait", 0, app.plain(gap.d + 1));
+    }
+
+    function rewind(to) {
+        for (let guard = 0; source.text !== to && guard < 4; ++guard)
+            source.undo();
+    }
+
+    // What a gesture wrote in several steps, as one entry of the undo stack:
+    // taken back, then written again as the single range that differs.
+    function asOneEdit(before) {
+        const after = source.text;
+        if (after === before)
+            return;
+        app.rewind(before);
+        const now = source.text;
+        let head = 0;
+        while (head < now.length && head < after.length && now[head] === after[head])
+            ++head;
+        let tail = 0;
+        while (tail < now.length - head && tail < after.length - head
+               && now[now.length - 1 - tail] === after[after.length - 1 - tail])
+            ++tail;
+        source.replaceRange(head, now.length - tail, after.slice(head, after.length - tail));
+    }
+
     // ── Trimming: where a clip stops ──────────────────────────────────────
     //
     // One meaning for every kind, because the timeline only ever draws one
@@ -2955,7 +2943,7 @@ ApplicationWindow {
     }
 
     // What a clip gesture would write — the one decision behind the release
-    // (trimElement, moveElement) and the tip that shows it beforehand (aimTip).
+    // (trimElement, moveElement) and the lines lit beforehand (aimCode).
     // `value` is what the timeline hands over: the moment for an edge, the
     // distance for the body.
     function planGesture(element, edge, value) {
@@ -2974,58 +2962,65 @@ ApplicationWindow {
         return app.planClock(element, value);
     }
 
-    // The tip a hand on a clip gets: the line the release will write, as it
-    // will read, between its two neighbours — or the refusal, while the button
-    // is still down. Asked of `planGesture`, so it shows the edit the release
-    // makes, and the buffer is never touched. Two things only a run can know
-    // are not in it: a `.wait()` the scene ignores (taken back on release, see
-    // shiftClock) and the `hide` a moved left edge is told again (trimElement)
-    // — the tip shows the first edit.
-    function aimTip(aim) {
+    // What a hand on a clip lights in the code pane: the line the release will
+    // write — as it will read, once the clip is held — or the refusal, while
+    // the button is still down. Asked of `planGesture`, so it shows the edit
+    // the release makes, and the buffer is never touched. Alone, the gap that
+    // gives the time back is lit too: that line changes with it. Two things
+    // only a run can know are not in it: a `.wait()` the scene ignores (taken
+    // back on release, see shiftClock) and the `hide` a moved left edge is
+    // told again (trimElement).
+    function aimCode(aim) {
         if (aim === null) {
-            if (app.tip !== null && app.tip.title !== undefined)
-                app.tip = null;
+            source.aimed = [];
             return;
         }
         // Hovered, nothing is pulled yet: planned a tenth further, which is the
         // line a drag would touch, and any refusal a drag would meet.
         const nudged = aim.edge === "body" ? 0.1 : aim.at + 0.1;
         const plan = app.planGesture(aim.element, aim.edge, aim.held ? aim.value : nudged);
-        const tip = {
-            x: aim.x, y: aim.y, rows: [], refused: "", leftward: aim.edge !== "out",
-            title: aim.element.n + (aim.edge === "out" ? " ends at " : " starts at ") + aim.at.toFixed(1) + "s"
-        };
         if (!plan.ok) {
             const named = plan.offer !== undefined
                           ? Shell.constantOffer(source.text, plan.offer.line, plan.offer.call, plan.offer.key, plan.offer.value)
                           : { ok: false };
-            tip.refused = named.ok ? named.name + " is a name — let go and its own line is offered: " + named.name + " → " + plan.offer.value
-                        : plan.message.length > 0 ? plan.message : "nothing to write";
-            app.tip = tip;
+            source.aimed = [{
+                line: plan.offer !== undefined ? plan.offer.line : aim.element.line, from: 0, to: 0, text: "", refused: true,
+                note: named.ok ? named.name + " is a name — let go and its own line is offered: " + named.name + " → " + plan.offer.value
+                    : plan.message.length > 0 ? plan.message : "nothing to write"
+            }];
             return;
         }
 
-        let lines = source.text.split("\n");
-        let line = plan.line;
-        let from = 0;
-        let to = 0;
+        const rows = [];
         if (plan.insert === undefined) {
-            const text = aim.held ? source.text.slice(0, plan.start) + plan.text + source.text.slice(plan.end) : source.text;
-            const before = text.slice(0, plan.start).split("\n");
-            lines = text.split("\n");
-            line = before.length;
-            from = before[before.length - 1].length;
-            to = from + (aim.held ? plan.text.length : plan.end - plan.start);
-        } else if (aim.held) {
-            const indent = /^\s*/.exec(lines[plan.line - 1])[0];
-            lines.splice(plan.line, 0, indent + plan.insert);
-            line = plan.line + 1;
-            from = indent.length;
-            to = lines[plan.line].length;
+            const head = source.text.slice(0, plan.start).split("\n");
+            const from = head[head.length - 1].length;
+            const reads = source.text.split("\n")[head.length - 1];
+            rows.push({
+                line: head.length, from: from, to: from + (aim.held ? plan.text.length : plan.end - plan.start),
+                text: aim.held ? reads.slice(0, from) + plan.text + reads.slice(from + plan.end - plan.start) : "",
+                note: "", refused: false
+            });
+        } else {
+            // A statement of its own: said beside the line it goes under.
+            rows.push({ line: plan.line, from: 0, to: 0, text: "", note: aim.held ? plan.insert : "", refused: false });
         }
-        for (let n = Math.max(1, line - 1); n <= Math.min(lines.length, line + 1); ++n)
-            tip.rows.push({ n: n, text: lines[n - 1], from: n === line ? from : 0, to: n === line ? to : 0, here: n === line });
-        app.tip = tip;
+
+        // Lit only when it WILL change: past the slack the clip has before it
+        // is the last thing to end, and not for a left edge whose end a hide
+        // keeps in place.
+        const behind = aim.push || aim.edge === "out" ? null : app.gapBehind(aim.element, aim.edge, plan.line);
+        const went = !aim.held ? 0.05 : aim.edge === "body" ? aim.value : aim.value - aim.element.l;
+        if (behind !== null && went > behind.slack) {
+            const gap = behind.gap;
+            const span = app.gapSpan(gap);
+            const column = span.ok ? source.text.slice(0, span.start).split("\n").pop().length : 0;
+            rows.push({
+                line: gap.line, from: column, to: span.ok ? column + span.end - span.start : 0, text: "", refused: !span.ok,
+                note: span.ok ? "" : "a name cannot give the time back — ⌘ pushes what follows"
+            });
+        }
+        source.aimed = rows;
     }
 
     // The write, then what the run made of it. A `wait()` or a `waitFor()`
@@ -4105,9 +4100,10 @@ ApplicationWindow {
         // A gap edited on the timeline is one number rewritten in the file: the
         // wait carries the line it was written on, and `wait(0.3)` writes its
         // seconds without a name, so the span comes from the positional writer.
-        onTrimmed: (element, edge, seconds) => app.trimElement(element, edge, seconds)
-        onShifted: (element, seconds) => app.moveElement(element, seconds)
-        onAimChanged: app.aimTip(timeline.aim)
+        onTrimmed: (element, edge, seconds, push) => app.gesture(element, edge, seconds, push)
+        onShifted: (element, seconds, push) => app.gesture(element, "body", seconds, push)
+        roomFor: (element, edge) => app.roomAfter(element, edge)
+        onAimChanged: app.aimCode(timeline.aim)
         onWaitChanged: (line, seconds) => app.writeWait(line, parseFloat(seconds))
         onWaitDragged: (line, seconds) => app.dragWait(line, seconds)
 

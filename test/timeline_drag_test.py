@@ -49,10 +49,10 @@ EDGE = ("(function find(item) { if ((item.edge === 'in' || item.edge === 'out') 
         " return [line.mapToItem(null, 0, 0).x, line.mapToItem(null, line.width, 0).x, bar.mapToItem(null, 0, 0).x, bar.mapToItem(null, bar.width, 0).x].join(' ') }"
         " for (const c of item.children) { const r = find(c) ; if (r !== null) return r } return null })(timeline)")
 
-# The tip beside a clip's edge: its changed line, the part of it emphasised,
-# and the refusal — "" when there is none.
-TIP = ("app.tip === null ? null : JSON.stringify({ refused: app.tip.refused, rows: app.tip.rows.filter((r) => r.here)"
-       ".map((r) => [r.n, r.text, r.text.slice(r.from, r.to)]) })")
+# What the code pane lights for a hand on a clip: per line, its number, the
+# line as it will read ("" until the clip is held), the columns that change,
+# what is said beside it, and whether that is a refusal.
+LIT = "JSON.stringify(source.aimed.map((r) => [r.line, r.text, r.from, r.to, r.note, r.refused]))"
 
 
 def tell(*args: str) -> dict:
@@ -116,11 +116,21 @@ try:
     def at(name: str, seconds: float) -> tuple[float, float]:
         return x0 + seconds * pps, top + 32 * order.index(name) + 16
 
-    def drag(name: str, grab: float, by: float, flags: str = "") -> None:
+    # ⌘ pushes what follows and ⇧ snaps: the two together are the gesture the
+    # sections below were written against, and a drag with neither is the
+    # default one, checked on its own further down.
+    def drag(name: str, grab: float, by: float, flags: str = ",cmd,shift") -> None:
         """Press `grab` seconds into the clip — from its end when negative — and pull."""
         row = rows()[name]
         x, y = at(name, (row["from"] if grab >= 0 else row["to"]) + grab)
         gesture(f"Drag:{x},{y},{x + by * pps},{y}{flags}")
+
+    def aimed() -> list:
+        return json.loads(probe(LIT))
+
+    def span(row: list) -> str:
+        """The part of a lit line that changes, read off the line as it will be — or as it is."""
+        return (row[1] or lines()[row[0]])[row[2]:row[3]]
 
     original = lines()
     before = rows()
@@ -204,16 +214,18 @@ try:
     lit = [float(v) for v in probe(EDGE).split()]
     check(f"hovered from just outside, the right edge's line ends on the bar's own edge ({lit})",
           abs(lit[1] - lit[3]) < 0.5 and lit[1] - lit[0] <= 2)
-    tip = json.loads(probe(TIP))
-    check(f"hovered, the tip shows the line a drag would change, as it reads now ({tip})",
-          tip["refused"] == "" and tip["rows"] == [[10, "square.hide(start=1.5)", "1.5"]])
+    seen = aimed()
+    check(f"hovered, the code pane lights the line a drag would change, and the number on it ({seen})",
+          len(seen) == 1 and seen[0][0] == 10 and span(seen[0]) == "1.5" and not seen[0][5])
     cursorAt(left - 5, y)
     time.sleep(0.3)
     lit = [float(v) for v in probe(EDGE).split()]
     check(f"the left edge's line starts on the bar's left edge ({lit})", abs(lit[0] - lit[2]) < 0.5 and lit[1] - lit[0] <= 2)
-    check("and its tip names the wait that moves it", json.loads(probe(TIP))["rows"] == [[9, "square.wait(1).fadeIn()", "1"]])
+    seen = aimed()
+    check(f"the left edge lights the wait that moves it, and nothing else: its hide keeps the end where it is ({seen})",
+          [(row[0], span(row)) for row in seen] == [(9, "1")])
     cursorAt((left + right) / 2, 5)
-    check("the tip goes when the pointer leaves the edge", probe(TIP) is None)
+    check("the light goes when the pointer leaves the edge", aimed() == [])
 
     section("a click is still a click")
     gesture("Click:%s,%s" % at("circle", 1.5))
@@ -243,15 +255,16 @@ try:
     check("back to where it stood, the wait is gone — not `.wait(0)`", lines()[7] == original[7])
     check("and so is the move", rows()["title"]["first"] == before["title"]["first"])
 
-    drag("title", 1.0, 1.5, ",hold")
+    drag("title", 1.0, 1.5, ",hold,cmd,shift")
     held = probe("timeline.heldIn + ' ' + timeline.heldOut + ' ' + timeline.dropAt.toFixed(1)")
     check(f"while it is held the clip follows, and the moment under its edge is stamped ({held})", held == "1.5 1.5 1.5")
-    check("the tip shows the wait the release would write",
-          json.loads(probe(TIP))["rows"] == [[7, 'title = Text("Hello").wait(1.5).fadeIn()', ".wait(1.5)"]])
+    seen = aimed()
+    check(f"the code pane shows the line as the release would write it ({seen})",
+          len(seen) == 1 and seen[0][:2] == [7, 'title = Text("Hello").wait(1.5).fadeIn()'] and span(seen[0]) == ".wait(1.5)")
     check("while nothing is written yet", lines() == original)
     tell("key", "spec=Escape")
     check("Escape drops it", probe("timeline.heldLane") == -1)
-    check("and the tip with it", probe(TIP) is None)
+    check("and the light with it", aimed() == [])
     tell("key", "spec=Click:%s,%s" % at("title", 4.0))
     check("and the release writes nothing", lines() == original)
 
@@ -270,13 +283,14 @@ try:
 
     section("the right edge still writes hide(start=…)")
     settled = lines()
-    drag("square", -0.06, -0.5, ",hold")
-    tip = json.loads(probe(TIP))
+    drag("square", -0.06, -0.5, ",hold,cmd,shift")
+    seen = aimed()
     check("held, the buffer is untouched", lines() == settled)
     tell("key", "spec=Escape")
     tell("key", "spec=Click:%s,%s" % at("title", 4.0))
     drag("square", -0.06, -0.5)
-    check(f"what the tip showed is what the release wrote ({tip})", tip["rows"] == [[10, lines()[10], lines()[10][len("square.hide(start="):-1]]])
+    check(f"what the code pane showed is what the release wrote ({seen})",
+          len(seen) == 1 and seen[0][:2] == [10, lines()[10]] and span(seen[0]) == lines()[10][len("square.hide(start="):-1])
     now = rows()["square"]
     check("the hide moved", lines()[10].startswith("square.hide(start=") and lines()[10] != "square.hide(start=1.2)")
     check("the end is on the tenth the edge snapped to, the start stayed",
@@ -294,9 +308,10 @@ try:
           lines() == settled and probe(SAID).startswith("PAUSE → 1.5, read on 1 line"))
     drag("circle", 1.0, -0.2)
     check("sooner too", lines() == settled and probe(SAID).startswith("PAUSE → 0.3"))
-    drag("still", 1.0, 1.0, ",hold")
-    check("a refusal is in the tip before the button is let go",
-          json.loads(probe(TIP))["refused"].startswith("nothing says when still starts") and lines() == settled)
+    drag("still", 1.0, 1.0, ",hold,cmd,shift")
+    seen = aimed()
+    check(f"a refusal is said on the element's line before the button is let go ({seen})",
+          len(seen) == 1 and seen[0][5] and seen[0][4].startswith("nothing says when still starts") and lines() == settled)
     tell("key", "spec=Escape")
     tell("key", "spec=Click:%s,%s" % at("title", 4.0))
     drag("still", 1.0, 1.0)
@@ -312,6 +327,70 @@ try:
     check("a line another file wrote", lines() == settled and probe(SAID) == "titles.py wrote that line — open it to change it there")
     probe("moveElement(Object.assign({}, liveScene.elements[0], {kind: 'video'}), 1)")
     check("a video's body: its frames would not follow", lines() == settled and "nothing to move but that line" in probe(SAID))
+
+    section("alone — without ⌘, the gap after the clip gives the time back")
+    # A gap starts when the last thing before it has ended. `title` ends well
+    # before `wait(2)` starts, so it has slack: a small move pushes nothing. A
+    # long one makes it the last to end — the wait starts later, and everything
+    # under the wait with it. Alone, the wait is shortened by what that cost.
+    while lines() != original:
+        probe("source.undo()")
+    probe("app.executeScene()")
+    start = rows()
+    after = ("early", "late")
+
+    drag("title", 1.0, 1.0, "")
+    now = rows()
+    check(f"within its slack, the clip's line is the only one that changes ({lines()[7]})",
+          lines()[7] != original[7] and lines()[18] == original[18] and all(now[n]["first"] == start[n]["first"] for n in after))
+    probe("source.undo()")
+    probe("app.executeScene()")
+
+    drag("title", 1.0, 3.0, ",hold")
+    seen = aimed()
+    check(f"held past its slack, both lines that will change are lit: the clip's, and the gap's ({seen})",
+          [row[0] for row in seen] == [7, 18] and span(seen[1]) == "2")
+    tell("key", "spec=Escape")
+    tell("key", "spec=Click:%s,%s" % at("title", 4.0))
+
+    drag("title", 1.0, 3.0, "")
+    now = rows()
+    check(f"released, the clip moved ({lines()[7]})", 88 <= now["title"]["first"] - start["title"]["first"] <= 92)
+    check(f"the gap after it is shorter by what the move cost ({lines()[18]})", 0 < gapOn(18) < 2)
+    check("and nothing after that gap moved", all(now[n]["first"] == start[n]["first"] for n in after))
+    probe("source.undo()")
+    check("one ⌘Z takes both lines back", lines() == original)
+    probe("app.executeScene()")
+
+    drag("title", 1.0, 3.0, ",cmd")
+    now = rows()
+    check("with ⌘ the same drag leaves the gap as written, and what follows goes with it",
+          lines()[18] == original[18] and all(now[n]["first"] > start[n]["first"] for n in after))
+    probe("source.undo()")
+    probe("app.executeScene()")
+
+    drag("title", 1.0, 8.0, ",hold")
+    held = probe("timeline.heldIn")
+    check(f"alone, the clip stops where the gap has nothing left to give (held at {held}s of the 8 pulled)", 4.0 <= held <= 4.3)
+    tell("key", "spec=Escape")
+    tell("key", "spec=Click:%s,%s" % at("title", 4.0))
+    drag("title", 1.0, 8.0, "")
+    now = rows()
+    check(f"released there, the gap is spent and what follows has not moved ({lines()[7]} · {lines()[18]})",
+          gapOn(18) < 0.1 and all(now[n]["first"] == start[n]["first"] for n in after))
+    while lines() != original:
+        probe("source.undo()")
+    probe("app.executeScene()")
+
+    section("nothing snaps unless ⇧ is held")
+    drag("title", 1.0, 0.47, ",cmd")
+    check(f"free, the wait is the distance the hand went ({lines()[7]})", lines()[7] == 'title = Text("Hello").wait(0.47).fadeIn()')
+    probe("source.undo()")
+    probe("app.executeScene()")
+    drag("title", 1.0, 0.47, ",cmd,shift")
+    check(f"with ⇧ it goes to the tenth ({lines()[7]})", lines()[7] == 'title = Text("Hello").wait(0.5).fadeIn()')
+    probe("source.undo()")
+    probe("app.executeScene()")
 
     with open(SCENE) as onDisk:
         check("and the fixture on disk is what it was", onDisk.read().split("\n") == original[1:])
