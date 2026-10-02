@@ -172,25 +172,26 @@
     <h1>Chantier Video-Code</h1>
     <span class="branch">main</span>
     <span class="chips">
-      <span class="chip"><b>85</b> livrés</span>
-      <span class="chip"><b>11</b> à faire</span>
-      <span class="chip"><b>89</b> tests</span>
+      <span class="chip"><b>86</b> livrés</span>
+      <span class="chip"><b>10</b> à faire</span>
+      <span class="chip"><b>91</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">2 oct. · 13h</span>
+    <span class="stamp">2 oct. · 14h</span>
   </header>
 
   <div class="board">
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">30</span></h2>
+        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">31</span></h2>
         <ul class="rows">
           <li class="grp">Timeline & clips</li>
           <li class="hot" data-issue="185" data-fix="458e873" data-b="A dragged or stretched clip moves ALONE: the gap after it gives the time back, so nothing after that gap moves, and the clip stops where the gap has nothing left. Hold ⌘ to push everything after it instead. Nothing snaps unless ⇧ is held.¦Why it pushed: a gap starts when the last thing before it has ended. A clip with slack before that moment moves freely; past it, the gap is shortened by what the move cost — measured on the run, not predicted. The writes are one ⌘Z, the left edge with a hide included.¦A gap written as a name (wait(GAP)) cannot give time back: the clip stops there and the code pane says ⌘ pushes instead. test/timeline_drag_test.py drives all of it windowless.¦Yours: does alone-by-default feel right, the stop at the gap&#x27;s end, ⇧ as the snap key, and free numbers like 0.47 in your code."><span class="id">37</span><span class="lbl">A clip moves alone · ⌘ pushes · ⇧ snaps</span><span class="meta lock">458e873 · ta souris</span></li>
           <li class="hot" data-issue="180" data-fix="458e873" data-b="Each gap&#x27;s label starts exactly where its gap starts, and two labels never print on the same spot: each takes the lowest row that is free. The join lines run under the labels, not through them.¦The label is still the gap&#x27;s handle: pull it sideways and the gap ends where you let go, click it to type the number. A constant still offers to change its own line.¦test/timeline_gaps_test.py has five close gaps — the old panel printed three pairs on top of each other.¦Yours: the label caught first time, and whether three rows of labels over the last track are acceptable on a short pane."><span class="id">46</span><span class="lbl">Gap labels: at the gap's start, stacked, never overlapping</span><span class="meta lock">458e873 · ta souris</span></li>
           <li class="hot" data-issue="337" data-fix="458e873" data-b="The tooltip beside a clip&#x27;s edge is gone. Hovering an edge lights, in the Code pane, the line a drag would change and the number on it; once the clip is held the line reads as the release will write it, the value following the hand. A statement that will be added is said after the line it goes under; a refusal is said there in red before you let go.¦When the move will also shorten the gap after the clip, that gap&#x27;s line is lit too. The pane scrolls only if the line is off screen.¦The white line still falls exactly on the clip&#x27;s edge. The held line is drawn without syntax colours — the changed part is orange.¦Yours: is the lit line enough to aim by, and does the pane scrolling on a hover bother you."><span class="id">65</span><span class="lbl">Code pane lights what a gesture will change</span><span class="meta lock">458e873 · ta souris</span></li>
           <li class="hot" data-issue="245" data-fix="9e8af02" data-b="In the Inspector, a value past its bounds is set to the nearest one on Enter, or when you click elsewhere: 300 for an opacity writes 255, -5 writes 0. The notice says the range in numbers — &quot;opacity is 0–255&quot; — not the type&#x27;s name.¦In the Code pane nothing changed: opacity(300) typed by hand is still underlined in red and its clip hatched.¦Tested: test/inspector_bounds_test.py."><span class="id">57</span><span class="lbl">Out of bounds: set to the nearest value</span><span class="meta lock">9e8af02 · ta souris</span></li>
+          <li class="hot" data-issue="182" data-b="The Inspector&#x27;s &quot;At the playhead&quot; rows take a value: typing x = 3 at 2.5 s writes box.moveTo(x=3, at=2.1), twelve frames landing on the playhead&#x27;s frame. Opacity writes the new fadeTo(o).¦Fewer frames when a line sets that value just before; refused in words on a frame a line is already setting, on the element&#x27;s first frame (that is Transform&#x27;s), and for an element with no name.¦Written with at=, under every wait() that begins before it ends: the film&#x27;s length and every wait keep their place, or the line is taken back.¦test/stopwatch_test.py types through the Inspector&#x27;s signal, windowless.¦Yours: select a clip, park the playhead in a quiet stretch, type a Position X."><span class="id">35</span><span class="lbl">Stopwatch: a value typed at the playhead writes its line</span><span class="meta">f472c55 · ta souris</span></li>
           <li data-issue="174" data-b="A value written as a name is never overwritten. Pull the label of a gap written wait(GAP): nothing is written, and the Code pane offers &quot;GAP → 0.8, read on 1 line · click to change it&quot;.¦Same for a clip whose own .wait(PAUSE) is a name.¦Yours: pull that label, click the offer."><span class="id">10</span><span class="lbl">Gestes refusés et proposés</span><span class="meta">ta souris</span></li>
           <li class="grp">Moteur</li>
           <li class="hot" data-issue="130" data-b="Inside strokes stay inside: at corners tighter than the stroke the patch discs bulged out as blobs, and a thick triangle's inward miter ran through the far side into a spike. The inner vertex now stops at the first edge it crosses; a disc is kept only if its rim stays on the band's side. The issue's own two repros were already right and stay byte-identical.¦Text strokes sit outside the letters: their junction nubs become points that stop at the letter's edge (text-stroke golden moves 0.005, within budget, none rewritten). Stroke building for 500 moving glyphs ~3.2 → ~4.7 ms a frame.¦Branch worktree-agent-a27de4858f4a5500d (5c3d8f6), not on main. Images in its issue130/ folder.¦Yours: the text junctions, before/after."><span class="id">76</span><span class="lbl">Thick strokes stay inside the shape</span><span class="meta">5c3d8f6 · ton œil</span></li>
@@ -235,10 +236,8 @@
       </div>
 
       <div class="card todo">
-        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">4</span></h2>
+        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">3</span></h2>
         <ul class="rows">
-
-          <li data-issue="182" data-b="Tape une valeur à l&#x27;instant du curseur, la ligne s&#x27;écrit. Le chrono d&#x27;After Effects."><span class="id">35</span><span class="lbl">Fiche chronomètre</span><span class="meta">ton œil</span></li>
           <li data-issue="183" data-b="Un nombre qui évolue, et des objets qui le lisent.¦L'écriture existe (<code>attachTo</code>), il manque le verbe général.¦Lit une source pas encore tournée : d'où S1."><span class="id">36</span><span class="lbl">Valeur suivie + liaison</span><span class="meta">ton œil</span></li>
           <li class="hot" data-issue="187" data-b="Coins 10 px, onglet capsule, champs gélule. Aucune couleur touchée.¦Branche feat/apple-shapes, avant/après dans le fil."><span class="id">38</span><span class="lbl">Formes plus proches du système</span><span class="meta lock">prêt, ton œil</span></li>
           <li data-issue="189" data-b="La fenêtre sans écran reçoit le focus, la photo attend les touches.¦Reste : <code>window.active</code> est faux sans fenêtre plateforme.¦Piste restante <code>QWindow::create()</code>, non tentée : elle pourrait afficher."><span class="id">39</span><span class="lbl">Raccourcis de fenêtre en headless</span><span class="meta">ton avis</span></li>
