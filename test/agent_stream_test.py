@@ -6,7 +6,7 @@ A stand-in `claude` (test/agent_stream/claude) is put first on the PATH and
 plays one recorded turn; a windowless editor asks it a question and its pane is
 read back. No window opens, and no agent runs.
 
-Run directly: `python3 test/agent_stream_test.py`
+Run directly: `python3 test/agent_stream_test.py [picture.png]`
 """
 
 import json
@@ -77,6 +77,34 @@ try:
     check(f"the turn ended and left one answer ({words})", answer.get("ended", 0) > 0 and len(words) == 1)
     check("no colour code and no padding reach the pane",
           len(words) == 1 and words[0] == "⟶ Fait.\n\n- `a.py` read.")
+
+    # -----------------------------------------------------------------------
+    section("its steps come before its words, one line each")
+
+    kinds = [one["kind"] for one in body]
+    check(f"reasoning, two tools, then the answer ({kinds})", kinds == ["thinking", "tool", "tool", "text"])
+    if kinds == ["thinking", "tool", "tool", "text"]:
+        thought, read, missing = body[0], body[1], body[2]
+        check(f"two counts of one stretch of reasoning are one line, at the last count ({thought['tokens']})", thought["tokens"] == 211)
+        check(f"a tool says its name and what it was pointed at ({read['name']} {read['summary']})",
+              (read["name"], read["summary"]) == ("Read", "/scene/a.py"))
+        check("results are matched to their call, not to the order they came back in",
+              (read["state"], missing["state"]) == ("ok", "bad")
+              and "from videocode import *" in read["output"] and missing["output"] == "File does not exist.")
+        check(f"its arguments are kept for the unfolding ({read['input']!r})", '"limit": 40' in read["input"])
+
+    # -----------------------------------------------------------------------
+    section("a step unfolds where it is")
+
+    turn = int(probe("agent.log.length - 1"))
+    probe(f"agent.toggle({turn}, 1)")
+    opened = json.loads(probe(ANSWER))["body"]
+    check("the line clicked is the one that opens", [one.get("open", False) for one in opened] == [False, True, False, False])
+    check("and the page stops following the bottom, so it does not move under the reader", probe("agent.follows") is False)
+    if len(sys.argv) > 1:
+        probe("(function () { app.showPanel('agent') ; return 1 })()")
+        time.sleep(0.5)
+        tell("screenshot", f"out={sys.argv[1]}")
 
     tell("quit")
     editor.wait(timeout=10)
