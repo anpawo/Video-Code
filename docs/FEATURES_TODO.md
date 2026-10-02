@@ -58,7 +58,9 @@ exécutée** (`moveTo.py:24` : `src = v2(*input.meta.position)`), pas au moment 
 elle joue. Juste tant que les lignes sont écrites dans l'ordre du film,
 silencieusement faux sinon. `Context.backdatedWrites()` existe pour en avertir,
 et son propre commentaire dit que le vrai remède « demanderait que chaque ligne
-ait tourné d'abord ».
+ait tourné d'abord ». (2 Oct., `290a0c7`: the warning itself is gone — false since
+S1, it still told people to reorder lines whose order no longer changes the
+film; `backdatedWrites()` stays as what asks for the replay.)
 
 **Ce qui a été écarté après conception :** écrire un *marqueur* à la place de la
 valeur, résolu après coup. Ça ne marche que pour cinq canaux (déplacer, grandir,
