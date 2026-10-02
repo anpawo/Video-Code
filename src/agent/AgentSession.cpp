@@ -11,6 +11,7 @@
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QRegularExpression>
 #include <QStandardPaths>
 
 #include "agent/LineDiff.hpp"
@@ -39,6 +40,17 @@ namespace
         if (all.size() <= lines)
             return text;
         return all.mid(0, lines).join('\n') + QStringLiteral("\n… %1 more lines").arg(all.size() - lines);
+    }
+
+    // The words alone. A MessageDisplay hook written for the terminal colours a
+    // line with escape codes and pads it to the terminal's width with no-break
+    // spaces, and `-p` hands both over as text — measured, one answer carried
+    // two colour runs and 130 of those spaces.
+    QString plain(QString text)
+    {
+        static const QRegularExpression paint(QStringLiteral("\x1b\\[[0-9;]*m"));
+        static const QRegularExpression padding(QStringLiteral("\u00a0+$"), QRegularExpression::MultilineOption);
+        return text.remove(paint).remove(padding).trimmed();
     }
 }
 
@@ -415,7 +427,7 @@ void VC::AgentSession::handleAssistant(const QJsonObject& message)
         // what was DONE — the sentence and the call — and reasoning read
         // half-finished is worse than no reasoning at all.
         if (kind == QLatin1String("text")) {
-            const QString sentence = block.value("text").toString().trimmed();
+            const QString sentence = plain(block.value("text").toString());
             if (!sentence.isEmpty())
                 Q_EMIT said(sentence);
         } else if (kind == QLatin1String("tool_use")) {
