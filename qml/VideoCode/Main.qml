@@ -3608,7 +3608,8 @@ ApplicationWindow {
             },
             markers: shownScene.markers.map((m) => ({ name: m.n, at: m.at, line: m.line })),
             sound: Shell.hasAudio ? "ready" : (Shell.audioWhy.length > 0 ? Shell.audioWhy : "none"),
-            elements: shownScene.elements.length
+            elements: shownScene.elements.length,
+            frame: { width: Shell.frameWidth, height: Shell.frameHeight }
         });
 
         switch (verb) {
@@ -4083,6 +4084,10 @@ ApplicationWindow {
         ready: app.execRevision > 0
         onTogglePlay: app.togglePlay()
         onSeek: (seconds) => app.seekTo(seconds)
+        // The frame the scene is made in, so a 1080x1920 one is letterboxed as
+        // one rather than drawn into a 16:9 box.
+        frameWidth: Shell.frameWidth
+        frameHeight: Shell.frameHeight
     }
 
     TimelinePanel {

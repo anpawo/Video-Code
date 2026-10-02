@@ -47,6 +47,7 @@
 
 #include "agent/AgentSession.hpp"
 #include "compiler/AudioMix.hpp"
+#include "input/Metadata.hpp"
 #include "lsp/LanguageServer.hpp"
 #include "utils/ImageIO.hpp"
 #include "utils/Logger.hpp"
@@ -804,11 +805,25 @@ QVariantMap VC::Editor::executeScene(const QString& source, const QString& path)
     return answer;
 }
 
+int VC::Editor::frameWidth() const
+{
+    return static_cast<int>(config::screen.w());
+}
+
+int VC::Editor::frameHeight() const
+{
+    return static_cast<int>(config::screen.h());
+}
+
 int VC::Editor::sceneBuilt()
 {
     if (!_scene) {
         _sceneConfig.sourceFile = editorScenePath().toStdString();
         _sceneConfig.framerate = Config::SCENE_FRAMERATE;
+        // The mesh's NDC divisor reads the Config, not config::screen: left at
+        // its default, every frame would be laid out as a 1920x1080 one.
+        _sceneConfig.screenWidth = config::screen.w();
+        _sceneConfig.screenHeight = config::screen.h();
         _scene = std::make_unique<Core>(_sceneConfig);
     }
 
@@ -1347,7 +1362,8 @@ QVariantMap VC::Editor::renderSheet(const QString& scenePath, const QString& sou
     if (rendered.isEmpty())
         return {{"ok", false}, {"error", "could not write the scene to render"}};
 
-    QStringList args{QStringLiteral("--file"), rendered, QStringLiteral("--generate"), output};
+    // The editor's frame, or the child renders 1920x1080 whatever the preview showed.
+    QStringList args{QStringLiteral("--file"), rendered, QStringLiteral("--generate"), output, QStringLiteral("--width"), QString::number(frameWidth()), QStringLiteral("--height"), QString::number(frameHeight())};
     // The scene's own named moments when it has any; an even spread otherwise.
     if (at.isEmpty())
         args << QStringLiteral("--sheet") << QString::number(std::max(tiles, 2));
@@ -1387,7 +1403,8 @@ bool VC::Editor::startExport(const QString& scenePath, const QString& source, co
         return false;
     }
 
-    QStringList args{QStringLiteral("--file"), rendered, QStringLiteral("--generate"), output};
+    // The editor's frame, or the child renders 1920x1080 whatever the preview showed.
+    QStringList args{QStringLiteral("--file"), rendered, QStringLiteral("--generate"), output, QStringLiteral("--width"), QString::number(frameWidth()), QStringLiteral("--height"), QString::number(frameHeight())};
     if (from >= 0)
         args << QStringLiteral("--from") << QString::number(from, 'f', 3);
     if (to > from)

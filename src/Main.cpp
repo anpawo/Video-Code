@@ -469,6 +469,10 @@ static int run(argparse::ArgumentParser &parser, int argc, char *argv[])
         if (parser.is_used("--file"))
             qputenv("VC_SCENE_FILE", QByteArray::fromStdString(parser.get<std::string>("--file")));
 
+        // The frame the editor makes the scene in, from --width/--height like a
+        // render's: a 1080x1920 scene is previewed as one, and exported as one.
+        VC::makeConfig(parser);
+
         // --set previews one set of values — a row of the batch, say — in the
         // editor, and reaches the export it launches through the environment.
         if (parser.is_used("--set"))
