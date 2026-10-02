@@ -2,6 +2,7 @@
 # Redraws the logo's rasters from assets/logo/videocode.svg, which is the source:
 #
 #   assets/logo/videocode.png                     the mark alone
+#   logo.png                                      the mark alone at 150 px — what the README's example scene shows
 #   assets/logo/icon.png                          the mark on a night disc — the window icon off macOS
 #   Video-Code.app/Contents/Resources/icon.icns   the mark on a full night square: macOS masks a
 #                                                 square to its own shape, and puts a disc on a grey plate
@@ -40,6 +41,7 @@ try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWith
 SWIFT
 
 swift "$tmp/render.swift" assets/logo/videocode.svg assets/logo/videocode.png plain
+sips -z 150 150 assets/logo/videocode.png --out logo.png > /dev/null
 swift "$tmp/render.swift" assets/logo/videocode.svg assets/logo/icon.png disc
 swift "$tmp/render.swift" assets/logo/videocode.svg "$tmp/square.png" square
 
