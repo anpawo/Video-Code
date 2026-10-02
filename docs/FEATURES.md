@@ -356,7 +356,8 @@ Every `Input` (shape, text, group, ...) has:
 
 **Eased animations** (`start`, `duration`, `easing: RateFunc`):
 - `moveTo`/`moveBy`, `scaleTo`/`scaleBy`, `rotateTo`/`rotateBy`,
-  `alignTo`, `fadeIn`/`fadeOut`
+  `alignTo`, `fadeIn`/`fadeOut`, `fadeTo(o)` — to an opacity, from wherever
+  it stands
 - `moveAlong(path, face=False)` — travel a `Curve` (or any list of points) at
   ONE SPEED: the walk is measured first and each frame steps the same distance
   along it, because the points a curve is written with are dense at its bends
