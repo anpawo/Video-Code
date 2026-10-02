@@ -27,11 +27,11 @@ switch args[3] {
 case "disc":
     night.setFill()
     NSBezierPath(ovalIn: full.insetBy(dx: 100, dy: 100)).fill()
-    side = 480
+    side = 528
 case "square":
     night.setFill()
     full.fill()
-    side = 608
+    side = 669
 default: break
 }
 mark.draw(in: NSRect(x: (CGFloat(size) - side) / 2, y: (CGFloat(size) - side) / 2, width: side, height: side))
