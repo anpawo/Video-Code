@@ -1196,7 +1196,8 @@ ApplicationWindow {
             saved: saved,
             codeTheme: Theme.codeTheme,
             codeThemePicked: codeThemePicked,
-            keymap: Keymap.bindings
+            keymap: Keymap.bindings,
+            safeMargins: safeMargins
         }));
     }
 
@@ -1298,6 +1299,7 @@ ApplicationWindow {
             if (codeThemePicked && Theme.codeThemes[parsed.codeTheme] !== undefined)
                 Theme.codeTheme = parsed.codeTheme;
             Keymap.restore(parsed.keymap);
+            safeMargins = parsed.safeMargins === true;
 
             // The trees that DO come from disk are data from another run: they
             // may name panels this build no longer has. Anything unrecognised is
@@ -1492,6 +1494,15 @@ ApplicationWindow {
     // a layout: the old default was written to disk and would look like a
     // decision nobody made.
     property bool codeThemePicked: false
+
+    // The preview's safe margins. Kept in the dock file with the keys and the
+    // code theme: whether you work with guides on is a habit, not an attempt.
+    property bool safeMargins: false
+
+    function toggleSafeMargins() {
+        safeMargins = !safeMargins;
+        saveLayout();
+    }
 
     function openScene(path) {
         scenePath = path;
@@ -3608,7 +3619,10 @@ ApplicationWindow {
             },
             markers: shownScene.markers.map((m) => ({ name: m.n, at: m.at, line: m.line })),
             sound: Shell.hasAudio ? "ready" : (Shell.audioWhy.length > 0 ? Shell.audioWhy : "none"),
-            elements: shownScene.elements.length
+            elements: shownScene.elements.length,
+            // Said, so a screenshot's rectangles are not read as the scene's.
+            guides: safeMargins,
+            frame: { width: Shell.frameWidth, height: Shell.frameHeight }
         });
 
         switch (verb) {
@@ -4083,6 +4097,12 @@ ApplicationWindow {
         ready: app.execRevision > 0
         onTogglePlay: app.togglePlay()
         onSeek: (seconds) => app.seekTo(seconds)
+        // The frame the scene is made in, so a 1080x1920 one is letterboxed as
+        // one rather than drawn into a 16:9 box.
+        frameWidth: Shell.frameWidth
+        frameHeight: Shell.frameHeight
+        guides: app.safeMargins
+        onToggleGuides: app.toggleSafeMargins()
     }
 
     TimelinePanel {
@@ -4366,6 +4386,12 @@ ApplicationWindow {
         sequence: Keymap.sequence("zoomFit")
         enabled: app.keyFree("zoomFit")
         onActivated: timeline.zoomToFit()
+    }
+    // ': Premiere's key for the Program Monitor's safe margins.
+    Shortcut {
+        sequence: Keymap.sequence("safeMargins")
+        enabled: app.keyFree("safeMargins")
+        onActivated: app.toggleSafeMargins()
     }
     Shortcut {
         sequence: "Escape"
