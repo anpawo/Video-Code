@@ -435,21 +435,12 @@ nothing else:
 - **A channel nobody claims on a frame keeps the value it last had** — a
   transform holds until the next one, so an effect that ends early does not snap
   back.
-- **Write the lines in the order they play.** An animation reads where to start
-  from the CURSOR — where the element stands once every line above it has been
-  counted. That is right until a `start=` reaches back behind a line already
-  written: `moveTo(x=5, start=2)` followed by `moveTo(x=2)` sends x from 4.99
-  **down** to 2 over the first second, where the same two lines the other way
-  round send it from 0 up to 2. Same intent, two videos. A run says so:
-
-  ```
-  [videocode] scene.py:5 moveTo() opens at frame 0, behind scene.py:4 moveTo()
-              which was written above it and opens at frame 60.
-  ```
-
-  Reading the base from the timeline instead would fix it, but which statement
-  opens first is not known until every line has run — that is a change of when
-  the whole scene is baked, and it has not been made.
+- **The order the lines are typed in does not change the film.** An animation
+  starts from the value its element has on the frame it OPENS, not from where
+  the lines above happened to leave it: `moveTo(x=5, start=2)` followed by
+  `moveTo(x=2)` plays exactly like the same two lines the other way round. A
+  scene with a `start=` that reaches back behind a line written above it is run
+  again until every base is the one of its own frame.
 - **A group works the same way**, on its own channels — see *Grouping &
   Composition*. And its own working-out is not a rival: `g.scaleTo(...)
   .rotateBy(...)` re-emits position for every member on both calls;
@@ -1012,7 +1003,7 @@ Exit 1 if any line is an error; warnings alone exit 0. The rules:
 | `before-start` | error | a write before frame 0, which the renderer skips, or a negative `Sound` delay |
 | `never-visible` | warning | hidden or at opacity 0 on every frame |
 | `last-frame-only` | warning | made after the final `wait()`, so on screen for one frame |
-| `bad-value`, `contended-key`, `backdated-write` | as in the editor | what the Code pane already underlines |
+| `bad-value`, `contended-key` | as in the editor | what the Code pane already underlines |
 | `param` | error | with `--set`/`--data`: a required `param()` nobody gave, a value that does not read as its type, a `--set` key no `param()` reads |
 | `unread-column` | warning | with `--data`: a column no row's run read |
 | `title-safe` | warning | a `Text` resting outside title safe — the inner 80 % of the frame — on a frame where it is on screen |

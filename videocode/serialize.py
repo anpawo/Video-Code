@@ -97,22 +97,6 @@ def _oneLine(hit: dict) -> str:
     )
 
 
-def _oneLineBackdated(hit: dict) -> str:
-    """
-    The same, for a statement that opens BEHIND one written above it.
-
-    It needs its own sentence: a backdated hit has no `frames`, since the two
-    windows do not have to overlap at all — and reading the contention line's
-    `hit["frames"]` here raised a KeyError that killed the whole render. The
-    warning that names the trap refused to draw the picture.
-    """
-    a, b = hit["a"], hit["b"]
-    return (
-        f"{b['call']}() opens at frame {b['first']}, behind {a['call']}() (line {a['line']}) "
-        f"which was written above it — both write {hit['key']}."
-    )
-
-
 def _reportContendedKeys() -> list[dict]:
     """
     Say it out loud when two statements write the same key over the same frames.
@@ -155,40 +139,6 @@ def _reportBadValues() -> list[dict]:
     return [{"line": b["line"] - 1, "sourceLine": b["line"], "input": b["input"],
              "file": b["file"], "message": b["message"], "severity": 1, "rule": "bad-value"}
             for b in Context.badValues]
-
-
-def _reportBackdatedWrites() -> list[dict]:
-    """
-    Say it out loud when a line reaches back behind one already written.
-
-    An animation reads where to start from the CURSOR, which is right as long as
-    the lines are written in the order they play. A `start=` that opens before a
-    line written above it starts from a value belonging to a moment that has not
-    happened yet — and the same two lines the other way round give a different
-    video. Printed rather than fixed: reading the base from the stack instead
-    would need every line to have run first, which is a change of when the whole
-    scene is baked.
-    """
-    out: list[dict] = []
-    for hit in Context.backdatedWrites():
-        a, b = hit["a"], hit["b"]
-        print(
-            f"[videocode] {os.path.basename(b['file'])}:{b['line']} {b['call']}() opens at frame "
-            f"{b['first']}, behind {os.path.basename(a['file'])}:{a['line']} {a['call']}() which was "
-            f"written above it and opens at frame {a['first']}. Both write {hit['key']}.\n"
-            f"            An animation starts from where the element stands once every line above it "
-            f"has been counted — so this one starts from a value that belongs to a LATER moment, and "
-            f"writing the two lines the other way round gives a different video. Put them in the "
-            f"order they play, or give the earlier one its own start= too.",
-            file=sys.stderr,
-        )
-        # `line` is what the code pane needs (LSP counts from zero); `sourceLine`
-        # and `input` are what the timeline and the effect tree need, so that the
-        # bar and the row carrying the fault are found by identity rather than by
-        # comparing numbers that count from different places.
-        out.append({"line": b["line"] - 1, "sourceLine": b["line"], "input": hit["input"],
-                    "file": b["file"], "message": _oneLineBackdated(hit), "rule": "backdated-write"})
-    return out
 
 
 def _reportLint(model: dict) -> list[dict]:
@@ -556,7 +506,6 @@ def execScene(filepath: str) -> None:
     params.checkRun()
     _applyBackground(scope)
     _reportContendedKeys()
-    _reportBackdatedWrites()
 
 
 def sceneModel() -> dict:
@@ -1296,7 +1245,7 @@ def execSource(source: str, filepath: str) -> dict:
         # video" reached nobody who was editing. `Editor::executeScene` copies
         # every key of this dict through to QML, so returning them is the whole
         # of the wiring.
-        warnings = _reportContendedKeys() + _reportBackdatedWrites() + _reportBadValues()
+        warnings = _reportContendedKeys() + _reportBadValues()
         warnings = [w for w in warnings if w["file"] == filepath]
     except SyntaxError as error:
         return {
@@ -1354,7 +1303,7 @@ def _lintOnce(source: str, filepath: str, shape: str) -> set[tuple]:
             if message.startswith("ParamError: "):
                 return {(filepath, report["line"] + 1, "error", message.removeprefix("ParamError: "), "param")}
             return {(filepath, report["line"] + 1, "error", message, "scene-error")}
-        found = _reportContendedKeys() + _reportBackdatedWrites() + _reportBadValues() + _reportLint(json.loads(report["scene"]))
+        found = _reportContendedKeys() + _reportBadValues() + _reportLint(json.loads(report["scene"]))
         found += _reportTitleSafe(json.loads(report["scene"]), shape)
     return {(w["file"], w["sourceLine"], "error" if w.get("severity") == 1 else "warning", w["message"], w["rule"])
             for w in found}
