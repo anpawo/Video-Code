@@ -172,19 +172,19 @@
     <h1>Chantier Video-Code</h1>
     <span class="branch">main</span>
     <span class="chips">
-      <span class="chip"><b>83</b> livrés</span>
-      <span class="chip"><b>13</b> à faire</span>
+      <span class="chip"><b>84</b> livrés</span>
+      <span class="chip"><b>12</b> à faire</span>
       <span class="chip"><b>88</b> tests</span>
       <span class="chip"><b>52</b> scènes</span>
     </span>
-    <span class="stamp">2 oct. · 10h</span>
+    <span class="stamp">2 oct. · 12h</span>
   </header>
 
   <div class="board">
 
     <div class="col">
       <div class="card act">
-        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">28</span></h2>
+        <h2>Needs your check <em>une ligne = une chose à faire</em> <span class="n">29</span></h2>
         <ul class="rows">
           <li class="grp">Timeline & clips</li>
           <li class="hot" data-issue="185" data-fix="458e873" data-b="A dragged or stretched clip moves ALONE: the gap after it gives the time back, so nothing after that gap moves, and the clip stops where the gap has nothing left. Hold ⌘ to push everything after it instead. Nothing snaps unless ⇧ is held.¦Why it pushed: a gap starts when the last thing before it has ended. A clip with slack before that moment moves freely; past it, the gap is shortened by what the move cost — measured on the run, not predicted. The writes are one ⌘Z, the left edge with a hide included.¦A gap written as a name (wait(GAP)) cannot give time back: the clip stops there and the code pane says ⌘ pushes instead. test/timeline_drag_test.py drives all of it windowless.¦Yours: does alone-by-default feel right, the stop at the gap&#x27;s end, ⇧ as the snap key, and free numbers like 0.47 in your code."><span class="id">37</span><span class="lbl">A clip moves alone · ⌘ pushes · ⇧ snaps</span><span class="meta lock">458e873 · ta souris</span></li>
@@ -201,6 +201,7 @@
           <li class="hot" data-issue="361" data-b="The LoL template opens like your Tahm Kench video: one clip of play under the song, no title card, no darkening, and over its last 4.5 s the line &quot;today, we will find out / how to carry with Tahm Kench&quot; (hook= to change it), then a dip to black into the first section. Its own Intro chapter, as in the original.¦Measured on the original: the clip runs 0.7–28.1 s, the text 11.5–16 s, 0.5 s of black before Advanced Combo. The sample hook is the original's 16–28 s (no text burned in), the song its opening.¦Yours: watch videos/lol/tahm_kench.mp4, the first 12 s."><span class="id">75</span><span class="lbl">LoL video opens on a hook</span><span class="meta">d45fcc1 · ton œil</span></li>
           <li class="hot" data-issue="199" data-b="Video(path, holds=[(at, seconds)]): the image at `at` stays up for `seconds`, then the clip plays on from it — nothing skipped, the clip and its end() longer by the hold, and its own sound silent over the hold. The LoL template takes it per Clip; scene.py holds its second clip 1.5 s at 2 s.¦Named holds, not freeze(): freeze(n) already means pausing the whole scene.¦test/video_hold_test.py renders a clip whose brightness is its frame number: flat for exactly the hold, then climbing on; silence from 1.00 to 2.00 s.¦Yours: a hold on real footage."><span class="id">53</span><span class="lbl">Frame hold: Video(holds=…)</span><span class="meta">a9b2c75 · ton œil</span></li>
           <li class="hot" data-issue="363" data-b="The README gif went from 81 MB to 14 MB: 8 fps instead of 20, 560 px wide instead of 960, a 48-colour palette with ordered dithering. GitHub serves an 81 MB image slowly under a README, if at all.¦Yours: docs/readme/example.gif — is the motion still smooth enough, the dithering acceptable?"><span class="id">78</span><span class="lbl">README gif, 81 MB → 14 MB</span><span class="meta">b014701 · ton œil</span></li>
+          <li class="hot" data-issue="369" data-b="The lockup — the mark with &quot;videocode&quot; beside it, Inter Bold as outlines — is assets/logo/lockup.svg and heads the README.¦The README&#x27;s example scene shows the mark (logo.png, 150 px, drawn by scripts/logo.sh) instead of the Tinder-Mail icon; the gif is redone, 13 MB.¦Yours: the README header on GitHub in light and in dark, and the gif at 0:42."><span class="id">83</span><span class="lbl">Logo lockup heads the README, the example shows the mark</span><span class="meta">a87e048 · ton œil</span></li>
           <li class="hot" data-issue="238 240 242" data-b="roundCorners, feather (Edge Rounding et Softness de Palmier), saturation, temperature, chromaticAberration, letterbox. Un shader chacun, testés, golden lu, sur main en d073aa7 ; l'empreinte gagne une scène, les 52 autres inchangées.¦À ton œil : test/visual/golden/effect-shaders5_frame0.png, et marius.apply(roundCorners(0.2)) dans ta scène. Relance l'app, le binaire a changé."><span class="id">54</span><span class="lbl">Six effets d'image</span><span class="meta lock">d073aa7 · ton œil</span></li>
           <li class="hot" data-issue="239 241 243" data-b="dipToBlack, zoomThrough, slideOver, en Python à côté de crossfade et push, testés, golden lu, sur main en fd1e193. Manim n'a pas d'équivalent : ses animations vivent dans une seule scène, pas entre deux plans.¦À ton œil : test/visual/golden/transitions2_frame8.png. dipToBlack passe par le shader brightness, donc noir seulement, pas de couleur au choix."><span class="id">55</span><span class="lbl">Trois transitions</span><span class="meta lock">fd1e193 · ton œil</span></li>
           <li data-issue="177" data-b="youtube, tiktok, square en une commande, rejoués à chaque taille.¦Ouvre le tiktok et le carré du fil."><span class="id">14</span><span class="lbl">Une scène, tous les formats</span><span class="meta lock">un mot</span></li>
@@ -233,9 +234,8 @@
       </div>
 
       <div class="card todo">
-        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">6</span></h2>
+        <h2>To do · quick <em>rien ne les bloque</em> <span class="n">5</span></h2>
         <ul class="rows">
-          <li data-issue="369" data-b="Left over from the logo row, which he validated on 1 Oct.: the lockup — the mark with &quot;videocode&quot; written beside it — and the README&#x27;s example scene showing the logo instead of tinder-mail.png.¦The mark is assets/logo/videocode.svg; scripts/logo.sh draws its rasters."><span class="id">83</span><span class="lbl">Logo: the lockup with its name, and the README example on it</span><span class="meta">ton œil</span></li>
           <li data-issue="176" data-b="Une ligne repliée par outil lancé — son nom, ✓ ou ✗, dépliable sur ses arguments et son résultat — et le raisonnement en gris au-dessus de la réponse, comme ToolRunRow et ThinkingSummaryView chez Palmier.¦Aujourd'hui seules ses phrases s'affichent. Demandé le 17 sept."><span class="id">23</span><span class="lbl">Agent : ses étapes avant la réponse</span><span class="meta">ton œil</span></li>
 
           <li data-issue="182" data-b="Tape une valeur à l&#x27;instant du curseur, la ligne s&#x27;écrit. Le chrono d&#x27;After Effects."><span class="id">35</span><span class="lbl">Fiche chronomètre</span><span class="meta">ton œil</span></li>
