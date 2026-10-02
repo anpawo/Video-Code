@@ -49,7 +49,9 @@ with open(scene, "w") as f:
 
 class Editor:
     def __init__(self, *size: str):
-        self.sock = f"{work}/ed-{len(size)}-{time.monotonic_ns()}.sock"
+        # In /tmp, not beside the scene: a socket's path stops at 104 bytes, and
+        # the temporary folder of a session can already be 80 of them.
+        self.sock = f"/tmp/vc-guides-{os.getpid()}-{len(size)}-{time.monotonic_ns()}.sock"
         self.log = open(f"{work}/editor.log", "a+")
         self.process = subprocess.Popen(
             [binary, "--editor", "--check-chrome", "--serve", "--file", scene, *size],
